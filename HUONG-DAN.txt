@@ -1,0 +1,441 @@
+# Hướng dẫn sử dụng Tool Kiểm Tra Cấu Hình & Bản Quyền Windows/Office
+
+Phát triển bởi Thanh Việt
+Áp dụng cho dòng v4.3 Enterprise
+
+Tài liệu này hướng dẫn trực tiếp cách dùng từng chức năng. Lịch sử thay đổi của các phiên bản được tách riêng trong mục Phiên bản & cập nhật.
+
+## Phạm vi và nguyên tắc hoạt động
+
+- Tool hỗ trợ kiểm kê máy tính, kiểm tra Windows/Office, rà soát phần mềm, phát hiện dấu hiệu KMS/activator, sao lưu và khắc phục có kiểm soát.
+- Các chức năng 01–05, 07 ở bước kiểm tra, 09 và phần báo cáo của 10 là chỉ đọc.
+- Chức năng có thể thay đổi hệ thống luôn yêu cầu quyền Administrator, hiển thị nội dung cần xử lý, tạo backup và hỏi xác nhận.
+- Tool không cung cấp product key, không kích hoạt trái phép, không sử dụng KMS công cộng và không tự kết luận vi phạm bản quyền.
+- Product key đầy đủ, mật khẩu và dữ liệu đăng nhập không được ghi vào báo cáo.
+- Kết quả là bằng chứng kỹ thuật hỗ trợ quản trị. Muốn kết luận quyền sử dụng phải đối chiếu thêm tài khoản Microsoft, hóa đơn, hợp đồng hoặc hồ sơ cấp phép.
+
+## Chuẩn bị trước khi chạy
+
+1. Tải gói chính thức từ trang Releases của dự án.
+2. Giải nén gói phát hành vào một thư mục cố định.
+3. Không đổi tên, xóa hoặc trộn tệp của nhiều phiên bản.
+4. Đóng Word, Excel, Outlook và các ứng dụng Office trước khi xử lý giấy phép Office.
+5. Chuẩn bị key hoặc tài khoản bản quyền hợp lệ nếu dự kiến dùng chức năng 06 hoặc 08.
+6. Chạy Tool-Kiem-Tra-v4.3.exe và chấp nhận UAC.
+7. Chọn Tiếng Việt hoặc English, giao diện sáng hoặc tối.
+8. Giữ chế độ Ngoại tuyến nếu chỉ kiểm tra máy cục bộ. Chỉ cho phép mạng Mục 8 khi cần quản lý trong LAN.
+
+Nếu EXE chưa có chữ ký Authenticode hợp lệ, Windows sẽ hiển thị trạng thái NotSigned. Hãy đối chiếu SHA-256 với tệp checksum của đúng gói phát hành trước khi chạy.
+
+## Cách đọc màn hình chính
+
+- Bốn thẻ phía trên cho biết Windows, Office, chế độ chạy và trạng thái toàn vẹn.
+- Mười ô chức năng nằm trong vùng Chọn chức năng.
+- Dòng trạng thái cho biết tác vụ đã bắt đầu, hoàn tất, cảnh báo hoặc thất bại.
+- Khung Hoạt động gần đây ghi thời gian, bước đang chạy và kết quả cuối.
+- Thanh xanh chạy liên tục chỉ thể hiện Tool đang làm việc, không phải phần trăm giả định.
+- Báo cáo dành cho người đọc được lưu trực tiếp trên Desktop dưới dạng HTML và PDF.
+- Khi hoàn tất, Tool mở HTML bằng trình duyệt mặc định. JSON, XML hoặc CSV được giữ cho tích hợp và đối chiếu.
+
+## Chức năng 01 – Kiểm tra toàn bộ
+
+Khi nên dùng:
+
+- Kiểm kê một máy mới.
+- Chuẩn bị hồ sơ bàn giao, nâng cấp hoặc mua bản quyền.
+- Cần một báo cáo tổng hợp thay vì chạy từng mục riêng.
+
+Cách thực hiện:
+
+1. Chọn 01 Kiểm tra toàn bộ.
+2. Chọn chế độ riêng tư theo hộp hỏi của Tool. Dùng bản đã che khi cần gửi cho người ngoài bộ phận quản trị.
+3. Chờ quá trình thu thập phần cứng, Windows, Office, phần mềm và các chỉ báo liên quan.
+4. Khi HTML mở, xem các thẻ tổng quan trước rồi dùng Mục lục để chuyển đến phần chi tiết.
+5. Giữ HTML, PDF, JSON, XML và tệp SHA256SUMS cùng nhau nếu cần lưu hồ sơ.
+
+Kết quả chính:
+
+- Cấu hình phần cứng và hệ điều hành.
+- Trạng thái Windows, Office và kênh cấp phép.
+- Danh sách phần mềm, dịch vụ, tác vụ và chỉ báo cần xác minh.
+- Đánh giá tổng hợp theo phạm vi Tool đọc được.
+
+Lưu ý:
+
+- Không đóng Tool khi khung Hoạt động gần đây vẫn báo đang chạy.
+- Không xem trạng thái Completed là kết luận máy có bản quyền hợp pháp; hãy đọc phần đánh giá.
+
+## Chức năng 02 – Cấu hình phần cứng
+
+Khi nên dùng:
+
+- Kiểm kê thiết bị.
+- Đối chiếu cấu hình trước khi nâng cấp Windows, RAM, ổ đĩa hoặc phần mềm.
+- Lập báo cáo tài sản CNTT.
+
+Cách thực hiện:
+
+1. Chọn 02 Cấu hình phần cứng.
+2. Chọn có hoặc không che thông tin nhận dạng.
+3. Chờ Tool đọc CPU, RAM, bo mạch, BIOS/UEFI, ổ đĩa, phân vùng, đồ họa, màn hình, âm thanh, mạng, thiết bị USB và máy in.
+4. Mở HTML trên Desktop và kiểm tra phần Khả năng tương thích hệ thống nếu nguồn dữ liệu nào đó không khả dụng.
+
+Lưu ý:
+
+- Dung lượng ổ đĩa và RAM có thể khác số ghi trên nhãn do cách quy đổi đơn vị.
+- Secure Boot, TPM hoặc BitLocker có thể báo Không hỗ trợ hoặc Không đọc được tùy phiên bản Windows và firmware.
+
+## Chức năng 03 – Bản quyền Windows
+
+Khi nên dùng:
+
+- Xác định Windows đã kích hoạt hay chưa.
+- Kiểm tra edition, kênh OEM/Retail/MAK/KMS và cấu hình máy chủ KMS.
+- Chuẩn bị chuyển sang key chính thức.
+
+Cách thực hiện:
+
+1. Chọn 03 Bản quyền Windows.
+2. Chờ Tool đọc SoftwareLicensingProduct, SoftwareLicensingService và thông tin edition.
+3. Xem Trạng thái kích hoạt, Kênh cấp phép, PartialProductKey và máy chủ KMS nếu có.
+4. Đối chiếu kết quả với tài khoản, hóa đơn hoặc hợp đồng cấp phép.
+
+Cách hiểu kết quả:
+
+- Licensed hoặc Đã cấp phép: Windows báo đã kích hoạt ở thời điểm quét.
+- Notification hoặc Unlicensed: Windows chưa xác nhận kích hoạt; trạng thái này không tự chứng minh có crack.
+- OEM_DM: giấy phép OEM trong firmware có thể tồn tại, nhưng phải khớp edition đang cài.
+- Retail hoặc MAK: cần đối chiếu nguồn key và phạm vi được phép sử dụng.
+- Volume_KMS: hợp lệ chỉ khi máy thuộc tổ chức có hạ tầng KMS được phê duyệt.
+
+## Chức năng 04 – Bản quyền Microsoft Office
+
+Khi nên dùng:
+
+- Kiểm tra Office 2024, LTSC 2024, Microsoft 365 Apps hoặc các SKU Office khác.
+- Xác định SKU nào đang dùng Retail, MAK, subscription hoặc KMS.
+- Kiểm tra nhiều key/SKU trên cùng một bộ Office.
+
+Cách thực hiện:
+
+1. Đóng toàn bộ ứng dụng Office.
+2. Chọn 04 Bản quyền Microsoft Office.
+3. Chờ Tool tìm OSPP.VBS và chạy /dstatusall cho từng nền tảng được hỗ trợ.
+4. Xem từng SKU, trạng thái kích hoạt, 5 ký tự cuối key, kênh cấp phép và KMS override.
+5. Với Microsoft 365, đăng nhập đúng tài khoản trong ứng dụng Office để đối chiếu quyền sử dụng.
+
+Lưu ý:
+
+- Một máy có thể có nhiều SKU Office; phải đọc từng dòng thay vì chỉ nhìn một trạng thái chung.
+- Tool không lưu key Office đầy đủ.
+
+## Chức năng 05 – Phần mềm và dấu hiệu can thiệp
+
+Mục đích:
+
+- Liệt kê phần mềm đã cài.
+- Rà soát autorun, dịch vụ, scheduled task và các chỉ báo activator/KMS/crack.
+- Kiểm tra bổ sung phần mềm bên thứ ba mà không thay đổi giao diện báo cáo truyền thống.
+
+Cách thực hiện:
+
+1. Chọn 05 Phần mềm & dấu hiệu can thiệp.
+2. Chờ Tool đọc vùng cài đặt 32-bit, 64-bit và Current User.
+3. Trong báo cáo, đọc các bảng truyền thống trước: phần mềm đã cài, đánh giá sơ bộ, Startup, dịch vụ và tác vụ.
+4. Đọc phần Kiểm tra bổ sung phần mềm bên thứ ba ở cuối báo cáo.
+5. Với dòng Cần rà soát, kiểm tra lý do, chữ ký, nhà phát hành, nguồn cài, đường dẫn và phiên bản song song.
+6. Đối chiếu với hóa đơn, tài khoản hoặc danh mục phần mềm được tổ chức phê duyệt.
+
+Các trường kiểm tra bổ sung:
+
+- Chữ ký Authenticode của tệp đại diện.
+- Nguồn cài và lệnh gỡ.
+- Phạm vi máy/người dùng và kiến trúc.
+- Autorun, dịch vụ và scheduled task liên quan.
+- Nhiều phiên bản cùng tồn tại.
+- Mức cần rà soát và lý do cụ thể.
+
+Lưu ý:
+
+- Tên hoặc từ khóa đáng ngờ chỉ là tín hiệu. Không được tự kết luận vi phạm nếu chưa kiểm tra nguồn cài và quyền sử dụng.
+- Mục 05 không chạy, gỡ hoặc xóa phần mềm được phát hiện.
+
+## Chức năng 06 – Khắc phục KMS/Activator, đưa về trạng thái gốc
+
+Đây là chức năng có thể thay đổi hệ thống. Hãy chuẩn bị bản quyền hợp lệ, đóng Office và đọc toàn bộ danh sách trước khi xác nhận.
+
+Khi mở Mục 06, Tool hiển thị ba lựa chọn:
+
+1. Backup trước khi thực hiện.
+2. Kiểm tra và gỡ, đưa Windows/Office về trạng thái gốc.
+3. Khôi phục tự động từ backup.
+
+Lựa chọn 1 – Backup:
+
+1. Chọn Backup trước khi thực hiện.
+2. Tool tạo vùng backup được bảo vệ trong ProgramData.
+3. Manifest, HMAC và SHA-256 được tạo để phát hiện dữ liệu bị sửa.
+4. Mở báo cáo HTML để kiểm tra số mục đã sao lưu.
+5. Không di chuyển riêng lẻ tệp trong thư mục backup.
+
+Lựa chọn 2 – Quét và khắc phục:
+
+1. Chọn Kiểm tra và gỡ.
+2. Tool chạy quét chỉ đọc trước. Chưa có thay đổi ở bước này.
+3. Nếu nguồn WMI/CIM, dịch vụ cấp phép hoặc Scheduled Tasks bị lỗi, Tool khóa xử lý và hiển thị Sửa nhanh nguồn quét.
+4. Khi danh sách ứng viên xuất hiện, kiểm tra từng dòng service, task, tệp, thư mục, Registry, Defender hoặc giấy phép.
+5. Tất cả ô chọn đều bỏ chọn mặc định. Chỉ đánh dấu đúng mục đã xác minh.
+6. Đọc cảnh báo riêng đối với key Windows/Office. Việc gỡ key đã chọn có thể không khôi phục tự động nếu không có key hợp lệ.
+7. Xác nhận tổng thể.
+8. Tool tạo backup/quarantine có kiểm chứng trước khi thay đổi.
+9. Tool chỉ xử lý các dòng được đánh dấu.
+10. Tool quét lại và mở Trung tâm xử lý hậu kiểm.
+
+Trong Trung tâm xử lý:
+
+- Xử lý mục còn lại: mở danh sách mới và cho chọn tiếp.
+- Xác nhận KMS nội bộ: chỉ dùng khi quản trị viên xác minh máy chủ KMS hợp pháp của đơn vị.
+- Quét lại: chỉ đọc, không thay đổi máy.
+- Kích hoạt hợp lệ: chuyển sang Mục 08 khi máy đã đủ sạch và có giấy phép chính thức.
+- Khôi phục backup: mở quy trình phục hồi dữ liệu đã sao lưu.
+- Mở báo cáo: mở HTML/PDF bằng giao diện báo cáo chung.
+
+Lựa chọn 3 – Khôi phục:
+
+1. Chọn Khôi phục tự động.
+2. Chọn đúng thư mục backup_pre_cleanup hoặc quarantine có RESTORE-MANIFEST.json.
+3. Tool kiểm tra vị trí, ACL, manifest, HMAC và hash.
+4. Nếu dữ liệu đã bị chuyển ra ngoài vùng ProgramData được bảo vệ hoặc hash sai, Tool từ chối restore.
+5. Xem báo cáo sau khi khôi phục và quét lại máy.
+
+Các đối tượng được bảo vệ:
+
+- Key OEM/Retail/MAK hợp lệ.
+- KMS nội bộ có tên hoặc IP trong danh sách approved-kms-servers.
+- Dịch vụ Disabled không bị tự đổi StartupType bởi Sửa nhanh nguồn quét.
+- Event Log và lịch sử PowerShell không bị xóa.
+- Ngoại lệ Defender chỉ được ghi nhận; Tool không tự thêm lại khi restore.
+
+Cách hiểu hậu kiểm:
+
+- Đạt: không còn chỉ báo kích hoạt không hợp lệ trong phạm vi đã kiểm tra.
+- Chưa đủ sạch: còn mục cần xử lý hoặc xác minh.
+- Chưa thể kết luận: nguồn quét bị lỗi hoặc dữ liệu không đủ; không nên bỏ qua.
+
+## Chức năng 07 – Khôi phục key OEM
+
+Mục đích:
+
+- Kiểm tra key OEM OA3 do nhà sản xuất ghi trong BIOS/UEFI.
+- Chỉ áp dụng key sau khi người dùng chủ động xác nhận.
+
+Cách thực hiện:
+
+1. Chọn 07 Khôi phục key OEM.
+2. Tool tạo báo cáo kiểm tra firmware, edition hiện tại và trạng thái kích hoạt.
+3. Key đầy đủ không hiển thị; báo cáo chỉ dùng dạng che và 5 ký tự cuối.
+4. Nếu có key OEM, Tool hỏi có áp dụng hay không.
+5. Chọn No nếu chỉ cần kiểm tra.
+6. Chọn Yes khi đã xác nhận edition phù hợp và muốn Windows thử cài key OEM.
+7. Xem báo cáo HTML/PDF sau thao tác.
+
+Lưu ý:
+
+- Tool không chạy /upk hoặc /cpky trước khi thử key OEM.
+- Nếu key không khớp edition, Windows sẽ từ chối; không nên ép đổi edition ngoài quy trình chính thức.
+
+## Chức năng 08 – Quản lý giấy phép hợp lệ
+
+Mục 08 luôn có ba phần: quản lý cục bộ, máy chủ và máy trạm/laptop.
+
+Quản lý cục bộ:
+
+1. Chọn 08 Quản lý giấy phép hợp lệ.
+2. Chọn Quản lý cục bộ Windows/Office.
+3. Chọn tác vụ Windows hoặc Office cần thực hiện.
+4. Chỉ nhập key hợp lệ do Microsoft, nhà sản xuất hoặc tổ chức cấp.
+5. Đọc hộp xác nhận trước khi Tool gọi changepk.exe, DISM, slmgr.vbs hoặc OSPP.VBS.
+6. Với Microsoft 365, ưu tiên đăng nhập tài khoản được cấp phép.
+
+Công tắc mạng Mục 08:
+
+- Mặc định mạng Mục 08 bị tắt.
+- Chọn Cho phép mạng cho Mục 8 khi cần server/agent trong LAN.
+- Khi xong, chọn Tắt mạng cho Mục 8.
+- Tắt mạng không xóa cấu hình, báo cáo hoặc dữ liệu ghép nối.
+
+Thiết lập máy chủ:
+
+1. Mở phần Máy chủ.
+2. Nhập tên máy chủ, mã quản trị ít nhất 8 ký tự và cổng; mặc định là 49420.
+3. Chọn Tạo cấu hình máy chủ.
+4. Chọn Tạo mã ghép nối và chuyển mã qua kênh nội bộ an toàn.
+5. Chỉ cấp URL ACL và Firewall cho profile Domain/Private đã được phê duyệt.
+6. Để trống CIDR nếu muốn Tool tự nhận dải LAN, hoặc nhập CIDR/IP cụ thể.
+7. Quét nhanh để tìm máy có agent; ping không tự ghép nối máy.
+
+Thiết lập máy trạm/laptop:
+
+1. Mở phần Máy trạm/laptop.
+2. Nhập mã ghép nối.
+3. Dùng Tự tìm máy chủ nếu LAN chỉ có một máy chủ; nếu không, nhập IP hoặc tên máy chủ.
+4. Kiểm tra kết nối rồi ghép nối.
+5. Chỉ bật Cho phép máy chủ gửi tác vụ thay đổi license khi chính sách tổ chức cho phép.
+6. Có thể tạo lịch agent mỗi giờ; tắt lịch khi máy không còn thuộc hệ thống quản lý.
+
+Báo cáo doanh nghiệp:
+
+- Máy chủ hiển thị danh sách máy trạm, trạng thái Windows/Office và lần gửi cuối.
+- Xuất JSON, CSV, HTML, PDF và SHA-256 trực tiếp trên Desktop.
+- Báo cáo không chứa product key đầy đủ hoặc mã ghép nối.
+
+## Chức năng 09 – Kiểm tra chuyên sâu
+
+Mục 09 có hai chế độ chỉ đọc:
+
+- A – Kiểm tra chuyên sâu 7 nhóm.
+- B – Điều tra 12 nhóm và chấm điểm rủi ro.
+
+Cách thực hiện:
+
+1. Chọn 09 Kiểm tra chuyên sâu.
+2. Chọn A khi cần kiểm tra nhanh KMS, activator, key, thư mục, task và Registry/hosts.
+3. Chọn B khi cần thêm chữ ký tệp, nhật ký SPP, Office, Defender/Firewall, Secure Boot, TPM, BitLocker và so sánh lần quét trước.
+4. Chọn báo cáo đã che nếu dự kiến chia sẻ.
+5. Chờ Tool hoàn tất rồi đọc phần Kết luận và Bằng chứng.
+
+Kết quả:
+
+- Chế độ A tạo HTML/PDF và manifest.
+- Chế độ B tạo HTML, PDF, JSON, CSV, manifest và thư mục bằng chứng.
+- Điểm 0–100 là chỉ báo ưu tiên rà soát, không phải kết luận pháp lý.
+
+## Chức năng 10 – Trung tâm báo cáo bảo đảm
+
+Mục 10 gồm bảy lựa chọn:
+
+1. Kiểm tra chứng chỉ số Windows/Office.
+2. Đánh giá toàn bộ plugin và quy tắc mở rộng.
+3. Xác minh và xuất timeline thay đổi bản quyền.
+4. Cài plugin JSON chỉ đọc từ tệp.
+5. Mở thư mục plugin được bảo vệ.
+6. Mở hướng dẫn sử dụng chi tiết bằng HTML/PDF.
+7. Mở giới thiệu phiên bản và lịch sử cập nhật.
+
+Lựa chọn 1 – Chứng chỉ:
+
+- Kiểm tra Authenticode và chuỗi chứng chỉ cục bộ của các tệp Windows/Office quan trọng.
+- Invalid, UnknownError hoặc NotSigned cần được đọc cùng đường dẫn và nguồn tệp.
+
+Lựa chọn 2 – Plugin:
+
+- Chạy các quy tắc JSON khai báo chỉ đọc.
+- Plugin chỉ được đọc Registry value, service state hoặc metadata tệp trong vùng cho phép.
+- Plugin không được chạy script, DLL, command hoặc URL.
+
+Lựa chọn 3 – Timeline:
+
+- Xác minh DPAPI, HMAC-SHA256 và hash chain trước khi xuất.
+- Timeline chỉ chứa sự kiện do Tool ghi nhận kể từ khi hệ thống này được sử dụng.
+
+Lựa chọn 4 và 5 – Quản lý plugin:
+
+- Chỉ cài tệp có đuôi .plugin.json từ nguồn tin cậy.
+- Tool kiểm tra schema và SHA-256 trước/sau khi sao chép.
+- Thư mục plugin chỉ Administrators/SYSTEM có quyền ghi.
+
+Lựa chọn 6 – Hướng dẫn:
+
+- HTML mở ngay trong trình duyệt.
+- PDF được tạo và lưu cạnh HTML trên Desktop.
+- Tên tệp ổn định theo phiên bản và ngôn ngữ; lần mở sau dùng cache đã xác minh nên không xuất trùng.
+
+Lựa chọn 7 – Phiên bản & cập nhật:
+
+- Mở bài giới thiệu từng thế hệ phát hành.
+- Tài liệu nêu thay đổi, mô hình triển khai, công nghệ và nhóm mã nguồn sử dụng.
+- HDSD hiện tại không trộn nội dung lịch sử phiên bản.
+
+## Báo cáo và vị trí lưu
+
+- HTML và PDF dành cho người đọc được lưu trực tiếp trên Desktop.
+- HTML luôn là tệp được mở sau khi tác vụ hoàn tất.
+- JSON, XML và CSV dành cho tích hợp hoặc phân tích có cấu trúc.
+- Tệp SHA256SUMS dùng để phát hiện báo cáo bị thay đổi.
+- Một số bằng chứng forensics hoặc backup vẫn nằm trong thư mục con có kiểm soát; HTML/PDF trình bày vẫn nằm ở Desktop.
+- CSS báo cáo tự chứa, không tải font, script hoặc tài nguyên Internet.
+- PDF dùng Edge, Chrome hoặc Word cài trên máy. Nếu không có engine, HTML vẫn đầy đủ.
+
+## Xác minh tệp tải về
+
+Mở PowerShell tại thư mục chứa gói và chạy:
+
+```powershell
+Get-FileHash .\Tool-Kiem-Tra-v4.3.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.3.exe
+```
+
+So sánh toàn bộ SHA-256 với checksum được công bố trong Release. Không chỉ so tên hoặc dung lượng tệp.
+
+## Xử lý lỗi thường gặp
+
+Tool không mở:
+
+1. Giải nén lại đúng gói.
+2. Không chạy EXE trực tiếp bên trong ZIP.
+3. Kiểm tra Windows PowerShell 3.0 trở lên.
+4. Đối chiếu SHA-256.
+5. Kiểm tra AppLocker, WDAC, SmartScreen hoặc antivirus của tổ chức.
+
+Giao diện bị thiếu hoặc có thanh cuộn:
+
+1. Đóng các cửa sổ Tool cũ.
+2. Mở đúng một phiên bản.
+3. Đưa Display scaling về mức Windows khuyến nghị.
+4. Mở lại Tool để layout tính lại sau DPI.
+5. Trên màn hình thấp, dùng thanh cuộn dọc; Tool không cần thanh cuộn ngang.
+
+PDF chưa xuất:
+
+1. Dùng HTML đã mở.
+2. Kiểm tra Edge, Chrome hoặc Word.
+3. Có thể dùng Print và Microsoft Print to PDF.
+4. Không tải HTML lên website chuyển đổi không rõ nguồn gốc.
+
+Mục 06 báo Chưa thể kết luận:
+
+1. Chọn Sửa nhanh nguồn quét.
+2. Khởi động lại Windows nếu vẫn lỗi.
+3. Chạy DISM /Online /Cleanup-Image /RestoreHealth.
+4. Chạy sfc /scannow.
+5. Khởi động lại và quét lại.
+
+Mục 08 không tìm thấy máy chủ:
+
+1. Bật mạng riêng cho Mục 08.
+2. Kiểm tra route hai chiều.
+3. Kiểm tra Firewall TCP cổng đã cấu hình.
+4. Nhập IP/tên máy chủ nếu khác VLAN hoặc có nhiều server.
+5. Không mở cổng trên profile Public nếu chưa có chính sách cho phép.
+
+## Quy tắc an toàn cuối cùng
+
+- Luôn quét trước, chọn sau.
+- Không chọn mục chưa xác minh.
+- Không bỏ qua backup hoặc cảnh báo toàn vẹn.
+- Không dùng key hoặc KMS không rõ nguồn gốc.
+- Không gửi báo cáo đầy đủ ra ngoài nếu chưa rà soát dữ liệu.
+- Không coi điểm rủi ro hoặc một từ khóa là kết luận vi phạm.
+- Lưu checksum, báo cáo và hồ sơ mua bản quyền cùng nhau.
+- Khi cần kết luận pháp lý, liên hệ Microsoft hoặc đơn vị cấp phép có thẩm quyền.
+
+## Kênh chính thức và hỗ trợ
+
+Trang dự án và bản phát hành:
+
+https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen
+
+Hỗ trợ:
+
+- Zalo: 0978 005 017
+- Email: thanhvietit.hopnghia@gmail.com

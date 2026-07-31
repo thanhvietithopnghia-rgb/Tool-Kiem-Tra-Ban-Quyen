@@ -1,0 +1,11 @@
+﻿THÔNG BÁO QUYỀN SỬ DỤNG MÃ NGUỒN
+
+Copyright (c) 2026 Thanh Việt. All rights reserved.
+
+Mã nguồn trong gói này được cung cấp để xem, học tập, kiểm tra và đánh giá bảo mật.
+Việc công khai mã nguồn không mặc nhiên cấp quyền sao chép, sửa đổi, phân phối, bán hoặc
+phát hành lại. Muốn thực hiện các quyền đó, cần có sự cho phép của chủ sở hữu hoặc một
+giấy phép mã nguồn mở được chủ sở hữu lựa chọn sau này.
+
+Phần mềm được cung cấp nguyên trạng, không có bảo đảm. Người chạy tự chịu trách nhiệm
+kiểm tra phạm vi sử dụng và sao lưu trước các thao tác có thể thay đổi cấu hình hệ thống.

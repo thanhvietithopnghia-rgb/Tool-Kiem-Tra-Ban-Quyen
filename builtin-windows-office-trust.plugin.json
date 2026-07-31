@@ -1,0 +1,39 @@
+{
+  "SchemaVersion": "1.0",
+  "PluginId": "thanhviet.builtin.windows-office-trust",
+  "Name": "Windows/Office trust baseline",
+  "Version": "1.0.0",
+  "Publisher": "Thanh Viet",
+  "Description": "Bộ quy tắc khai báo chỉ đọc để phát hiện thiếu dịch vụ cấp phép hoặc chữ ký tệp hệ thống không hợp lệ.",
+  "MinimumToolVersion": "4.3",
+  "Enabled": true,
+  "Rules": [
+    {
+      "RuleId": "windows.sppsvc.missing",
+      "Type": "Service",
+      "Condition": "Missing",
+      "Name": "sppsvc",
+      "Severity": "Critical",
+      "Message": "Không tìm thấy Software Protection service (sppsvc).",
+      "Remediation": "Không tải tệp thay thế từ Internet. Chạy DISM/SFC từ nguồn Windows tin cậy hoặc liên hệ quản trị viên/Microsoft."
+    },
+    {
+      "RuleId": "windows.sppsvc.signature-invalid",
+      "Type": "File",
+      "Condition": "AuthenticodeNotValid",
+      "Path": "%SystemRoot%\\System32\\sppsvc.exe",
+      "Severity": "Critical",
+      "Message": "Chữ ký Authenticode của sppsvc.exe không hợp lệ.",
+      "Remediation": "Dừng mọi thay đổi bản quyền, kiểm tra Microsoft Defender và sửa thành phần Windows bằng DISM/SFC từ nguồn chính thức."
+    },
+    {
+      "RuleId": "windows.slui.signature-invalid",
+      "Type": "File",
+      "Condition": "AuthenticodeNotValid",
+      "Path": "%SystemRoot%\\System32\\slui.exe",
+      "Severity": "High",
+      "Message": "Chữ ký Authenticode của slui.exe không hợp lệ.",
+      "Remediation": "Không dùng công cụ kích hoạt bên thứ ba; kiểm tra tính toàn vẹn Windows và nguồn cài đặt."
+    }
+  ]
+}

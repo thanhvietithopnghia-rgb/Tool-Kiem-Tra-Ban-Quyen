@@ -1,0 +1,249 @@
+# Giới thiệu phiên bản và lịch sử cập nhật Tool Kiểm Tra
+
+Tài liệu này tách riêng phần giới thiệu phiên bản khỏi Hướng dẫn sử dụng. HDSD chỉ trình bày cách dùng từng chức năng; tài liệu này giải thích mỗi bản đã thay đổi gì, mô hình triển khai và công nghệ/mã nguồn đang sử dụng.
+
+Kho phát hành chính thức:
+https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen
+
+## v4.3.0.7 Enterprise – 31/07/2026
+
+Trọng tâm: hoàn thiện tài liệu, tốc độ mở HDSD và bố cục giao diện.
+
+- Loại bỏ khoảng trống và thanh cuộn ngang phát sinh khi WinForms bật thanh cuộn dọc ở màn hình thấp/DPI cao.
+- Viết lại toàn bộ bài Giới thiệu theo cấu trúc sản phẩm, mục đích, mô hình/công nghệ, tải/xác minh, điều khoản và an toàn.
+- Viết lại HDSD vi-VN/en-US theo 10 chức năng; mỗi chức năng có mục đích, cách chạy, cách đọc kết quả, vị trí lưu và lưu ý an toàn.
+- HDSD không còn trộn nội dung “có gì mới” theo phiên bản.
+- HDSD dùng tên tệp ổn định theo phiên bản/ngôn ngữ, cache theo SHA-256 nguồn và mở HTML ngay trước bước tạo PDF.
+- Thêm mục “Phiên bản & cập nhật” tại cửa sổ Giới thiệu và lựa chọn số 7 trong Chức năng 10.
+- Chuẩn hóa README dành cho GitHub, gói mã nguồn và ghi chú phát hành.
+
+Mô hình/mã nguồn: một EXE AnyCPU; launcher C#/.NET Framework 4; giao diện và nghiệp vụ PowerShell WinForms; tài liệu HTML/CSS tự chứa; PDF tạo cục bộ; JSON/XML/SHA-256 cho dữ liệu và kiểm chứng.
+
+## v4.3.0.6 Enterprise – 31/07/2026
+
+Trọng tâm: đồng bộ giao diện báo cáo HTML/PDF và khắc phục mất chữ.
+
+- Sửa tile Chức năng 07 bị cắt/mất chữ tại DPI cao nhưng giữ nguyên hình thức dashboard.
+- Làm nổi bật bốn khung Năng lực ở giao diện sáng và ghi rõ các số chức năng liên quan.
+- Đồng bộ báo cáo người đọc về cùng banner, metadata, thẻ tổng quan, mục lục, section, font Segoe UI và màu sắc.
+- Tất cả luồng báo cáo lưu HTML/PDF trên Desktop và mở HTML sau khi hoàn tất.
+- Chức năng 10 có lựa chọn xuất HDSD HTML/PDF thay cho mở TXT bằng Notepad.
+- Cải thiện CSS in A4 để bảng, hàng và nội dung dài không bị cắt.
+
+Mô hình/mã nguồn: PowerShell tạo HTML/CSS tự chứa; Edge/Chrome/Word tạo PDF cục bộ; `Tool-ReportExport.ps1` là lớp xuất dùng chung.
+
+## v4.3.0.5 Enterprise – 31/07/2026
+
+Trọng tâm: khôi phục tương thích Chức năng 05 với giao diện/báo cáo v4.3.0.3.
+
+- Khôi phục tên “Phần mềm & dấu hiệu can thiệp”.
+- Khôi phục tiền tố tệp, bảng chính, năm thẻ tổng quan và cách đánh giá cũ.
+- Phần kiểm tra phần mềm bên thứ ba chỉ được nối thêm ở cuối báo cáo.
+- JSON vẫn giữ dữ liệu chữ ký, nguồn cài, autorun, dịch vụ, tác vụ, phiên bản song song và mức rà soát.
+
+Mô hình/mã nguồn: hợp đồng legacy được giữ nguyên; dữ liệu mới được thêm theo nguyên tắc additive, không làm hỏng trình đọc cũ.
+
+## v4.3.0.4 Enterprise – 31/07/2026
+
+Trọng tâm: song ngữ, DPI và kiểm tra phần mềm bên thứ ba.
+
+- Đồng bộ vi-VN/en-US cho dashboard, trạng thái, Trung tâm bảo đảm và báo cáo.
+- Chuẩn hóa Segoe UI/GDI+ và tính layout theo WorkingArea/DPI.
+- Bổ sung inventory 32/64-bit/Current User, chữ ký số, nguồn cài, autorun, dịch vụ, tác vụ và lý do rà soát.
+- Thêm `DetailedInventory` trong JSON để không mất dữ liệu chi tiết.
+- HDSD được xuất HTML/PDF thay vì mở bằng Notepad.
+
+Mô hình/mã nguồn: localization bằng catalog JSON; WinForms dùng font và palette dùng chung; quét Registry/Authenticode chỉ đọc.
+
+## v4.3.0.3 Enterprise – 30/07/2026
+
+Trọng tâm: Chức năng 08 và điều khiển mạng riêng.
+
+- Đồng bộ giao diện/trạng thái vi-VN/en-US của quản lý Windows/Office cục bộ.
+- Thêm công tắc mạng độc lập cho Chức năng 08, mặc định tắt.
+- Giữ đủ ba vai trò: quản lý cục bộ, máy chủ và máy trạm/laptop.
+- Khi tắt mạng, Tool yêu cầu dừng server/agent đã khởi động nhưng không xóa cấu hình.
+
+Mô hình/mã nguồn: `Tool-Enterprise.ps1`, host và agent dùng cấu hình bảo vệ trong ProgramData; mạng chỉ bật theo xác nhận của người dùng.
+
+## v4.3.0.2 Enterprise – 30/07/2026
+
+Trọng tâm: tên chức năng và dashboard gọn.
+
+- Đổi Chức năng 06 thành “Khắc phục KMS/Activator, đưa về trạng thái gốc”.
+- Giữ nguyên quy trình quét, sao lưu, xem trước, xác nhận, khắc phục và khôi phục.
+- Thu dashboard về kích thước ưu tiên 1040 × 820 và tự co theo WorkingArea.
+- Thêm màu nhận diện riêng cho Chức năng 08.
+
+Mô hình/mã nguồn: WinForms responsive theo pixel sau AutoScale/DPI; fallback cuộn dọc cho màn hình thấp.
+
+## v4.3.0.1 Enterprise – 30/07/2026
+
+Trọng tâm: hotfix Chức năng 08.
+
+- Khôi phục đầy đủ quản lý cục bộ, máy chủ và máy trạm/laptop.
+- Offline toàn ứng dụng chỉ chặn thao tác LAN tại lúc chạy, không ẩn hoặc vô hiệu hóa ba vai trò.
+- Thêm hồi quy Light/Dark và mạng bật/tắt.
+
+Mô hình/mã nguồn: trạng thái UI tách khỏi policy gate; thao tác mạng vẫn fail-closed.
+
+## v4.3.0.0 Enterprise – 30/07/2026
+
+Trọng tâm: nền tảng dashboard hiện đại và chính sách offline.
+
+- Dashboard WinForms schema 2.0, card trạng thái, tile có mô tả, bo góc, hover, dark mode và DPI responsive.
+- Offline mặc định, không telemetry và không tự kiểm tra cập nhật.
+- Localization schema 1.0 với catalog vi-VN/en-US.
+- Compatibility catalog cho Windows 11 24H2/25H2/26H1, Office 2024/LTSC và Microsoft 365 Apps.
+- HTML/PDF tự chứa, CSP chặt, CSS A4 và browser network hardening.
+
+Mô hình/mã nguồn: launcher nhúng payload và kiểm tra integrity; policy, catalog, schema và module contract tách thành tệp độc lập.
+
+## v4.2.0.8 Enterprise – 25/07/2026
+
+- Hoàn thiện Light/Dark cho dashboard, cửa sổ con và Chức năng 08.
+- Truyền theme qua launcher/tác vụ UAC.
+- Áp dụng palette có tương phản mục tiêu tối thiểu 4.5:1.
+
+## v4.2.0.7 Enterprise – 24/07/2026
+
+- Đồng bộ toàn bộ nhãn phiên bản/build giữa giao diện, FileVersion, InformationalVersion và release manifest.
+- Chốt nhánh v4.2 trước khi chuyển sang dashboard schema 2.0.
+
+## v4.2.0.6 Enterprise – 24/07/2026
+
+- Khôi phục “Quản lý cục bộ Windows/Office”.
+- Chức năng 08 có đủ quản lý cục bộ, máy chủ và máy trạm/laptop.
+
+## v4.2.0.5 Enterprise – 24/07/2026
+
+- Sửa lỗi vẽ tab màu gây unhandled exception.
+- Khôi phục thao tác nút Đóng và thêm smoke test.
+
+## v4.2.0.4 Enterprise – 24/07/2026
+
+- Đổi Chức năng 08 sang màn hình chọn chức năng.
+- Thêm điều hướng trở về và đóng trung tâm.
+
+## v4.2.0.3 Enterprise – 24/07/2026
+
+- Sửa lỗi PowerShell khi Quét nhanh đã tìm thấy IP nhưng không hiển thị được máy/kết quả.
+- Thêm hồi quy Windows PowerShell 5.1.
+
+## v4.2.0.2 Enterprise – 24/07/2026
+
+- Thêm xóa cấu hình máy chủ có mã quản trị và xác nhận cuối.
+- Thu hồi URL ACL/Firewall do Tool tạo nhưng giữ báo cáo, kết quả và audit.
+
+## v4.2.0.1 Enterprise – 24/07/2026
+
+- Máy chủ tự chọn IPv4 LAN ưu tiên theo card có gateway.
+- Máy trạm có Tự tìm máy chủ khi chưa nhập địa chỉ.
+
+## v4.2.0.0 Enterprise – 24/07/2026
+
+- Thêm trung tâm quản lý license trong LAN với vai trò máy chủ/máy trạm.
+- Máy chủ quản lý CIDR/IP, client, tác vụ InventoryOnly/Windows/Office và báo cáo JSON/CSV/HTML.
+- Agent ghép nối bằng mã, dùng outbox DPAPI khi mất route.
+- Phong bì ứng dụng dùng AES-256-CBC + HMAC-SHA256, nonce, timestamp, replay/rate-limit.
+
+Mô hình/mã nguồn thế hệ 4.2: PowerShell host/agent, HTTP trong LAN; dữ liệu nhạy cảm bảo vệ bằng DPAPI LocalMachine và HMAC. Không đưa product key đầy đủ vào báo cáo/audit.
+
+## v4.1 R1 – 23/07/2026
+
+- Khôi phục thông điệp “Công cụ kiểm tra cấu hình & bản quyền Windows/Office”.
+- Thêm banner “Kiểm tra – Bảo đảm – Khắc phục – Lập báo cáo”.
+- Cửa sổ Giới thiệu trình bày bốn nhóm năng lực.
+- Sửa profile PDF: chuyển sang vùng `%LOCALAPPDATA%\Temp` có ACL bảo vệ, tránh lỗi khi runtime nằm trong ProgramData.
+
+## v4.1 – 23/07/2026
+
+- Thêm Trung tâm báo cáo, chứng chỉ, plugin và timeline.
+- Thêm `Tool-ReportExport.ps1` cho HTML, JSON, XML, PDF và SHA-256.
+- Plugin schema 1.0 chỉ cho quy tắc Registry/File/Service khai báo; từ chối DLL, URL hoặc mã tùy ý.
+- Thêm certificate audit và timeline DPAPI/HMAC/hash-chain.
+- Thêm luồng ký phát hành nhưng không tuyên bố đã ký nếu chưa có chứng thư thật.
+
+## v4.0 R2 – 23/07/2026
+
+- Sửa layout DPI/màn hình thấp và bỏ thanh cuộn ngang.
+- Thay hộp thoại kết quả cleanup dài bằng Trung tâm xử lý có vùng cuộn.
+- Sửa Office KMS nhiều SKU và ràng buộc thao tác theo SKU.
+- Bổ sung hậu kiểm, mã thoát và fixture hồi quy.
+
+## v4.0 – 23/07/2026
+
+- Ra mắt dashboard WinForms, 10 chức năng và Light/Dark.
+- Thêm report schema, module safety policy và verifier.
+- Quick repair không đổi StartupType; service Disabled được giữ nguyên.
+- Chuẩn hóa lời gọi công cụ hệ thống qua System32/Sysnative native.
+
+## v3.9 – 22/07/2026
+
+- Nâng report schema và thêm nguồn quét dự phòng.
+- Cải thiện kết luận fail-closed cho WMI/CIM, slmgr, dịch vụ và Scheduled Tasks.
+- Giảm false positive đối với SppExtComObj, lịch sử PowerShell và hosts.
+
+## v3.8 – 22/07/2026
+
+- Thêm ModuleContract/ModuleResult để chuẩn hóa entry point, quyền, capability và exit code.
+- GUI dùng cổng khởi chạy chung và kiểm tra kết quả mô-đun.
+- Verifier chạy trên cả PowerShell x64/x86.
+
+## v3.7 – 22/07/2026
+
+- Thêm capability profile cho Windows, kiến trúc, CIM/WMI, Scheduled Tasks, Defender, TPM, BitLocker và Secure Boot.
+- Thêm nhật ký JSONL theo ngày trong ProgramData có ACL.
+- Truyền correlation ID xuyên suốt dashboard và tác vụ con.
+
+## v3.6 – 22/07/2026
+
+- Chuyển sang một EXE AnyCPU tự chọn x64/x86.
+- Thêm PE hardening, deterministic build và kiểm tra CLR flags.
+- Không còn gọi PowerShell từ PATH; luôn dùng Windows PowerShell native.
+
+## v3.5 – 21/07/2026
+
+- Hoàn thiện backup/restore trong ProgramData có ACL, manifest, HMAC và SHA-256.
+- Kết luận fail-closed khi nguồn quét quan trọng không đọc được.
+- Cleanup mặc định không chọn mục nào; chỉ xử lý lựa chọn đã xác minh.
+- Bổ sung bảo vệ TOCTOU cho vùng runtime và khóa chức năng quản trị nếu integrity/ACL sai.
+
+## Mô hình triển khai hiện tại
+
+- Người dùng chạy một `Tool-Kiem-Tra-v4.3.exe` AnyCPU.
+- Launcher C# xác minh payload, chọn CLR/Windows PowerShell native và giải nén runtime an toàn.
+- Dashboard và logic nghiệp vụ dùng Windows PowerShell/WinForms.
+- Kiểm tra cục bộ là chế độ mặc định; mạng Internet/LAN bị chặn cho tới khi người dùng chủ động cho phép phạm vi phù hợp.
+- Chức năng 08 có mạng LAN tùy chọn; không có dịch vụ đám mây bắt buộc.
+- PDF được tạo tại máy bằng Edge, Chrome hoặc Word; HTML/CSS không tải font, script hoặc tài nguyên từ Internet.
+
+## Công nghệ và cấu trúc mã nguồn
+
+- C#/.NET Framework 4: launcher một tệp, metadata phiên bản, integrity và chọn kiến trúc.
+- Windows PowerShell/WinForms: giao diện và mười luồng nghiệp vụ.
+- JSON: localization, compatibility, plugin, module result và dữ liệu tích hợp.
+- HTML/CSS: báo cáo và tài liệu dành cho người đọc.
+- XML: định dạng tích hợp bổ sung.
+- SHA-256: đối chiếu source, payload, report và gói phát hành.
+- DPAPI + HMAC-SHA256 + hash-chain: backup/timeline và dữ liệu cục bộ cần bảo vệ.
+- AES-256-CBC + HMAC-SHA256: phong bì ứng dụng của quản lý LAN.
+
+Tool không gọi mô hình AI trực tuyến khi chạy. Không có telemetry và không tự gửi báo cáo, mật khẩu hoặc product key đầy đủ ra ngoài.
+
+## Cách kiểm tra bản tải về
+
+1. Chỉ tải từ trang Releases của kho chính thức.
+2. Đối chiếu số phiên bản trong tên gói, giao diện và `RELEASE-MANIFEST.json`.
+3. Chạy `Get-FileHash -Algorithm SHA256` và so với manifest.
+4. Chạy `Get-AuthenticodeSignature`; chỉ coi là đã ký khi trạng thái là `Valid`.
+5. Không trộn EXE/payload của hai phiên bản.
+
+## Cách mở tài liệu này trong Tool
+
+- Tại màn hình chính, chọn Giới thiệu → Phiên bản & cập nhật; hoặc
+- chọn Chức năng 10 → 7. Mở giới thiệu phiên bản và lịch sử cập nhật.
+
+Tool tạo HTML/PDF trên Desktop, mở HTML bằng trình duyệt mặc định và dùng cache SHA-256 để lần mở sau nhanh hơn.
+
+© 2026 Thanh Việt.

@@ -1,0 +1,94 @@
+{
+  "SchemaVersion": "1.0",
+  "ToolVersion": "4.3",
+  "ReviewedAtUtc": "2026-07-30T00:00:00Z",
+  "MaximumReviewAgeDays": 45,
+  "Sources": {
+    "WindowsReleaseHealth": "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information",
+    "Office2024Overview": "https://learn.microsoft.com/en-us/office/ltsc/2024/overview",
+    "OfficeProductIds": "https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/installation/product-ids-supported-office-deployment-click-to-run",
+    "Microsoft365UpdateHistory": "https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date",
+    "Microsoft365Channels": "https://learn.microsoft.com/en-us/microsoft-365-apps/updates/overview-update-channels"
+  },
+  "WindowsReleases": [
+    {
+      "Name": "Windows 11 24H2",
+      "DisplayVersion": "24H2",
+      "Build": 26100,
+      "LatestKnownRevision": 8875,
+      "ServicingState": "Supported",
+      "GeneralAvailability": "2024-10-01"
+    },
+    {
+      "Name": "Windows 11 25H2",
+      "DisplayVersion": "25H2",
+      "Build": 26200,
+      "LatestKnownRevision": 8875,
+      "ServicingState": "Supported",
+      "GeneralAvailability": "2025-09-30"
+    },
+    {
+      "Name": "Windows 11 26H1",
+      "DisplayVersion": "26H1",
+      "Build": 28000,
+      "LatestKnownRevision": 2525,
+      "ServicingState": "Supported",
+      "GeneralAvailability": "2026-02-10"
+    }
+  ],
+  "Office2024ProductIds": [
+    "ProPlus2024Retail",
+    "ProPlus2024Volume",
+    "Standard2024Volume",
+    "ProjectPro2024Retail",
+    "ProjectPro2024Volume",
+    "ProjectStd2024Retail",
+    "ProjectStd2024Volume",
+    "VisioPro2024Retail",
+    "VisioPro2024Volume",
+    "VisioStd2024Retail",
+    "VisioStd2024Volume",
+    "Access2024Retail",
+    "Access2024Volume",
+    "Excel2024Retail",
+    "Excel2024Volume",
+    "Word2024Retail",
+    "Word2024Volume",
+    "PowerPoint2024Retail",
+    "PowerPoint2024Volume",
+    "Outlook2024Retail",
+    "Outlook2024Volume",
+    "SkypeforBusiness2024Volume"
+  ],
+  "Microsoft365ProductIds": [
+    "O365ProPlusRetail",
+    "O365ProPlusEEANoTeamsRetail",
+    "O365BusinessRetail",
+    "O365BusinessEEANoTeamsRetail",
+    "VisioProRetail",
+    "ProjectProRetail"
+  ],
+  "Microsoft365Channels": [
+    {
+      "Name": "Current Channel",
+      "Id": "492350f6-3a01-4f97-b9c0-c7c6ddf67d60",
+      "LatestKnownVersion": "2606",
+      "LatestKnownBuild": "16.0.20131.20154",
+      "LatestKnownReleaseDate": "2026-07-14"
+    },
+    {
+      "Name": "Monthly Enterprise Channel",
+      "Id": "55336b82-a18d-4dd6-b5f6-9e5095c314a6",
+      "LatestKnownVersion": "2606",
+      "LatestKnownBuild": "16.0.20131.20152",
+      "LatestKnownReleaseDate": "2026-07-14"
+    },
+    {
+      "Name": "Semi-Annual Enterprise Channel",
+      "Id": "7ffbc6bf-bc32-4f92-8982-f9dd17fd3114",
+      "LatestKnownVersion": "2606",
+      "LatestKnownBuild": "16.0.20131.20150",
+      "LatestKnownReleaseDate": "2026-07-14"
+    }
+  ]
+}

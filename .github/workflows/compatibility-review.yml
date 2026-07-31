@@ -1,0 +1,36 @@
+name: Compatibility review gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+  push:
+    paths:
+      - 'compatibility-catalog-v1.0.json'
+      - 'Tool-Compatibility.ps1'
+      - 'VERIFY-COMPATIBILITY.ps1'
+      - '.github/workflows/compatibility-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate catalog and fixtures
+        shell: powershell
+        run: |
+          .\VERIFY-COMPATIBILITY.ps1 -SourceDirectory .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check official Microsoft source links
+        shell: powershell
+        run: |
+          $catalog = Get-Content .\compatibility-catalog-v1.0.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          foreach ($source in $catalog.Sources.PSObject.Properties) {
+            $response = Invoke-WebRequest -Uri ([string]$source.Value) -UseBasicParsing -MaximumRedirection 5
+            if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 400) {
+              throw "Microsoft source unavailable: $($source.Name) ($($response.StatusCode))"
+            }
+          }

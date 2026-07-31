@@ -52,7 +52,7 @@ Environment `TOOL_UI_CULTURE` có ưu tiên cao hơn và được truyền sang 
 6. mở rộng `VERIFY-OFFLINE-I18N.ps1`;
 7. kiểm tra layout ở 100%, 150% và 200% DPI.
 
-## Phạm vi v4.3.0.7
+## Phạm vi v4.3.0.8
 
 Dashboard/menu chính, cửa sổ Mục 8, trình quản lý cục bộ Windows/Office, các xác nhận/trạng thái/lỗi của Mục 8 và report shell dùng catalog đồng bộ. Verifier yêu cầu catalog vi-VN/en-US có cùng tập key và chạy smoke test Mục 8 ở cả Light/Dark, mạng bật/tắt.
 

@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$script:enterpriseReleaseVersion = "4.3.0.7"
+$script:enterpriseReleaseVersion = "4.3.0.8"
 $script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion) Enterprise"
 . (Join-Path $baseDir "Tool-ReportSchema.ps1")
 . (Join-Path $baseDir "Tool-Enterprise.ps1")
@@ -1054,7 +1054,7 @@ $serverTab.Controls.Add($script:jobKeyBox)
 $serverTab.Controls.Add((New-EnterpriseButton (Get-EnterpriseText "enterprise.server.createJob") 655 542 230 34 { Invoke-ServerJob }))
 $tabs.TabPages.Add($serverTab) | Out-Null
 
-# Chức năng 3: máy trạm/laptop
+# Chức năng 3: máy trạm
 $clientTab = New-Object Windows.Forms.TabPage
 $clientTab.Text = Get-EnterpriseText "enterprise.client.tab"
 $clientTab.BackColor = $script:enterprisePalette.ClientSurface
@@ -1202,7 +1202,7 @@ if ($SmokeTest) {
     if (-not $localManagerButton -or $localManagerButton.Text -ne (Get-EnterpriseText "enterprise.local.open")) {
         throw "Thiếu chức năng quản lý license cục bộ."
     }
-    if (-not $backButton -or -not $closeButton) { throw "Thiếu nút trở về hoặc nút đóng chức năng 8." }
+    if (-not $backButton -or -not $closeButton) { throw "Thiếu nút Back hoặc nút Đóng." }
     if (-not $script:enterpriseNetworkButton -or -not $form.Controls.Contains($script:enterpriseNetworkButton)) {
         throw "Thiếu điều khiển cho phép mạng; không được ẩn chức năng Máy chủ/Máy trạm khi Offline."
     }
@@ -1253,7 +1253,7 @@ if ($SmokeTest) {
         }
     }
     if ($script:serverClientList.Bottom -gt ($serverTab.ClientSize.Height + 1) -or $script:jobKeyBox.Right -gt ($serverTab.ClientSize.Width + 1)) {
-        throw "Bảng máy trạm hoặc hàng tác vụ bị khuất tại layout 980x620."
+        throw "Bảng máy trạm hoặc hàng lệnh quản lý bản quyền bị khuất tại layout 980x620."
     }
     $discoverButton = Find-EnterpriseDirectControl $clientTab (Get-EnterpriseText "enterprise.client.discover")
     if (-not $discoverButton -or $discoverButton.Right -gt ($clientTab.ClientSize.Width + 1)) {
@@ -1262,8 +1262,8 @@ if ($SmokeTest) {
     $tabs.SelectedIndex = 2
     $backButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()
-    if ($tabs.SelectedIndex -ne 1) { throw "Nút trở về không chuyển về chức năng trước." }
-    if ($closeButton.Text -ne (Get-EnterpriseText "enterprise.navigation.close")) { throw "Nút đóng chức năng 8 không đúng nhãn." }
+    if ($tabs.SelectedIndex -ne 1) { throw "Nút Back không chuyển về chức năng trước." }
+    if ($closeButton.Text -ne (Get-EnterpriseText "enterprise.navigation.close")) { throw "Nút Đóng không đúng nhãn." }
     $networkStateBefore = [bool]$script:enterpriseNetworkAllowed
     $script:enterpriseNetworkButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()

@@ -2,7 +2,7 @@
 
 if ($PSVersionTable.PSVersion.Major -lt 3) { exit 10 }
 
-$script:localLicenseVersion = "4.3.0.7"
+$script:localLicenseVersion = "4.3.0.8"
 $localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { exit 12 }
 . $localizationHelper

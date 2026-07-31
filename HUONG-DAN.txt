@@ -246,7 +246,7 @@ Lưu ý:
 
 ## Chức năng 08 – Quản lý giấy phép hợp lệ
 
-Mục 08 luôn có ba phần: quản lý cục bộ, máy chủ và máy trạm/laptop.
+Mục 08 luôn có ba phần: quản lý cục bộ, máy chủ và máy trạm.
 
 Quản lý cục bộ:
 
@@ -260,8 +260,8 @@ Quản lý cục bộ:
 Công tắc mạng Mục 08:
 
 - Mặc định mạng Mục 08 bị tắt.
-- Chọn Cho phép mạng cho Mục 8 khi cần server/agent trong LAN.
-- Khi xong, chọn Tắt mạng cho Mục 8.
+- Chọn Online khi cần server/agent trong LAN.
+- Khi xong, chọn Offline.
 - Tắt mạng không xóa cấu hình, báo cáo hoặc dữ liệu ghép nối.
 
 Thiết lập máy chủ:
@@ -274,9 +274,9 @@ Thiết lập máy chủ:
 6. Để trống CIDR nếu muốn Tool tự nhận dải LAN, hoặc nhập CIDR/IP cụ thể.
 7. Quét nhanh để tìm máy có agent; ping không tự ghép nối máy.
 
-Thiết lập máy trạm/laptop:
+Thiết lập máy trạm:
 
-1. Mở phần Máy trạm/laptop.
+1. Mở phần Máy trạm.
 2. Nhập mã ghép nối.
 3. Dùng Tự tìm máy chủ nếu LAN chỉ có một máy chủ; nếu không, nhập IP hoặc tên máy chủ.
 4. Kiểm tra kết nối rồi ghép nối.

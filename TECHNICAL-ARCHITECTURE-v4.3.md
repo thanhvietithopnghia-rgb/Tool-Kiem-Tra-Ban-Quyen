@@ -1,6 +1,6 @@
 # Kiến trúc kỹ thuật Tool-Kiem-Tra v4.3
 
-Tài liệu này mô tả kiến trúc phát hành `4.3.0.7`, dashboard schema `2.0` và các ranh giới an toàn của bản một tệp. Mã nguồn PowerShell tương ứng là nguồn sự thật; tài liệu không thay thế verifier.
+Tài liệu này mô tả kiến trúc phát hành `4.3.0.8`, dashboard schema `2.0` và các ranh giới an toàn của bản một tệp. Mã nguồn PowerShell tương ứng là nguồn sự thật; tài liệu không thay thế verifier.
 
 ## Mục tiêu kiến trúc
 
@@ -80,7 +80,7 @@ Build mới hơn catalog được trả về `AheadOfCatalog`/`ManualReview`, kh
 
 - không có preference hoặc preference lỗi → Offline;
 - chặn scope `Internet`, `Lan` và `Loopback`;
-- Enterprise UI vẫn khởi động và luôn hiển thị đủ Quản lý cục bộ, Máy chủ, Máy trạm/laptop;
+- Enterprise UI vẫn khởi động và luôn hiển thị đủ Quản lý cục bộ, Máy chủ, Máy trạm;
 - trạng thái mạng riêng của Mục 8 mặc định tắt và được lưu độc lập với Offline toàn ứng dụng;
 - server/agent và từng thao tác LAN bị chặn cho tới khi người dùng bật công tắc Mục 8;
 - người dùng có thể tắt lại công tắc; server/agent do cửa sổ khởi động được yêu cầu dừng nhưng cấu hình không bị xóa;

@@ -2,7 +2,7 @@
 
 $toolVersion = "4.3"
 $dashboardSchemaVersion = "2.0"
-$releaseVersion = "4.3.0.7"
+$releaseVersion = "4.3.0.8"
 $releaseBuildDate = "2026.07.31"
 $releaseDisplayName = "v$releaseVersion Enterprise"
 
@@ -155,7 +155,10 @@ $form.Font = $fontNormal
 $form.AutoScroll = $false
 $form.AutoScrollMargin = New-Object System.Drawing.Size(0, 0)
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
-$script:dashboardTheme = Get-ToolUiTheme
+# Mỗi lần mở dashboard luôn bắt đầu ở giao diện sáng. Người dùng vẫn có thể
+# chuyển sang giao diện tối trong phiên hiện tại bằng nút chủ đề.
+$script:dashboardTheme = "Light"
+$env:TOOL_UI_THEME = "Light"
 $script:toolUiPalette = Get-ToolUiPalette -Mode $script:dashboardTheme
 $script:dashboardCulture = Get-ToolCulture
 $script:offlineMode = [bool](Get-ToolOfflineMode)
@@ -350,7 +353,7 @@ $menuCaption.Size = New-Object System.Drawing.Size(300, 22)
 $buttonPanel.Controls.Add($menuCaption)
 
 $status = New-Object System.Windows.Forms.Label
-$status.Text = Get-ToolText -Key $(if ($script:offlineMode) { "status.offlineReady" } else { "status.ready" }) -Culture $script:dashboardCulture
+$status.Text = ""
 $status.Font = $fontNormal
 $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
 $status.TextAlign = "MiddleLeft"
@@ -366,6 +369,16 @@ $closeButton.Size = New-Object System.Drawing.Size(108, 30)
 $closeButton.Add_Click({ $form.Close() })
 $form.Controls.Add($closeButton)
 
+$stopButton = New-Object System.Windows.Forms.Button
+$stopButton.Text = Get-ToolText -Key "progress.stop" -Culture $script:dashboardCulture
+$stopButton.Font = $fontBold
+$stopButton.Location = New-Object System.Drawing.Point(484, ($buttonPanel.Bottom + 10))
+$stopButton.Size = New-Object System.Drawing.Size(108, 30)
+$stopButton.Visible = $false
+$stopButton.Enabled = $false
+$stopButton.Add_Click({ Stop-ActiveTask })
+$form.Controls.Add($stopButton)
+
 $progressCaption = New-Object System.Windows.Forms.Label
 $progressCaption.Text = Get-ToolText -Key "progress.caption" -Culture $script:dashboardCulture
 $progressCaption.Font = $fontBold
@@ -375,7 +388,7 @@ $progressCaption.Size = New-Object System.Drawing.Size(670, 18)
 $form.Controls.Add($progressCaption)
 
 $activityLabel = New-Object System.Windows.Forms.Label
-$activityLabel.Text = Get-ToolText -Key "progress.ready" -Culture $script:dashboardCulture
+$activityLabel.Text = ""
 $activityLabel.Font = $fontSmall
 $activityLabel.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
 $activityLabel.TextAlign = "MiddleLeft"
@@ -385,7 +398,7 @@ $activityLabel.Size = New-Object System.Drawing.Size(585, 20)
 $form.Controls.Add($activityLabel)
 
 $elapsedLabel = New-Object System.Windows.Forms.Label
-$elapsedLabel.Text = "00:00"
+$elapsedLabel.Text = ""
 $elapsedLabel.Font = $fontSmall
 $elapsedLabel.ForeColor = [System.Drawing.Color]::FromArgb(102, 112, 133)
 $elapsedLabel.TextAlign = "MiddleRight"
@@ -412,6 +425,11 @@ $progressLog.BackColor = [System.Drawing.Color]::White
 $progressLog.Location = New-Object System.Drawing.Point(38, ($progressBar.Bottom + 4))
 $progressLog.Size = New-Object System.Drawing.Size(670, 62)
 $form.Controls.Add($progressLog)
+
+$activityLabel.Visible = $false
+$elapsedLabel.Visible = $false
+$progressBar.Visible = $false
+$progressLog.Visible = $false
 
 # Kích thước cuối chỉ được chốt ở sự kiện Shown, sau khi WinForms đã áp dụng
 # DPI. Nếu tính trước AutoScale, control bị phóng lên nhưng cửa sổ vẫn giữ kích
@@ -441,6 +459,8 @@ $lastProgressHeartbeat = 0
 $buttons = New-Object System.Collections.ArrayList
 $script:reportPresentationCache = @{}
 $script:updatingMainLayout = $false
+$script:hasTaskActivity = $false
+$script:taskCancellationRequested = $false
 
 function Open-ToolReportPresentation {
     param(
@@ -536,15 +556,16 @@ function Set-ModernRoundedRegion {
 function Update-MainLayout {
     if ($script:updatingMainLayout) { return }
     $script:updatingMainLayout = $true
-    $refreshAfterScrollChange = $false
     try {
         $left = 28
         $right = 28
-        $scrollReserve = if ($form.VerticalScroll.Visible) { [System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth } else { 0 }
-        $clientWidth = [Math]::Max(1, $form.ClientSize.Width - $scrollReserve)
+        $form.AutoScroll = $false
+        $form.AutoScrollMinSize = New-Object System.Drawing.Size(0, 0)
+        $clientWidth = [Math]::Max(1, $form.ClientSize.Width)
         $contentWidth = [Math]::Max(360, $clientWidth - $left - $right)
         $compactHeight = [bool]($form.ClientSize.Height -lt 760)
         $ultraCompactHeight = [bool]($form.ClientSize.Height -lt 640)
+        $progressExpanded = [bool]$script:hasTaskActivity
 
         # Toàn bộ trục dọc được tính lại bằng pixel sau AutoScale/DPI. Không sử
         # dụng Bottom đã bị scale từ designer cũ vì nó làm sai chiều cao cửa sổ.
@@ -626,15 +647,20 @@ function Update-MainLayout {
         $rowGap = if ($ultraCompactHeight) { 2 } elseif ($compactHeight) { 5 } else { 7 }
         $tileMargin = 13
         $tileWidth = [Math]::Max(220, [Math]::Floor(($buttonPanel.ClientSize.Width - ($tileMargin * 2) - $tileGap) / 2))
-        $minimumLogHeight = if ($ultraCompactHeight) { 38 } elseif ($compactHeight) { 46 } else { 72 }
+        $minimumLogHeight = if ($ultraCompactHeight) { 24 } elseif ($compactHeight) { 36 } else { 62 }
         $statusRowHeight = if ($ultraCompactHeight) { 30 } elseif ($compactHeight) { 32 } else { 36 }
         $buttonPanelBottomPadding = if ($ultraCompactHeight) { 4 } else { 8 }
-        $progressFixedHeight = 5 + 20 + 20 + 15 + 4 + $minimumLogHeight + 10
+        $progressFixedHeight = if ($progressExpanded) {
+            5 + 20 + 20 + 15 + 4 + $minimumLogHeight + 8
+        } else {
+            5 + 20 + 8
+        }
         $availableButtonHeight = $form.ClientSize.Height - $buttonPanel.Top - $statusRowHeight - $progressFixedHeight
         $calculatedTileHeight = [Math]::Floor(($availableButtonHeight - 32 - (4 * $rowGap) - $buttonPanelBottomPadding) / 5)
-        # Hai dòng title/mô tả phải luôn còn đủ khoảng thở ở DPI cao. Ngưỡng
-        # 50 px tránh cắt chân chữ; màn hình thấp sẽ dùng cuộn dọc dự phòng.
-        $tileHeight = [Math]::Max(50, [Math]::Min(66, $calculatedTileHeight))
+        # Giao diện không dùng thanh cuộn của cửa sổ chính. Ở màn hình thấp,
+        # tile co xuống ngưỡng an toàn nhưng vẫn giữ đủ hai dòng và tooltip.
+        $minimumTileHeight = if ($ultraCompactHeight) { 42 } elseif ($compactHeight) { 46 } else { 50 }
+        $tileHeight = [Math]::Max($minimumTileHeight, [Math]::Min(66, $calculatedTileHeight))
         for ($buttonIndex = 0; $buttonIndex -lt $buttons.Count; $buttonIndex++) {
             $button = $buttons[$buttonIndex]
             $row = [Math]::Floor($buttonIndex / 2)
@@ -650,59 +676,53 @@ function Update-MainLayout {
         $status.Left = $left
         $status.Top = $buttonPanel.Bottom + $(if ($ultraCompactHeight) { 4 } else { 8 })
         $status.Height = if ($ultraCompactHeight) { 22 } elseif ($compactHeight) { 24 } else { 28 }
-        $status.Width = [Math]::Max(340, $contentWidth - $closeButton.Width - 12)
+        $closeButton.Height = if ($ultraCompactHeight) { 28 } else { 30 }
         $closeButton.Left = $left + $contentWidth - $closeButton.Width
-        $closeButton.Top = $buttonPanel.Bottom + $(if ($ultraCompactHeight) { 3 } else { 7 })
+        $closeButton.Top = $buttonPanel.Bottom + $(if ($ultraCompactHeight) { 2 } else { 5 })
+        $stopButton.Height = $closeButton.Height
+        $stopButton.Left = $closeButton.Left - $stopButton.Width - 8
+        $stopButton.Top = $closeButton.Top
+        $status.Width = [Math]::Max(260, $contentWidth - $closeButton.Width - $(if ($stopButton.Visible) { $stopButton.Width + 8 } else { 0 }) - 12)
 
         $progressCaption.Left = $left
         $progressCaption.Top = [Math]::Max($status.Bottom, $closeButton.Bottom) + $(if ($ultraCompactHeight) { 2 } else { 5 })
         $progressCaption.Height = if ($compactHeight) { 18 } else { 20 }
         $progressCaption.Width = $contentWidth
-        $activityLabel.Left = $left
-        $activityLabel.Top = $progressCaption.Bottom
-        $activityLabel.Height = 20
-        $activityLabel.Width = [Math]::Max(340, $contentWidth - $elapsedLabel.Width - 8)
-        $elapsedLabel.Left = $left + $contentWidth - $elapsedLabel.Width
-        $elapsedLabel.Top = $activityLabel.Top
-        $progressBar.Left = $left
-        $progressBar.Top = $activityLabel.Bottom + 1
-        $progressBar.Height = 14
-        $progressBar.Width = $contentWidth
-        $progressLog.Left = $left
-        $progressLog.Top = $progressBar.Bottom + 4
-        $progressLog.Width = $contentWidth
-
-        $availableLogHeight = $form.ClientSize.Height - $progressLog.Top - 10
-        $requiredClientHeight = $progressLog.Top + $minimumLogHeight + 10
-        if ($availableLogHeight -ge $minimumLogHeight) {
-            if ($form.AutoScroll) {
-                $form.AutoScroll = $false
-                $refreshAfterScrollChange = $true
-            }
-            $form.AutoScrollMinSize = New-Object System.Drawing.Size(0, 0)
-            $progressLog.Height = $availableLogHeight
+        if ($progressExpanded) {
+            $activityLabel.Visible = $true
+            $elapsedLabel.Visible = $true
+            $progressBar.Visible = $true
+            $progressLog.Visible = $true
+            $activityLabel.Left = $left
+            $activityLabel.Top = $progressCaption.Bottom
+            $activityLabel.Height = 20
+            $activityLabel.Width = [Math]::Max(260, $contentWidth - $elapsedLabel.Width - 8)
+            $elapsedLabel.Left = $left + $contentWidth - $elapsedLabel.Width
+            $elapsedLabel.Top = $activityLabel.Top
+            $progressBar.Left = $left
+            $progressBar.Top = $activityLabel.Bottom + 1
+            $progressBar.Height = 14
+            $progressBar.Width = $contentWidth
+            $progressLog.Left = $left
+            $progressLog.Top = $progressBar.Bottom + 4
+            $progressLog.Width = $contentWidth
+            $availableLogHeight = $form.ClientSize.Height - $progressLog.Top - 8
+            $progressLog.Height = [Math]::Max(20, $availableLogHeight)
         } else {
-            if (-not $form.AutoScroll) {
-                $form.AutoScroll = $true
-                $refreshAfterScrollChange = $true
-            }
-            $progressLog.Height = $minimumLogHeight
-            $form.AutoScrollMinSize = New-Object System.Drawing.Size(0, $requiredClientHeight)
+            $activityLabel.Visible = $false
+            $elapsedLabel.Visible = $false
+            $progressBar.Visible = $false
+            $progressLog.Visible = $false
         }
         Set-ModernRoundedRegion -Control $introPanel -Radius 14
         Set-ModernRoundedRegion -Control $buttonPanel -Radius 14
         Set-ModernRoundedRegion -Control $themeButton -Radius 9
         Set-ModernRoundedRegion -Control $offlineButton -Radius 9
         Set-ModernRoundedRegion -Control $introDetailButton -Radius 9
+        Set-ModernRoundedRegion -Control $stopButton -Radius 9
         Set-ModernRoundedRegion -Control $closeButton -Radius 9
     } finally {
         $script:updatingMainLayout = $false
-    }
-    # Việc bật thanh cuộn dọc làm hẹp ClientSize sau một chu kỳ message của
-    # WinForms. Tính lại chiều rộng ở chu kỳ kế tiếp để không sinh thanh cuộn
-    # ngang và khoảng trống thừa ở đáy cửa sổ.
-    if ($refreshAfterScrollChange -and $form.IsHandleCreated -and -not $form.IsDisposed) {
-        [void]$form.BeginInvoke([Action]{ Update-MainLayout })
     }
 }
 
@@ -827,6 +847,10 @@ function Show-ProductIntroduction {
         @{
             Title = Get-ToolText -Key "about.purpose.title" -Culture $script:dashboardCulture
             Body = Get-ToolText -Key "about.purpose.body" -Culture $script:dashboardCulture
+        },
+        @{
+            Title = Get-ToolText -Key "about.model.title" -Culture $script:dashboardCulture
+            Body = Get-ToolText -Key "about.model.body" -Culture $script:dashboardCulture
         },
         @{
             Title = Get-ToolText -Key "about.technology.title" -Culture $script:dashboardCulture
@@ -1024,9 +1048,6 @@ function Update-DashboardOfflineUi {
     $offlineKey = if ($script:offlineMode) { "app.offline.enabled" } else { "app.offline.disabled" }
     $offlineButton.Text = Get-ToolText -Key $offlineKey -Culture $script:dashboardCulture
     $toolTip.SetToolTip($offlineButton, (Get-ToolText -Key $(if ($script:offlineMode) { "app.offline.disable" } else { "app.offline.enable" }) -Culture $script:dashboardCulture))
-    if (-not $script:activeProcess) {
-        $status.Text = Get-ToolText -Key $(if ($script:offlineMode) { "status.offlineReady" } else { "status.ready" }) -Culture $script:dashboardCulture
-    }
 }
 
 function Toggle-DashboardOfflineMode {
@@ -1063,8 +1084,8 @@ function Set-DashboardLanguage {
     $introDetailButton.Text = Get-ToolText -Key "app.about" -Culture $Culture
     $menuCaption.Text = Get-ToolText -Key "dashboard.functions" -Culture $Culture
     $closeButton.Text = Get-ToolText -Key "app.close" -Culture $Culture
+    $stopButton.Text = Get-ToolText -Key "progress.stop" -Culture $Culture
     $progressCaption.Text = Get-ToolText -Key "progress.caption" -Culture $Culture
-    if (-not $script:activeProcess) { $activityLabel.Text = Get-ToolText -Key "progress.ready" -Culture $Culture }
 
     $dashboardCards["Compatibility"].Caption.Text = Get-ToolText -Key "dashboard.windows" -Culture $Culture
     $dashboardCards["Architecture"].Caption.Text = Get-ToolText -Key "dashboard.office" -Culture $Culture
@@ -1165,6 +1186,8 @@ function Set-DashboardTheme {
     $progressLog.ForeColor = $text
     $closeButton.BackColor = $surface
     $closeButton.ForeColor = $text
+    $stopButton.BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(139, 43, 52) } else { [System.Drawing.Color]::FromArgb(185, 28, 28) }
+    $stopButton.ForeColor = [System.Drawing.Color]::White
     $themeButton.BackColor = $surface
     $themeButton.ForeColor = $text
     $themeButton.Text = Get-ToolText -Key $(if ($dark) { "app.theme.light" } else { "app.theme.dark" }) -Culture $script:dashboardCulture
@@ -1515,22 +1538,14 @@ function Write-ProgressLog([string]$message) {
 }
 
 function Refresh-DashboardLocalizedActivity {
-    $progressLog.Clear()
-    Write-ProgressLog (Get-ToolText -Key "progress.languageChanged" -Culture $script:dashboardCulture)
-    $modeText = Get-ToolText -Key $(if ($script:offlineMode) { "app.offline.enabled" } else { "app.offline.disabled" }) -Culture $script:dashboardCulture
-    Write-ProgressLog (Get-ToolText -Key "progress.environment" -Culture $script:dashboardCulture -FormatArguments @(
-        [string]$capabilityState.WindowsReleaseName,
-        [string]$capabilityState.OfficeSummary,
-        [string]$modeText
-    ))
-    if ($script:lastIntegrityResult) {
-        $integrityText = if ($script:lastIntegrityResult.Valid) {
-            Get-ToolText -Key "dashboard.integrity.ok" -Culture $script:dashboardCulture -FormatArguments @($safetyPolicyState.RegistryValuePolicyCount)
-        } else {
-            Get-ToolText -Key "dashboard.integrity.failed" -Culture $script:dashboardCulture
-        }
-        Write-ProgressLog "$((Get-ToolText -Key "dashboard.integrity" -Culture $script:dashboardCulture)): $integrityText"
+    if (-not $script:hasTaskActivity) {
+        $status.Text = ""
+        $activityLabel.Text = ""
+        $elapsedLabel.Text = ""
+        $progressLog.Clear()
+        return
     }
+    if (-not $script:activeProcess) { $activityLabel.Text = $status.Text }
 }
 
 function Write-LicenseTimelineEventSafe {
@@ -1556,6 +1571,8 @@ function Write-LicenseTimelineEventSafe {
 
 function Start-ProgressDisplay([string]$action, [string]$detail, [bool]$preserveLog) {
     if (-not $preserveLog) { $progressLog.Clear() }
+    $script:hasTaskActivity = $true
+    $script:taskCancellationRequested = $false
     $script:taskStartedAt = Get-Date
     $script:lastProgressHeartbeat = 0
     $script:progressTick = 0
@@ -1566,6 +1583,7 @@ function Start-ProgressDisplay([string]$action, [string]$detail, [bool]$preserve
     $progressBar.Value = 0
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee
     $progressBar.MarqueeAnimationSpeed = 24
+    Update-MainLayout
     Write-ProgressLog (Get-ToolText -Key "progress.started" -Culture $script:dashboardCulture -FormatArguments @($action))
     [void](Write-ToolLog -Level "INFO" -Event "Action.Start" -Message $action -Data ([ordered]@{
         Detail = $detail
@@ -1587,6 +1605,21 @@ function Stop-ProgressDisplay([string]$summary) {
     $activityLabel.Text = $summary
     $activityLabel.ForeColor = $status.ForeColor
     [void](Write-ToolLog -Level "INFO" -Event "Action.DisplayStopped" -Message $summary -DurationMs $durationMs)
+}
+
+function Reset-IdleTaskDisplay {
+    $script:hasTaskActivity = $false
+    $script:taskCancellationRequested = $false
+    $status.Text = ""
+    $activityLabel.Text = ""
+    $elapsedLabel.Text = ""
+    $progressBar.MarqueeAnimationSpeed = 0
+    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Blocks
+    $progressBar.Value = 0
+    $progressLog.Clear()
+    $stopButton.Visible = $false
+    $stopButton.Enabled = $false
+    Update-MainLayout
 }
 
 function Stop-ProgressOnStartError([string]$message) {
@@ -1640,9 +1673,61 @@ if (-not $kmsConfigAtStartup.Exists -or $kmsConfigAtStartup.Entries.Count -eq 0)
 } else {
     Write-ProgressLog (Get-ToolText -Key "progress.kms.approved" -Culture $script:dashboardCulture -FormatArguments @($kmsConfigAtStartup.Entries.Count))
 }
+Reset-IdleTaskDisplay
 
 function Set-ButtonsEnabled([bool]$enabled) {
     foreach ($button in $buttons) { $button.Enabled = $enabled }
+    $canStop = [bool]((-not $enabled) -and $script:activeProcess -and -not $script:activeProcess.HasExited)
+    $stopButton.Visible = $canStop
+    $stopButton.Enabled = $canStop
+    $stopButton.Text = Get-ToolText -Key "progress.stop" -Culture $script:dashboardCulture
+    Update-MainLayout
+}
+
+function Stop-ActiveTask {
+    if (-not $script:activeProcess -or $script:activeProcess.HasExited) {
+        Set-ButtonsEnabled $true
+        return
+    }
+
+    $confirmation = [System.Windows.Forms.MessageBox]::Show(
+        (Get-ToolText -Key "progress.stopConfirm" -Culture $script:dashboardCulture),
+        (Get-ToolText -Key "progress.stopTitle" -Culture $script:dashboardCulture),
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning,
+        [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
+    if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+
+    $script:taskCancellationRequested = $true
+    $stopButton.Enabled = $false
+    $stopButton.Text = Get-ToolText -Key "progress.stopping" -Culture $script:dashboardCulture
+    $activityLabel.Text = Get-ToolText -Key "progress.stopping" -Culture $script:dashboardCulture
+    Write-ProgressLog (Get-ToolText -Key "progress.stopRequested" -Culture $script:dashboardCulture)
+    [void](Write-ToolLog -Level "WARN" -Event "Action.StopRequested" -Message $script:activeAction -Data ([ordered]@{
+        ProcessId = [int]$script:activeProcess.Id
+        TaskKind = [string]$script:activeTaskKind
+        ModuleId = [string]$script:activeModuleId
+    }))
+
+    try {
+        $taskKillPath = Get-ToolNativeSystemPath "taskkill.exe"
+        if (Test-Path -LiteralPath $taskKillPath -PathType Leaf) {
+            $taskKillProcess = Start-Process -FilePath $taskKillPath -ArgumentList @('/PID', [string][int]$script:activeProcess.Id, '/T', '/F') -WindowStyle Hidden -Wait -PassThru
+            if ($taskKillProcess.ExitCode -ne 0 -and -not $script:activeProcess.HasExited) {
+                $script:activeProcess.Kill()
+            }
+        } else {
+            $script:activeProcess.Kill()
+        }
+    } catch {
+        $script:taskCancellationRequested = $false
+        $stopButton.Enabled = $true
+        $stopButton.Text = Get-ToolText -Key "progress.stop" -Culture $script:dashboardCulture
+        $message = Get-ToolText -Key "progress.stopFailed" -Culture $script:dashboardCulture -FormatArguments @($_.Exception.Message)
+        Write-ProgressLog $message
+        [void](Write-ToolLog -Level "ERROR" -Event "Action.StopFailed" -Message $message)
+        [System.Windows.Forms.MessageBox]::Show($message, (Get-ToolText -Key "progress.stopTitle" -Culture $script:dashboardCulture), "OK", "Error") | Out-Null
+    }
 }
 
 function Get-ReadyToolModule([string]$moduleId, [bool]$elevatedLaunch) {
@@ -3656,6 +3741,7 @@ $timer.Add_Tick({
         $finishedAction = $script:activeAction
         $finishedModuleId = $script:activeModuleId
         $finishedModuleInvocation = $script:activeModuleInvocation
+        $wasCancellationRequested = [bool]$script:taskCancellationRequested
         $processDurationMs = if ($script:taskStartedAt) { [long][Math]::Round(((Get-Date) - $script:taskStartedAt).TotalMilliseconds) } else { $null }
         if ($finishedModuleInvocation) {
             $moduleResult = Complete-ToolModuleInvocation -Invocation $finishedModuleInvocation -ExitCode $exitCode -Summary $finishedAction
@@ -3687,6 +3773,20 @@ $timer.Add_Tick({
         $script:activeTaskKind = ""
         $script:activeModuleId = ""
         $script:activeModuleInvocation = $null
+        if ($wasCancellationRequested) {
+            $script:taskCancellationRequested = $false
+            Set-ButtonsEnabled $true
+            $status.Text = Get-ToolText -Key "progress.cancelled" -Culture $script:dashboardCulture -FormatArguments @($finishedAction)
+            $status.ForeColor = [System.Drawing.Color]::DarkOrange
+            Write-ProgressLog $status.Text
+            [void](Write-ToolLog -Level "WARN" -Event "Action.Cancelled" -Message $finishedAction -DurationMs $processDurationMs -Data ([ordered]@{
+                TaskKind = $finishedTaskKind
+                ModuleId = $finishedModuleId
+                ExitCode = [int]$exitCode
+            }))
+            Stop-ProgressDisplay $status.Text
+            return
+        }
         if ($finishedTaskKind -eq "CleanupScan") {
             Complete-CleanupScan
             Stop-ProgressIfIdle

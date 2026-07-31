@@ -2,15 +2,17 @@
 
 Tool Kiểm Tra là bộ công cụ quản trị cục bộ dành cho Windows và Microsoft Office. Công cụ giúp kiểm kê cấu hình, đọc trạng thái cấp phép, rà soát dấu hiệu can thiệp, thực hiện khắc phục có kiểm soát và xuất hồ sơ HTML/PDF có thể kiểm chứng.
 
-Phiên bản hiện tại: **v4.3.0.7 Enterprise — Build 2026.07.31**
+Phiên bản hiện tại: **v4.3 Enterprise — FileVersion 4.3.0.8 — Build 2026.07.31**
 
 Tác giả và phát triển: **Thanh Việt**
 
 ## Điểm chính
 
 - Một tệp EXE AnyCPU, tự chạy đúng kiến trúc x64 hoặc x86.
-- Giao diện WinForms sáng/tối, tiếng Việt/English và tự co giãn theo DPI.
+- Giao diện WinForms mở mặc định ở chế độ sáng, hỗ trợ sáng/tối, tiếng Việt/English và tự co giãn theo DPI mà không cần cuộn cửa sổ chính.
 - Mười chức năng được đánh số rõ ràng từ 01 đến 10.
+- Khu vực hoạt động để trống khi khởi động; khi có tác vụ mới hiển thị tiến độ, thời gian, nhật ký và nút **Dừng**.
+- Hai trạng thái mạng ngắn gọn **Offline/Online**; Tool luôn khởi động Offline và chỉ dùng mạng sau khi người dùng chủ động bật.
 - Kiểm tra mặc định chỉ đọc; thao tác thay đổi hệ thống yêu cầu quyền quản trị, xem trước, lựa chọn, xác nhận và backup.
 - Báo cáo HTML/PDF dùng cùng giao diện chuyên nghiệp, lưu trên Desktop và tự mở bản HTML bằng trình duyệt.
 - JSON/XML và manifest SHA-256 phục vụ tích hợp, lưu trữ và đối chiếu.
@@ -34,7 +36,7 @@ Tác giả và phát triển: **Thanh Việt**
 1. Tải gói phát hành chính thức và đối chiếu SHA-256.
 2. Giải nén toàn bộ gói vào một thư mục cố định; không chạy EXE trực tiếp bên trong ZIP.
 3. Chạy `Tool-Kiem-Tra-v4.3.exe` và chấp nhận UAC.
-4. Chọn ngôn ngữ, giao diện sáng/tối và chế độ mạng phù hợp.
+4. Tool mở với giao diện sáng và Offline. Chỉ chuyển nút mạng sang **Online** khi chức năng đang dùng thực sự cần Internet/LAN.
 5. Chọn chức năng 01–10 trên màn hình chính.
 6. Khi tác vụ hoàn tất, đọc bản HTML được mở tự động; bản HTML và PDF nằm trên Desktop.
 
@@ -60,18 +62,32 @@ Tệp được lưu trực tiếp trên Desktop. HTML là tệp được mở m�
 
 Công cụ không thu thập mật khẩu hoặc xuất product key đầy đủ. Hãy chọn báo cáo đã che trước khi chia sẻ ra ngoài nhóm quản trị có trách nhiệm.
 
-## Mô hình triển khai và mã nguồn
+## Mô hình vận hành, công nghệ và ngôn ngữ
 
-- **Launcher:** C#/.NET Framework 4, AnyCPU, kiểm tra payload và chọn Windows PowerShell native.
-- **Giao diện và nghiệp vụ:** Windows PowerShell/WinForms.
+Tool dùng mô hình **local-first, offline-first**: một EXE cung cấp 10 chức năng trên máy đang quản trị. Kiểm tra mặc định chỉ đọc; thay đổi hệ thống phải qua quyền Administrator, xem trước, lựa chọn cụ thể, xác nhận và backup. Không có dịch vụ đám mây bắt buộc, telemetry, tự kiểm tra cập nhật hoặc tự gửi báo cáo.
+
+- **Launcher:** C#/.NET Framework 4, AnyCPU, kiểm tra SHA-256 của payload và chọn Windows PowerShell native.
+- **Giao diện và nghiệp vụ:** Windows PowerShell 3+/WinForms; theo dõi tiến trình con và cho phép dừng tác vụ đang chạy.
 - **Hợp đồng dữ liệu:** JSON cho catalog, localization, plugin và kết quả mô-đun.
 - **Báo cáo:** HTML/CSS tự chứa, JSON, XML và SHA-256.
 - **PDF:** tạo cục bộ bằng Microsoft Edge, Google Chrome hoặc Microsoft Word; không dùng dịch vụ chuyển đổi trực tuyến.
 - **Plugin:** quy tắc JSON khai báo chỉ đọc; không nạp DLL hoặc thực thi mã plugin tùy ý.
 - **Timeline:** DPAPI LocalMachine, HMAC-SHA256 và chuỗi hash.
-- **Mạng doanh nghiệp tùy chọn:** HTTP trong LAN với phong bì ứng dụng AES-256-CBC + HMAC-SHA256, nonce, timestamp và kiểm soát replay.
+- **Mạng doanh nghiệp tùy chọn:** Mục 8 có công tắc Online/Offline riêng; HTTP trong LAN với phong bì ứng dụng AES-256-CBC + HMAC-SHA256, nonce, timestamp và kiểm soát replay.
 
 Mã nguồn PowerShell là nguồn sự thật cho logic nghiệp vụ. Launcher C# chỉ đóng gói, xác minh và khởi chạy đúng môi trường.
+
+## Lịch sử phát triển chính
+
+Lịch sử trên GitHub chỉ dùng số phiên bản chính như `v4.3`; các số vá nội bộ `v4.3.0.x` được gộp vào cùng mốc để tránh danh sách dài và trùng nội dung.
+
+- **v1.0–v1.3:** hình thành giao diện Windows, kiểm tra cấu hình/bản quyền, tiến độ tác vụ, key OEM và quét chuyên sâu có UAC nhưng vẫn chỉ đọc.
+- **v2.4–v2.9:** tối ưu bố cục, quản lý key/edition hợp lệ, điều tra 7/12 nhóm, chấm điểm rủi ro, bộ bằng chứng HTML/JSON/CSV/SHA-256 và hậu kiểm.
+- **v3.0–v3.5:** khắc phục chọn lọc, backup/restore, manifest, DPAPI/HMAC, kiểm tra toàn vẹn, nhật ký trực tiếp và chính sách fail-closed.
+- **v3.6–v3.9:** một EXE AnyCPU, build deterministic, PE hardening, capability schema, JSONL logging, module contract và report schema có verifier x64/x86.
+- **v4.0–v4.3:** dashboard hiện đại, Trung tâm bảo đảm, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, song ngữ, Offline mặc định, báo cáo HTML/PDF thống nhất và giao diện vừa khung có nút Dừng.
+
+Chi tiết từng mốc từ `v1.0` đến `v4.3`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
 
 ## An toàn khi dùng chức năng 06, 07 và 08
 

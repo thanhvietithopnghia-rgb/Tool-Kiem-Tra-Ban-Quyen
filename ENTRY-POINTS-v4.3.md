@@ -8,7 +8,7 @@ Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 25 descriptor, trong 
 | --- | --- | --- | --- |
 | không có hoặc `--gui` | `Giao-Dien.ps1` | Dashboard chính | Có |
 | `--local-license-manager` | `windows-office-license-manager.ps1` | Quản lý Windows/Office cục bộ | Có |
-| `--enterprise-ui` | `enterprise-license-manager.ps1` | Mục 8: Quản lý cục bộ + Máy chủ + Máy trạm/laptop | Có; có công tắc mạng riêng |
+| `--enterprise-ui` | `enterprise-license-manager.ps1` | Mục 8: Quản lý cục bộ + Máy chủ + Máy trạm | Có; có công tắc mạng riêng |
 | `--enterprise-server` | `Tool-EnterpriseHost.ps1` | Listener máy chủ | Cần bật mạng Mục 8 |
 | `--enterprise-agent` | `Tool-EnterpriseAgent.ps1` | Agent theo lịch | Cần bật mạng Mục 8 |
 | `--enterprise-agent-force` | `Tool-EnterpriseAgent.ps1 -Force` | Agent chạy cưỡng bức một lượt | Cần bật mạng Mục 8 |

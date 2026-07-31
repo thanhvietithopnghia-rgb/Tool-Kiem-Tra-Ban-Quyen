@@ -30,16 +30,15 @@ if (-not (Test-Path -LiteralPath $guiPath -PathType Leaf)) {
 }
 
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
-Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.3\.0\.7"' 'Dashboard chưa dùng release 4.3.0.7.'
+Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.3\.0\.8"' 'Dashboard chưa dùng release 4.3.0.8.'
 Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.07\.31"' 'Dashboard chưa dùng ngày build 2026.07.31.'
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'
 Assert-SourcePattern $text 'AutoScaleMode\]::Dpi' 'Dashboard thiếu DPI scaling.'
 Assert-SourcePattern $text 'Fit-MainWindowToWorkingArea' 'Dashboard thiếu điều chỉnh theo vùng làm việc.'
-Assert-SourcePattern $text 'AutoScroll\s*=\s*[$]true' 'Dashboard thiếu fallback cuộn.'
+Assert-SourcePattern $text '[$]form\.AutoScroll\s*=\s*[$]false' 'Cửa sổ chính chưa khóa thanh cuộn.'
 Assert-SourcePattern $text 'AutoScrollMargin\s*=\s*New-Object\s+System\.Drawing\.Size\(0,\s*0\)' 'Dashboard chưa loại bỏ lề cuộn dư.'
-Assert-SourcePattern $text '[$]refreshAfterScrollChange\s*=\s*[$]true' 'Dashboard chưa đánh dấu tính lại layout sau khi đổi thanh cuộn.'
-Assert-SourcePattern $text 'BeginInvoke\(\[Action\]\{\s*Update-MainLayout\s*\}\)' 'Dashboard chưa tính lại chiều rộng sau khi thanh cuộn dọc xuất hiện.'
+if ($text -match '[$]form\.AutoScroll\s*=\s*[$]true') { Add-Failure 'Cửa sổ chính vẫn có nhánh bật thanh cuộn.' }
 Assert-SourcePattern $text '[$]form\.Size\s*=\s*New-Object\s+System\.Drawing\.Size\(1040,\s*820\)' 'Dashboard chưa dùng kích thước vừa đủ 1040 x 820.'
 Assert-SourcePattern $text '[$]availableWidth\s*=\s*\[Math\]::Max\(640,\s*[$]workArea\.Width\s*-\s*16\)' 'Dashboard chưa co chiều rộng an toàn theo WorkingArea.'
 Assert-SourcePattern $text '[$]availableHeight\s*=\s*\[Math\]::Max\(520,\s*[$]workArea\.Height\s*-\s*12\)' 'Dashboard chưa co chiều cao an toàn theo WorkingArea.'
@@ -56,7 +55,7 @@ Assert-SourcePattern $text 'Add_MouseEnter' 'Tile chưa có hover state.'
 Assert-SourcePattern $text '[$]buttonIndex\s*/\s*2' 'Menu chưa có layout hai cột.'
 Assert-SourcePattern $text '[$]buttonIndex\s*%\s*2' 'Menu chưa có layout hai cột.'
 Assert-SourcePattern $text '[$]descriptionLabel' 'Tile chưa có mô tả chức năng.'
-Assert-SourcePattern $text '[$]tileHeight\s*=\s*\[Math\]::Max\(50,\s*\[Math\]::Min\(66,' 'Tile chưa giữ chiều cao an toàn để tránh cắt chữ ở DPI cao.'
+Assert-SourcePattern $text '[$]minimumTileHeight\s*=\s*if\s*\([$]ultraCompactHeight\)' 'Tile chưa có ngưỡng thích ứng cho màn hình thấp.'
 Assert-SourcePattern $text 'function\s+Get-DashboardTilePalette' 'Dashboard thiếu palette riêng theo loại tile.'
 Assert-SourcePattern $text 'ValidateSet\("Normal",\s*"Warning",\s*"Enterprise"\)' 'Dashboard thiếu tone Enterprise cho Mục 8.'
 Assert-SourcePattern $text 'if\s*\([$]number\s+-eq\s+8\)\s*\{\s*"Enterprise"\s*\}' 'Mục 8 chưa được gắn tone Enterprise.'
@@ -76,12 +75,13 @@ foreach ($colorPair in $enterpriseColorPairs) {
     if ($contrast -lt 4.5) { Add-Failure "Màu Mục 8 $($colorPair[0]) không đạt tương phản 4.5:1." }
 }
 
-# Dark mode is shared with child windows and remains persistent.
+# Dashboard starts Light; the user can still toggle Dark during the session.
 Assert-SourcePattern $text 'function\s+Set-DashboardTheme' 'Thiếu hàm áp dụng theme.'
 Assert-SourcePattern $text 'ValidateSet\("Light",\s*"Dark"\)' 'Thiếu lựa chọn theme sáng/tối.'
 Assert-SourcePattern $text 'Tool-UiTheme\.ps1' 'Dashboard chưa nạp theme dùng chung.'
 Assert-SourcePattern $text 'Set-ToolUiThemePreference' 'Dashboard chưa ghi nhớ theme.'
 Assert-SourcePattern $text 'TOOL_UI_THEME' 'Dashboard chưa truyền theme sang tiến trình con.'
+Assert-SourcePattern $text '[$]script:dashboardTheme\s*=\s*"Light"' 'Dashboard chưa luôn mở mặc định ở giao diện sáng.'
 $themedDialogCount = [regex]::Matches($text, 'Set-ToolWindowTheme\s+-Root\s+[$](dialog|chooser|screen)\s+-Mode\s+[$]script:dashboardTheme').Count
 if ($themedDialogCount -lt 9) {
     Add-Failure "Dark mode chưa phủ đủ cửa sổ con; tìm thấy $themedDialogCount lượt áp dụng."
@@ -140,7 +140,11 @@ Assert-SourcePattern $text 'Set-ToolOfflineModePreference' 'Dashboard chưa ghi 
 Assert-SourcePattern $text 'TOOL_OFFLINE_MODE' 'Dashboard chưa truyền Offline mode sang tiến trình con.'
 Assert-SourcePattern $text 'OfflineMode\.Changed' 'Thay đổi Offline mode chưa được audit.'
 Assert-SourcePattern $text 'function\s+Refresh-DashboardLocalizedActivity' 'Dashboard chưa làm mới nhật ký khi đổi ngôn ngữ.'
-Assert-SourcePattern $text 'progress\.languageChanged' 'Dashboard thiếu trạng thái xác nhận đồng bộ ngôn ngữ.'
+Assert-SourcePattern $text 'function\s+Reset-IdleTaskDisplay' 'Dashboard thiếu trạng thái tác vụ trống khi khởi động.'
+Assert-SourcePattern $text '[$]script:hasTaskActivity\s*=\s*[$]false' 'Dashboard chưa để khu vực tác vụ trống khi mở.'
+Assert-SourcePattern $text 'function\s+Stop-ActiveTask' 'Dashboard thiếu nút/hàm dừng tác vụ.'
+Assert-SourcePattern $text 'taskkill\.exe' 'Nút Dừng chưa kết thúc cây tiến trình con.'
+Assert-SourcePattern $text 'taskCancellationRequested' 'Dashboard chưa phân biệt tác vụ bị người dùng dừng.'
 Assert-SourcePattern $text 'function\s+Open-Guide' 'Trung tâm bảo đảm thiếu xuất hướng dẫn.'
 Assert-SourcePattern $text 'USER-GUIDE-en-US\.md' 'Dashboard chưa tham chiếu hướng dẫn English đầy đủ.'
 Assert-SourcePattern $text 'function\s+Open-ToolEmbeddedDocument' 'Dashboard thiếu bộ mở tài liệu HTML/PDF dùng chung.'
@@ -162,9 +166,26 @@ if ([string]$viCatalog.'about.openHistory' -ne 'Phiên bản & cập nhật' -or
     [string]$enCatalog.'about.openHistory' -ne 'Versions & updates' -or
     [string]$viCatalog.'assurance.history' -notmatch '^7\.' -or
     [string]$enCatalog.'assurance.history' -notmatch '^7\.' -or
+    [string]::IsNullOrWhiteSpace([string]$viCatalog.'about.model.body') -or
+    [string]::IsNullOrWhiteSpace([string]$enCatalog.'about.model.body') -or
     [string]::IsNullOrWhiteSpace([string]$viCatalog.'about.technology.body') -or
     [string]::IsNullOrWhiteSpace([string]$enCatalog.'about.technology.body')) {
-    Add-Failure 'Giới thiệu/Trung tâm bảo đảm chưa có mục công nghệ và phiên bản cập nhật song ngữ.'
+    Add-Failure 'Giới thiệu/Trung tâm bảo đảm chưa có mô hình, công nghệ và phiên bản cập nhật song ngữ.'
+}
+if ([string]$viCatalog.'app.offline.enabled' -ne 'Offline' -or
+    [string]$viCatalog.'app.offline.disabled' -ne 'Online' -or
+    [string]$enCatalog.'app.offline.enabled' -ne 'Offline' -or
+    [string]$enCatalog.'app.offline.disabled' -ne 'Online' -or
+    [string]$viCatalog.'enterprise.network.allow' -ne 'Online' -or
+    [string]$viCatalog.'enterprise.network.disable' -ne 'Offline') {
+    Add-Failure 'Nút mạng chưa dùng đúng hai nhãn ngắn Offline/Online.'
+}
+if ([string]$viCatalog.'enterprise.client.tab' -ne 'Chức năng máy trạm' -or
+    [string]$viCatalog.'enterprise.navigation.back' -ne '← Back' -or
+    [string]$viCatalog.'enterprise.navigation.close' -ne 'Đóng' -or
+    [string]$viCatalog.'enterprise.server.job' -ne 'Lệnh quản lý bản quyền' -or
+    [string]::IsNullOrWhiteSpace([string]$viCatalog.'progress.stop')) {
+    Add-Failure 'Nhãn Mục 8 hoặc nút Dừng chưa đúng yêu cầu.'
 }
 $guideViPath = Join-Path $root 'HUONG-DAN.txt'
 $guideEnPath = Join-Path $root 'USER-GUIDE-en-US.md'
@@ -185,10 +206,18 @@ if (-not (Test-Path -LiteralPath $guideViPath -PathType Leaf) -or
     if ($guideViText -match '(?im)^\s*(Bản|Phiên bản)\s+v?\d' -or $guideEnText -match '(?im)^\s*(Version|Release)\s+v?\d') {
         Add-Failure 'HDSD còn trộn nhật ký cập nhật phiên bản thay vì chỉ hướng dẫn chức năng.'
     }
-    if ($historyText -notmatch 'v4\.3\.0\.7' -or
+    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.3\.0\.8\*\*' -or
         $historyText -notmatch 'Mô hình triển khai hiện tại' -or
-        $historyText -notmatch 'Công nghệ và cấu trúc mã nguồn') {
-        Add-Failure 'Tài liệu phiên bản chưa mô tả bản mới, mô hình triển khai và mã nguồn/công nghệ.'
+        $historyText -notmatch 'Công nghệ và ngôn ngữ hiện tại') {
+        Add-Failure 'Tài liệu phiên bản chưa mô tả bản mới, mô hình triển khai và công nghệ/ngôn ngữ.'
+    }
+    if ($historyText -match '(?m)^##\s+v\d+\.\d+\.\d+') {
+        Add-Failure 'Tài liệu lịch sử vẫn tách riêng bản vá lẻ thay vì gộp theo phiên bản chính.'
+    }
+    foreach ($mainVersion in @('1.0','1.1','1.2','1.3','2.4','2.5','2.6','2.7','2.8','2.9','3.0','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8','3.9','4.0','4.1','4.2','4.3')) {
+        if ($historyText -notmatch "(?m)^##\s+v$([regex]::Escape($mainVersion))\b") {
+            Add-Failure "Tài liệu lịch sử thiếu phiên bản chính v$mainVersion."
+        }
     }
 }
 Assert-SourcePattern $text 'function\s+Open-ToolReportPresentation' 'Dashboard thiếu bộ chuyển báo cáo TXT/HTML về giao diện HTML/PDF dùng chung.'
@@ -298,5 +327,5 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'VERIFY-DASHBOARD: PASS (no clipped tiles + highlighted capability cards + HTML-first unified reports + v4.3.0.3-compatible Function 5)' -ForegroundColor Green
+Write-Host 'VERIFY-DASHBOARD: PASS (no main scroll + Light default + blank idle activity + Stop button + Online/Offline + main-version history)' -ForegroundColor Green
 exit 0

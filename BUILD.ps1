@@ -14,9 +14,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $productVersion = '4.3'
-$releaseVersion = '4.3.0.7'
+$releaseVersion = '4.3.0.8'
 $releaseBuildDate = '2026.07.31'
-$releaseLabel = "$releaseVersion-guide-history-layout-github-20260731"
+$releaseLabel = "$releaseVersion-fit-stop-network-history-20260731"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"

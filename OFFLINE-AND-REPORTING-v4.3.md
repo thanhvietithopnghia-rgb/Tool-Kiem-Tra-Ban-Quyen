@@ -39,10 +39,10 @@ Không có module nào cần Internet. Enterprise UI là `LocalOnly`; server và
 
 Mục 8 dùng preference riêng, mặc định `Allowed=false`, độc lập với nút Offline toàn ứng dụng:
 
-- **Cho phép mạng cho Mục 8** bật các thao tác LAN của server/agent sau xác nhận;
-- nút đổi thành **Tắt mạng cho Mục 8** ngay sau khi bật;
+- **Online** bật các thao tác LAN của server/agent sau xác nhận;
+- nút đổi thành **Offline** ngay sau khi bật;
 - chọn lại sẽ lưu `Allowed=false`, yêu cầu dừng server/agent do cửa sổ hiện tại khởi động và giữ nguyên cấu hình;
-- ba chức năng Quản lý cục bộ, Máy chủ và Máy trạm/laptop không bị ẩn hoặc xóa ở bất kỳ trạng thái nào.
+- ba chức năng Quản lý cục bộ, Máy chủ và Máy trạm không bị ẩn hoặc xóa ở bất kỳ trạng thái nào.
 
 ## HTML
 

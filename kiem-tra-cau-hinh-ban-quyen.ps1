@@ -10,7 +10,7 @@
 )
 
 $ToolVersion = "4.3"
-$ToolReleaseVersion = "4.3.0.7"
+$ToolReleaseVersion = "4.3.0.8"
 
 if ($PSVersionTable.PSVersion.Major -lt 3) {
     Write-Host "Cong cu can PowerShell 3.0 tro len. Windows 7 co the cai Windows Management Framework 3+ de chay."

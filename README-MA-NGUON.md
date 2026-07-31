@@ -1,6 +1,6 @@
 # Tool-Kiem-Tra v4.3 — mã nguồn
 
-Release `4.3.0.7 Enterprise`, build `2026.07.31`. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.3.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.3.0.8 Enterprise`, build `2026.07.31`. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.3.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
 
 ## Điểm mới v4.3
 

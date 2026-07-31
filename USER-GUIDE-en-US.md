@@ -177,7 +177,7 @@ The tool does not run /upk or /cpky before trying the OEM key. Windows rejects a
 
 ## Function 08 – Valid license management
 
-Function 08 always shows local management, server, and workstation/laptop modes.
+Function 08 always shows local management, server, and workstation modes.
 
 Local management:
 
@@ -203,7 +203,7 @@ Server:
 5. Leave CIDR empty for local detection or provide a specific CIDR/IP.
 6. Quick scan discovers candidates; ping does not pair a device.
 
-Workstation/laptop:
+Workstation:
 
 1. Enter the pairing code.
 2. Auto-discover the server when the LAN has one server, or enter an IP/name.

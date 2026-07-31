@@ -15,15 +15,15 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Thanh Việt")]
 [assembly: AssemblyProduct("Tool kiểm tra cấu hình máy và bản quyền")]
 [assembly: AssemblyCopyright("Copyright © Thanh Việt 2026")]
-[assembly: AssemblyVersion("4.3.0.7")]
-[assembly: AssemblyFileVersion("4.3.0.7")]
-[assembly: AssemblyInformationalVersion("4.3.0.7")]
+[assembly: AssemblyVersion("4.3.0.8")]
+[assembly: AssemblyFileVersion("4.3.0.8")]
+[assembly: AssemblyInformationalVersion("4.3.0.8")]
 
 namespace ThanhViet.ToolKiemTra
 {
     internal static class Program
     {
-        private const string ProductCaption = "Tool kiểm tra cấu hình máy và bản quyền v4.3.0.7 Enterprise";
+        private const string ProductCaption = "Tool kiểm tra cấu hình máy và bản quyền v4.3.0.8 Enterprise";
 
         private static string RuntimeArchitecture
         {
@@ -353,7 +353,7 @@ namespace ThanhViet.ToolKiemTra
 
         private static string GetProductCaption()
         {
-            return UiText(ProductCaption, "Configuration & License Assurance Tool v4.3.0.7 Enterprise");
+            return UiText(ProductCaption, "Configuration & License Assurance Tool v4.3.0.8 Enterprise");
         }
 
         private static int RunPayload(LaunchMode mode, string powershellPath)
@@ -380,7 +380,7 @@ namespace ThanhViet.ToolKiemTra
             {
                 string blockedMessage = IsEnglishUi()
                     ? "The server/workstation network process is blocked because Section 8 network access is disabled.\r\n\r\nOpen Section 8 and select “Allow network for Section 8” before running this process."
-                    : "Tiến trình mạng máy chủ/máy trạm bị chặn vì mạng Mục 8 đang tắt.\r\n\r\nHãy mở Mục 8 và chọn “Cho phép mạng cho Mục 8” trước khi chạy tiến trình này.";
+                    : "Tiến trình mạng máy chủ/máy trạm bị chặn vì Mục 8 đang Offline.\r\n\r\nHãy mở Mục 8 và chọn “Online” trước khi chạy tiến trình này.";
                 ShowMessage(mode, blockedMessage, MessageBoxIcon.Information);
                 return 30;
             }

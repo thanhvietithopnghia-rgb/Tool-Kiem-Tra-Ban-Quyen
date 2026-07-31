@@ -101,18 +101,18 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 } else {
     $manifestText = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
     if ($manifestText -notmatch 'requestedExecutionLevel\s+level="requireAdministrator"') { $failures.Add('Application manifest chưa yêu cầu requireAdministrator.') }
-    if ($manifestText -notmatch 'version="4\.3\.0\.7"') { $failures.Add('Application manifest sai phiên bản 4.3.0.7.') }
+    if ($manifestText -notmatch 'version="4\.3\.0\.8"') { $failures.Add('Application manifest sai phiên bản 4.3.0.8.') }
 }
 
 $versionChecks = @(
     @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.3"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.3\.0\.7"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.3\.0\.8"' },
     @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.07\.31"' },
     @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.3"' },
     @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.3"' },
-    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyVersion\("4\.3\.0\.7"\)' },
-    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyFileVersion\("4\.3\.0\.7"\)' },
-    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyInformationalVersion\("4\.3\.0\.7"\)' }
+    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyVersion\("4\.3\.0\.8"\)' },
+    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyFileVersion\("4\.3\.0\.8"\)' },
+    @{ File='Tool-Kiem-Tra-v4.3-OneFile.cs'; Pattern='AssemblyInformationalVersion\("4\.3\.0\.8"\)' }
 )
 foreach ($check in $versionChecks) {
     $path = Join-Path $sourceDirectoryFull $check.File
@@ -481,10 +481,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.3.0.7' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.07.31') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.3.0.7 / Build 2026.07.31.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.3.0.8' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.07.31') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.3.0.8 / Build 2026.07.31.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.3.0.7-guide-history-layout-github-20260731') { throw 'Sai release label v4.3.0.7.' }
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.3.0.8-fit-stop-network-history-20260731') { throw 'Sai release label v4.3.0.8.' }
         if ([int]$releaseManifest.PayloadCount -ne 39 -or [int]$releaseManifest.IntegrityFileCount -ne 37) { throw 'Sai số lượng payload/integrity.' }
         if ([string]$releaseManifest.DashboardSchemaVersion -ne '2.0' -or [string]$releaseManifest.DashboardMode -ne 'Modern adaptive WinForms dashboard' -or [string]$releaseManifest.DarkMode -ne 'Persistent full-tool / WCAG-aware palette' -or
             -not [bool]$releaseManifest.CleanupActionCenter -or -not [bool]$releaseManifest.AssuranceCenter -or

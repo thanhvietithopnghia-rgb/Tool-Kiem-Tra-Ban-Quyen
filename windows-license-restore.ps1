@@ -145,7 +145,7 @@ try { $script:backupRoot = ([IO.Path]::GetFullPath($BackupDir)).TrimEnd('\') } c
 if (-not (Test-Path -LiteralPath $script:backupRoot -PathType Container)) { Fail-Restore 21 "Không tìm thấy thư mục backup." }
 $commonData = [Environment]::GetFolderPath("CommonApplicationData")
 $productRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra"
-$versionRoot = Join-Path $productRoot "v4.3"
+$versionRoot = Join-Path $productRoot "v4.4"
 $expectedBackupRoot = Join-Path $versionRoot "backups"
 try { $expectedBackupRoot = ([IO.Path]::GetFullPath($expectedBackupRoot)).TrimEnd('\') } catch { Fail-Restore 21 "Không xác định được vùng backup bảo vệ." }
 $expectedPrefix = $expectedBackupRoot + '\'
@@ -175,7 +175,7 @@ try {
 } catch { Fail-Restore 24 "Xác thực manifest thất bại: $($_.Exception.Message)" }
 
 try { $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { Fail-Restore 22 "Manifest không hợp lệ: $($_.Exception.Message)" }
-if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -ne "4.3") { Fail-Restore 25 "Phiên bản manifest không được hỗ trợ an toàn." }
+if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -ne "4.4") { Fail-Restore 25 "Phiên bản manifest không được hỗ trợ an toàn." }
 if ([string]$manifest.ComputerName -ne $env:COMPUTERNAME -or [string]$manifest.MachineBinding -ne (Get-MachineBinding)) { Fail-Restore 26 "Backup không thuộc đúng máy hiện tại." }
 $manifestItems = @($manifest.Items)
 if ($manifestItems.Count -eq 0 -or $manifestItems.Count -gt 5000) { Fail-Restore 27 "Số lượng mục trong manifest không hợp lệ." }
@@ -311,7 +311,7 @@ $restoreGuidance = if ($errors.Count -gt 0) {
     )
 }
 $restoreReport = @(
-    "KHÔI PHỤC TỰ ĐỘNG - TOOL KIỂM TRA v4.3"
+    "KHÔI PHỤC TỰ ĐỘNG - TOOL KIỂM TRA v4.4"
     "Thời gian: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     "Thư mục backup: $script:backupRoot"
     "Đã phục hồi: $restored"

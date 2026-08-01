@@ -9,6 +9,65 @@ if (-not (Get-Command Get-ToolWindowsReleaseProfile -ErrorAction SilentlyContinu
     if (Test-Path -LiteralPath $compatibilityHelperPath -PathType Leaf) { . $compatibilityHelperPath }
 }
 
+function Get-ToolExecutionEnvironmentProfile {
+    [CmdletBinding()]
+    param()
+
+    $manufacturer = ""
+    $model = ""
+    $biosManufacturer = ""
+    $biosVersion = ""
+    try {
+        $computerSystem = if (Test-ToolCommandAvailable "Get-CimInstance") {
+            Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+        } else {
+            Get-WmiObject -Class Win32_ComputerSystem -ErrorAction Stop
+        }
+        $manufacturer = [string]$computerSystem.Manufacturer
+        $model = [string]$computerSystem.Model
+    } catch {}
+    try {
+        $bios = Get-ItemProperty -LiteralPath "HKLM:\HARDWARE\DESCRIPTION\System\BIOS" -ErrorAction Stop
+        $biosManufacturer = [string]$bios.BIOSVendor
+        $biosVersion = @([string]$bios.BIOSVersion, [string]$bios.SystemFamily, [string]$bios.SystemProductName) -join " "
+    } catch {}
+
+    $fingerprint = "$manufacturer $model $biosManufacturer $biosVersion"
+    $provider = ""
+    $virtualPatterns = [ordered]@{
+        "Microsoft Hyper-V" = '(?i)(microsoft corporation.*virtual machine|virtual machine.*microsoft corporation|hyper-v)'
+        "VMware" = '(?i)(vmware|vmw virtual)'
+        "Oracle VirtualBox" = '(?i)(virtualbox|innotek)'
+        "QEMU/KVM" = '(?i)(qemu|kvm|bochs)'
+        "Xen" = '(?i)(xen|hvm domu)'
+        "Parallels" = '(?i)(parallels)'
+        "Virtual PC" = '(?i)(virtual pc)'
+        "Cloud/virtual platform" = '(?i)(amazon ec2|google compute engine|openstack|digitalocean)'
+    }
+    foreach ($entry in $virtualPatterns.GetEnumerator()) {
+        if ($fingerprint -match [string]$entry.Value) {
+            $provider = [string]$entry.Key
+            break
+        }
+    }
+
+    $sessionName = [string]$env:SESSIONNAME
+    $clientName = [string]$env:CLIENTNAME
+    $remoteDesktop = [bool](
+        $sessionName -match '^(?i)RDP-' -or
+        (-not [string]::IsNullOrWhiteSpace($clientName) -and $clientName -notmatch '^(?i)(console|unknown)$')
+    )
+    return [pscustomobject][ordered]@{
+        VirtualMachineDetected = [bool](-not [string]::IsNullOrWhiteSpace($provider))
+        VirtualizationProvider = $provider
+        Manufacturer = $manufacturer
+        Model = $model
+        RemoteDesktopDetected = $remoteDesktop
+        SessionName = $sessionName
+        RemoteClientName = $clientName
+    }
+}
+
 function Get-ToolCapabilityProfile {
     [CmdletBinding()]
     param()
@@ -94,10 +153,11 @@ function Get-ToolCapabilityProfile {
     $schtasksPath = Join-Path $nativeSystemDirectory "schtasks.exe"
     $cscriptPath = Join-Path $nativeSystemDirectory "cscript.exe"
     $dismPath = Join-Path $nativeSystemDirectory "dism.exe"
+    $executionEnvironment = Get-ToolExecutionEnvironmentProfile
 
     return [pscustomobject][ordered]@{
         SchemaVersion = "1.1"
-        ToolVersion = "4.3"
+        ToolVersion = "4.4"
         CheckedAtUtc = [DateTime]::UtcNow.ToString("o")
         SupportedOperatingSystem = [bool]($compatibilityTier -ne "Unsupported")
         CompatibilityTier = $compatibilityTier
@@ -127,6 +187,10 @@ function Get-ToolCapabilityProfile {
         SecureBootCmdlet = [bool](Test-ToolCommandAvailable "Confirm-SecureBootUEFI")
         NativeCscript = [bool](Test-Path -LiteralPath $cscriptPath -PathType Leaf)
         NativeDism = [bool](Test-Path -LiteralPath $dismPath -PathType Leaf)
+        ExecutionEnvironment = $executionEnvironment
+        VirtualMachineDetected = [bool]$executionEnvironment.VirtualMachineDetected
+        VirtualizationProvider = [string]$executionEnvironment.VirtualizationProvider
+        RemoteDesktopDetected = [bool]$executionEnvironment.RemoteDesktopDetected
     }
 }
 

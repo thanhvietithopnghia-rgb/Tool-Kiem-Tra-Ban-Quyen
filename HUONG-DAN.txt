@@ -1,7 +1,7 @@
 # Hướng dẫn sử dụng Tool Kiểm Tra Cấu Hình & Bản Quyền Windows/Office
 
 Phát triển bởi Thanh Việt
-Áp dụng cho dòng v4.3 Enterprise
+Áp dụng cho dòng v4.4 Enterprise
 
 Tài liệu này hướng dẫn trực tiếp cách dùng từng chức năng. Lịch sử thay đổi của các phiên bản được tách riêng trong mục Phiên bản & cập nhật.
 
@@ -21,7 +21,7 @@ Tài liệu này hướng dẫn trực tiếp cách dùng từng chức năng. L
 3. Không đổi tên, xóa hoặc trộn tệp của nhiều phiên bản.
 4. Đóng Word, Excel, Outlook và các ứng dụng Office trước khi xử lý giấy phép Office.
 5. Chuẩn bị key hoặc tài khoản bản quyền hợp lệ nếu dự kiến dùng chức năng 06 hoặc 08.
-6. Chạy Tool-Kiem-Tra-v4.3.exe và chấp nhận UAC.
+6. Chạy Tool-Kiem-Tra-v4.4.exe và chấp nhận UAC.
 7. Chọn Tiếng Việt hoặc English, giao diện sáng hoặc tối.
 8. Giữ chế độ Ngoại tuyến nếu chỉ kiểm tra máy cục bộ. Chỉ cho phép mạng Mục 8 khi cần quản lý trong LAN.
 
@@ -164,11 +164,12 @@ Lưu ý:
 
 Đây là chức năng có thể thay đổi hệ thống. Hãy chuẩn bị bản quyền hợp lệ, đóng Office và đọc toàn bộ danh sách trước khi xác nhận.
 
-Khi mở Mục 06, Tool hiển thị ba lựa chọn:
+Khi mở Mục 06, Tool hiển thị bốn lựa chọn:
 
 1. Backup trước khi thực hiện.
 2. Kiểm tra và gỡ, đưa Windows/Office về trạng thái gốc.
 3. Khôi phục tự động từ backup.
+4. Tự động làm sạch an toàn, sẵn sàng kích hoạt.
 
 Lựa chọn 1 – Backup:
 
@@ -207,6 +208,15 @@ Lựa chọn 3 – Khôi phục:
 3. Tool kiểm tra vị trí, ACL, manifest, HMAC và hash.
 4. Nếu dữ liệu đã bị chuyển ra ngoài vùng ProgramData được bảo vệ hoặc hash sai, Tool từ chối restore.
 5. Xem báo cáo sau khi khôi phục và quét lại máy.
+
+Lựa chọn 4 – Tự động làm sạch an toàn:
+
+1. Chọn Tự động làm sạch an toàn, sẵn sàng kích hoạt.
+2. Tool quét chỉ đọc và chỉ đề xuất các cấu hình Registry cấp phép nằm trong allowlist, hiện hỗ trợ KMS override và policy NoGenTicket.
+3. Đọc danh sách xem trước. Tool không tự chọn key bản quyền, service, task, tiến trình, tệp/thư mục, ngoại lệ Defender hoặc lịch sử Event Log.
+4. Xác nhận để Tool tạo backup có HMAC, yêu cầu quyền Administrator và xử lý các mục đề xuất.
+5. Tool hậu kiểm ngay sau xử lý. Chỉ khi blocker bằng 0 mới báo đủ điều kiện kỹ thuật để kích hoạt chính thức.
+6. Nếu còn mục ngoài phạm vi tự động, Tool giữ nguyên và cho phép mở danh sách xử lý thủ công.
 
 Các đối tượng được bảo vệ:
 
@@ -320,7 +330,7 @@ Mục 10 gồm bảy lựa chọn:
 4. Cài plugin JSON chỉ đọc từ tệp.
 5. Mở thư mục plugin được bảo vệ.
 6. Mở hướng dẫn sử dụng chi tiết bằng HTML/PDF.
-7. Mở giới thiệu phiên bản và lịch sử cập nhật.
+7. Lịch sử phiên bản.
 
 Lựa chọn 1 – Chứng chỉ:
 
@@ -371,8 +381,8 @@ Lựa chọn 7 – Phiên bản & cập nhật:
 Mở PowerShell tại thư mục chứa gói và chạy:
 
 ```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.3.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.3.exe
+Get-FileHash .\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.4.exe
 ```
 
 So sánh toàn bộ SHA-256 với checksum được công bố trong Release. Không chỉ so tên hoặc dung lượng tệp.

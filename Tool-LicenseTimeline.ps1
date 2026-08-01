@@ -1,5 +1,5 @@
 ﻿$script:ToolTimelineSchemaVersion = "1.0"
-$script:ToolTimelineToolVersion = "4.3"
+$script:ToolTimelineToolVersion = "4.4"
 $script:ToolTimelineState = $null
 
 function Get-ToolTimelineMetadata {
@@ -34,7 +34,7 @@ function Get-ToolTimelineMachineBinding {
     } catch {
         $machineGuid = "$env:COMPUTERNAME|$([Environment]::OSVersion.VersionString)"
     }
-    $bindingBytes = [Text.Encoding]::UTF8.GetBytes("Tool-Kiem-Tra-v4.3|$machineGuid")
+    $bindingBytes = [Text.Encoding]::UTF8.GetBytes("Tool-Kiem-Tra-v4.4|$machineGuid")
     return Get-ToolTimelineSha256Bytes -Bytes $bindingBytes
 }
 
@@ -90,10 +90,10 @@ function Test-ToolTimelinePath {
         if (($fileInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Tệp timeline không được là reparse point." }
     }
     if ($env:TOOL_SECURE_LAUNCH -eq "1") {
-        $expectedRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.3\timeline"
+        $expectedRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.4\timeline"
         $expectedPrefix = [IO.Path]::GetFullPath($expectedRoot).TrimEnd([char]92) + [char]92
         if (-not $fullPath.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Đường dẫn timeline nằm ngoài vùng ProgramData v4.3 được bảo vệ."
+            throw "Đường dẫn timeline nằm ngoài vùng ProgramData v4.4 được bảo vệ."
         }
         Assert-ToolTimelineDirectoryAcl -Path $directory
     }
@@ -102,7 +102,7 @@ function Test-ToolTimelinePath {
 
 function Initialize-ToolLicenseTimeline {
     [CmdletBinding()]
-    param([string]$ToolVersion = "4.3")
+    param([string]$ToolVersion = "4.4")
 
     $state = [pscustomobject][ordered]@{
         Enabled = $false
@@ -127,7 +127,7 @@ function Initialize-ToolLicenseTimeline {
             try { $rng.GetBytes($random) } finally { $rng.Dispose() }
             $protected = [Security.Cryptography.ProtectedData]::Protect(
                 $random,
-                [Text.Encoding]::UTF8.GetBytes("ThanhViet.ToolKiemTra.v4.3.Timeline"),
+                [Text.Encoding]::UTF8.GetBytes("ThanhViet.ToolKiemTra.v4.4.Timeline"),
                 [Security.Cryptography.DataProtectionScope]::LocalMachine)
             [IO.File]::WriteAllBytes($keyPath, $protected)
         }
@@ -156,7 +156,7 @@ function Get-ToolTimelineKey {
     $protected = [IO.File]::ReadAllBytes($Path)
     $key = [Security.Cryptography.ProtectedData]::Unprotect(
         $protected,
-        [Text.Encoding]::UTF8.GetBytes("ThanhViet.ToolKiemTra.v4.3.Timeline"),
+        [Text.Encoding]::UTF8.GetBytes("ThanhViet.ToolKiemTra.v4.4.Timeline"),
         [Security.Cryptography.DataProtectionScope]::LocalMachine)
     if ($key.Length -ne 32) { throw "Khóa HMAC timeline không đúng 256 bit." }
     return $key
@@ -270,8 +270,8 @@ function Write-ToolLicenseTimelineEvent {
     $mutex = $null
     $lockTaken = $false
     try {
-        try { $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.3.Timeline") }
-        catch { $mutex = New-Object Threading.Mutex($false, "Local\ThanhViet.ToolKiemTra.v4.3.Timeline") }
+        try { $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.Timeline") }
+        catch { $mutex = New-Object Threading.Mutex($false, "Local\ThanhViet.ToolKiemTra.v4.4.Timeline") }
         $lockTaken = $mutex.WaitOne(10000)
         if (-not $lockTaken) { throw "Không lấy được khóa ghi timeline trong 10 giây." }
         $existing = Get-ToolLicenseTimeline

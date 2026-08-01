@@ -1,5 +1,5 @@
 ﻿<#
-    Tool v4.3 workstation agent.
+    Tool v4.4 workstation agent.
     It is intentionally a one-shot process so the GUI or Task Scheduler can
     invoke it without leaving an unmanaged background service behind.
 #>
@@ -101,7 +101,7 @@ function Invoke-ToolEnterpriseAgentOnce {
 }
 
 $created = $false
-$mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.3.EnterpriseAgent", [ref]$created)
+$mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseAgent", [ref]$created)
 if (-not $created) {
     $mutex.Dispose()
     [Console]::Error.WriteLine("Agent máy trạm đã đang chạy.")

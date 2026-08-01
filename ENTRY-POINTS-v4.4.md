@@ -1,4 +1,4 @@
-# Entry points Tool-Kiem-Tra v4.3
+# Entry points Tool-Kiem-Tra v4.4
 
 Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 25 descriptor, trong đó 22 entry point công khai và ba nguồn kiểm kê nội bộ.
 

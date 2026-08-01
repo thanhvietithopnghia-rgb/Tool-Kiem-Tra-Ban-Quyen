@@ -25,7 +25,7 @@ $required = @(
     "Tool-UiTheme.ps1",
     "Tool-ReportSchema.ps1",
     "Tool-ModuleContract.ps1",
-    "Tool-Kiem-Tra-v4.3-OneFile.cs"
+    "Tool-Kiem-Tra-v4.4-OneFile.cs"
 )
 foreach ($name in $required) {
     $path = Join-Path $SourceDirectory $name
@@ -57,7 +57,7 @@ try {
     . (Join-Path $SourceDirectory "Tool-Enterprise.ps1")
 
     $metadata = Get-ToolEnterpriseMetadata
-    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.3") "Enterprise ToolVersion không phải 4.3."
+    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.4") "Enterprise ToolVersion không phải 4.4."
     Assert-Enterprise ([string]$metadata.ProtocolVersion -eq "1.0") "Enterprise protocol không phải 1.0."
     Assert-Enterprise (-not [bool]$metadata.FullProductKeysInReports) "Metadata không được cho phép full product key trong báo cáo."
 
@@ -84,7 +84,7 @@ try {
     Assert-Enterprise $tamperRejected "Envelope bị sửa HMAC không bị từ chối."
 
     $report = Get-ToolEnterpriseLicenseSnapshot -ClientId $client.ClientId
-    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.3"
+    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.4"
     Assert-Enterprise ([bool]$validation.Valid) "Báo cáo EnterpriseInventory không đạt schema: $($validation.Errors -join '; ')"
     Assert-Enterprise (-not [bool]$report.Privacy.FullProductKeyIncluded) "Báo cáo khai báo chứa full product key."
     $reportJson = $report | ConvertTo-Json -Depth 14
@@ -93,7 +93,7 @@ try {
     $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
     Set-ToolEnterpriseServerClientSecret -ClientId $client.ClientId -Secret $clientSecret
     $record = [pscustomobject][ordered]@{
-        SchemaVersion="1.0"; ToolVersion="4.3"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
+        SchemaVersion="1.0"; ToolVersion="4.4"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
         RemoteAddress="127.0.0.1"; NetworkAddresses=@("127.0.0.1"); LastSeenUtc=[DateTime]::UtcNow.ToString("o")
         FirstSeenUtc=[DateTime]::UtcNow.ToString("o"); AllowRemoteLicenseChanges=$true
         WindowsStatus="NotReported"; WindowsChannel=""; WindowsLast5=""
@@ -173,7 +173,7 @@ try {
     }
     $managerContract = @($catalog | Where-Object ModuleId -eq "license.manager")[0]
     Assert-Enterprise ([string]$managerContract.NetworkScope -eq "LocalOnly") "Mở Mục 8 phải hoạt động Offline; chỉ tiến trình server/agent mới dùng LAN."
-    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.3-OneFile.cs") -Raw
+    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.4-OneFile.cs") -Raw
     foreach ($mode in @("--enterprise-ui","--enterprise-server","--enterprise-agent","--enterprise-agent-force","--local-license-manager")) {
         Assert-Enterprise ($launcherText.Contains($mode)) "Launcher thiếu mode $mode."
     }
@@ -196,7 +196,9 @@ try {
         $enterpriseUiText -match 'HorizontalScroll\.Visible') "Giao diện enterprise thiếu layout thích ứng DPI hoặc kiểm tra chống tràn ngang."
     Assert-Enterprise ($enterpriseUiText -match 'Get-ToolEnterpriseLocalCidrs' -and
         $enterpriseUiText -match '\$script:scanInputBox\.Text\s*=\s*\$input' -and
-        $enterpriseUiText -match '\$hostLabel\s*=\s*if\s*\(\$device\.HostName\)') "Quét nhanh chưa tự nhận CIDR hoặc định dạng kết quả an toàn."
+        $enterpriseUiText -match '\$hostLabel\s*=\s*if\s*\(\$device\.HostName\)' -and
+        $enterpriseUiText -match 'enterprise\.server\.scanResultLine' -and
+        $enterpriseUiText -match 'enterprise\.server\.scanHostUnknown') "Quét nhanh chưa tự nhận CIDR hoặc hiển thị rõ IP/độ trễ/tên máy."
     Assert-Enterprise ($enterpriseUiText -match 'Get-ToolEnterprisePreferredServerAddress' -and
         $enterpriseUiText -match 'Find-ToolEnterpriseLocalServers' -and
         $enterpriseUiText -match 'enterprise\.client\.discover') "Giao diện chưa tự nhận IP LAN hoặc tự dò máy chủ."
@@ -225,6 +227,8 @@ try {
         "enterprise.server.refresh",
         "enterprise.server.export",
         "enterprise.server.scan",
+        "enterprise.server.scanResultLine",
+        "enterprise.server.scanHostUnknown",
         "enterprise.server.createJob",
         "enterprise.client.discover",
         "enterprise.client.test",

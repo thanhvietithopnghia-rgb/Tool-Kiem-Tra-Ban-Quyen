@@ -1,5 +1,5 @@
 ﻿$script:ToolCompatibilitySchemaVersion = "1.0"
-$script:ToolCompatibilityToolVersion = "4.3"
+$script:ToolCompatibilityToolVersion = "4.4"
 $script:ToolCompatibilityCatalogCache = $null
 $script:ToolCompatibilityCatalogCachePath = ""
 

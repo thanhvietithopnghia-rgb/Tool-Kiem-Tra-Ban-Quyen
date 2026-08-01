@@ -1,6 +1,6 @@
-# Kiến trúc kỹ thuật Tool-Kiem-Tra v4.3
+# Kiến trúc kỹ thuật Tool-Kiem-Tra v4.4
 
-Tài liệu này mô tả kiến trúc phát hành `4.3.0.8`, dashboard schema `2.0` và các ranh giới an toàn của bản một tệp. Mã nguồn PowerShell tương ứng là nguồn sự thật; tài liệu không thay thế verifier.
+Tài liệu này mô tả kiến trúc phát hành `4.4.0.0`, dashboard schema `2.0` và các ranh giới an toàn của bản một tệp. Mã nguồn PowerShell tương ứng là nguồn sự thật; tài liệu không thay thế verifier.
 
 ## Mục tiêu kiến trúc
 
@@ -14,7 +14,7 @@ Tài liệu này mô tả kiến trúc phát hành `4.3.0.8`, dashboard schema `
 ## Sơ đồ thành phần
 
 ```text
-Tool-Kiem-Tra-v4.3.exe
+Tool-Kiem-Tra-v4.4.exe
   ├─ kiểm tra OS/kiến trúc, UAC, mutex và offline preference
   ├─ giải nén 39 payload vào session được bảo vệ
   ├─ đối chiếu TOOL-SHA256SUMS.txt
@@ -33,18 +33,18 @@ Tool-Kiem-Tra-v4.3.exe
 
 ## Lớp launcher
 
-`Tool-Kiem-Tra-v4.3-OneFile.cs`:
+`Tool-Kiem-Tra-v4.4-OneFile.cs`:
 
 1. yêu cầu Administrator qua application manifest;
 2. từ chối Windows cũ hơn Windows 7 SP1;
 3. dùng `Environment.SpecialFolder.System` để lấy PowerShell native, không tìm `powershell.exe` qua `PATH`;
-4. tạo vùng `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3`;
+4. tạo vùng `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4`;
 5. từ chối reparse point và ACL ngoài Administrators/SYSTEM;
 6. giải nén payload, tính SHA-256 và so với manifest nhúng;
 7. truyền phiên bản schema, correlation ID, đường dẫn log/plugin/timeline và trạng thái Offline qua environment;
 8. dọn session tạm sau khi tiến trình con kết thúc.
 
-Launcher có sáu mode được công bố trong `ENTRY-POINTS-v4.3.md`. `--enterprise-ui` luôn được phép mở để Mục 8 giữ đủ ba chức năng. Các tiến trình mạng `--enterprise-server`, `--enterprise-agent` và `--enterprise-agent-force` chỉ chạy khi công tắc mạng riêng của Mục 8 đang bật.
+Launcher có sáu mode được công bố trong `ENTRY-POINTS-v4.4.md`. `--enterprise-ui` luôn được phép mở để Mục 8 giữ đủ ba chức năng. Các tiến trình mạng `--enterprise-server`, `--enterprise-agent` và `--enterprise-agent-force` chỉ chạy khi công tắc mạng riêng của Mục 8 đang bật.
 
 ## Dashboard và UI
 
@@ -123,7 +123,7 @@ HTML có CSP `default-src 'none'`, CSS nhúng, layout responsive, dark-mode prev
 
 | Vùng | Dữ liệu | Quyền ghi |
 | --- | --- | --- |
-| Session trong ProgramData v4.3 | payload đã xác minh | Administrators/SYSTEM |
+| Session trong ProgramData v4.4 | payload đã xác minh | Administrators/SYSTEM |
 | `logs` | JSONL theo ngày | Administrators/SYSTEM |
 | `backups` | backup + hash/HMAC/DPAPI | Administrators/SYSTEM |
 | `plugins` | plugin JSON khai báo | Administrators/SYSTEM |

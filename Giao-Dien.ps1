@@ -1,8 +1,8 @@
 ﻿param()
 
-$toolVersion = "4.3"
+$toolVersion = "4.4"
 $dashboardSchemaVersion = "2.0"
-$releaseVersion = "4.3.0.8"
+$releaseVersion = "4.4.0.0"
 $releaseBuildDate = "2026.07.31"
 $releaseDisplayName = "v$releaseVersion Enterprise"
 
@@ -78,7 +78,11 @@ try {
     $loggingState = Initialize-ToolLogging -Component "GUI" -ToolVersion $toolVersion
     $timelineState = Initialize-ToolLicenseTimeline -ToolVersion $toolVersion
     $nativeNotepadPath = Get-ToolNativeSystemPath "notepad.exe"
-    $nativeExplorerPath = Get-ToolNativeSystemPath "explorer.exe"
+    # explorer.exe belongs to the Windows root, not System32/Sysnative.
+    $nativeExplorerPath = Get-ToolWindowsPath "explorer.exe"
+    if (-not (Test-Path -LiteralPath $nativeExplorerPath -PathType Leaf)) {
+        throw "Không tìm thấy Windows Explorer: $nativeExplorerPath"
+    }
 } catch {
     Add-Type -AssemblyName System.Windows.Forms
     [System.Windows.Forms.MessageBox]::Show(
@@ -110,7 +114,7 @@ $integrityManifest = Join-Path $baseDir "TOOL-SHA256SUMS.txt"
 $requiredIntegrityFiles = @(
     "00-Tool-Kiem-Tra.ico", "HUONG-DAN.txt", "USER-GUIDE-en-US.md", "LICH-SU-PHIEN-BAN.txt",
     "Giao-Dien.ps1", "kiem-tra-cau-hinh-ban-quyen.ps1", "Tool-Kiem-Tra-icon.svg",
-    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "windows-license-backup.ps1",
+    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "windows-license-backup.ps1",
     "Tool-ReportSchema.ps1", "Tool-ReportExport.ps1", "Tool-PluginEngine.ps1", "Tool-LicenseTimeline.ps1", "Tool-SafetyPolicy.ps1",
     "Tool-Enterprise.ps1", "Tool-EnterpriseHost.ps1", "Tool-EnterpriseAgent.ps1", "enterprise-license-manager.ps1",
     "windows-license-compliance-cleanup.ps1", "windows-license-restore.ps1",
@@ -155,10 +159,8 @@ $form.Font = $fontNormal
 $form.AutoScroll = $false
 $form.AutoScrollMargin = New-Object System.Drawing.Size(0, 0)
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
-# Mỗi lần mở dashboard luôn bắt đầu ở giao diện sáng. Người dùng vẫn có thể
-# chuyển sang giao diện tối trong phiên hiện tại bằng nút chủ đề.
-$script:dashboardTheme = "Light"
-$env:TOOL_UI_THEME = "Light"
+$script:dashboardTheme = Get-ToolUiTheme
+$env:TOOL_UI_THEME = $script:dashboardTheme
 $script:toolUiPalette = Get-ToolUiPalette -Mode $script:dashboardTheme
 $script:dashboardCulture = Get-ToolCulture
 $script:offlineMode = [bool](Get-ToolOfflineMode)
@@ -379,6 +381,20 @@ $stopButton.Enabled = $false
 $stopButton.Add_Click({ Stop-ActiveTask })
 $form.Controls.Add($stopButton)
 
+$copyLogButton = New-Object System.Windows.Forms.Button
+$copyLogButton.Text = Get-ToolText -Key "progress.copyAllLog" -Culture $script:dashboardCulture
+$copyLogButton.Font = $fontSmall
+$copyLogButton.Size = New-Object System.Drawing.Size(142, 26)
+$copyLogButton.Add_Click({ Copy-AllToolLog })
+$form.Controls.Add($copyLogButton)
+
+$openReportFolderButton = New-Object System.Windows.Forms.Button
+$openReportFolderButton.Text = Get-ToolText -Key "report.openFolder" -Culture $script:dashboardCulture
+$openReportFolderButton.Font = $fontSmall
+$openReportFolderButton.Size = New-Object System.Drawing.Size(166, 26)
+$openReportFolderButton.Add_Click({ Open-ReportDirectory })
+$form.Controls.Add($openReportFolderButton)
+
 $progressCaption = New-Object System.Windows.Forms.Label
 $progressCaption.Text = Get-ToolText -Key "progress.caption" -Culture $script:dashboardCulture
 $progressCaption.Font = $fontBold
@@ -447,6 +463,7 @@ $cleanupResultFile = ""
 $cleanupSelectionFile = ""
 $cleanupRepairDecisionFile = ""
 $cleanupRedactSensitive = $true
+$cleanupAutoSafeMode = $false
 $backupResultFile = ""
 $restoreResultFile = ""
 $oemDecisionFile = ""
@@ -461,6 +478,78 @@ $script:reportPresentationCache = @{}
 $script:updatingMainLayout = $false
 $script:hasTaskActivity = $false
 $script:taskCancellationRequested = $false
+$script:lastReportDirectory = $desktop
+$script:executionEnvironmentWarningShown = $false
+
+function Register-ToolReportPath {
+    param([AllowNull()][string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return }
+    try {
+        $fullPath = [IO.Path]::GetFullPath($Path)
+        $directory = if (Test-Path -LiteralPath $fullPath -PathType Container) { $fullPath } else { Split-Path -Parent $fullPath }
+        if (-not [string]::IsNullOrWhiteSpace($directory) -and (Test-Path -LiteralPath $directory -PathType Container)) {
+            $script:lastReportDirectory = $directory
+        }
+    } catch {}
+}
+
+function Copy-AllToolLog {
+    $text = [string]$progressLog.Text
+    if ([string]::IsNullOrWhiteSpace($text) -and $loggingState.Enabled -and (Test-Path -LiteralPath $loggingState.Path -PathType Leaf)) {
+        try { $text = [IO.File]::ReadAllText($loggingState.Path, [Text.Encoding]::UTF8) } catch {}
+    }
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-ToolText -Key "progress.copyNoLog" -Culture $script:dashboardCulture),
+            (Get-ToolText -Key "progress.copyAllLog" -Culture $script:dashboardCulture), "OK", "Information") | Out-Null
+        return
+    }
+    try {
+        [System.Windows.Forms.Clipboard]::SetText($text)
+        $status.Text = Get-ToolText -Key "progress.copySuccess" -Culture $script:dashboardCulture
+        $status.ForeColor = [System.Drawing.Color]::DarkGreen
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-ToolText -Key "progress.copyFailed" -Culture $script:dashboardCulture -FormatArguments @($_.Exception.Message)),
+            (Get-ToolText -Key "progress.copyAllLog" -Culture $script:dashboardCulture), "OK", "Error") | Out-Null
+    }
+}
+
+function Open-ReportDirectory {
+    $directory = [string]$script:lastReportDirectory
+    if ([string]::IsNullOrWhiteSpace($directory) -or -not (Test-Path -LiteralPath $directory -PathType Container)) { $directory = $desktop }
+    try {
+        Start-Process -FilePath $nativeExplorerPath -ArgumentList ('"' + $directory + '"')
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-ToolText -Key "report.openFolderFailed" -Culture $script:dashboardCulture -FormatArguments @($_.Exception.Message)),
+            (Get-ToolText -Key "report.openFolder" -Culture $script:dashboardCulture), "OK", "Error") | Out-Null
+    }
+}
+
+function Show-ExecutionEnvironmentWarning {
+    if ($script:executionEnvironmentWarningShown) { return }
+    $environmentProfile = $capabilityState.ExecutionEnvironment
+    if (-not $environmentProfile -or (-not $environmentProfile.VirtualMachineDetected -and -not $environmentProfile.RemoteDesktopDetected)) { return }
+    $script:executionEnvironmentWarningShown = $true
+    $details = New-Object System.Collections.Generic.List[string]
+    if ($environmentProfile.VirtualMachineDetected) {
+        [void]$details.Add((Get-ToolText -Key "environment.virtualMachine" -Culture $script:dashboardCulture -FormatArguments @([string]$environmentProfile.VirtualizationProvider)))
+    }
+    if ($environmentProfile.RemoteDesktopDetected) {
+        [void]$details.Add((Get-ToolText -Key "environment.remoteDesktop" -Culture $script:dashboardCulture -FormatArguments @([string]$environmentProfile.SessionName)))
+    }
+    $message = (Get-ToolText -Key "environment.warning" -Culture $script:dashboardCulture -FormatArguments @(($details -join [Environment]::NewLine)))
+    $status.Text = Get-ToolText -Key "environment.status" -Culture $script:dashboardCulture
+    $status.ForeColor = [System.Drawing.Color]::DarkOrange
+    Write-ProgressLog $message
+    [void](Write-ToolLog -Level "WARN" -Event "ExecutionEnvironment.Warning" -Message $message -Data $environmentProfile)
+    [System.Windows.Forms.MessageBox]::Show(
+        $message,
+        (Get-ToolText -Key "environment.warningTitle" -Culture $script:dashboardCulture),
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Warning) | Out-Null
+}
 
 function Open-ToolReportPresentation {
     param(
@@ -525,6 +614,7 @@ function Open-ToolReportPresentation {
             -Culture $script:dashboardCulture -IncludePdf
     }
     $script:reportPresentationCache[$cacheKey] = $package
+    Register-ToolReportPath -Path $package.HtmlPath
     Start-Process -FilePath $package.HtmlPath
     Write-ProgressLog "Đã lưu HTML/PDF trên Desktop và mở báo cáo HTML: $([IO.Path]::GetFileName($package.HtmlPath))"
     return $package
@@ -651,9 +741,9 @@ function Update-MainLayout {
         $statusRowHeight = if ($ultraCompactHeight) { 30 } elseif ($compactHeight) { 32 } else { 36 }
         $buttonPanelBottomPadding = if ($ultraCompactHeight) { 4 } else { 8 }
         $progressFixedHeight = if ($progressExpanded) {
-            5 + 20 + 20 + 15 + 4 + $minimumLogHeight + 8
+            5 + 26 + 20 + 15 + 4 + $minimumLogHeight + 8
         } else {
-            5 + 20 + 8
+            5 + 26 + 8
         }
         $availableButtonHeight = $form.ClientSize.Height - $buttonPanel.Top - $statusRowHeight - $progressFixedHeight
         $calculatedTileHeight = [Math]::Floor(($availableButtonHeight - 32 - (4 * $rowGap) - $buttonPanelBottomPadding) / 5)
@@ -686,8 +776,14 @@ function Update-MainLayout {
 
         $progressCaption.Left = $left
         $progressCaption.Top = [Math]::Max($status.Bottom, $closeButton.Bottom) + $(if ($ultraCompactHeight) { 2 } else { 5 })
-        $progressCaption.Height = if ($compactHeight) { 18 } else { 20 }
-        $progressCaption.Width = $contentWidth
+        $progressCaption.Height = 26
+        $copyLogButton.Height = 26
+        $openReportFolderButton.Height = 26
+        $openReportFolderButton.Left = $left + $contentWidth - $openReportFolderButton.Width
+        $openReportFolderButton.Top = $progressCaption.Top
+        $copyLogButton.Left = $openReportFolderButton.Left - $copyLogButton.Width - 8
+        $copyLogButton.Top = $progressCaption.Top
+        $progressCaption.Width = [Math]::Max(220, $copyLogButton.Left - $left - 8)
         if ($progressExpanded) {
             $activityLabel.Visible = $true
             $elapsedLabel.Visible = $true
@@ -721,6 +817,8 @@ function Update-MainLayout {
         Set-ModernRoundedRegion -Control $introDetailButton -Radius 9
         Set-ModernRoundedRegion -Control $stopButton -Radius 9
         Set-ModernRoundedRegion -Control $closeButton -Radius 9
+        Set-ModernRoundedRegion -Control $copyLogButton -Radius 8
+        Set-ModernRoundedRegion -Control $openReportFolderButton -Radius 8
     } finally {
         $script:updatingMainLayout = $false
     }
@@ -1085,6 +1183,8 @@ function Set-DashboardLanguage {
     $menuCaption.Text = Get-ToolText -Key "dashboard.functions" -Culture $Culture
     $closeButton.Text = Get-ToolText -Key "app.close" -Culture $Culture
     $stopButton.Text = Get-ToolText -Key "progress.stop" -Culture $Culture
+    $copyLogButton.Text = Get-ToolText -Key "progress.copyAllLog" -Culture $Culture
+    $openReportFolderButton.Text = Get-ToolText -Key "report.openFolder" -Culture $Culture
     $progressCaption.Text = Get-ToolText -Key "progress.caption" -Culture $Culture
 
     $dashboardCards["Compatibility"].Caption.Text = Get-ToolText -Key "dashboard.windows" -Culture $Culture
@@ -1188,6 +1288,10 @@ function Set-DashboardTheme {
     $closeButton.ForeColor = $text
     $stopButton.BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(139, 43, 52) } else { [System.Drawing.Color]::FromArgb(185, 28, 28) }
     $stopButton.ForeColor = [System.Drawing.Color]::White
+    $copyLogButton.BackColor = $surface
+    $copyLogButton.ForeColor = $text
+    $openReportFolderButton.BackColor = $surface
+    $openReportFolderButton.ForeColor = $text
     $themeButton.BackColor = $surface
     $themeButton.ForeColor = $text
     $themeButton.Text = Get-ToolText -Key $(if ($dark) { "app.theme.light" } else { "app.theme.dark" }) -Culture $script:dashboardCulture
@@ -1849,13 +1953,16 @@ function Start-Report([string]$mode, [string]$displayName) {
 }
 
 function Start-Cleanup {
-    param([switch]$ReuseSessionSettings)
+    param([switch]$ReuseSessionSettings, [switch]$AutoSafeMode)
     if (-not (Test-Path -LiteralPath $cleanupScript)) {
+        $script:cleanupAutoSafeMode = $false
         [System.Windows.Forms.MessageBox]::Show("Không tìm thấy mô-đun xử lý bản quyền.", "Lỗi", "OK", "Error") | Out-Null
         return
     }
     if (-not $ReuseSessionSettings) {
+        $script:cleanupAutoSafeMode = [bool]$AutoSafeMode
         if (-not (Confirm-KmsApprovalConfiguration)) {
+            $script:cleanupAutoSafeMode = $false
             $status.Text = "Đã thoát mục 6; chưa thay đổi hệ thống."
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
             Write-ProgressLog "Mục 6 đã dừng vì danh sách KMS hợp lệ chưa được xác nhận."
@@ -1867,7 +1974,10 @@ function Start-Cleanup {
             [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
             [System.Windows.Forms.MessageBoxIcon]::Information,
             [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
-        if ($privacyChoice -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
+        if ($privacyChoice -eq [System.Windows.Forms.DialogResult]::Cancel) {
+            $script:cleanupAutoSafeMode = $false
+            return
+        }
         $script:cleanupRedactSensitive = [bool]($privacyChoice -eq [System.Windows.Forms.DialogResult]::Yes)
     }
     try {
@@ -1883,8 +1993,51 @@ function Start-Cleanup {
         Set-ButtonsEnabled $false
         $timer.Start()
     } catch {
+        $script:cleanupAutoSafeMode = $false
         Set-ButtonsEnabled $true
         Stop-ProgressOnStartError "Không thể khởi động bước kiểm tra bản quyền: $($_.Exception.Message)"
+    }
+}
+
+function Get-AutomaticSafeCleanupItems {
+    param($CleanupItems)
+
+    # Chế độ tự động chỉ được phép thay đổi các giá trị Registry cấp phép có
+    # allowlist và có thể khôi phục đầy đủ. License, service, task, process,
+    # tệp, thư mục, Defender và lịch sử sự kiện luôn cần người dùng chọn tay.
+    return @($CleanupItems | Where-Object {
+        $type = [string]$_.Type
+        $kind = [string]$_.Kind
+        $path = [string]$_.Location
+        $type -eq "Registry" -and (
+            ($kind -eq "KmsOverride" -and (Test-ToolRegistryValueRestoreAllowed -Path $path -ValueName "KeyManagementServiceName")) -or
+            ($kind -eq "SppNoGenTicketPolicy" -and (Test-ToolRegistryValueRestoreAllowed -Path $path -ValueName "NoGenTicket"))
+        )
+    })
+}
+
+function Confirm-AutomaticSafeCleanup {
+    param($CleanupItems)
+
+    $safeItems = @(Get-AutomaticSafeCleanupItems -CleanupItems $CleanupItems)
+    if ($safeItems.Count -eq 0) {
+        return [pscustomobject]@{ Confirmed=$false; SelectedIds=@(); SafeItemCount=0 }
+    }
+
+    $preview = @($safeItems | ForEach-Object {
+        "- $([string]$_.Name)`r`n  $([string]$_.Location)`r`n  $([string]$_.Detail)"
+    }) -join "`r`n"
+    $message = "Tool đề xuất tự động xử lý $($safeItems.Count) cấu hình an toàn sau:`r`n`r`n$preview`r`n`r`nTool sẽ tạo backup có HMAC trước khi thay đổi, yêu cầu quyền Administrator và hậu kiểm ngay sau xử lý.`r`n`r`nKhông tự gỡ key bản quyền, service, task, tiến trình, tệp/thư mục, ngoại lệ Defender hoặc lịch sử Event Log.`r`n`r`nTiếp tục làm sạch các mục trên?"
+    $answer = [System.Windows.Forms.MessageBox]::Show(
+        $message,
+        "Xác nhận tự động làm sạch an toàn",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning,
+        [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
+    return [pscustomobject]@{
+        Confirmed = [bool]($answer -eq [System.Windows.Forms.DialogResult]::Yes)
+        SelectedIds = @($safeItems | ForEach-Object { [string]$_.Id })
+        SafeItemCount = [int]$safeItems.Count
     }
 }
 
@@ -1899,7 +2052,7 @@ function Show-DeepCleanupSelection {
     }
 
     $chooser = New-Object System.Windows.Forms.Form
-    $chooser.Text = "Chọn từng mục cần xử lý - Tool v4.3"
+    $chooser.Text = "Chọn từng mục cần xử lý - Tool v4.4"
     $chooser.StartPosition = "CenterParent"
     $chooser.FormBorderStyle = "Sizable"
     $chooser.MinimumSize = New-Object System.Drawing.Size(760, 480)
@@ -2012,19 +2165,29 @@ function Show-DeepCleanupSelection {
 }
 
 function Start-CleanupDeep {
-    param($CleanupItems)
-    if (-not (Confirm-IntegrityForElevatedAction "gỡ sâu các mục đã chọn")) { Set-ButtonsEnabled $true; return }
-    $selection = Show-DeepCleanupSelection -CleanupItems $CleanupItems
-    if (-not [bool]$selection.Confirmed) {
+    param($CleanupItems, [switch]$AutomaticSafeMode)
+    if (-not (Confirm-IntegrityForElevatedAction "gỡ sâu các mục đã chọn")) {
+        $script:cleanupAutoSafeMode = $false
         Set-ButtonsEnabled $true
-        $status.Text = "Đã thoát gỡ sâu; các mục chưa chọn được giữ nguyên."
+        return
+    }
+    $selection = if ($AutomaticSafeMode) {
+        Confirm-AutomaticSafeCleanup -CleanupItems $CleanupItems
+    } else {
+        Show-DeepCleanupSelection -CleanupItems $CleanupItems
+    }
+    if (-not [bool]$selection.Confirmed) {
+        $script:cleanupAutoSafeMode = $false
+        Set-ButtonsEnabled $true
+        $status.Text = if ($AutomaticSafeMode) { "Đã hủy tự động làm sạch; hệ thống không thay đổi." } else { "Đã thoát gỡ sâu; các mục chưa chọn được giữ nguyên." }
         $status.ForeColor = [System.Drawing.Color]::DarkOrange
-        Write-ProgressLog "Đã thoát màn hình chọn từng mục; hệ thống không thay đổi thêm."
+        Write-ProgressLog $status.Text
         return
     }
     try {
         Start-ProgressDisplay "Gỡ sạch tồn dư kích hoạt" "Đang sao lưu và chuẩn bị phục hồi cấu hình cấp phép..." $true
-        Write-ProgressLog "Đã chọn $(@($selection.SelectedIds).Count) mục để gỡ sâu. Đang yêu cầu quyền Quản trị viên..."
+        $selectionMode = if ($AutomaticSafeMode) { "tự động an toàn" } else { "thủ công" }
+        Write-ProgressLog "Đã chọn $(@($selection.SelectedIds).Count) mục theo chế độ $selectionMode. Đang yêu cầu quyền Quản trị viên..."
         Write-ProgressLog "Tool chỉ xử lý các dòng được đánh dấu và sẽ tạo bộ khôi phục tự động."
         $output = Join-Path $desktop "bao-cao-go-ban-quyen"
         $script:cleanupResultFile = New-SecureRuntimePath "tool-license-deep-clean-result-"
@@ -2038,6 +2201,7 @@ function Start-CleanupDeep {
         Set-ButtonsEnabled $false
         $timer.Start()
     } catch {
+        $script:cleanupAutoSafeMode = $false
         if ($script:cleanupSelectionFile -and (Test-Path -LiteralPath $script:cleanupSelectionFile)) {
             Remove-Item -LiteralPath $script:cleanupSelectionFile -Force -ErrorAction SilentlyContinue
         }
@@ -2211,14 +2375,40 @@ function Complete-CleanupScan {
             if ($choice -eq "Repair") {
                 Start-ScanSourceRepair
             } elseif ($choice -eq "Retry") {
-                Start-Cleanup
+                if ([bool]$script:cleanupAutoSafeMode) { Start-Cleanup -ReuseSessionSettings }
+                else { Start-Cleanup }
             } else {
+                $script:cleanupAutoSafeMode = $false
                 Write-ProgressLog "Người dùng đóng cảnh báo nguồn quét; hệ thống không thay đổi."
             }
             return
         }
 
         if ([bool]$scan.CrackDetected) {
+            if ([bool]$script:cleanupAutoSafeMode) {
+                $automaticSafeItems = @(Get-AutomaticSafeCleanupItems -CleanupItems @($scan.CleanupItems))
+                if ($automaticSafeItems.Count -gt 0) {
+                    Write-ProgressLog "Chế độ tự động an toàn tìm thấy $($automaticSafeItems.Count) cấu hình Registry có thể backup và khôi phục."
+                    Start-CleanupDeep -CleanupItems @($scan.CleanupItems) -AutomaticSafeMode
+                    return
+                }
+
+                $script:cleanupAutoSafeMode = $false
+                Set-ButtonsEnabled $true
+                $manualAnswer = [System.Windows.Forms.MessageBox]::Show(
+                    "Tool không tìm thấy cấu hình Registry nào đủ điều kiện tự động xử lý an toàn.`r`n`r`nCác dấu hiệu còn lại cần được người dùng xem và chọn thủ công. Mở danh sách chi tiết?",
+                    "Không có mục tự động an toàn",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Information)
+                if ($manualAnswer -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    Start-CleanupDeep -CleanupItems @($scan.CleanupItems)
+                } else {
+                    $status.Text = "Không có mục tự động an toàn; hệ thống không thay đổi."
+                    $status.ForeColor = [System.Drawing.Color]::DarkOrange
+                }
+                return
+            }
+
             $licenseNote = if ([bool]$scan.ProtectedLicense) {
                 "Bản quyền Windows cần bảo vệ: $($scan.ProtectedChannel).`r`n$($scan.ProtectedReason)`r`n`r`n"
             } else {
@@ -2237,6 +2427,7 @@ function Complete-CleanupScan {
             return
         }
 
+        $script:cleanupAutoSafeMode = $false
         Set-ButtonsEnabled $true
         if ([bool]$scan.ProtectedLicense) {
             [System.Windows.Forms.MessageBox]::Show("Máy đang có bản quyền $($scan.ProtectedChannel) và không phát hiện KMS/crack đang hoạt động. Dấu vết lịch sử tìm thấy: $($scan.HistoryFindingCount).`r`n`r`n$($scan.CleanupConclusion)", "Bản quyền đang được bảo vệ", "OK", "Information") | Out-Null
@@ -2442,6 +2633,8 @@ function Show-CleanupResultCenter {
 
 function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
     Set-ButtonsEnabled $true
+    $completedAutoSafeMode = [bool]$script:cleanupAutoSafeMode
+    $script:cleanupAutoSafeMode = $false
     try {
         if ($script:cleanupSelectionFile -and (Test-Path -LiteralPath $script:cleanupSelectionFile)) {
             Remove-Item -LiteralPath $script:cleanupSelectionFile -Force -ErrorAction SilentlyContinue
@@ -2468,6 +2661,7 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             ReadyForOfficialActivation=[bool]$result.ReadyForOfficialActivation
             RemainingItemCount=[int](@($result.CleanupItems).Count)
             BackupCreated=[bool](-not [string]::IsNullOrWhiteSpace([string]$result.BackupDirectory))
+            AutomaticSafeMode=$completedAutoSafeMode
         }))
         if ($wasSafetyBlocked) {
             $status.Text = "Tool đã khóa xử lý vì môi trường chạy không đạt yêu cầu an toàn; hệ thống không bị thay đổi."
@@ -2996,6 +3190,7 @@ section p{margin:6px 0}section li{margin:4px 0}section ul,section ol{padding-lef
 
         # Mở HTML ngay sau khi có tệp hợp lệ. Tạo PDF diễn ra sau đó nên người
         # dùng không còn phải chờ Edge/Chrome/Word trước khi đọc hướng dẫn.
+        Register-ToolReportPath -Path $htmlPath
         Start-Process -FilePath $htmlPath
         $status.Text = Get-ToolText -Key $ExportedKey -Culture $script:dashboardCulture -FormatArguments @([IO.Path]::GetFileName($htmlPath))
         $status.ForeColor = [System.Drawing.Color]::DarkGreen
@@ -3039,11 +3234,70 @@ function Open-Guide {
 }
 
 function Open-VersionHistory {
-    Open-ToolEmbeddedDocument `
-        -SourceFile $historyFile -FilePrefix "GIOI-THIEU-PHIEN-BAN-Tool-Kiem-Tra" `
-        -TitleKey "history.title" -SubtitleKey "history.subtitle" -EyebrowKey "history.eyebrow" -FooterKey "history.footer" `
-        -MissingKey "history.missing" -ExportingKey "history.exporting" -ExportingDetailKey "history.exportingDetail" `
-        -ExportedKey "history.exported" -ExportFailedKey "history.exportFailed"
+    if (-not (Test-Path -LiteralPath $historyFile -PathType Leaf)) {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-ToolText -Key "history.missing" -Culture $script:dashboardCulture),
+            (Get-ToolText -Key "history.title" -Culture $script:dashboardCulture), "OK", "Warning") | Out-Null
+        return
+    }
+    try {
+        $dialog = New-Object System.Windows.Forms.Form
+        $dialog.Text = Get-ToolText -Key "history.title" -Culture $script:dashboardCulture
+        $dialog.StartPosition = "CenterParent"
+        $dialog.ShowInTaskbar = $false
+        $dialog.MinimizeBox = $false
+        $dialog.MaximizeBox = $true
+        $dialog.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
+        $dialog.ClientSize = New-Object System.Drawing.Size(850, 620)
+        $dialog.MinimumSize = New-Object System.Drawing.Size(620, 440)
+        $dialog.Font = $fontNormal
+
+        $heading = New-Object System.Windows.Forms.Label
+        $heading.Text = Get-ToolText -Key "history.eyebrow" -Culture $script:dashboardCulture
+        $heading.Font = $fontTitle
+        $heading.Location = New-Object System.Drawing.Point(18, 14)
+        $heading.Size = New-Object System.Drawing.Size(800, 38)
+        $heading.Anchor = "Top,Left,Right"
+        $dialog.Controls.Add($heading)
+
+        $historyBox = New-Object System.Windows.Forms.RichTextBox
+        $historyBox.ReadOnly = $true
+        $historyBox.DetectUrls = $false
+        $historyBox.WordWrap = $true
+        $historyBox.ScrollBars = "Vertical"
+        $historyBox.Font = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.NormalSize)
+        $historyBox.Location = New-Object System.Drawing.Point(18, 58)
+        $historyBox.Size = New-Object System.Drawing.Size(814, 500)
+        $historyBox.Anchor = "Top,Bottom,Left,Right"
+        $historyBox.Text = [IO.File]::ReadAllText($historyFile, [Text.Encoding]::UTF8)
+        $dialog.Controls.Add($historyBox)
+
+        $copyButton = New-Object System.Windows.Forms.Button
+        $copyButton.Text = Get-ToolText -Key "history.copy" -Culture $script:dashboardCulture
+        $copyButton.Size = New-Object System.Drawing.Size(150, 32)
+        $copyButton.Location = New-Object System.Drawing.Point(18, 572)
+        $copyButton.Anchor = "Bottom,Left"
+        $copyButton.Add_Click({ if ($historyBox.TextLength -gt 0) { [System.Windows.Forms.Clipboard]::SetText($historyBox.Text) } })
+        $dialog.Controls.Add($copyButton)
+
+        $close = New-Object System.Windows.Forms.Button
+        $close.Text = Get-ToolText -Key "app.close" -Culture $script:dashboardCulture
+        $close.Size = New-Object System.Drawing.Size(120, 32)
+        $close.Location = New-Object System.Drawing.Point(712, 572)
+        $close.Anchor = "Bottom,Right"
+        $close.Add_Click({ $dialog.Close() })
+        $dialog.Controls.Add($close)
+        $dialog.AcceptButton = $close
+        $dialog.CancelButton = $close
+        Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
+        [void]$dialog.ShowDialog($form)
+        $historyBox.Font.Dispose()
+        $dialog.Dispose()
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-ToolText -Key "history.openFailed" -Culture $script:dashboardCulture -FormatArguments @($_.Exception.Message)),
+            (Get-ToolText -Key "history.title" -Culture $script:dashboardCulture), "OK", "Error") | Out-Null
+    }
 }
 
 function Show-AdvancedScanMenu {
@@ -3266,7 +3520,7 @@ function Start-CleanupRestore {
     $picker = New-Object System.Windows.Forms.FolderBrowserDialog
     $picker.Description = "Chọn thư mục backup_pre_cleanup_* hoặc quarantine_* trong vùng ProgramData bảo vệ"
     $picker.ShowNewFolderButton = $false
-    $secureBackupRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.3\backups"
+    $secureBackupRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.4\backups"
     if (Test-Path -LiteralPath $secureBackupRoot -PathType Container) { $picker.SelectedPath = $secureBackupRoot }
     if ($picker.ShowDialog($form) -ne [System.Windows.Forms.DialogResult]::OK) {
         $picker.Dispose()
@@ -3352,18 +3606,20 @@ function Complete-CleanupRestore {
 }
 
 function Show-CleanupFunctionScreen {
-    param([ValidateSet("Backup","Cleanup","Restore")][string]$Mode)
+    param([ValidateSet("Backup","Cleanup","Restore","AutoCleanup")][string]$Mode)
     $titles = @{
         Backup="1. Backup trước khi thực hiện"
         Cleanup="2. Kiểm tra và gỡ KMS/crack"
         Restore="3. Khôi phục tự động từ thư mục backup"
+        AutoCleanup="4. Tự động làm sạch an toàn"
     }
     $descriptions = @{
         Backup="Tạo một thư mục backup độc lập trong vùng ProgramData bảo vệ, gồm Registry cấp phép, task, service, tệp/thư mục liên quan và script khôi phục tự động. Chức năng này không thực hiện gỡ."
         Cleanup="Kiểm tra Windows và Office, sau đó hiển thị danh sách chi tiết để đánh dấu từng mục trước khi gỡ. Khóa OEM/Retail/MAK và KMS nội bộ đã phê duyệt được bảo vệ."
         Restore="Chọn thư mục backup_pre_cleanup_* hoặc quarantine_* có RESTORE-MANIFEST.json để khôi phục tự động các mục đã sao lưu."
+        AutoCleanup="Quét trước, tự chọn riêng cấu hình Registry cấp phép nằm trong allowlist và có thể khôi phục, cho xem trước rồi mới xử lý. Không tự gỡ key, service, task, tiến trình, tệp hoặc lịch sử Event Log."
     }
-    $actionTexts = @{ Backup="Bắt đầu backup"; Cleanup="Bắt đầu kiểm tra"; Restore="Chọn thư mục backup" }
+    $actionTexts = @{ Backup="Bắt đầu backup"; Cleanup="Bắt đầu kiểm tra"; Restore="Chọn thư mục backup"; AutoCleanup="Quét và xử lý" }
 
     $screen = New-Object System.Windows.Forms.Form
     $screen.Text = $titles[$Mode]
@@ -3419,6 +3675,7 @@ function Show-CleanupFunctionScreen {
     if ($Mode -eq "Backup") { Start-CleanupBackup }
     elseif ($Mode -eq "Cleanup") { Start-Cleanup }
     elseif ($Mode -eq "Restore") { Start-CleanupRestore }
+    elseif ($Mode -eq "AutoCleanup") { Start-Cleanup -AutoSafeMode }
     return $true
 }
 
@@ -3431,7 +3688,7 @@ function Show-CleanupMenu {
         $chooser.MaximizeBox = $false
         $chooser.MinimizeBox = $false
         $chooser.ShowInTaskbar = $false
-        $chooser.ClientSize = New-Object System.Drawing.Size(650, 330)
+        $chooser.ClientSize = New-Object System.Drawing.Size(650, 390)
         $chooser.BackColor = [System.Drawing.Color]::FromArgb(244, 246, 249)
         $chooser.Font = $fontNormal
         $chooser.Tag = ""
@@ -3475,10 +3732,20 @@ function Show-CleanupMenu {
         $restoreButton.Add_Click({ $chooser.Tag = "Restore"; $chooser.Close() })
         $chooser.Controls.Add($restoreButton)
 
+        $autoCleanupButton = New-Object System.Windows.Forms.Button
+        $autoCleanupButton.Text = "4. Tự động làm sạch an toàn, sẵn sàng kích hoạt"
+        $autoCleanupButton.Font = $fontBold
+        $autoCleanupButton.TextAlign = "MiddleLeft"
+        $autoCleanupButton.Location = New-Object System.Drawing.Point(44, 244)
+        $autoCleanupButton.Size = New-Object System.Drawing.Size(562, 48)
+        $autoCleanupButton.BackColor = [System.Drawing.Color]::FromArgb(255, 238, 238)
+        $autoCleanupButton.Add_Click({ $chooser.Tag = "AutoCleanup"; $chooser.Close() })
+        $chooser.Controls.Add($autoCleanupButton)
+
         $cancelButton = New-Object System.Windows.Forms.Button
         $cancelButton.Text = "Trở về"
         $cancelButton.Font = $fontBold
-        $cancelButton.Location = New-Object System.Drawing.Point(486, 266)
+        $cancelButton.Location = New-Object System.Drawing.Point(486, 326)
         $cancelButton.Size = New-Object System.Drawing.Size(120, 38)
         $cancelButton.Add_Click({ $chooser.Close() })
         $chooser.CancelButton = $cancelButton
@@ -3717,7 +3984,7 @@ Add-MenuButton 9 "menu.9.title" "menu.9.description" 8 { Show-AdvancedScanMenu }
 Add-MenuButton 10 "menu.10.title" "menu.10.description" 9 { Show-AssuranceCenter } $false
 Update-MainLayout
 Set-DashboardTheme -Mode $script:dashboardTheme
-$form.Add_Shown({ Fit-MainWindowToWorkingArea; Update-MainLayout })
+$form.Add_Shown({ Fit-MainWindowToWorkingArea; Update-MainLayout; Show-ExecutionEnvironmentWarning })
 $form.Add_Resize({ Update-MainLayout })
 
 $timer = New-Object System.Windows.Forms.Timer

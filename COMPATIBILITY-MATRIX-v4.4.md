@@ -1,4 +1,4 @@
-# Ma trận tương thích v4.3
+# Ma trận tương thích v4.4
 
 Mốc rà soát: **2026-07-30 UTC**. Nguồn máy đọc: `compatibility-catalog-v1.0.json`. Catalog có thời hạn rà soát tối đa 45 ngày; quá hạn thì `VERIFY-COMPATIBILITY.ps1` và build phát hành thất bại.
 
@@ -23,7 +23,7 @@ Do đó máy đã cập nhật mới hơn không bị báo “không hỗ trợ�
 
 ## Office 2024 / LTSC 2024
 
-v4.3 nhận diện các ProductReleaseId Retail/Volume của:
+v4.4 nhận diện các ProductReleaseId Retail/Volume của:
 
 - Microsoft 365 Apps và Office 2024 ProPlus/Standard;
 - Project 2024;

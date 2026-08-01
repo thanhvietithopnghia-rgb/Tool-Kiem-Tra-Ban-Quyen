@@ -1,7 +1,7 @@
 # Configuration & License Assurance Tool User Guide
 
 Developed by Thanh Viet
-Applies to the v4.3 Enterprise line
+Applies to the v4.4 Enterprise line
 
 This document explains how to use each function. Version-by-version changes are kept in the separate Versions & updates document.
 
@@ -21,7 +21,7 @@ This document explains how to use each function. Version-by-version changes are 
 3. Do not rename, delete, or mix payload files from different versions.
 4. Close Word, Excel, Outlook, and other Office applications before changing Office licensing.
 5. Prepare a valid key or licensed account before using Function 06 or 08.
-6. Run Tool-Kiem-Tra-v4.3.exe and approve UAC.
+6. Run Tool-Kiem-Tra-v4.4.exe and approve UAC.
 7. Select Vietnamese or English and the Light or Dark theme.
 8. Keep Offline mode enabled for local work. Allow Function 8 networking only when LAN management is required.
 
@@ -123,6 +123,7 @@ The Function 06 menu provides:
 1. Backup before action.
 2. Inspect and remediate.
 3. Restore from a verified backup.
+4. Automatic safe cleanup for official-activation readiness.
 
 Backup:
 
@@ -155,6 +156,15 @@ Restore:
 3. Location, ACL, manifest, HMAC, and hashes are verified.
 4. Moved or modified backup data is rejected.
 5. Review the restore report and rescan.
+
+Automatic safe cleanup:
+
+1. Select Automatic safe cleanup.
+2. The tool performs a read-only scan and proposes only licensing Registry configuration covered by the restore allowlist, currently KMS overrides and the NoGenTicket policy.
+3. Review the complete preview. Product keys, services, tasks, processes, files/folders, Defender exclusions, and Event Log history are never selected automatically.
+4. Confirm to create an HMAC-protected backup, approve UAC, and process the proposed entries.
+5. The tool runs a post-check and reports official-activation readiness only when no blocker remains.
+6. Findings outside the automatic scope remain unchanged and can be reviewed manually.
 
 The tool protects valid OEM/Retail/MAK licenses and approved internal KMS servers. It does not erase Event Logs or PowerShell history.
 
@@ -267,8 +277,8 @@ The guide and version history:
 Open PowerShell in the release folder:
 
 ```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.3.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.3.exe
+Get-FileHash .\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.4.exe
 ```
 
 Compare the complete SHA-256 against the value published with the same release.

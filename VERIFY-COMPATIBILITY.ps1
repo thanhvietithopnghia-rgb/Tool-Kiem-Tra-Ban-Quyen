@@ -24,8 +24,8 @@ if ($failures.Count -eq 0) {
         foreach ($parseError in @($parseErrors)) { Fail "Lỗi cú pháp Tool-Compatibility.ps1: $($parseError.Message)" }
 
         $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ([string]$catalog.SchemaVersion -ne "1.0" -or [string]$catalog.ToolVersion -ne "4.3") {
-            Fail "Catalog không dùng schema 1.0 / tool 4.3."
+        if ([string]$catalog.SchemaVersion -ne "1.0" -or [string]$catalog.ToolVersion -ne "4.4") {
+            Fail "Catalog không dùng schema 1.0 / tool 4.4."
         }
         $reviewedAt = [DateTime]::MinValue
         if (-not [DateTime]::TryParse([string]$catalog.ReviewedAtUtc, [ref]$reviewedAt)) {

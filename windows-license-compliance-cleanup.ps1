@@ -20,13 +20,16 @@ if ($PSVersionTable.PSVersion.Major -lt 3) {
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportSchemaHelper = Join-Path $PSScriptRoot "Tool-ReportSchema.ps1"
 $safetyPolicyHelper = Join-Path $PSScriptRoot "Tool-SafetyPolicy.ps1"
+$scanOptimizationHelper = Join-Path $PSScriptRoot "Tool-ScanOptimization.ps1"
 try {
     if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
     if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw "Thiếu Tool-ReportSchema.ps1." }
     if (-not (Test-Path -LiteralPath $safetyPolicyHelper -PathType Leaf)) { throw "Thiếu Tool-SafetyPolicy.ps1." }
+    if (-not (Test-Path -LiteralPath $scanOptimizationHelper -PathType Leaf)) { throw "Thiếu Tool-ScanOptimization.ps1." }
     . $runtimeHelper
     . $reportSchemaHelper
     . $safetyPolicyHelper
+    . $scanOptimizationHelper
     [void](Assert-ToolNativeArchitecture)
     $nativeCscriptPath = Get-ToolNativeSystemPath "cscript.exe"
     $nativeScPath = Get-ToolNativeSystemPath "sc.exe"
@@ -126,7 +129,7 @@ function Get-SecureBackupRoot {
     $commonData = [Environment]::GetFolderPath("CommonApplicationData")
     if ([string]::IsNullOrWhiteSpace($commonData)) { throw "Không xác định được thư mục ProgramData." }
     $productRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra"
-    $versionRoot = Join-Path $productRoot "v4.3"
+    $versionRoot = Join-Path $productRoot "v4.4"
     $backupRoot = Join-Path $versionRoot "backups"
     foreach ($path in @($productRoot, $versionRoot, $backupRoot)) {
         if (Test-Path -LiteralPath $path) {
@@ -452,29 +455,18 @@ function Get-OfficeKmsEntries {
     # Chỉ trả về từng SKU Office KMS có key hoặc KMS override đang hoạt động.
     # Không đụng tới Retail/OEM/MAK và không báo nhầm license definition KMS
     # đã Unlicensed nhưng không còn product key.
-    $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432) |
-        Where-Object { $_ } | Select-Object -Unique | ForEach-Object { Join-Path $_ "Microsoft Office" } |
-        Where-Object { Test-Path -LiteralPath $_ }
     $entries = New-Object System.Collections.Generic.List[object]
-    foreach ($root in $roots) {
-        try {
-            Get-ChildItem -LiteralPath $root -Recurse -Filter OSPP.VBS -ErrorAction SilentlyContinue | ForEach-Object {
-                $ospp = $_.FullName
-                $status = (& $nativeCscriptPath //nologo $ospp /dstatusall 2>$null) -join "`n"
-                if ([string]::IsNullOrWhiteSpace($status) -or $status -notmatch '(?im)^\s*SKU ID\s*:') {
-                    # Office cũ có thể không hỗ trợ /dstatusall; /dstatus vẫn là
-                    # fallback chỉ đọc nhưng không được dùng trước /dstatusall.
-                    $status = (& $nativeCscriptPath //nologo $ospp /dstatus 2>$null) -join "`n"
-                }
-                if ([string]::IsNullOrWhiteSpace($status) -or $status -notmatch '(?im)^\s*(?:SKU ID|LICENSE NAME)\s*:') {
-                    Add-ScanWarning "Không đọc được trạng thái giấy phép Office bằng OSPP.VBS: $ospp"
-                    return
-                }
-                foreach ($entry in @(ConvertFrom-OfficeLicenseStatus -StatusText $status -Path $ospp)) {
-                    $entries.Add($entry)
-                }
-            }
-        } catch {}
+    $osppPaths = @(Get-ToolOptimizedOfficeOsppPaths)
+    foreach ($statusResult in @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths $osppPaths)) {
+        $ospp = [string]$statusResult.Path
+        $status = [string]$statusResult.Output
+        if (-not $statusResult.Readable) {
+            Add-ScanWarning "Không đọc được trạng thái giấy phép Office bằng OSPP.VBS: $ospp"
+            continue
+        }
+        foreach ($entry in @(ConvertFrom-OfficeLicenseStatus -StatusText $status -Path $ospp)) {
+            $entries.Add($entry)
+        }
     }
     return @($entries.ToArray() | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)" } | ForEach-Object { $_.Group[0] })
 }
@@ -1378,7 +1370,7 @@ function Invoke-ScanSourceRepair {
         catch { $serviceStateAfter.Add([pscustomobject]@{ Name=[string]$servicePolicy.Name; DisplayName=[string]$servicePolicy.DisplayName; Status="Unknown"; StartMode="Unknown"; Error=$_.Exception.Message }) }
     }
 
-    return (New-ToolReportEnvelope -ReportKind "ScanSourceRepair" -ToolVersion "4.3" -Data ([ordered]@{
+    return (New-ToolReportEnvelope -ReportKind "ScanSourceRepair" -ToolVersion "4.4" -Data ([ordered]@{
         RepairAttempted = $true
         RecheckPassed = $recheckPassed
         StartupTypeChanged = $false
@@ -1913,14 +1905,14 @@ function Invoke-DeepCleanupV35 {
     try { $rng.GetBytes($hmacKey) } finally { $rng.Dispose() }
     $protectedKey = [Security.Cryptography.ProtectedData]::Protect($hmacKey, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
     [IO.File]::WriteAllBytes($authPath, $protectedKey)
-    $actions.Add("Gỡ sạch nâng cao v4.3 đã được người dùng xác nhận theo từng mục.")
+    $actions.Add("Gỡ sạch nâng cao v4.4 đã được người dùng xác nhận theo từng mục.")
     $actions.Add("Số mục được đánh dấu: $($selected.Count)/$(@($Candidates).Count)")
     $actions.Add("Thư mục sao lưu/cách ly: $quarantine")
 
     function Save-RestoreManifest {
         $manifest = [ordered]@{
             SchemaVersion = "2.0"
-            ToolVersion = "4.3"
+            ToolVersion = "4.4"
             BackupMode = "DeepCleanup"
             ComputerName = $env:COMPUTERNAME
             MachineBinding = Get-MachineBinding
@@ -2207,7 +2199,7 @@ function Invoke-DeepCleanupV35 {
         Save-RestoreManifest
         $actions | Set-Content -LiteralPath (Join-Path $quarantine "QUARANTINE-MANIFEST.txt") -Encoding UTF8
         @(
-            "KHÔI PHỤC TỰ ĐỘNG - TOOL KIỂM TRA v4.3",
+            "KHÔI PHỤC TỰ ĐỘNG - TOOL KIỂM TRA v4.4",
             "1. Nhấn nút Khôi phục tự động trong mục 6, rồi chọn thư mục này.",
             "2. Hoặc chạy KHOI-PHUC-TU-DONG.cmd bằng quyền Administrator.",
             "3. Tool xác thực HMAC, đúng máy, ACL và SHA-256 từng file trước khi phục hồi.",
@@ -2236,7 +2228,7 @@ if ($RepairScanSources) {
     $repair = Invoke-ScanSourceRepair
     $repair.ReportPath = [string]$repairReportPath
     $repairLines = New-Object System.Collections.Generic.List[string]
-    $repairLines.Add("KIỂM TRA/KHẮC PHỤC NGUỒN QUÉT - TOOL KIỂM TRA v4.3")
+    $repairLines.Add("KIỂM TRA/KHẮC PHỤC NGUỒN QUÉT - TOOL KIỂM TRA v4.4")
     $repairLines.Add("Thời gian: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     $repairLines.Add("Kết quả quét lại đạt: $($repair.RecheckPassed)")
     $repairLines.Add("Đã thay đổi StartupType: $($repair.StartupTypeChanged)")
@@ -2302,7 +2294,7 @@ $unapprovedWindowsConfigResidues = @($configurationResidues | Where-Object {
 })
 $cleanupWindowsKmsConfiguration = [bool]($unapprovedWindowsKms -or $unapprovedWindowsConfigResidues.Count -gt 0)
 $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history
-$decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.3" -Data ([ordered]@{
+$decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.4" -Data ([ordered]@{
     CrackDetected = $crackDetected
     ProtectedLicense = [bool]$protectedLicense.Protected
     ProtectedChannel = [string]$protectedLicense.Channel
@@ -2348,7 +2340,7 @@ if ($Remediate) {
     } elseif ([int]$verification.ScanWarningCount -gt 0) {
         $actions.Add("ĐÃ KHÓA XỬ LÝ: nguồn quét quan trọng chưa đọc đầy đủ; sửa cảnh báo quét rồi chạy lại trước khi thay đổi hệ thống.")
     } elseif (-not $DeepClean) {
-        $actions.Add("ĐÃ KHÓA XỬ LÝ: v4.3 bắt buộc dùng danh sách chọn từng mục; không còn chế độ gỡ tự động không chọn.")
+        $actions.Add("ĐÃ KHÓA XỬ LÝ: v4.4 bắt buộc dùng danh sách chọn từng mục; không còn chế độ gỡ tự động không chọn.")
     } elseif ($selectedCleanupIds.Count -eq 0) {
         $actions.Add("BỎ QUA GỠ SẠCH: chưa nhận được danh sách mục do người dùng đánh dấu; hệ thống không bị thay đổi.")
     } elseif ($crackDetected) {
@@ -2367,7 +2359,7 @@ if ($Remediate) {
 
         if (-not $NoRestorePoint) {
             try {
-                Checkpoint-Computer -Description "Before Tool-Kiem-Tra v4.3 selected cleanup" -RestorePointType "MODIFY_SETTINGS" | Out-Null
+                Checkpoint-Computer -Description "Before Tool-Kiem-Tra v4.4 selected cleanup" -RestorePointType "MODIFY_SETTINGS" | Out-Null
                 $actions.Add("Đã tạo System Restore Point trước mọi thay đổi đã chọn.")
             } catch {
                 $actions.Add("CẢNH BÁO: không tạo được System Restore Point; tiếp tục dựa trên backup có HMAC: $($_.Exception.Message)")
@@ -2409,7 +2401,7 @@ if ($Remediate) {
     $postActiveProduct = $products | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
     $postActiveChannel = if ($postActiveProduct) { Get-LicenseChannel $postActiveProduct } else { "Chưa xác định" }
     $actions.Add("KIỂM TRA SAU XỬ LÝ: $($verification.Conclusion)")
-    $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.3" -Data ([ordered]@{
+    $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.4" -Data ([ordered]@{
         CrackDetected = [bool](-not $verification.ReadyForOfficialActivation)
         ProtectedLicense = [bool]$postProtectedLicense.Protected
         ProtectedChannel = [string]$postProtectedLicense.Channel
@@ -2454,7 +2446,7 @@ Write-Report -Path $reportPath -Products $products -Findings $findings -Decision
 # thay đổi luồng xử lý v3.0. Không ghi product key đầy đủ vào JSON.
 $jsonReportPath = [IO.Path]::ChangeExtension($reportPath, ".json")
 $hashReportPath = [IO.Path]::ChangeExtension($reportPath, ".sha256")
-$cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.3" -Data ([ordered]@{
+$cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.4" -Data ([ordered]@{
     ComputerName = $reportComputer
     CreatedAt = (Get-Date).ToString("o")
     Redacted = [bool]$RedactSensitive
@@ -2483,7 +2475,7 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ScopeNote = Protect-CleanupReportText ([string]$verification.ScopeNote)
     Actions = @($actions | ForEach-Object { Protect-CleanupReportText $_ })
 })
-$cleanupSummaryValidation = Test-ToolReportEnvelope -Report $cleanupSummary -ExpectedReportKind "CleanupCompliance" -ExpectedToolVersion "4.3"
+$cleanupSummaryValidation = Test-ToolReportEnvelope -Report $cleanupSummary -ExpectedReportKind "CleanupCompliance" -ExpectedToolVersion "4.4"
 if (-not $cleanupSummaryValidation.Valid) { throw "Báo cáo cleanup không đạt schema: $($cleanupSummaryValidation.Errors -join '; ')" }
 $cleanupJson = $cleanupSummary | ConvertTo-Json -Depth 8
 Protect-CleanupReportText $cleanupJson | Set-Content -LiteralPath $jsonReportPath -Encoding UTF8

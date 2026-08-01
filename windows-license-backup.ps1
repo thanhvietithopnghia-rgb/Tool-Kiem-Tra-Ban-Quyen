@@ -68,7 +68,7 @@ function Get-SecureBackupRoot {
     $commonData = [Environment]::GetFolderPath("CommonApplicationData")
     if ([string]::IsNullOrWhiteSpace($commonData)) { throw "Không xác định được thư mục ProgramData." }
     $productRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra"
-    $versionRoot = Join-Path $productRoot "v4.3"
+    $versionRoot = Join-Path $productRoot "v4.4"
     $backupRoot = Join-Path $versionRoot "backups"
     foreach ($path in @($productRoot, $versionRoot, $backupRoot)) {
         if (Test-Path -LiteralPath $path) {
@@ -246,7 +246,7 @@ $protectedKey = [Security.Cryptography.ProtectedData]::Protect($hmacKey, $null, 
 function Save-Manifest {
     $manifest = [ordered]@{
         SchemaVersion="2.0"
-        ToolVersion="4.3"
+        ToolVersion="4.4"
         BackupMode="PreCleanup"
         ComputerName=$env:COMPUTERNAME
         MachineBinding=(Get-MachineBinding)
@@ -427,7 +427,7 @@ try {
             Set-Content -LiteralPath (Join-Path $backupDir "KHOI-PHUC-TU-DONG.cmd") -Encoding ASCII
     }
     @(
-        "BACKUP TRƯỚC KHI THỰC HIỆN - TOOL v4.3",
+        "BACKUP TRƯỚC KHI THỰC HIỆN - TOOL v4.4",
         "Dùng nút Khôi phục tự động trong mục 6 hoặc chạy KHOI-PHUC-TU-DONG.cmd bằng quyền Administrator.",
         "Backup không export toàn bộ khóa SPP/product key; chỉ lưu giá trị KMS cần thiết và các mục nghi vấn đã xác định.",
         "Manifest, từng tệp backup và đúng máy sẽ được xác thực trước khi khôi phục.",
@@ -441,7 +441,7 @@ foreach ($scanWarning in @($script:BackupScanWarnings)) {
 
 Save-Manifest
 $backupReport = @(
-    "BACKUP TRƯỚC KHI THỰC HIỆN - TOOL KIỂM TRA v4.3"
+    "BACKUP TRƯỚC KHI THỰC HIỆN - TOOL KIỂM TRA v4.4"
     "Thời gian: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     "Máy: $env:COMPUTERNAME"
     "Thư mục: $backupDir"

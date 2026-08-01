@@ -9,7 +9,7 @@
 
     if ($is64BitOperatingSystem -and -not $is64BitProcess) {
         $supported = $false
-        $message = "Windows đang là 64-bit nhưng tiến trình PowerShell là 32-bit. Hãy chạy trực tiếp Tool-Kiem-Tra-v4.3.exe để bản AnyCPU tự dùng PowerShell 64-bit, tránh Registry/System32 bị WOW64 chuyển hướng."
+        $message = "Windows đang là 64-bit nhưng tiến trình PowerShell là 32-bit. Hãy chạy trực tiếp Tool-Kiem-Tra-v4.4.exe để bản AnyCPU tự dùng PowerShell 64-bit, tránh Registry/System32 bị WOW64 chuyển hướng."
     } elseif ($expectedArchitecture -eq "x64" -and -not $is64BitProcess) {
         $supported = $false
         $message = "Bản x64 không được chạy trong tiến trình 32-bit."
@@ -36,12 +36,26 @@ function Assert-ToolNativeArchitecture {
     return $state
 }
 
-function Get-ToolNativeSystemDirectory {
+function Get-ToolWindowsDirectory {
     $windowsDirectory = [string]$env:SystemRoot
     if ([string]::IsNullOrWhiteSpace($windowsDirectory)) {
         $windowsDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
     }
     if ([string]::IsNullOrWhiteSpace($windowsDirectory)) { throw "Không xác định được thư mục Windows." }
+    return $windowsDirectory
+}
+
+function Get-ToolWindowsPath {
+    param([Parameter(Mandatory = $true)][string]$RelativePath)
+
+    if ([IO.Path]::IsPathRooted($RelativePath) -or $RelativePath -match '(^|[\\/])\.\.([\\/]|$)') {
+        throw "Đường dẫn thành phần Windows không an toàn: $RelativePath"
+    }
+    return (Join-Path (Get-ToolWindowsDirectory) $RelativePath)
+}
+
+function Get-ToolNativeSystemDirectory {
+    $windowsDirectory = Get-ToolWindowsDirectory
 
     if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
         $sysnative = Join-Path $windowsDirectory "Sysnative"

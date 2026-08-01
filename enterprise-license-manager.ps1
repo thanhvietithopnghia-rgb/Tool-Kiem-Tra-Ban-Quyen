@@ -1,5 +1,5 @@
 ﻿<#
-    Trung tâm quản lý license doanh nghiệp (mục 8 của Tool v4.3).
+    Trung tâm quản lý license doanh nghiệp (mục 8 của Tool v4.4).
     Giao diện chỉ điều phối các thao tác chính; dữ liệu nhạy cảm được xử lý
     trong Tool-Enterprise.ps1 và không ghi product key đầy đủ vào log.
 #>
@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$script:enterpriseReleaseVersion = "4.3.0.8"
+$script:enterpriseReleaseVersion = "4.4.0.0"
 $script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion) Enterprise"
 . (Join-Path $baseDir "Tool-ReportSchema.ps1")
 . (Join-Path $baseDir "Tool-Enterprise.ps1")
@@ -382,7 +382,7 @@ function Remove-EnterpriseServerNetworkAccess {
     }
 
     try {
-        $firewallArguments = 'advfirewall firewall delete rule name="ThanhViet Tool v4.3 Enterprise Server" protocol=TCP localport=' + $Port
+        $firewallArguments = 'advfirewall firewall delete rule name="ThanhViet Tool v4.4 Enterprise Server" protocol=TCP localport=' + $Port
         $process = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Wait -PassThru -WindowStyle Hidden
         if ($process.ExitCode -ne 0) { [void]$warnings.Add((Get-EnterpriseText "enterprise.server.revokeFirewallExit" @($Port, $process.ExitCode))) }
     } catch {
@@ -492,8 +492,8 @@ function Invoke-ServerScan {
         $found = @(Find-ToolEnterpriseNetworkDevices -Cidr $cidr -TimeoutMs 250 -ThrottleLimit 64)
         $script:scanResultBox.Clear()
         foreach ($device in $found) {
-            $hostLabel = if ($device.HostName) { [string]$device.HostName } else { "reachable" }
-            $line = "{0,-16} {1,6} ms  {2}" -f $device.Address, $device.LatencyMs, $hostLabel
+            $hostLabel = if ($device.HostName) { [string]$device.HostName } else { Get-EnterpriseText "enterprise.server.scanHostUnknown" }
+            $line = Get-EnterpriseText "enterprise.server.scanResultLine" @($device.Address, $device.LatencyMs, $hostLabel)
             [void]$script:scanResultBox.AppendText($line + [Environment]::NewLine)
         }
         if ($found.Count -eq 0) { [void]$script:scanResultBox.AppendText((Get-EnterpriseText "enterprise.server.noPing")) }
@@ -541,7 +541,7 @@ function Invoke-ServerNetworkAccess {
         }
         if (Get-Command New-NetFirewallRule -ErrorAction SilentlyContinue) {
             try {
-                New-NetFirewallRule -DisplayName "ThanhViet Tool v4.3 Enterprise Server" -Direction Inbound -Action Allow -Protocol TCP -LocalPort ([int]$cfg.Port) -Profile Domain,Private -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "ThanhViet Tool v4.4 Enterprise Server" -Direction Inbound -Action Allow -Protocol TCP -LocalPort ([int]$cfg.Port) -Profile Domain,Private -ErrorAction Stop | Out-Null
             } catch {
                 # A pre-existing rule is harmless; the URL ACL is the
                 # essential listener permission.
@@ -588,7 +588,7 @@ function Invoke-ClientSchedule {
         if ($Enable -and -not (Confirm-EnterpriseNetworkAccess -ActionKey "enterprise.action.scheduleAgent")) { return }
         $launcher = Get-EnterpriseLauncherPath
         if (-not $launcher) { throw (Get-EnterpriseText "enterprise.error.oneFileRequired") }
-        $taskName = "ThanhViet Tool v4.3 Enterprise Agent"
+        $taskName = "ThanhViet Tool v4.4 Enterprise Agent"
         if ($Enable) {
             if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.client.enableSchedulePrompt"))) { return }
             $taskRun = "`"$launcher`" --enterprise-agent"

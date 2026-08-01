@@ -13,7 +13,7 @@ function Initialize-ToolLogging {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Component,
-        [string]$ToolVersion = "4.3"
+        [string]$ToolVersion = "4.4"
     )
 
     $path = [string]$env:TOOL_LOG_PATH
@@ -46,7 +46,7 @@ function Initialize-ToolLogging {
         if (($directoryInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Thư mục log không được là reparse point." }
 
         if ($env:TOOL_SECURE_LAUNCH -eq "1") {
-            $expectedRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.3\logs"
+            $expectedRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.4\logs"
             $expectedFull = [IO.Path]::GetFullPath($expectedRoot).TrimEnd([char]92) + [char]92
             if (-not $fullPath.StartsWith($expectedFull, [StringComparison]::OrdinalIgnoreCase)) {
                 throw "Launcher truyền đường dẫn log ngoài vùng ProgramData bảo vệ."

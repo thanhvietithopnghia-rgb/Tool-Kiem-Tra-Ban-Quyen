@@ -1,5 +1,5 @@
 ﻿<#
-    Tool v4.3 enterprise server
+    Tool v4.4 enterprise server
 
     The host is deliberately a small HTTP listener instead of a full web
     framework so it can run on Windows 7 SP1 through Windows 11 with the
@@ -157,7 +157,7 @@ function Start-ToolEnterpriseHost {
     }
 
     $created = $false
-    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.3.EnterpriseServer", [ref]$created)
+    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseServer", [ref]$created)
     if (-not $created) {
         $mutex.Dispose()
         throw "Máy chủ enterprise đã đang chạy trên máy này."

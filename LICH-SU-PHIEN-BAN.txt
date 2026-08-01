@@ -1,12 +1,26 @@
 # Giới thiệu phiên bản và lịch sử phát triển Tool Kiểm Tra
 
-Tài liệu này trình bày các phiên bản chính của Tool Kiểm Tra từ v1 đến bản hiện tại. Các bản vá lẻ như `v4.3.0.x` được gộp vào mốc `v4.3` để lịch sử ngắn gọn, dễ theo dõi và phản ánh đúng từng thế hệ sản phẩm.
+Tài liệu này trình bày các phiên bản chính của Tool Kiểm Tra từ v1 đến bản hiện tại. Các bản vá lẻ được gộp vào mốc phiên bản chính để lịch sử ngắn gọn, dễ theo dõi và phản ánh đúng từng thế hệ sản phẩm.
 
-Bản phát hành hiện tại: **v4.3 Enterprise**  
-FileVersion: **4.3.0.8** · Build **2026.07.31**
+Bản phát hành hiện tại: **v4.4 Enterprise**
+FileVersion: **4.4.0.0** · Build **2026.07.31**
 
 Kho phát hành chính thức:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen
+
+## v4.4 Enterprise – 31/07/2026
+
+Trọng tâm: cải thiện trải nghiệm vận hành và tốc độ quét, chỉ bổ sung, không loại bỏ chức năng hiện có.
+
+- Bổ sung **Tự động làm sạch an toàn** tại Mục 6: quét trước, chỉ tự chọn cấu hình Registry cấp phép nằm trong allowlist và có thể khôi phục, hiển thị đầy đủ mục đề xuất để xác nhận, tạo backup có HMAC, yêu cầu Administrator và hậu kiểm sau xử lý. Chế độ này không tự gỡ key bản quyền, service, task, tiến trình, tệp/thư mục, ngoại lệ Defender hoặc lịch sử Event Log.
+- Thêm nút **Sao chép toàn bộ log** và **Mở thư mục báo cáo** ngay tại khu vực hoạt động.
+- Ghi nhớ ngôn ngữ, giao diện Light/Dark và trạng thái Offline/Online mặc định theo tài khoản người dùng.
+- Cảnh báo rõ ràng khi phát hiện Tool đang chạy trong máy ảo hoặc phiên Remote Desktop; cảnh báo không khóa chức năng.
+- Hiển thị toàn bộ lịch sử phiên bản trong cửa sổ của Tool, có nút sao chép, không cần mở tài liệu ngoài.
+- Tối ưu quét nhiều bản Office song song bằng runspace pool có giới hạn; quét tệp theo từng ổ/thư mục song song, giới hạn độ sâu và bỏ qua reparse point.
+- Giữ nguyên phạm vi quét, các chức năng 01–10, hợp đồng báo cáo Mục 5 của v4.3.0.3 và các cơ chế an toàn hiện có.
+
+Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell/WinForms; runspace pool; WMI/CIM và Registry; JSON localization/preferences; HTML/PDF/JSON/XML.
 
 ## v4.3 Enterprise – 30–31/07/2026
 
@@ -280,28 +294,21 @@ Trọng tâm: hình thành ứng dụng Windows đầu tiên.
 
 Nền tảng/công nghệ: Windows PowerShell 3+/WinForms; WMI/Registry; cấu hình KMS cục bộ; launcher một tệp.
 
-## Mô hình triển khai hiện tại
+## CÔNG NGHỆ & NGÔN NGỮ
 
-- Người dùng chạy một `Tool-Kiem-Tra-v4.3.exe` AnyCPU; không cần cài dịch vụ đám mây.
-- Launcher C# xác minh payload, chọn CLR/Windows PowerShell native và giải nén phiên làm việc vào vùng có ACL bảo vệ.
-- Dashboard và 10 luồng nghiệp vụ chạy cục bộ bằng Windows PowerShell/WinForms.
-- Tool mở ở giao diện sáng và chế độ Offline. Kiểm tra cục bộ không tự truy cập Internet/LAN.
-- Mạng chỉ được dùng khi người dùng chủ động chuyển sang Online; Mục 8 có công tắc Online/Offline riêng cho mô hình máy chủ–máy trạm trong LAN.
-- Không telemetry, không tự kiểm tra cập nhật và không tự gửi báo cáo, mật khẩu hoặc product key đầy đủ.
+Ứng dụng được phát triển bằng C# trên nền tảng .NET Framework 4, biên dịch AnyCPU để tương thích với cả Windows 32-bit và 64-bit. Giao diện sử dụng Windows Forms, tối ưu cho môi trường quản trị hệ thống.
 
-## Công nghệ và ngôn ngữ hiện tại
+Dữ liệu được lưu trữ và trao đổi theo các định dạng chuẩn như JSON, XML và CSV; báo cáo được xuất dưới dạng HTML và có thể chuyển đổi sang PDF thông qua trình duyệt Microsoft Edge hoặc Google Chrome. Cơ chế kiểm tra tính toàn vẹn sử dụng SHA-256, trong khi các dữ liệu nhạy cảm được bảo vệ bằng DPAPI và HMAC. Toàn bộ quá trình xử lý được thực hiện cục bộ (Offline), không phụ thuộc dịch vụ trực tuyến hoặc nền tảng đám mây.
 
-- **C# / .NET Framework 4:** launcher một tệp AnyCPU, metadata phiên bản, xác minh payload và chọn kiến trúc.
-- **Windows PowerShell 3+ / WinForms:** giao diện, điều phối tác vụ và toàn bộ nghiệp vụ Windows/Office.
-- **JSON:** localization vi-VN/en-US, compatibility catalog, module contract/result, plugin và dữ liệu tích hợp.
-- **HTML/CSS:** giao diện báo cáo và tài liệu tự chứa, không tải font/script từ Internet.
-- **XML:** định dạng tích hợp bổ sung.
-- **SHA-256:** đối chiếu source, payload, báo cáo, tài liệu cache và gói phát hành.
-- **DPAPI + HMAC-SHA256 + hash-chain:** bảo vệ backup, timeline và secret cục bộ.
-- **AES-256-CBC + HMAC-SHA256:** phong bì ứng dụng cho dữ liệu Mục 8 trong LAN.
-- **Edge/Chrome/Word:** tạo PDF cục bộ; không gửi tài liệu tới dịch vụ chuyển đổi trực tuyến.
+## MỤC ĐÍCH SỬ DỤNG
 
-Tool không gọi mô hình AI trực tuyến khi chạy. Mọi kết luận là bằng chứng kỹ thuật hỗ trợ quản trị, không thay thế hóa đơn, hợp đồng hoặc xác nhận quyền sử dụng từ Microsoft.
+Bộ công cụ được thiết kế để hỗ trợ quản trị viên hệ thống, kỹ thuật viên và người dùng doanh nghiệp trong việc kiểm tra, đánh giá và xác minh tình trạng bản quyền Windows và Microsoft Office. Công cụ cung cấp các chức năng rà soát cấu hình kích hoạt, phát hiện dấu hiệu can thiệp trái phép hoặc kích hoạt không hợp lệ, kiểm tra tính toàn vẹn của môi trường hệ thống, đồng thời hỗ trợ sao lưu, khôi phục và tạo báo cáo phục vụ công tác quản lý, kiểm toán và xử lý sự cố.
+
+## MÔ HÌNH VẬN HÀNH
+
+Ứng dụng hoạt động theo mô hình cục bộ (Offline-first), toàn bộ quá trình kiểm tra, phân tích và xử lý được thực hiện trực tiếp trên máy tính người dùng. Mặc định, công cụ chỉ thực hiện các chức năng đọc, đánh giá và tạo báo cáo mà không thay đổi cấu hình hệ thống. Các thao tác có khả năng ảnh hưởng đến hệ thống (như sao lưu, khôi phục hoặc xử lý cấu hình) chỉ được thực hiện khi người dùng chủ động lựa chọn, xác nhận và chạy với quyền Administrator.
+
+Đối với môi trường doanh nghiệp, công cụ hỗ trợ chế độ Enterprise để quản lý và tổng hợp báo cáo thông qua mạng LAN nội bộ khi được cấu hình. Ứng dụng không yêu cầu dịch vụ đám mây, không bắt buộc kết nối Internet và không tự động thu thập hoặc gửi dữ liệu ra bên ngoài nếu không có cấu hình của người quản trị.
 
 ## Cách kiểm tra bản tải về
 
@@ -314,7 +321,7 @@ Tool không gọi mô hình AI trực tuyến khi chạy. Mọi kết luận là
 ## Cách mở tài liệu này trong Tool
 
 - Chọn **Giới thiệu → Phiên bản & cập nhật**; hoặc
-- chọn **Chức năng 10 → 7. Mở giới thiệu phiên bản và lịch sử cập nhật**.
+- chọn **Chức năng 10 → 7. Lịch sử phiên bản**.
 
 Tool tạo bản HTML/PDF trên Desktop, mở HTML bằng trình duyệt mặc định và dùng cache SHA-256 để lần mở sau nhanh hơn.
 

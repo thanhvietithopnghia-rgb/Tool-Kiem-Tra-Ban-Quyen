@@ -2,7 +2,7 @@
 
 $script:ToolEnterpriseSchemaVersion = "1.0"
 $script:ToolEnterpriseProtocolVersion = "1.0"
-$script:ToolEnterpriseToolVersion = "4.3"
+$script:ToolEnterpriseToolVersion = "4.4"
 $script:ToolEnterpriseDefaultPort = 49420
 $script:ToolEnterpriseMaximumRequestBytes = 1048576
 $script:ToolEnterpriseMaximumScanHosts = 1024
@@ -24,7 +24,7 @@ function Get-ToolEnterpriseRoot {
     $configured = [string]$env:TOOL_ENTERPRISE_ROOT
     if (-not [string]::IsNullOrWhiteSpace($configured)) { return [IO.Path]::GetFullPath($configured) }
     $commonData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
-    return (Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.3\enterprise")
+    return (Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.4\enterprise")
 }
 
 function Get-ToolEnterprisePaths {
@@ -110,7 +110,7 @@ function Initialize-ToolEnterpriseStorage {
         }
         if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw "Từ chối thư mục enterprise là junction/symlink: $directory" }
     }
-    # The one-file launcher has already created and locked the v4.3 root.
+    # The one-file launcher has already created and locked the v4.4 root.
     # Avoid re-applying an ACL on every inventory/report call (it is both
     # expensive and can require SeSecurityPrivilege on hardened images).
     # For a newly-created source/standalone root, apply it once; secure launch
@@ -209,7 +209,7 @@ function ConvertFrom-ToolEnterpriseBase64Url {
 }
 
 function Get-ToolEnterpriseDpapiEntropy {
-    return (Get-ToolEnterpriseSha256Bytes -Bytes ([Text.Encoding]::UTF8.GetBytes("ThanhViet-Tool-Kiem-Tra-v4.3-enterprise")))
+    return (Get-ToolEnterpriseSha256Bytes -Bytes ([Text.Encoding]::UTF8.GetBytes("ThanhViet-Tool-Kiem-Tra-v4.4-enterprise")))
 }
 
 function Protect-ToolEnterpriseBytes {
@@ -261,7 +261,7 @@ function Get-ToolEnterpriseSecret {
 function Get-ToolEnterpriseDerivedKey {
     param([Parameter(Mandatory = $true)][byte[]]$Secret, [Parameter(Mandatory = $true)][string]$Purpose)
     $hmac = New-Object Security.Cryptography.HMACSHA256(,$Secret)
-    try { return $hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes("v4.3-enterprise|" + $Purpose)) }
+    try { return $hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes("v4.4-enterprise|" + $Purpose)) }
     finally { $hmac.Dispose() }
 }
 
@@ -438,7 +438,7 @@ function Write-ToolEnterpriseAudit {
     }
     $line = ($record | ConvertTo-Json -Depth 10 -Compress) + [Environment]::NewLine
     $created = $false
-    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.3.EnterpriseAudit", [ref]$created)
+    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseAudit", [ref]$created)
     try {
         if (-not $mutex.WaitOne(5000)) { throw "Không lấy được khóa ghi audit." }
         try { [IO.File]::AppendAllText($path, $line, (New-Object Text.UTF8Encoding($false))) }
@@ -1661,7 +1661,7 @@ function Export-ToolEnterpriseFleetReport {
     if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw "Báo cáo doanh nghiệp không đạt kiểm tra HTML ngoại tuyến." }
     $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error="Không yêu cầu xuất PDF." }
     if ($IncludePdf) { $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath }
-    $manifestLines = @("# SHA-256 báo cáo quản lý license doanh nghiệp Tool v4.3.")
+    $manifestLines = @("# SHA-256 báo cáo quản lý license doanh nghiệp Tool v4.4.")
     foreach ($path in @($jsonPath,$csvPath,$htmlPath,$pdfPath)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) { $manifestLines += "$(Get-ToolEnterpriseSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))" }
     }

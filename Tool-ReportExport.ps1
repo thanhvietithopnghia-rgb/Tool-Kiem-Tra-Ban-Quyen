@@ -1,4 +1,4 @@
-﻿$script:ToolReportExportToolVersion = "4.3"
+﻿$script:ToolReportExportToolVersion = "4.4"
 $script:ToolReportExportSchemaVersion = "1.2"
 
 function Get-ToolReportExportMetadata {

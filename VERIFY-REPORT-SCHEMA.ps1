@@ -32,8 +32,8 @@ if (-not (Test-Path -LiteralPath $helperPath -PathType Leaf)) {
 
 if (Get-Command Get-ToolReportSchemaMetadata -ErrorAction SilentlyContinue) {
     $metadata = Get-ToolReportSchemaMetadata
-    if ([string]$metadata.SchemaVersion -ne '1.5' -or [string]$metadata.ToolVersion -ne '4.3') {
-        Add-Failure 'Metadata schema báo cáo không phải 1.5 / tool 4.3.'
+    if ([string]$metadata.SchemaVersion -ne '1.5' -or [string]$metadata.ToolVersion -ne '4.4') {
+        Add-Failure 'Metadata schema báo cáo không phải 1.5 / tool 4.4.'
     }
     if (@($metadata.ReportKinds).Count -ne 9) { Add-Failure 'Schema phải khai báo đúng 9 ReportKind.' }
 
@@ -51,9 +51,9 @@ if (Get-Command Get-ToolReportSchemaMetadata -ErrorAction SilentlyContinue) {
 
     foreach ($kind in @($fixtures.Keys)) {
         try {
-            $fixture = New-ToolReportEnvelope -ReportKind $kind -ToolVersion '4.3' -Data $fixtures[$kind]
+            $fixture = New-ToolReportEnvelope -ReportKind $kind -ToolVersion '4.4' -Data $fixtures[$kind]
             $roundTrip = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-            $validation = Test-ToolReportEnvelope -Report $roundTrip -ExpectedReportKind $kind -ExpectedToolVersion '4.3'
+            $validation = Test-ToolReportEnvelope -Report $roundTrip -ExpectedReportKind $kind -ExpectedToolVersion '4.4'
             if (-not $validation.Valid) { Add-Failure "Fixture $kind không đạt sau JSON round-trip: $($validation.Errors -join '; ')" }
             if ([string]$roundTrip.SchemaVersion -ne '1.5' -or [string]$roundTrip.ReportSchemaVersion -ne '1.5') {
                 Add-Failure "Fixture $kind mất trường schema 1.5 sau round-trip."
@@ -62,23 +62,23 @@ if (Get-Command Get-ToolReportSchemaMetadata -ErrorAction SilentlyContinue) {
     }
 
     try {
-        [void](New-ToolReportEnvelope -ReportKind 'UnknownKind' -ToolVersion '4.3' -Data @{})
+        [void](New-ToolReportEnvelope -ReportKind 'UnknownKind' -ToolVersion '4.4' -Data @{})
         Add-Failure 'New-ToolReportEnvelope chấp nhận ReportKind không xác định.'
     } catch {}
 
-    $negative = New-ToolReportEnvelope -ReportKind 'DeepScanDecision' -ToolVersion '4.3' -Data $fixtures.DeepScanDecision
+    $negative = New-ToolReportEnvelope -ReportKind 'DeepScanDecision' -ToolVersion '4.4' -Data $fixtures.DeepScanDecision
     $negative.PSObject.Properties.Remove('SchemaVersion')
     if ((Test-ToolReportEnvelope -Report $negative).Valid) { Add-Failure 'Schema chấp nhận báo cáo thiếu SchemaVersion.' }
 
-    $negative = New-ToolReportEnvelope -ReportKind 'DeepScanDecision' -ToolVersion '4.3' -Data $fixtures.DeepScanDecision
+    $negative = New-ToolReportEnvelope -ReportKind 'DeepScanDecision' -ToolVersion '4.4' -Data $fixtures.DeepScanDecision
     $negative.PSObject.Properties.Remove('AccessDenied')
     if ((Test-ToolReportEnvelope -Report $negative).Valid) { Add-Failure 'Schema chấp nhận DeepScanDecision thiếu trường bắt buộc theo loại.' }
 
-    $negative = New-ToolReportEnvelope -ReportKind 'CleanupCompliance' -ToolVersion '4.3' -Data $fixtures.CleanupCompliance
+    $negative = New-ToolReportEnvelope -ReportKind 'CleanupCompliance' -ToolVersion '4.4' -Data $fixtures.CleanupCompliance
     $negative.ReportSchemaVersion = '1.3'
     if ((Test-ToolReportEnvelope -Report $negative).Valid) { Add-Failure 'Schema chấp nhận ReportSchemaVersion cũ.' }
 
-    $negative = New-ToolReportEnvelope -ReportKind 'LicenseForensics' -ToolVersion '4.3' -Data $fixtures.LicenseForensics
+    $negative = New-ToolReportEnvelope -ReportKind 'LicenseForensics' -ToolVersion '4.4' -Data $fixtures.LicenseForensics
     if ((Test-ToolReportEnvelope -Report $negative -ExpectedToolVersion '9.9').Valid) { Add-Failure 'Schema không bắt sai ToolVersion kỳ vọng.' }
 }
 

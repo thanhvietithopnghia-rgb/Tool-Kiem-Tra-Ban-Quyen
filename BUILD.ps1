@@ -13,10 +13,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-$productVersion = '4.3'
-$releaseVersion = '4.3.0.8'
+$productVersion = '4.4'
+$releaseVersion = '4.4.0.0'
 $releaseBuildDate = '2026.07.31'
-$releaseLabel = "$releaseVersion-fit-stop-network-history-20260731"
+$releaseLabel = "$releaseVersion-settings-environment-history-performance-20260731"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -45,6 +45,7 @@ $payloadFiles = @(
     'Tool-Compatibility.ps1',
     'compatibility-catalog-v1.0.json',
     'Tool-Capabilities.ps1',
+    'Tool-ScanOptimization.ps1',
     'Tool-Logging.ps1',
     'Tool-ModuleContract.ps1',
     'Tool-UiTheme.ps1',
@@ -86,6 +87,7 @@ $integrityFiles = @(
     'Tool-Compatibility.ps1',
     'compatibility-catalog-v1.0.json',
     'Tool-Capabilities.ps1',
+    'Tool-ScanOptimization.ps1',
     'Tool-Logging.ps1',
     'Tool-ModuleContract.ps1',
     'Tool-UiTheme.ps1',
@@ -116,18 +118,18 @@ $integrityFiles = @(
 $sourceFiles = @(
     $payloadFiles
     'BUILD.ps1'
-    'DANH-GIA-VA-NANG-CAP-v4.3.md'
+    'DANH-GIA-VA-NANG-CAP-v4.4.md'
     'LICENSE-NOTICE.txt'
     'README.md'
     'README-MA-NGUON.md'
     'MODULE-CONTRACT-v1.0.md'
     'REPORT-SCHEMA-v1.5.md'
     'ROADMAP-v5.0.md'
-    'SECURITY-HARDENING-v4.3.md'
-    'TECHNICAL-ARCHITECTURE-v4.3.md'
-    'ENTRY-POINTS-v4.3.md'
-    'COMPATIBILITY-MATRIX-v4.3.md'
-    'OFFLINE-AND-REPORTING-v4.3.md'
+    'SECURITY-HARDENING-v4.4.md'
+    'TECHNICAL-ARCHITECTURE-v4.4.md'
+    'ENTRY-POINTS-v4.4.md'
+    'COMPATIBILITY-MATRIX-v4.4.md'
+    'OFFLINE-AND-REPORTING-v4.4.md'
     'LOCALIZATION-v1.0.md'
     'SAFETY-POLICY-v1.0.md'
     $sourceName
@@ -142,6 +144,7 @@ $sourceFiles = @(
     'VERIFY-ENTERPRISE.ps1'
     'VERIFY-COMPATIBILITY.ps1'
     'VERIFY-OFFLINE-I18N.ps1'
+    'VERIFY-PERFORMANCE.ps1'
     'SIGN-RELEASE.ps1'
     'VERIFY-AUTHENTICODE.ps1'
     $peHardeningName
@@ -177,7 +180,7 @@ function Find-CSharpCompiler {
     }
     $selected = @($candidates.ToArray() | Sort-Object { [Version]$_.VersionInfo.FileVersion } -Descending | Select-Object -First 1)
     if ($selected.Count -eq 1) { return $selected[0].FullName }
-    throw 'Không tìm thấy Roslyn csc.exe. Hãy cài Visual Studio Build Tools (MSBuild/Roslyn); v4.3 không dùng compiler legacy vì cần deterministic build.'
+    throw 'Không tìm thấy Roslyn csc.exe. Hãy cài Visual Studio Build Tools (MSBuild/Roslyn); v4.4 không dùng compiler legacy vì cần deterministic build.'
 }
 
 function Get-VerificationPowerShell([string]$Architecture) {
@@ -193,18 +196,18 @@ function Get-VerificationPowerShell([string]$Architecture) {
 
 $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }) + @(
     'BUILD.ps1',
-    'DANH-GIA-VA-NANG-CAP-v4.3.md',
+    'DANH-GIA-VA-NANG-CAP-v4.4.md',
     'LICENSE-NOTICE.txt',
     'README.md',
     'README-MA-NGUON.md',
     'MODULE-CONTRACT-v1.0.md',
     'REPORT-SCHEMA-v1.5.md',
     'ROADMAP-v5.0.md',
-    'SECURITY-HARDENING-v4.3.md',
-    'TECHNICAL-ARCHITECTURE-v4.3.md',
-    'ENTRY-POINTS-v4.3.md',
-    'COMPATIBILITY-MATRIX-v4.3.md',
-    'OFFLINE-AND-REPORTING-v4.3.md',
+    'SECURITY-HARDENING-v4.4.md',
+    'TECHNICAL-ARCHITECTURE-v4.4.md',
+    'ENTRY-POINTS-v4.4.md',
+    'COMPATIBILITY-MATRIX-v4.4.md',
+    'OFFLINE-AND-REPORTING-v4.4.md',
     'LOCALIZATION-v1.0.md',
     'SAFETY-POLICY-v1.0.md',
     $sourceName,
@@ -219,6 +222,7 @@ $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }
     'VERIFY-ENTERPRISE.ps1',
     'VERIFY-COMPATIBILITY.ps1',
     'VERIFY-OFFLINE-I18N.ps1',
+    'VERIFY-PERFORMANCE.ps1',
     'SIGN-RELEASE.ps1',
     'VERIFY-AUTHENTICODE.ps1',
     $peHardeningName,
@@ -299,7 +303,7 @@ foreach ($target in $targets) {
         '/target:winexe',
         "/platform:$($target.Platform)",
         '/deterministic+',
-        "/pathmap:$sourceDirectory=C:\_src\Tool-Kiem-Tra-v4.3",
+        "/pathmap:$sourceDirectory=C:\_src\Tool-Kiem-Tra-v4.4",
         '/langversion:5',
         '/debug-',
         '/optimize+',
@@ -380,8 +384,8 @@ Write-Host '[5/8] Tạo metadata phát hành...'
 foreach ($sidecar in @(
     'approved-kms-servers.txt', 'HUONG-DAN.txt', 'USER-GUIDE-en-US.md', 'LICENSE-NOTICE.txt',
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
-    'TECHNICAL-ARCHITECTURE-v4.3.md', 'ENTRY-POINTS-v4.3.md', 'COMPATIBILITY-MATRIX-v4.3.md',
-    'OFFLINE-AND-REPORTING-v4.3.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.3.md',
+    'TECHNICAL-ARCHITECTURE-v4.4.md', 'ENTRY-POINTS-v4.4.md', 'COMPATIBILITY-MATRIX-v4.4.md',
+    'OFFLINE-AND-REPORTING-v4.4.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.4.md',
     'compatibility-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json'
 )) {
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $sidecar) -Destination (Join-Path $OutputDirectory $sidecar) -Force
@@ -449,6 +453,7 @@ $releaseManifest = [ordered]@{
     SupportedWindowsReleases = @('Windows 11 24H2 build 26100','Windows 11 25H2 build 26200','Windows 11 26H1 build 28000')
     SupportedOfficeFamilies = @('Office 2024 / LTSC 2024','Microsoft 365 Apps')
     CleanupActionCenter = $true
+    AutomaticSafeCleanup = 'Registry allowlist only; preview + confirmation + HMAC backup + UAC + post-verification'
     AssuranceCenter = $true
     Function5Compatibility = 'v4.3.0.3 title, primary tables, assessment and summary-card layout preserved'
     ThirdPartySoftwareInspection = 'Additive registry inventory + Authenticode + install source + autorun + service + task + review reasons'
@@ -470,6 +475,12 @@ $releaseManifest = [ordered]@{
     EnterpriseTransport = 'HTTP with AES-256-CBC + HMAC-SHA256 application envelopes'
     EnterpriseRoles = @('Server','Client')
     OfficeLicenseEnumeration = 'OSPP /dstatusall per SKU'
+    OfficeScanExecution = 'Parallel runspace pool with bounded throttle'
+    FileScanExecution = 'Parallel per-root enumeration with bounded depth and reparse-point exclusion'
+    UserPreferencePersistence = @('Culture','Theme','OfflineDefault')
+    EnvironmentWarnings = @('VirtualMachine','RemoteDesktop')
+    ProgressUtilities = @('CopyAllLog','OpenReportFolder')
+    VersionHistoryPresentation = 'InToolModal'
     ReportFormats = @('HTML','PDF','JSON','XML')
     ReportExportSchemaVersion = [string]$reportExportMetadata.SchemaVersion
     DefaultReportOpenFormat = 'HTML'
@@ -496,10 +507,10 @@ $releaseManifest = [ordered]@{
     ModuleResultSchemaVersion = [string]$moduleContractMetadata.ResultSchemaVersion
     ModuleCount = [int]$moduleContractMetadata.ModuleCount
     ModuleEntryPointCount = [int]$moduleContractMetadata.EntryPointCount
-    PersistentLogRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\logs'
-    PersistentPluginRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\plugins'
-    PersistentTimelineRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\timeline'
-    PersistentEnterpriseRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\enterprise'
+    PersistentLogRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\logs'
+    PersistentPluginRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\plugins'
+    PersistentTimelineRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\timeline'
+    PersistentEnterpriseRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\enterprise'
     CompilerFileVersion = [string]$compilerVersion
     DeterministicManagedBuild = $true
     DeterministicScope = 'Unsigned managed image; Authenticode intentionally changes final bytes when enabled.'
@@ -512,7 +523,7 @@ $releaseManifest = [ordered]@{
 }
 [IO.File]::WriteAllText($releaseManifestPath, ($releaseManifest | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($false)))
 
-$infoName = 'THONG-TIN-PHAT-HANH-v4.3.txt'
+$infoName = 'THONG-TIN-PHAT-HANH-v4.4.txt'
 $primaryArtifact = @($artifactResults.ToArray())[0]
 $infoLines = @(
     "TOOL KIEM TRA v$releaseVersion ENTERPRISE - MOT EXE ANYCPU",
@@ -528,6 +539,10 @@ $infoLines = @(
     'Dashboard schema 2.0: WinForms hien dai, the trang thai Windows/Office, tile co mo ta, responsive DPI, Light/Dark day du.',
     'Typography dong bo Segoe UI/GDI+; dashboard fit WorkingArea sau DPI va chi bat cuon doc du phong khi man hinh qua thap.',
     'Da ngon ngu: vi-VN va en-US dung catalog JSON dong bo cho dashboard, log trang thai, bao cao, Muc 8 va trinh quan ly Windows/Office cuc bo; lua chon duoc ghi nho theo tai khoan.',
+    'Ghi nho ngon ngu, Light/Dark va che do Offline/Online mac dinh theo tai khoan nguoi dung.',
+    'Canh bao khi phat hien may ao hoac Remote Desktop; khong khoa cac chuc nang hien co.',
+    'Them nut Sao chep toan bo log va Mo thu muc bao cao; lich su phien ban hien thi ngay trong Tool.',
+    'Quet Office va tep chi bao duoc song song co gioi han, bo qua reparse point va giu nguyen pham vi quet cu.',
     'Muc 5 giu nguyen giao dien, chuc nang va cac bang bao cao chinh cua v4.3.0.3; kiem tra ben thu ba chi noi them o cuoi bao cao va DetailedInventory JSON.',
     'Offline toan ung dung mac dinh; Muc 8 co cong tac mang rieng mac dinh tat, co the bat/tat lai ma khong an chuc nang hoac xoa cau hinh.',
     "Compatibility catalog schema $($compatibilityMetadata.SchemaVersion), ra soat $($compatibilityMetadata.ReviewedAtUtc); bat buoc cap nhat khi qua $($compatibilityMetadata.MaximumReviewAgeDays) ngay.",
@@ -557,7 +572,7 @@ $infoLines = @(
     "Module contract schema $($moduleContractMetadata.ContractSchemaVersion): $($moduleContractMetadata.EntryPointCount) entry point / $($moduleContractMetadata.ModuleCount) module; co capability gate va ModuleResult thong nhat.",
     'Log JSON Lines nam trong ProgramData co ACL Administrators/SYSTEM; khong ghi product key day du.',
     'PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.',
-    'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.3.md.',
+    'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.4.md.',
     'Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; compatibility catalog hien tai tap trung Windows 11 24H2/25H2/26H1.',
     'Khong the vuot AppLocker, WDAC, SmartScreen, antivirus hoac chinh sach doanh nghiep.'
 )
@@ -566,8 +581,8 @@ $infoLines = @(
 $releaseHashFiles = @($targets.OutputName) + @(
     'approved-kms-servers.txt', 'HUONG-DAN.txt', 'USER-GUIDE-en-US.md', 'LICENSE-NOTICE.txt',
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
-    'TECHNICAL-ARCHITECTURE-v4.3.md', 'ENTRY-POINTS-v4.3.md', 'COMPATIBILITY-MATRIX-v4.3.md',
-    'OFFLINE-AND-REPORTING-v4.3.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.3.md',
+    'TECHNICAL-ARCHITECTURE-v4.4.md', 'ENTRY-POINTS-v4.4.md', 'COMPATIBILITY-MATRIX-v4.4.md',
+    'OFFLINE-AND-REPORTING-v4.4.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.4.md',
     'compatibility-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'RELEASE-MANIFEST.json', $infoName
 )
 $releaseHashLines = @("# SHA-256 goi phat hanh Tool-Kiem-Tra v$productVersion.")
@@ -592,6 +607,8 @@ if (-not $SkipVerification) {
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-OFFLINE-I18N.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     & (Join-Path $sourceDirectory 'VERIFY-ENTERPRISE.ps1') -SourceDirectory $sourceDirectory
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-ENTERPRISE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
+    & (Join-Path $sourceDirectory 'VERIFY-PERFORMANCE.ps1') -SourceDirectory $sourceDirectory
+    if ($LASTEXITCODE -ne 0) { throw "VERIFY-PERFORMANCE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     Write-Host '[7/8] Kiểm tra phát hành tổng thể...'
     & (Join-Path $sourceDirectory 'VERIFY-RELEASE.ps1') -SourceDirectory $sourceDirectory -DistributionDirectory $OutputDirectory
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-RELEASE.ps1 thất bại, mã thoát: $LASTEXITCODE" }

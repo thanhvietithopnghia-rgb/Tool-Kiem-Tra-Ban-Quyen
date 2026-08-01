@@ -1,8 +1,8 @@
-# Tool-Kiem-Tra v4.3 — mã nguồn
+# Tool-Kiem-Tra v4.4 — mã nguồn
 
-Release `4.3.0.8 Enterprise`, build `2026.07.31`. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.3.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.4.0.0 Enterprise`, build `2026.07.31`. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.4.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
 
-## Điểm mới v4.3
+## Điểm mới v4.4
 
 - Dashboard schema 2.0: Modern WinForms 1040 × 820, card Windows/Office, tile có mô tả, responsive DPI và dark mode toàn công cụ; Mục 8 có màu nhận diện riêng.
 - Mục 6 dùng tên rõ nghĩa “Khắc phục KMS/Activator, đưa về trạng thái gốc” nhưng giữ nguyên luồng an toàn hiện có.
@@ -17,7 +17,8 @@ v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thíc
 
 ## Thành phần nền
 
-- `Tool-Kiem-Tra-v4.3-OneFile.cs` / `.manifest`: launcher nhúng 39 payload.
+- `Tool-Kiem-Tra-v4.4-OneFile.cs` / `.manifest`: launcher nhúng 40 payload.
+- `Tool-ScanOptimization.ps1`: quét Office/tệp song song có giới hạn và giữ nguyên nguồn quét.
 - `Giao-Dien.ps1`: dashboard và trung tâm hành động.
 - `Tool-UiTheme.ps1`: palette Light/Dark dùng chung.
 - `Tool-Localization.ps1`, `Tool-Strings.*.json`: localization schema 1.0.
@@ -35,15 +36,15 @@ v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thíc
 
 ## Tài liệu kỹ thuật
 
-- `TECHNICAL-ARCHITECTURE-v4.3.md`
-- `ENTRY-POINTS-v4.3.md`
+- `TECHNICAL-ARCHITECTURE-v4.4.md`
+- `ENTRY-POINTS-v4.4.md`
 - `MODULE-CONTRACT-v1.0.md`
 - `REPORT-SCHEMA-v1.5.md`
 - `SAFETY-POLICY-v1.0.md`
-- `COMPATIBILITY-MATRIX-v4.3.md`
-- `OFFLINE-AND-REPORTING-v4.3.md`
+- `COMPATIBILITY-MATRIX-v4.4.md`
+- `OFFLINE-AND-REPORTING-v4.4.md`
 - `LOCALIZATION-v1.0.md`
-- `SECURITY-HARDENING-v4.3.md`
+- `SECURITY-HARDENING-v4.4.md`
 
 ## Build chưa ký
 
@@ -99,17 +100,17 @@ Build đã ký:
 
 ```powershell
 .\VERIFY-AUTHENTICODE.ps1 `
-  -FilePath .\dist-signed\Tool-Kiem-Tra-v4.3.exe `
+  -FilePath .\dist-signed\Tool-Kiem-Tra-v4.4.exe `
   -RequireTimestamp
 ```
 
 ## Dữ liệu cục bộ
 
-- log: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\logs`
-- backup: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\backups`
-- plugin: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\plugins`
-- timeline: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\timeline`
-- enterprise: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.3\enterprise`
+- log: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\logs`
+- backup: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\backups`
+- plugin: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\plugins`
+- timeline: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\timeline`
+- enterprise: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\enterprise`
 - PDF profile tạm: `%LOCALAPPDATA%\Temp\ThanhViet-Tool-Kiem-Tra\pdf`
 - user preferences: `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra`
 

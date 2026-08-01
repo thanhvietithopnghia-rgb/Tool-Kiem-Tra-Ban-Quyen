@@ -15,15 +15,15 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Thanh Việt")]
 [assembly: AssemblyProduct("Tool kiểm tra cấu hình máy và bản quyền")]
 [assembly: AssemblyCopyright("Copyright © Thanh Việt 2026")]
-[assembly: AssemblyVersion("4.3.0.8")]
-[assembly: AssemblyFileVersion("4.3.0.8")]
-[assembly: AssemblyInformationalVersion("4.3.0.8")]
+[assembly: AssemblyVersion("4.4.0.0")]
+[assembly: AssemblyFileVersion("4.4.0.0")]
+[assembly: AssemblyInformationalVersion("4.4.0.0")]
 
 namespace ThanhViet.ToolKiemTra
 {
     internal static class Program
     {
-        private const string ProductCaption = "Tool kiểm tra cấu hình máy và bản quyền v4.3.0.8 Enterprise";
+        private const string ProductCaption = "Tool kiểm tra cấu hình máy và bản quyền v4.4.0.0 Enterprise";
 
         private static string RuntimeArchitecture
         {
@@ -45,6 +45,7 @@ namespace ThanhViet.ToolKiemTra
             "Tool-Compatibility.ps1",
             "compatibility-catalog-v1.0.json",
             "Tool-Capabilities.ps1",
+            "Tool-ScanOptimization.ps1",
             "Tool-Logging.ps1",
             "Tool-ModuleContract.ps1",
             "Tool-UiTheme.ps1",
@@ -87,6 +88,7 @@ namespace ThanhViet.ToolKiemTra
             "Tool-Compatibility.ps1",
             "compatibility-catalog-v1.0.json",
             "Tool-Capabilities.ps1",
+            "Tool-ScanOptimization.ps1",
             "Tool-Logging.ps1",
             "Tool-ModuleContract.ps1",
             "Tool-UiTheme.ps1",
@@ -208,12 +210,12 @@ namespace ThanhViet.ToolKiemTra
         {
             switch (mode)
             {
-                case LaunchMode.EnterpriseServer: return "Global\\ThanhViet.ToolKiemTra.v4.3.ServerLauncher";
+                case LaunchMode.EnterpriseServer: return "Global\\ThanhViet.ToolKiemTra.v4.4.ServerLauncher";
                 case LaunchMode.EnterpriseAgent:
-                case LaunchMode.EnterpriseAgentForce: return "Global\\ThanhViet.ToolKiemTra.v4.3.AgentLauncher";
-                case LaunchMode.EnterpriseUi: return "Local\\ThanhViet.ToolKiemTra.v4.3.EnterpriseUi";
-                case LaunchMode.LocalLicenseManager: return "Local\\ThanhViet.ToolKiemTra.v4.3.LocalLicenseManager";
-                default: return "Local\\ThanhViet.ToolKiemTra.v4.3.Gui";
+                case LaunchMode.EnterpriseAgentForce: return "Global\\ThanhViet.ToolKiemTra.v4.4.AgentLauncher";
+                case LaunchMode.EnterpriseUi: return "Local\\ThanhViet.ToolKiemTra.v4.4.EnterpriseUi";
+                case LaunchMode.LocalLicenseManager: return "Local\\ThanhViet.ToolKiemTra.v4.4.LocalLicenseManager";
+                default: return "Local\\ThanhViet.ToolKiemTra.v4.4.Gui";
             }
         }
 
@@ -289,7 +291,7 @@ namespace ThanhViet.ToolKiemTra
                     string settingsPath = Path.Combine(
                         commonData,
                         "ThanhViet-Tool-Kiem-Tra",
-                        "v4.3",
+                        "v4.4",
                         "enterprise-network-settings.json");
                     if (File.Exists(settingsPath))
                     {
@@ -353,14 +355,14 @@ namespace ThanhViet.ToolKiemTra
 
         private static string GetProductCaption()
         {
-            return UiText(ProductCaption, "Configuration & License Assurance Tool v4.3.0.8 Enterprise");
+            return UiText(ProductCaption, "Configuration & License Assurance Tool v4.4.0.0 Enterprise");
         }
 
         private static int RunPayload(LaunchMode mode, string powershellPath)
         {
             string commonData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
             string productRoot = Path.Combine(commonData, "ThanhViet-Tool-Kiem-Tra");
-            string protectedRoot = Path.Combine(productRoot, "v4.3");
+            string protectedRoot = Path.Combine(productRoot, "v4.4");
             string approvedKmsPath = Path.Combine(protectedRoot, "approved-kms-servers.txt");
             string logsDirectory = Path.Combine(protectedRoot, "logs");
             string pluginsDirectory = Path.Combine(protectedRoot, "plugins");
@@ -424,7 +426,7 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_LAUNCHER_PATH"] = Assembly.GetExecutingAssembly().Location;
                 startInfo.EnvironmentVariables["TOOL_LAUNCH_MODE"] = mode.ToString();
                 startInfo.EnvironmentVariables["TOOL_AGENT_FORCE"] = mode == LaunchMode.EnterpriseAgentForce ? "1" : "0";
-                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.3";
+                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.4";
                 startInfo.EnvironmentVariables["TOOL_CORRELATION_ID"] = correlationId;
                 startInfo.EnvironmentVariables["TOOL_CAPABILITY_SCHEMA"] = "1.1";
                 startInfo.EnvironmentVariables["TOOL_MODULE_CONTRACT_SCHEMA"] = "1.0";
@@ -463,8 +465,8 @@ namespace ThanhViet.ToolKiemTra
             catch (Exception ex)
             {
                 ShowMessage(mode, UiText(
-                    "Không thể khởi động Tool v4.3.\r\n\r\n",
-                    "Tool v4.3 could not be started.\r\n\r\n") + ex.Message, MessageBoxIcon.Error);
+                    "Không thể khởi động Tool v4.4.\r\n\r\n",
+                    "Tool v4.4 could not be started.\r\n\r\n") + ex.Message, MessageBoxIcon.Error);
                 return 1;
             }
             finally
@@ -483,9 +485,9 @@ namespace ThanhViet.ToolKiemTra
                 MessageBox.Show(
                     UiText(
                         "Tool phát hiện tiến trình 32-bit trên Windows 64-bit và đã dừng để tránh WOW64 chuyển hướng Registry/System32.\r\n\r\n" +
-                        "Hãy chạy trực tiếp Tool-Kiem-Tra-v4.3.exe; bản AnyCPU sẽ tự dùng tiến trình 64-bit.",
+                        "Hãy chạy trực tiếp Tool-Kiem-Tra-v4.4.exe; bản AnyCPU sẽ tự dùng tiến trình 64-bit.",
                         "The tool detected a 32-bit process on 64-bit Windows and stopped to avoid WOW64 Registry/System32 redirection.\r\n\r\n" +
-                        "Run Tool-Kiem-Tra-v4.3.exe directly; the AnyCPU build will use a 64-bit process automatically."),
+                        "Run Tool-Kiem-Tra-v4.4.exe directly; the AnyCPU build will use a 64-bit process automatically."),
                     GetProductCaption(),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);

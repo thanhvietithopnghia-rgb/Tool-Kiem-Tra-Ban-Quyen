@@ -94,7 +94,7 @@ function Write-Report {
         -Lines $Lines.ToArray() -Title "Báo cáo key OEM trong BIOS" -BasePath $basePath `
         -Subtitle "Kiểm tra key OEM OA3 trong firmware, trạng thái Windows và kết quả áp dụng có xác nhận." `
         -Eyebrow "Báo cáo kiểm kê và bảo đảm bản quyền" `
-        -Footer "Phát triển bởi Thanh Việt · Tool v4.3" -Culture "vi-VN" -IncludePdf
+        -Footer "Phát triển bởi Thanh Việt · Tool v4.4" -Culture "vi-VN" -IncludePdf
     Write-Host "HTML: $($package.HtmlPath)"
     if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host "PDF: $($package.PdfPath)" }
     else { Write-Host "PDF chưa tạo được: $($package.Pdf.Error)" }
@@ -145,7 +145,7 @@ $decision = [pscustomobject]@{
 }
 
 $report = New-Object 'System.Collections.Generic.List[string]'
-$report.Add("CÔNG CỤ KIỂM TRA KEY OEM TRONG BIOS - PHIÊN BẢN 4.3")
+$report.Add("CÔNG CỤ KIỂM TRA KEY OEM TRONG BIOS - PHIÊN BẢN 4.4")
 $report.Add("Phát triển bởi Thanh Việt")
 $report.Add("Máy: $env:COMPUTERNAME")
 $report.Add("Thời điểm: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))")

@@ -27,7 +27,7 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "SilentlyContinue"
-$toolVersion = "4.3"
+$toolVersion = "4.4"
 $scanStarted = Get-Date
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 

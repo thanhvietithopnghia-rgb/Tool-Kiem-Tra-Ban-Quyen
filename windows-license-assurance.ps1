@@ -10,7 +10,7 @@ param(
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.3"
+$ToolVersion = "4.4"
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Off
 
@@ -418,7 +418,7 @@ if ($Operation -eq "CertificateAudit") {
         "<p>Engine chỉ hỗ trợ ba nguồn đọc: Registry value, tệp trong Windows/Program Files/ProgramData và Windows service. Mọi trường ngoài schema đều bị từ chối.</p><p class='note'>Plugin nằm trong ProgramData có ACL chỉ Administrators/SYSTEM được ghi. Việc cài plugin cần xác nhận của quản trị viên và luôn đối chiếu lại SHA-256 sau khi sao chép.</p>" `
         "<p>The engine supports only three read sources: registry values, files under Windows/Program Files/ProgramData, and Windows services. Fields outside the schema are rejected.</p><p class='note'>Plugins under ProgramData use an ACL that permits writes only by Administrators/SYSTEM. Plugin installation requires administrator confirmation and SHA-256 is verified after copying.</p>"
     $html = New-ToolProfessionalHtmlDocument -Title (Select-AssuranceText "Đánh giá plugin quy tắc kiểm tra" "Inspection-rule plugin assessment") `
-        -Subtitle (Select-AssuranceText "Plugin v4.3 là JSON khai báo, chỉ đọc và không được phép chứa mã PowerShell, lệnh hệ thống hoặc tải mạng." "v4.3 plugins are declarative, read-only JSON and cannot contain PowerShell code, system commands, or network downloads.") `
+        -Subtitle (Select-AssuranceText "Plugin v4.4 là JSON khai báo, chỉ đọc và không được phép chứa mã PowerShell, lệnh hệ thống hoặc tải mạng." "v4.4 plugins are declarative, read-only JSON and cannot contain PowerShell code, system commands, or network downloads.") `
         -Metadata @(
             [pscustomobject]@{Label=(Select-AssuranceText "Máy" "Computer");Value=$computer},
             [pscustomobject]@{Label=(Select-AssuranceText "Thời điểm" "Time");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},

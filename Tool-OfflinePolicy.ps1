@@ -1,5 +1,5 @@
 ﻿$script:ToolOfflinePolicySchemaVersion = "1.0"
-$script:ToolOfflinePolicyToolVersion = "4.3"
+$script:ToolOfflinePolicyToolVersion = "4.4"
 
 function Get-ToolOfflineSettingsPath {
     if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_OFFLINE_SETTINGS_PATH)) {
@@ -18,7 +18,7 @@ function Get-ToolEnterpriseNetworkSettingsPath {
     $commonData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
     if ([string]::IsNullOrWhiteSpace($commonData)) { $commonData = [string]$env:ProgramData }
     if ([string]::IsNullOrWhiteSpace($commonData)) { return "" }
-    return Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.3\enterprise-network-settings.json"
+    return Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.4\enterprise-network-settings.json"
 }
 
 function Get-ToolOfflineMode {

@@ -1,10 +1,10 @@
-# Security hardening baseline — Tool-Kiem-Tra v4.3
+# Security hardening baseline — Tool-Kiem-Tra v4.4
 
 ## Artefact và build
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| EXE | `Tool-Kiem-Tra-v4.3.exe` |
+| EXE | `Tool-Kiem-Tra-v4.4.exe` |
 | Runtime | .NET Framework 4 / CLR v4 |
 | Kiến trúc | AnyCPU, không Prefer 32-bit |
 | PowerShell | native x64/x86, `RemoteSigned` |
@@ -15,7 +15,7 @@
 ## Secure launch
 
 - Launcher lấy PowerShell từ System32 native, không dùng PATH.
-- Payload nhúng được ghi vào session ProgramData v4.3.
+- Payload nhúng được ghi vào session ProgramData v4.4.
 - Mỗi payload được đối chiếu SHA-256.
 - Root/session từ chối reparse point.
 - ACL chỉ Administrators/SYSTEM.
@@ -35,7 +35,7 @@ Offline toàn ứng dụng mặc định khi preference thiếu/lỗi. Launcher 
 
 ## Dữ liệu
 
-ProgramData v4.3:
+ProgramData v4.4:
 
 - log JSONL;
 - backup hash/HMAC/DPAPI;
@@ -52,7 +52,7 @@ Full product key bị loại khỏi log/report/timeline. Enterprise key chỉ n�
 - machine binding;
 - SHA-256 + HMAC;
 - DPAPI LocalMachine;
-- manifest ToolVersion 4.3;
+- manifest ToolVersion 4.4;
 - restore từ chối dữ liệu sai schema/hash/máy/root.
 
 ## Plugin threat model
@@ -109,8 +109,8 @@ Build phát triển chưa ký vẫn có thể tạo để test, nhưng không đ
 ```powershell
 .\BUILD.ps1 -OutputDirectory .\dist
 .\VERIFY-RELEASE.ps1 -SourceDirectory . -DistributionDirectory .\dist
-Get-FileHash .\dist\Tool-Kiem-Tra-v4.3.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.3.exe
+Get-FileHash .\dist\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.4.exe
 ```
 
 ## Giới hạn

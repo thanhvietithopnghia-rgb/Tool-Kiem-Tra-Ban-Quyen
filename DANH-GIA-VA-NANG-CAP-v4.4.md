@@ -1,8 +1,16 @@
-# Đánh giá và nâng cấp v4.3
+# Đánh giá và nâng cấp v4.4
 
 ## Kết quả
 
-v4.3 hoàn thành sáu nhóm nâng cấp được chọn:
+v4.4 giữ nguyên các nhóm nâng cấp trước và bổ sung:
+
+- sao chép toàn bộ log và mở thư mục báo cáo;
+- lưu ngôn ngữ, theme và Offline/Online mặc định;
+- cảnh báo máy ảo/Remote Desktop;
+- lịch sử phiên bản trong Tool;
+- quét nhiều Office/nhiều nguồn tệp song song có giới hạn.
+
+Nền tảng v4.3 đã hoàn thành sáu nhóm nâng cấp:
 
 1. **UI hiện đại hơn:** Modern WinForms dashboard schema 2.0, card/tile hai dòng, Segoe UI, bo góc, hover, DPI responsive và dark mode toàn công cụ.
 2. **Tài liệu kỹ thuật:** kiến trúc, module contract, entry point, report schema, safety policy, offline/reporting, localization và compatibility matrix.
@@ -28,7 +36,7 @@ Không chuyển sang WPF/WebView2 trong v4.3. Modern WinForms được chọn đ
 | --- | --- | --- |
 | Dashboard/dark mode | Hoàn thành | `VERIFY-DASHBOARD.ps1` |
 | Compatibility logic/catalog | Hoàn thành ở mức code + fixture | `VERIFY-COMPATIBILITY.ps1` |
-| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.3.md` |
+| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.4.md` |
 | Offline policy | Hoàn thành ở cấp ứng dụng | `VERIFY-OFFLINE-I18N.ps1` |
 | HTML/PDF offline-safe | Hoàn thành | export schema 1.2, giao diện dùng chung và ngắt trang an toàn |
 | vi-VN/en-US shell | Hoàn thành | hai catalog JSON |

@@ -37,7 +37,7 @@ if (Get-Command Get-ToolSafetyPolicyMetadata -ErrorAction SilentlyContinue) {
     }
 
     $metadata = Get-ToolSafetyPolicyMetadata
-    if ([string]$metadata.SchemaVersion -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.3') { Fail 'Metadata safety policy sai phiên bản.' }
+    if ([string]$metadata.SchemaVersion -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.4') { Fail 'Metadata safety policy sai phiên bản.' }
     if ([bool]$metadata.StartupTypeChangesAllowedByQuickRepair) { Fail 'Quick repair không được phép đổi StartupType.' }
     $services = @(Get-ToolScanSourceServicePolicy)
     if ($services.Count -ne 3 -or @($services | Where-Object { $_.AllowStartupTypeChange }).Count -ne 0) { Fail 'Service policy không khóa toàn bộ thay đổi StartupType.' }
@@ -56,6 +56,7 @@ function Read-And-Parse([string]$Name) {
 $backup = Read-And-Parse 'windows-license-backup.ps1'
 $cleanup = Read-And-Parse 'windows-license-compliance-cleanup.ps1'
 $restore = Read-And-Parse 'windows-license-restore.ps1'
+$gui = Read-And-Parse 'Giao-Dien.ps1'
 
 if ($backup -and $backup.Text -notmatch 'Backup-RegistryValues\s+\$windowsPolicyPath.+Windows_SPP_Policy') { Fail 'Backup thường chưa lưu riêng policy NoGenTicket bằng RegistryValues.' }
 if ($cleanup -and $cleanup.Text -notmatch '(?s)SppNoGenTicketPolicy.+?@\("NoGenTicket"\).+?Type="RegistryValues"') { Fail 'Deep cleanup chưa backup NoGenTicket theo kiểu RegistryValues.' }
@@ -121,6 +122,39 @@ ERROR CODE: 0xC004F014
     }
 }
 
+if ($gui) {
+    $autoSafeAst = $gui.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-AutomaticSafeCleanupItems' }, $true)
+    if (-not $autoSafeAst) {
+        Fail 'Không tìm thấy bộ lọc tự động làm sạch an toàn.'
+    } else {
+        try {
+            $autoSafeFilter = $autoSafeAst.Body.GetScriptBlock()
+            $autoFixture = @(
+                [pscustomobject]@{ Id='win-kms'; Type='Registry'; Kind='KmsOverride'; Location=$windowsSpp },
+                [pscustomobject]@{ Id='office-kms'; Type='Registry'; Kind='KmsOverride'; Location=$officeSpp },
+                [pscustomobject]@{ Id='nogen'; Type='Registry'; Kind='SppNoGenTicketPolicy'; Location=$licensePolicy },
+                [pscustomobject]@{ Id='wrong-path'; Type='Registry'; Kind='KmsOverride'; Location='HKLM:\SOFTWARE\Unrelated' },
+                [pscustomobject]@{ Id='license'; Type='License'; Kind='WindowsKmsLicense'; Location='KMS=example' },
+                [pscustomobject]@{ Id='file'; Type='File'; Kind='HookFile'; Location='C:\Windows\System32\SppExtComObjHook.dll' },
+                [pscustomobject]@{ Id='history'; Type='History'; Kind='DefenderEvent'; Location='Event 1116' }
+            )
+            $autoSelected = @(& $autoSafeFilter -CleanupItems $autoFixture)
+            $autoIds = @($autoSelected | ForEach-Object { [string]$_.Id })
+            if ($autoSelected.Count -ne 3 -or $autoIds -notcontains 'win-kms' -or $autoIds -notcontains 'office-kms' -or $autoIds -notcontains 'nogen') {
+                Fail 'Bộ lọc tự động không chọn đúng ba cấu hình Registry allowlist.'
+            }
+            if ($autoIds -contains 'wrong-path' -or $autoIds -contains 'license' -or $autoIds -contains 'file' -or $autoIds -contains 'history') {
+                Fail 'Bộ lọc tự động đã chọn mục ngoài Registry allowlist.'
+            }
+        } catch {
+            Fail "Không chạy được fixture tự động làm sạch an toàn: $($_.Exception.Message)"
+        }
+    }
+    if ($gui.Text -notmatch 'Start-CleanupDeep\s+-CleanupItems.+-AutomaticSafeMode' -or $gui.Text -notmatch 'Confirm-AutomaticSafeCleanup') {
+        Fail 'Luồng tự động chưa bắt buộc xem trước/xác nhận bằng bộ lọc an toàn.'
+    }
+}
+
 $nativePattern = '(?im)(?:&|Start-Process\s+)(?:sc|reg|cscript|certutil|sfc|netsh|w32tm|explorer|notepad)\.exe\b'
 foreach ($name in @('Giao-Dien.ps1','kiem-tra-cau-hinh-ban-quyen.ps1','windows-license-backup.ps1','windows-license-compliance-cleanup.ps1','windows-license-restore.ps1','windows-license-deep-scan.ps1','windows-license-forensics.ps1')) {
     $path = Join-Path $root $name
@@ -134,5 +168,5 @@ if ($failures.Count) {
     Write-Host "VERIFY-SAFETY-REGRESSIONS: FAILED ($($failures.Count) errors)"
     exit 1
 }
-Write-Host 'VERIFY-SAFETY-REGRESSIONS: OK (registry policy + rollback + Office multi-SKU + native paths)' -ForegroundColor Green
+Write-Host 'VERIFY-SAFETY-REGRESSIONS: OK (registry policy + auto-safe cleanup + rollback + Office multi-SKU + native paths)' -ForegroundColor Green
 exit 0

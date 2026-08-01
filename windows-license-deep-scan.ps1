@@ -11,7 +11,7 @@ if ($PSVersionTable.PSVersion.Major -lt 3) {
     exit 10
 }
 
-$toolVersion = "4.3"
+$toolVersion = "4.4"
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportSchemaHelper = Join-Path $PSScriptRoot "Tool-ReportSchema.ps1"
 $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"

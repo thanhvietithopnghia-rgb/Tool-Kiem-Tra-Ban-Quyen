@@ -1,6 +1,6 @@
 ﻿$script:ToolModuleContractSchemaVersion = "1.0"
 $script:ToolModuleResultSchemaVersion = "1.0"
-$script:ToolModuleContractToolVersion = "4.3"
+$script:ToolModuleContractToolVersion = "4.4"
 $script:ToolModuleCatalogCache = $null
 
 function ConvertTo-ToolContractSafeText {
@@ -130,7 +130,7 @@ function Test-ToolModuleAvailability {
 
     $descriptor = Get-ToolModuleDescriptor -ModuleId $ModuleId
     if (-not $descriptor) {
-        return [pscustomobject][ordered]@{ Available=$false; Status="Unsupported"; ModuleId=$ModuleId; MissingRequirements=@("ModuleNotRegistered"); Message="Mô-đun chưa được đăng ký trong catalog v4.3."; Descriptor=$null }
+        return [pscustomobject][ordered]@{ Available=$false; Status="Unsupported"; ModuleId=$ModuleId; MissingRequirements=@("ModuleNotRegistered"); Message="Mô-đun chưa được đăng ký trong catalog v4.4."; Descriptor=$null }
     }
     $missing = New-Object System.Collections.Generic.List[string]
     foreach ($requirement in @($descriptor.RequiredCapabilities)) {

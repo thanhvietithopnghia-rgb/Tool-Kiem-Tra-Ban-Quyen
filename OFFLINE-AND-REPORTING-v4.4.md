@@ -1,8 +1,8 @@
-# Offline mode và báo cáo v4.3
+# Offline mode và báo cáo v4.4
 
 ## Chính sách mặc định
 
-v4.3 khởi động **Offline** nếu:
+v4.4 khôi phục lựa chọn **Offline/Online** đã lưu; tài khoản chưa có cấu hình vẫn khởi động **Offline** nếu:
 
 - chưa có thiết lập;
 - tệp thiết lập không đọc được hoặc sai định dạng;

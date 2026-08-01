@@ -9,8 +9,8 @@
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.3"
-$ToolReleaseVersion = "4.3.0.8"
+$ToolVersion = "4.4"
+$ToolReleaseVersion = "4.4.0.0"
 
 if ($PSVersionTable.PSVersion.Major -lt 3) {
     Write-Host "Cong cu can PowerShell 3.0 tro len. Windows 7 co the cai Windows Management Framework 3+ de chay."
@@ -28,6 +28,7 @@ $pluginEngineHelper = Join-Path $PSScriptRoot "Tool-PluginEngine.ps1"
 $timelineHelper = Join-Path $PSScriptRoot "Tool-LicenseTimeline.ps1"
 $localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 $offlinePolicyHelper = Join-Path $PSScriptRoot "Tool-OfflinePolicy.ps1"
+$scanOptimizationHelper = Join-Path $PSScriptRoot "Tool-ScanOptimization.ps1"
 try {
     if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
     if (-not (Test-Path -LiteralPath $compatibilityHelper -PathType Leaf)) { throw "Thiếu Tool-Compatibility.ps1." }
@@ -40,6 +41,7 @@ try {
     if (-not (Test-Path -LiteralPath $timelineHelper -PathType Leaf)) { throw "Thiếu Tool-LicenseTimeline.ps1." }
     if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { throw "Thiếu Tool-Localization.ps1." }
     if (-not (Test-Path -LiteralPath $offlinePolicyHelper -PathType Leaf)) { throw "Thiếu Tool-OfflinePolicy.ps1." }
+    if (-not (Test-Path -LiteralPath $scanOptimizationHelper -PathType Leaf)) { throw "Thiếu Tool-ScanOptimization.ps1." }
     . $runtimeHelper
     . $compatibilityHelper
     . $capabilityHelper
@@ -51,6 +53,7 @@ try {
     . $timelineHelper
     . $localizationHelper
     . $offlinePolicyHelper
+    . $scanOptimizationHelper
     [void](Assert-ToolNativeArchitecture)
     $nativeCscriptPath = Get-ToolNativeSystemPath "cscript.exe"
     $nativeExplorerPath = Get-ToolNativeSystemPath "explorer.exe"
@@ -683,22 +686,16 @@ $officeRawStatus = @()
 $officeCimLicenses = @()
 $clickToRun = $null
 if ($wantOffice) {
-$osppRoots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432) |
-    Where-Object { $_ } | Select-Object -Unique | ForEach-Object { Join-Path $_ "Microsoft Office" }
-foreach ($root in $osppRoots) {
-    if (Test-Path -LiteralPath $root) {
-        $ospp = Get-ChildItem -LiteralPath $root -Recurse -Filter OSPP.VBS -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($ospp) {
-            try {
-                $status = & $nativeCscriptPath //nologo $ospp.FullName /dstatus 2>$null
-                $officeRawStatus += $status
-                $officeRows += [pscustomobject]@{
-                    "Thanh phan"="Microsoft Office"
-                    "Thong tin"=(($status | Where-Object { $_ -match "LICENSE|PRODUCT ID|LICENSE DESCRIPTION|Last 5|KMS|ERROR" }) -join "`n")
-                    "Nguon"=$ospp.FullName
-                }
-            } catch {}
-        }
+$osppPaths = @(Get-ToolOptimizedOfficeOsppPaths)
+$officeStatusResults = @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths $osppPaths)
+foreach ($statusResult in $officeStatusResults) {
+    if (-not $statusResult.Readable) { continue }
+    $status = @([string]$statusResult.Output -split "`r?`n")
+    $officeRawStatus += $status
+    $officeRows += [pscustomobject]@{
+        "Thanh phan"="Microsoft Office"
+        "Thong tin"=(($status | Where-Object { $_ -match "LICENSE|PRODUCT ID|LICENSE DESCRIPTION|Last 5|KMS|ERROR" }) -join "`n")
+        "Nguon"=[string]$statusResult.Path
     }
 }
 
@@ -1266,20 +1263,13 @@ if ($wantSoftware) {
         "$env:USERPROFILE\Downloads",
         "$env:ProgramData"
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
-    foreach ($root in $scanRoots) {
-        try {
-            Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match $strongCrackPattern -or $_.FullName -match $strongCrackPattern } |
-                Select-Object -First 60 |
-                ForEach-Object {
-                    $crackFindings += [pscustomobject]@{
-                        "Nguon" = "File scan"
-                        "Dau hieu" = $_.Name
-                        "Vi tri" = $_.FullName
-                        "Muc do" = "Dau hieu theo ten file"
-                    }
-                }
-        } catch {}
+    foreach ($path in @(Find-ToolPatternFilesParallel -Roots $scanRoots -Pattern $strongCrackPattern -MaximumResults 60)) {
+        $crackFindings += [pscustomobject]@{
+            "Nguon" = "File scan"
+            "Dau hieu" = [IO.Path]::GetFileName($path)
+            "Vi tri" = $path
+            "Muc do" = "Dau hieu theo ten file"
+        }
     }
     Add-Section "Dau hieu crack / activator / KMS" (Add-Table $crackFindings @("Nguon","Dau hieu","Vi tri","Muc do")) "Software"
     Add-Section "Tu khoa chung can xac minh thu cong (khong ket luan crack)" (Add-Table $manualReviewFindings @("Nguon","Dau hieu","Vi tri","Muc do")) "Software"
@@ -1437,7 +1427,7 @@ if ($capabilityState.ScheduledTasksModule) {
 Add-Section "Scheduled tasks dang bat" (Add-Table $tasks @("Task","Path","State","Author")) "Software"
 }
 
-# Plugin v4.3 chỉ dùng JSON khai báo và các nguồn đọc đã giới hạn. Không dot-source
+# Plugin v4.4 chỉ dùng JSON khai báo và các nguồn đọc đã giới hạn. Không dot-source
 # hoặc thực thi mã do plugin cung cấp.
 $pluginAudit = $null
 if ($wantSoftware) {
@@ -1467,7 +1457,7 @@ if ($wantSoftware) {
         $pluginBody = (Add-Table $pluginRows @("Plugin","Phiên bản","Nhà phát hành","Bật","Quy tắc","Tin cậy"))
         $pluginBody += "<h3>$(Html (Select-ReportText "Phát hiện của plugin" "Plugin findings"))</h3>"
         $pluginBody += (Add-Table $pluginFindingRows @("Mức","Plugin","Quy tắc","Quan sát","Nhận định","Hướng xử lý","Lỗi"))
-        $pluginBody += "<p class='note'>$(Html (Select-ReportText "Plugin v4.3 là JSON chỉ đọc; engine không chạy script, command hoặc tải mạng từ plugin." "v4.3 plugins are read-only JSON declarations; the engine does not run scripts, commands, or network downloads from a plugin."))</p>"
+        $pluginBody += "<p class='note'>$(Html (Select-ReportText "Plugin v4.4 là JSON chỉ đọc; engine không chạy script, command hoặc tải mạng từ plugin." "v4.4 plugins are read-only JSON declarations; the engine does not run scripts, commands, or network downloads from a plugin."))</p>"
         Add-Section "Quy tắc mở rộng bằng plugin" $pluginBody "Software"
     } catch {
         $pluginAudit = [pscustomobject]@{

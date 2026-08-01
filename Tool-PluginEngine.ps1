@@ -1,6 +1,6 @@
 ﻿$script:ToolPluginSchemaVersion = "1.0"
 $script:ToolPluginEngineVersion = "1.0"
-$script:ToolPluginToolVersion = "4.3"
+$script:ToolPluginToolVersion = "4.4"
 
 function Get-ToolPluginMetadata {
     return [pscustomobject][ordered]@{
@@ -38,9 +38,9 @@ function Test-ToolPluginDirectory {
             }
         }
         if ($env:TOOL_SECURE_LAUNCH -eq "1") {
-            $expected = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.3\plugins"
+            $expected = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.4\plugins"
             if (-not $fullPath.Equals([IO.Path]::GetFullPath($expected), [StringComparison]::OrdinalIgnoreCase)) {
-                [void]$errors.Add("Thư mục plugin nằm ngoài vùng ProgramData v4.3 được bảo vệ.")
+                [void]$errors.Add("Thư mục plugin nằm ngoài vùng ProgramData v4.4 được bảo vệ.")
             } elseif (Test-Path -LiteralPath $fullPath -PathType Container) {
                 $acl = Get-Acl -LiteralPath $fullPath -ErrorAction Stop
                 $allowedSids = @("S-1-5-32-544", "S-1-5-18")

@@ -30,7 +30,7 @@ if (-not (Test-Path -LiteralPath $guiPath -PathType Leaf)) {
 }
 
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
-Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.3\.0\.8"' 'Dashboard chưa dùng release 4.3.0.8.'
+Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.4\.0\.0"' 'Dashboard chưa dùng release 4.4.0.0.'
 Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.07\.31"' 'Dashboard chưa dùng ngày build 2026.07.31.'
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'
@@ -75,13 +75,13 @@ foreach ($colorPair in $enterpriseColorPairs) {
     if ($contrast -lt 4.5) { Add-Failure "Màu Mục 8 $($colorPair[0]) không đạt tương phản 4.5:1." }
 }
 
-# Dashboard starts Light; the user can still toggle Dark during the session.
+# Dashboard restores the saved Light/Dark choice.
 Assert-SourcePattern $text 'function\s+Set-DashboardTheme' 'Thiếu hàm áp dụng theme.'
 Assert-SourcePattern $text 'ValidateSet\("Light",\s*"Dark"\)' 'Thiếu lựa chọn theme sáng/tối.'
 Assert-SourcePattern $text 'Tool-UiTheme\.ps1' 'Dashboard chưa nạp theme dùng chung.'
 Assert-SourcePattern $text 'Set-ToolUiThemePreference' 'Dashboard chưa ghi nhớ theme.'
 Assert-SourcePattern $text 'TOOL_UI_THEME' 'Dashboard chưa truyền theme sang tiến trình con.'
-Assert-SourcePattern $text '[$]script:dashboardTheme\s*=\s*"Light"' 'Dashboard chưa luôn mở mặc định ở giao diện sáng.'
+Assert-SourcePattern $text '[$]script:dashboardTheme\s*=\s*Get-ToolUiTheme' 'Dashboard chưa khôi phục theme người dùng đã lưu.'
 $themedDialogCount = [regex]::Matches($text, 'Set-ToolWindowTheme\s+-Root\s+[$](dialog|chooser|screen)\s+-Mode\s+[$]script:dashboardTheme').Count
 if ($themedDialogCount -lt 9) {
     Add-Failure "Dark mode chưa phủ đủ cửa sổ con; tìm thấy $themedDialogCount lượt áp dụng."
@@ -149,6 +149,12 @@ Assert-SourcePattern $text 'function\s+Open-Guide' 'Trung tâm bảo đảm thi�
 Assert-SourcePattern $text 'USER-GUIDE-en-US\.md' 'Dashboard chưa tham chiếu hướng dẫn English đầy đủ.'
 Assert-SourcePattern $text 'function\s+Open-ToolEmbeddedDocument' 'Dashboard thiếu bộ mở tài liệu HTML/PDF dùng chung.'
 Assert-SourcePattern $text 'function\s+Open-VersionHistory' 'Dashboard thiếu mục giới thiệu phiên bản và lịch sử cập nhật.'
+Assert-SourcePattern $text 'New-Object\s+System\.Windows\.Forms\.RichTextBox' 'Lịch sử phiên bản chưa hiển thị ngay trong Tool.'
+Assert-SourcePattern $text 'function\s+Copy-AllToolLog' 'Dashboard thiếu nút sao chép toàn bộ log.'
+Assert-SourcePattern $text 'function\s+Open-ReportDirectory' 'Dashboard thiếu nút mở thư mục báo cáo.'
+Assert-SourcePattern $text 'Get-ToolWindowsPath\s+"explorer\.exe"' 'Dashboard đang tìm explorer.exe sai trong System32/Sysnative thay vì thư mục Windows.'
+Assert-SourcePattern $text 'function\s+Show-ExecutionEnvironmentWarning' 'Dashboard thiếu cảnh báo máy ảo/Remote Desktop.'
+Assert-SourcePattern $text '[$]capabilityState\.ExecutionEnvironment' 'Dashboard chưa dùng hồ sơ môi trường thực thi.'
 Assert-SourcePattern $text 'LICH-SU-PHIEN-BAN\.txt' 'Dashboard chưa nhúng tài liệu lịch sử phiên bản.'
 Assert-SourcePattern $text 'New-ToolProfessionalHtmlDocument' 'Hướng dẫn chưa dùng bố cục báo cáo HTML chuyên nghiệp.'
 Assert-SourcePattern $text 'Convert-ToolHtmlToPdf' 'Hướng dẫn chưa hỗ trợ PDF.'
@@ -206,15 +212,16 @@ if (-not (Test-Path -LiteralPath $guideViPath -PathType Leaf) -or
     if ($guideViText -match '(?im)^\s*(Bản|Phiên bản)\s+v?\d' -or $guideEnText -match '(?im)^\s*(Version|Release)\s+v?\d') {
         Add-Failure 'HDSD còn trộn nhật ký cập nhật phiên bản thay vì chỉ hướng dẫn chức năng.'
     }
-    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.3\.0\.8\*\*' -or
-        $historyText -notmatch 'Mô hình triển khai hiện tại' -or
-        $historyText -notmatch 'Công nghệ và ngôn ngữ hiện tại') {
+    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.4\.0\.0\*\*' -or
+        $historyText -notmatch 'MÔ HÌNH VẬN HÀNH' -or
+        $historyText -notmatch 'CÔNG NGHỆ & NGÔN NGỮ' -or
+        $historyText -notmatch 'MỤC ĐÍCH SỬ DỤNG') {
         Add-Failure 'Tài liệu phiên bản chưa mô tả bản mới, mô hình triển khai và công nghệ/ngôn ngữ.'
     }
     if ($historyText -match '(?m)^##\s+v\d+\.\d+\.\d+') {
         Add-Failure 'Tài liệu lịch sử vẫn tách riêng bản vá lẻ thay vì gộp theo phiên bản chính.'
     }
-    foreach ($mainVersion in @('1.0','1.1','1.2','1.3','2.4','2.5','2.6','2.7','2.8','2.9','3.0','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8','3.9','4.0','4.1','4.2','4.3')) {
+    foreach ($mainVersion in @('1.0','1.1','1.2','1.3','2.4','2.5','2.6','2.7','2.8','2.9','3.0','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8','3.9','4.0','4.1','4.2','4.3','4.4')) {
         if ($historyText -notmatch "(?m)^##\s+v$([regex]::Escape($mainVersion))\b") {
             Add-Failure "Tài liệu lịch sử thiếu phiên bản chính v$mainVersion."
         }
@@ -327,5 +334,5 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'VERIFY-DASHBOARD: PASS (no main scroll + Light default + blank idle activity + Stop button + Online/Offline + main-version history)' -ForegroundColor Green
+Write-Host 'VERIFY-DASHBOARD: PASS (saved theme + log/report buttons + environment warning + in-tool history)' -ForegroundColor Green
 exit 0

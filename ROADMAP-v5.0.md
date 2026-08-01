@@ -2,7 +2,7 @@
 
 Nguyên tắc cố định: một sản phẩm, một EXE AnyCPU tự nhận diện, tương thích Windows 7 SP1–Windows 11. Mỗi mốc phải build, kiểm thử, đóng gói và có checksum độc lập.
 
-Trạng thái 30/07/2026: v4.3 Enterprise đã hoàn thành Modern WinForms dashboard, Offline mặc định, localization nền, compatibility catalog Windows/Office và report export offline-safe. Pipeline ký vẫn chưa được tuyên bố Authenticode tin cậy khi chưa có chứng thư code-signing thật.
+Trạng thái 31/07/2026: v4.4 Enterprise đã hoàn thành cấu hình người dùng bền vững, cảnh báo VM/RDP, tiện ích log/báo cáo, lịch sử trong Tool và quét Office/tệp song song có giới hạn. Pipeline ký vẫn chưa được tuyên bố Authenticode tin cậy khi chưa có chứng thư code-signing thật.
 
 ## Các mốc
 
@@ -12,6 +12,7 @@ Trạng thái 30/07/2026: v4.3 Enterprise đã hoàn thành Modern WinForms dash
 - **v4.0/R2 — Hoàn thành:** dashboard, action center, restore NoGenTicket và quét nhiều Office SKU.
 - **v4.2 — Hoàn thành phần mềm:** HTML/PDF/JSON/XML, plugin khai báo chỉ đọc, certificate audit, timeline có HMAC/hash chain, pipeline Authenticode và enterprise server/agent với outbox offline.
 - **v4.3 — Hoàn thành phần mềm:** dashboard schema 2.0, Offline/i18n, compatibility catalog/freshness CI, HTML/PDF offline-safe và tài liệu kỹ thuật.
+- **v4.4 — Hoàn thành phần mềm:** lưu language/theme/network default, cảnh báo VM/RDP, lịch sử nội bộ, tiện ích log/báo cáo và tối ưu quét song song.
 - **v4.3 signed — Chờ chứng thư:** ký bằng chứng thư tổ chức thật, timestamp và xác minh `Valid`.
 - **v4.4 — Detection/forensics mở rộng:** chữ ký activator có mức tin cậy, nguồn bằng chứng và hợp nhất timeline với Windows Event Log.
 - **v4.5 — Backup/restore + hardware assurance:** coverage matrix, TPM/Secure Boot/BitLocker recommendation và rollback lab.

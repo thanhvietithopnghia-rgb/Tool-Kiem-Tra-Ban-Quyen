@@ -1,15 +1,25 @@
-# Tool Kiểm Tra Cấu Hình & Bảo Đảm Bản Quyền Windows/Office
+# Tool Kiểm Tra v4.4 Enterprise – Bản nâng cấp toàn diện
 
-Tool Kiểm Tra là bộ công cụ quản trị cục bộ dành cho Windows và Microsoft Office. Công cụ giúp kiểm kê cấu hình, đọc trạng thái cấp phép, rà soát dấu hiệu can thiệp, thực hiện khắc phục có kiểm soát và xuất hồ sơ HTML/PDF có thể kiểm chứng.
+Phiên bản v4.4 Enterprise là bản nâng cấp quan trọng của Tool Kiểm Tra, tập trung cải thiện khả năng kiểm kê hệ thống, quản lý bản quyền và bảo mật dữ liệu trong môi trường doanh nghiệp.
 
-Phiên bản hiện tại: **v4.3 Enterprise — FileVersion 4.3.0.8 — Build 2026.07.31**
+Bản cập nhật mở rộng khả năng nhận diện Windows 11 24H2, 25H2, 26H1; Office 2024, LTSC 2024 và Microsoft 365 Apps. Giao diện Dashboard 2.0 được thiết kế trực quan hơn, hỗ trợ chế độ Sáng/Tối và tự động tối ưu theo độ phân giải màn hình.
+
+V4.4 tiếp tục ưu tiên quyền riêng tư với cơ chế hoạt động ngoại tuyến, không thu thập dữ liệu và không tự ý kết nối mạng. Báo cáo HTML/PDF được tăng cường bảo vệ, đồng thời tính toàn vẹn của dữ liệu được xác minh bằng SHA-256 và HMAC.
+
+Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
+
+Phiên bản hiện tại: **v4.4 Enterprise — FileVersion 4.4.0.0 — Build 2026.07.31**
 
 Tác giả và phát triển: **Thanh Việt**
 
 ## Điểm chính
 
 - Một tệp EXE AnyCPU, tự chạy đúng kiến trúc x64 hoặc x86.
-- Giao diện WinForms mở mặc định ở chế độ sáng, hỗ trợ sáng/tối, tiếng Việt/English và tự co giãn theo DPI mà không cần cuộn cửa sổ chính.
+- Giao diện WinForms ghi nhớ chế độ sáng/tối, tiếng Việt/English và tự co giãn theo DPI mà không cần cuộn cửa sổ chính.
+- Ghi nhớ ngôn ngữ, theme và trạng thái Offline/Online mặc định theo tài khoản người dùng.
+- Cảnh báo khi chạy trong máy ảo hoặc Remote Desktop mà không khóa chức năng.
+- Có nút **Sao chép toàn bộ log**, **Mở thư mục báo cáo** và lịch sử phiên bản hiển thị ngay trong Tool.
+- Quét nhiều bản Office và nhiều nguồn tệp song song có giới hạn để tăng tốc trên máy nhiều ổ đĩa.
 - Mười chức năng được đánh số rõ ràng từ 01 đến 10.
 - Khu vực hoạt động để trống khi khởi động; khi có tác vụ mới hiển thị tiến độ, thời gian, nhật ký và nút **Dừng**.
 - Hai trạng thái mạng ngắn gọn **Offline/Online**; Tool luôn khởi động Offline và chỉ dùng mạng sau khi người dùng chủ động bật.
@@ -35,8 +45,8 @@ Tác giả và phát triển: **Thanh Việt**
 
 1. Tải gói phát hành chính thức và đối chiếu SHA-256.
 2. Giải nén toàn bộ gói vào một thư mục cố định; không chạy EXE trực tiếp bên trong ZIP.
-3. Chạy `Tool-Kiem-Tra-v4.3.exe` và chấp nhận UAC.
-4. Tool mở với giao diện sáng và Offline. Chỉ chuyển nút mạng sang **Online** khi chức năng đang dùng thực sự cần Internet/LAN.
+3. Chạy `Tool-Kiem-Tra-v4.4.exe` và chấp nhận UAC.
+4. Tool khôi phục theme và Offline/Online đã lưu. Chỉ chuyển sang **Online** khi chức năng đang dùng thực sự cần Internet/LAN.
 5. Chọn chức năng 01–10 trên màn hình chính.
 6. Khi tác vụ hoàn tất, đọc bản HTML được mở tự động; bản HTML và PDF nằm trên Desktop.
 
@@ -79,15 +89,15 @@ Mã nguồn PowerShell là nguồn sự thật cho logic nghiệp vụ. Launcher
 
 ## Lịch sử phát triển chính
 
-Lịch sử trên GitHub chỉ dùng số phiên bản chính như `v4.3`; các số vá nội bộ `v4.3.0.x` được gộp vào cùng mốc để tránh danh sách dài và trùng nội dung.
+Lịch sử trên GitHub chỉ dùng số phiên bản chính như `v4.4`; các số vá nội bộ được gộp vào cùng mốc để tránh danh sách dài và trùng nội dung.
 
 - **v1.0–v1.3:** hình thành giao diện Windows, kiểm tra cấu hình/bản quyền, tiến độ tác vụ, key OEM và quét chuyên sâu có UAC nhưng vẫn chỉ đọc.
 - **v2.4–v2.9:** tối ưu bố cục, quản lý key/edition hợp lệ, điều tra 7/12 nhóm, chấm điểm rủi ro, bộ bằng chứng HTML/JSON/CSV/SHA-256 và hậu kiểm.
 - **v3.0–v3.5:** khắc phục chọn lọc, backup/restore, manifest, DPAPI/HMAC, kiểm tra toàn vẹn, nhật ký trực tiếp và chính sách fail-closed.
 - **v3.6–v3.9:** một EXE AnyCPU, build deterministic, PE hardening, capability schema, JSONL logging, module contract và report schema có verifier x64/x86.
-- **v4.0–v4.3:** dashboard hiện đại, Trung tâm bảo đảm, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, song ngữ, Offline mặc định, báo cáo HTML/PDF thống nhất và giao diện vừa khung có nút Dừng.
+- **v4.0–v4.4:** dashboard hiện đại, Trung tâm bảo đảm, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, cấu hình ghi nhớ, cảnh báo môi trường, quét song song và báo cáo HTML/PDF thống nhất.
 
-Chi tiết từng mốc từ `v1.0` đến `v4.3`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
+Chi tiết từng mốc từ `v1.0` đến `v4.4`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
 
 ## An toàn khi dùng chức năng 06, 07 và 08
 
@@ -103,8 +113,8 @@ Chi tiết từng mốc từ `v1.0` đến `v4.3`, gồm nâng cấp, công ngh�
 Trong PowerShell:
 
 ```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.3.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.3.exe | Format-List Status,StatusMessage,SignerCertificate
+Get-FileHash .\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.4.exe | Format-List Status,StatusMessage,SignerCertificate
 ```
 
 Đối chiếu hash với manifest trong gói phát hành. EXE chỉ được công bố là đã ký khi trạng thái Authenticode thực tế là `Valid`; nếu chưa có chứng thư ký mã, tài liệu phát hành phải ghi rõ `NotSigned`.
@@ -115,7 +125,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.3.exe | Format-List Status,StatusMe
 - `USER-GUIDE-en-US.md` — English user guide.
 - `LICH-SU-PHIEN-BAN.txt` — giới thiệu phiên bản, nội dung thay đổi và mô hình/công nghệ.
 - `README-MA-NGUON.md` — cách build, kiểm thử và đóng gói.
-- `TECHNICAL-ARCHITECTURE-v4.3.md` — kiến trúc kỹ thuật.
+- `TECHNICAL-ARCHITECTURE-v4.4.md` — kiến trúc kỹ thuật.
 - `SAFETY-POLICY-v1.0.md` — ranh giới an toàn.
 
 ## Tải chính thức và hỗ trợ

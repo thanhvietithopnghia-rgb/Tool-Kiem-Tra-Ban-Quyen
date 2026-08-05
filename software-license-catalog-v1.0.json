@@ -1,0 +1,305 @@
+{
+  "SchemaVersion": "1.0",
+  "CatalogVersion": "1.0.0.0",
+  "GeneratedAtUtc": "2026-08-04T08:30:00Z",
+  "UpdateUrl": "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json",
+  "Privacy": {
+    "DownloadOnly": true,
+    "UploadsInstalledInventory": false,
+    "UploadsLicenseKeys": false
+  },
+  "Products": [
+    {
+      "Id": "adobe-acrobat-reader",
+      "Vendor": "Adobe",
+      "NamePatterns": ["\\bAdobe Acrobat Reader\\b", "\\bAdobe Reader\\b", "\\bAcrobat Reader\\b"],
+      "PublisherPatterns": ["\\bAdobe\\b"],
+      "LicenseModel": "Free",
+      "OfficialUrl": "https://www.adobe.com/acrobat/pdf-reader.html",
+      "LicenseDomains": ["(?:^|\\.)adobe\\.com$", "(?:^|\\.)adobelogin\\.com$"],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "adobe-creative-cloud-paid",
+      "Vendor": "Adobe",
+      "NamePatterns": ["\\bAdobe (?:Photoshop|Illustrator|InDesign|Lightroom|Premiere|After Effects|Audition|Animate|Dreamweaver|Acrobat)(?:\\s|$)", "\\bCreative Cloud\\b", "\\bAcrobat\\s+Distiller\\b", "^Adobe Acrobat \\(64-bit\\)$"],
+      "PublisherPatterns": ["\\bAdobe\\b"],
+      "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.adobe.com/creativecloud/plans.html",
+      "LicenseDomains": ["(?:^|\\.)adobe\\.com$", "(?:^|\\.)adobelogin\\.com$", "(?:^|\\.)adobeims\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bGenP\\b", "\\bCCMaker\\b", "\\bamtlib[._ -]*(?:patch|emulator)\\b", "\\bcrack(?:ed)?\\b"],
+      "RemediationAdapter": "Adobe"
+    },
+    {
+      "Id": "autodesk-commercial",
+      "Vendor": "Autodesk",
+      "NamePatterns": ["\\bAutodesk\\b", "\\bAutoCAD\\b", "\\bRevit\\b", "\\b3ds Max\\b", "\\bCivil 3D\\b", "\\bNavisworks\\b", "\\bInventor\\b", "\\bFusion 360\\b"],
+      "PublisherPatterns": ["\\bAutodesk\\b"],
+      "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.autodesk.com/products/autocad/overview",
+      "LicenseDomains": ["(?:^|\\.)autodesk\\.com$", "(?:^|\\.)autodesk360\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bXF[._ -]*ADSK\\b", "\\bX[._ -]*Force\\b", "\\blicense[._ -]*patch\\b", "\\bcrack(?:ed)?\\b"],
+      "RemediationAdapter": "Autodesk"
+    },
+    {
+      "Id": "abbyy-finereader",
+      "Vendor": "ABBYY",
+      "NamePatterns": ["\\bABBYY\\b.*\\bFineReader\\b", "\\bFineReader PDF\\b"],
+      "PublisherPatterns": ["\\bABBYY\\b"],
+      "LicenseModel": "Paid",
+      "OfficialUrl": "https://pdf.abbyy.com/finereader-pdf/",
+      "LicenseDomains": ["(?:^|\\.)abbyy\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bby\\s+sandy[d]?\\b", "\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "foxit-pdf-reader",
+      "Vendor": "Foxit",
+      "NamePatterns": ["\\bFoxit (?:PDF )?Reader\\b"],
+      "PublisherPatterns": ["\\bFoxit\\b"],
+      "LicenseModel": "Free",
+      "OfficialUrl": "https://www.foxit.com/pdf-reader/",
+      "LicenseDomains": ["(?:^|\\.)foxit\\.com$"],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "foxit-pdf-editor",
+      "Vendor": "Foxit",
+      "NamePatterns": ["\\bFoxit (?:Advanced )?PDF Editor\\b", "\\bFoxit PhantomPDF\\b"],
+      "PublisherPatterns": ["\\bFoxit\\b"],
+      "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.foxit.com/pdf-editor/pricing/",
+      "LicenseDomains": ["(?:^|\\.)foxit\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "microsoft-office-commercial",
+      "Vendor": "Microsoft",
+      "NamePatterns": ["\\bMicrosoft 365 Apps\\b", "\\bMicrosoft Office\\b", "\\bMicrosoft Visio\\b", "\\bMicrosoft Project\\b"],
+      "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.microsoft.com/microsoft-365",
+      "LicenseDomains": ["(?:^|\\.)microsoftonline\\.com$", "(?:^|\\.)office\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bKMS\\b", "\\bactivator\\b", "\\bcrack(?:ed)?\\b"]
+    },
+    {
+      "Id": "microsoft-runtime-component",
+      "Vendor": "Microsoft",
+      "NamePatterns": ["^Microsoft \\.NET", "^Microsoft Visual C\\+\\+", "^Microsoft Windows Desktop Runtime", "^Microsoft Edge WebView2", "^Windows SDK", "^Universal CRT", "^MSVCRT", "^Windows App Certification Kit", "^Microsoft SQL Server .*?(?:Native Client|Setup Support|System CLR|Policies|ScriptDom|Compiler Service|RsFx Driver|VSS Writer)"],
+      "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Runtime",
+      "OfficialUrl": "https://learn.microsoft.com/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "visual-studio-code",
+      "Vendor": "Microsoft",
+      "NamePatterns": ["\\bVisual Studio Code\\b"],
+      "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Free",
+      "OfficialUrl": "https://code.visualstudio.com/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "windows-driver-component",
+      "Vendor": "DeviceVendor",
+      "NamePatterns": ["\\b(?:Driver|Printer|SDK|Redistributable|Runtime|Extension SDK|Headers|Libraries|Tools)\\b", "^(?:NVIDIA|Realtek|Canon|EPSON|TOSHIBA|ASUS).*(?:Driver|HAL|Service|Tool|Uninstall)"],
+      "PublisherPatterns": [],
+      "LicenseModel": "Driver",
+      "OfficialUrl": "",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "techsmith-camtasia",
+      "Vendor": "TechSmith",
+      "NamePatterns": ["\\bCamtasia\\b"],
+      "PublisherPatterns": ["\\bTechSmith\\b"],
+      "LicenseModel": "Paid",
+      "OfficialUrl": "https://www.techsmith.com/camtasia/",
+      "LicenseDomains": ["(?:^|\\.)techsmith\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "faststone-capture",
+      "Vendor": "FastStone",
+      "NamePatterns": ["\\bFastStone Capture\\b"],
+      "PublisherPatterns": ["\\bFastStone\\b"],
+      "LicenseModel": "Trialware",
+      "OfficialUrl": "https://www.faststone.org/FSCaptureDetail.htm",
+      "LicenseDomains": ["(?:^|\\.)faststone\\.org$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "winrar",
+      "Vendor": "RARLAB",
+      "NamePatterns": ["\\bWinRAR\\b"],
+      "PublisherPatterns": ["\\bwin\\.rar|\\bRARLAB\\b"],
+      "LicenseModel": "Trialware",
+      "OfficialUrl": "https://www.rarlab.com/",
+      "LicenseDomains": ["(?:^|\\.)rarlab\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "easeus-data-recovery",
+      "Vendor": "EaseUS",
+      "NamePatterns": ["\\bEaseUS Data Recovery Wizard\\b"],
+      "PublisherPatterns": ["\\bEaseUS\\b"],
+      "LicenseModel": "Trialware",
+      "OfficialUrl": "https://www.easeus.com/datarecoverywizard/",
+      "LicenseDomains": ["(?:^|\\.)easeus\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "minitool-partition-wizard",
+      "Vendor": "MiniTool",
+      "NamePatterns": ["\\bMiniTool Partition Wizard\\b"],
+      "PublisherPatterns": ["\\bMiniTool\\b"],
+      "LicenseModel": "Freemium",
+      "OfficialUrl": "https://www.partitionwizard.com/",
+      "LicenseDomains": ["(?:^|\\.)partitionwizard\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "pdf-candy-desktop",
+      "Vendor": "Icecream Apps",
+      "NamePatterns": ["\\bPDF Candy Desktop\\b"],
+      "PublisherPatterns": ["\\bIcecream Apps\\b", "\\bPDF Candy\\b"],
+      "LicenseModel": "Freemium",
+      "OfficialUrl": "https://pdfcandy.com/desktop.html",
+      "LicenseDomains": ["(?:^|\\.)pdfcandy\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+    },
+    {
+      "Id": "capcut",
+      "Vendor": "ByteDance",
+      "NamePatterns": ["\\bCapCut\\b"],
+      "PublisherPatterns": ["\\bByteDance\\b", "\\bBytedance\\b"],
+      "LicenseModel": "Freemium",
+      "OfficialUrl": "https://www.capcut.com/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "7zip",
+      "Vendor": "7-Zip",
+      "NamePatterns": ["^7-Zip\\b"],
+      "PublisherPatterns": ["\\bIgor Pavlov\\b", "\\b7-Zip\\b"],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://www.7-zip.org/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "vlc",
+      "Vendor": "VideoLAN",
+      "NamePatterns": ["\\bVLC media player\\b"],
+      "PublisherPatterns": ["\\bVideoLAN\\b"],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://www.videolan.org/vlc/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "python",
+      "Vendor": "Python Software Foundation",
+      "NamePatterns": ["^Python (?:3|Launcher)"],
+      "PublisherPatterns": ["\\bPython Software Foundation\\b"],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://www.python.org/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "nodejs",
+      "Vendor": "OpenJS Foundation",
+      "NamePatterns": ["^Node\\.js$"],
+      "PublisherPatterns": ["\\bOpenJS\\b", "\\bNode\\.js\\b"],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://nodejs.org/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "java-jdk",
+      "Vendor": "Oracle",
+      "NamePatterns": ["\\bJava\\(TM\\).*Development Kit\\b", "\\bJava SE Development Kit\\b"],
+      "PublisherPatterns": ["\\bOracle\\b"],
+      "LicenseModel": "Freeware",
+      "OfficialUrl": "https://www.oracle.com/java/technologies/downloads/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "google-chrome",
+      "Vendor": "Google",
+      "NamePatterns": ["\\bGoogle Chrome\\b"],
+      "PublisherPatterns": ["\\bGoogle\\b"],
+      "LicenseModel": "Free",
+      "OfficialUrl": "https://www.google.com/chrome/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "coccoc-browser",
+      "Vendor": "Coc Coc",
+      "NamePatterns": ["^Cốc Cốc$", "^Coc Coc$"],
+      "PublisherPatterns": ["Cốc Cốc", "Coc Coc"],
+      "LicenseModel": "Free",
+      "OfficialUrl": "https://coccoc.com/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "mozilla-firefox",
+      "Vendor": "Mozilla",
+      "NamePatterns": ["\\bMozilla Firefox\\b"],
+      "PublisherPatterns": ["\\bMozilla\\b"],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://www.mozilla.org/firefox/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "communication-free",
+      "Vendor": "Various",
+      "NamePatterns": ["\\bTelegram Desktop\\b", "^Zalo\\b", "\\bZoom(?: Workplace)?\\b", "\\bUltraViewer\\b"],
+      "PublisherPatterns": [],
+      "LicenseModel": "Free",
+      "OfficialUrl": "",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "network-open-source",
+      "Vendor": "Various",
+      "NamePatterns": ["\\bTailscale\\b", "\\bSyncthing\\b"],
+      "PublisherPatterns": [],
+      "LicenseModel": "OpenSource",
+      "OfficialUrl": "",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "media-freeware",
+      "Vendor": "Various",
+      "NamePatterns": ["\\bK-Lite Codec Pack\\b", "\\bKMPlayer\\b", "\\bFormatFactory\\b"],
+      "PublisherPatterns": [],
+      "LicenseModel": "Freeware",
+      "OfficialUrl": "",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "vendor-utility-free",
+      "Vendor": "Various",
+      "NamePatterns": ["\\bHiBit Uninstaller\\b", "\\bIObit Unlocker\\b", "\\bGoogle Drive\\b", "\\biVMS-4200\\b", "\\bSADP\\b", "\\bSmartPSS\\b"],
+      "PublisherPatterns": [],
+      "LicenseModel": "Freeware",
+      "OfficialUrl": "",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    }
+  ]
+}

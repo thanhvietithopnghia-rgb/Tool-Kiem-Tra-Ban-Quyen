@@ -1,6 +1,6 @@
-# Entry points Tool-Kiem-Tra v4.4
+# Entry points Tool-Kiem-Tra v4.6
 
-Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 25 descriptor, trong đó 22 entry point công khai và ba nguồn kiểm kê nội bộ.
+Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 26 descriptor, trong đó 23 entry point công khai và ba nguồn kiểm kê nội bộ.
 
 ## Launcher modes
 
@@ -15,7 +15,7 @@ Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 25 descriptor, trong 
 
 Người dùng phát hành nên chạy EXE. Chạy script trực tiếp chỉ dành cho phát triển/kiểm thử và không có toàn bộ bảo đảm secure-launch.
 
-## 22 entry point nghiệp vụ
+## 23 entry point nghiệp vụ
 
 | ModuleId | Script / Operation | AccessMode | NetworkScope | Admin |
 | --- | --- | --- | --- | --- |
@@ -24,10 +24,11 @@ Người dùng phát hành nên chạy EXE. Chạy script trực tiếp chỉ d�
 | `report.windows` | `kiem-tra-cau-hinh-ban-quyen.ps1 / Windows` | ReadOnly | LocalOnly | Không |
 | `report.office` | `kiem-tra-cau-hinh-ban-quyen.ps1 / Office` | ReadOnly | LocalOnly | Không |
 | `report.software` | `kiem-tra-cau-hinh-ban-quyen.ps1 / Software` | ReadOnly | LocalOnly | Không |
-| `cleanup.scan` | `windows-license-compliance-cleanup.ps1 / Scan` | ReadOnly | LocalOnly | Không |
+| `software.catalog.update` | `software-license-online-update.ps1 / Update` | ReadOnly | Internet | Không |
+| `cleanup.scan` | `windows-license-compliance-cleanup.ps1 / Scan` | ReadOnly | LocalOnly | Có |
 | `cleanup.repair` | `windows-license-compliance-cleanup.ps1 / RepairScanSources` | SystemChange | LocalOnly | Có |
 | `cleanup.remediate` | `windows-license-compliance-cleanup.ps1 / Remediate` | SystemChange | LocalOnly | Có |
-| `cleanup.deep` | `windows-license-compliance-cleanup.ps1 / DeepClean` | SystemChange | LocalOnly | Có |
+| `cleanup.deep` | `windows-license-compliance-cleanup.ps1 / DeepClean` (có `-DryRun`) | SystemChange | LocalOnly | Có |
 | `backup.create` | `windows-license-backup.ps1 / Create` | SystemChange | LocalOnly | Có |
 | `restore.apply` | `windows-license-restore.ps1 / Apply` | SystemChange | LocalOnly | Có |
 | `oem.inspect` | `windows-oem-license-assistant.ps1 / Inspect` | ReadOnly | LocalOnly | Không |
@@ -43,6 +44,8 @@ Người dùng phát hành nên chạy EXE. Chạy script trực tiếp chỉ d�
 | `assurance.timeline` | `windows-license-assurance.ps1 / TimelineExport` | ReadOnly | LocalOnly | Không |
 
 `SystemChange` không có nghĩa là tự động thay đổi. Nó yêu cầu secure launch, quyền phù hợp và xác nhận theo safety policy.
+
+Với `cleanup.deep -DryRun`, descriptor vẫn giữ `SystemChange` để áp dụng cùng capability/integrity gate và có đủ quyền đọc bằng chứng, nhưng runtime không gọi hành động thay đổi. Kết quả bắt buộc có `SimulationOnly=true`, `NoSystemChangesApplied=true` và danh sách `PlannedActions`; chuyển sang chạy thật luôn tạo invocation mới sau bước chọn/xác nhận lại.
 
 ## Ba descriptor nội bộ
 
@@ -70,6 +73,6 @@ Kết quả chuẩn gồm `Status`, `ExitCode`, `DurationMs`, `Summary`, `Output
 
 - `LocalOnly`: chạy được trong Offline mode.
 - `Lan`: chỉ chạy sau khi người dùng bật công tắc mạng riêng của Mục 8; có thể tắt lại mà không xóa cấu hình.
-- `Internet`: hiện không có descriptor nào.
+- `Internet`: chỉ `software.catalog.update`; yêu cầu người dùng bấm **Kết nối online**, đọc giải thích và xác nhận trước mỗi lần tải danh mục HTTPS. Thiếu consent hoặc `false` trả mã `2` trước mọi thao tác mạng. Không có luồng tải inventory, đường dẫn, khóa hoặc token lên mạng.
 
 Module mới phải khai báo `NetworkScope` và được thêm vào verifier trước khi phát hành.

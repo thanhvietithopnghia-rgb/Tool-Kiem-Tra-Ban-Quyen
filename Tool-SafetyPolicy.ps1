@@ -1,5 +1,5 @@
 ﻿$script:ToolSafetyPolicySchemaVersion = "1.0"
-$script:ToolSafetyPolicyToolVersion = "4.4"
+$script:ToolSafetyPolicyToolVersion = "4.6"
 
 function Get-ToolRegistryValueRestorePolicy {
     $windowsSppPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform"

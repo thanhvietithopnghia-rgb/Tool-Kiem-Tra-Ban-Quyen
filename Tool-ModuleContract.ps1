@@ -1,7 +1,14 @@
 ﻿$script:ToolModuleContractSchemaVersion = "1.0"
 $script:ToolModuleResultSchemaVersion = "1.0"
-$script:ToolModuleContractToolVersion = "4.4"
+$script:ToolModuleContractToolVersion = "4.6"
 $script:ToolModuleCatalogCache = $null
+
+$toolModuleContractLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolModuleContractLocalizationPath -PathType Leaf)) {
+    . $toolModuleContractLocalizationPath
+}
 
 function ConvertTo-ToolContractSafeText {
     param([AllowNull()][object]$Value, [int]$MaximumLength = 2048)
@@ -57,31 +64,32 @@ function Get-ToolModuleCatalog {
     $backup = [ordered]@{ "0"="Completed"; "10"="Unsupported"; "11"="Blocked"; "20"="Blocked"; "23"="Failed" }
 
     $catalog = @(
-        (New-ToolModuleDescriptor -ModuleId "report.all" -Category "Report" -DisplayName "Báo cáo toàn bộ" -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "All" -TaskKind "Report" -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "report.hardware" -Category "Hardware" -DisplayName "Báo cáo phần cứng" -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Hardware" -TaskKind "Report" -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "report.windows" -Category "Windows" -DisplayName "Báo cáo bản quyền Windows" -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Windows" -TaskKind "Report" -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "report.office" -Category "Office" -DisplayName "Báo cáo bản quyền Office" -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Office" -TaskKind "Report" -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "report.software" -Category "Security" -DisplayName "Báo cáo phần mềm và dấu hiệu activator" -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Software" -TaskKind "Report" -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "cleanup.scan" -Category "Security" -DisplayName "Quét tuân thủ trước cleanup" -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Scan" -TaskKind "CleanupScan" -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
-        (New-ToolModuleDescriptor -ModuleId "cleanup.repair" -Category "Security" -DisplayName "Sửa nhanh nguồn quét" -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "RepairScanSources" -TaskKind "CleanupScanRepair" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
-        (New-ToolModuleDescriptor -ModuleId "cleanup.remediate" -Category "Security" -DisplayName "Khắc phục mục đã chọn" -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Remediate" -TaskKind "CleanupRemediate" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
-        (New-ToolModuleDescriptor -ModuleId "cleanup.deep" -Category "Security" -DisplayName "Cleanup sâu có chọn lọc" -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "DeepClean" -TaskKind "CleanupDeep" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
-        (New-ToolModuleDescriptor -ModuleId "backup.create" -Category "Backup" -DisplayName "Tạo backup trước cleanup" -ScriptFile "windows-license-backup.ps1" -Operation "Create" -TaskKind "CleanupBackup" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $backup),
-        (New-ToolModuleDescriptor -ModuleId "restore.apply" -Category "Restore" -DisplayName "Khôi phục backup đã xác thực" -ScriptFile "windows-license-restore.ps1" -Operation "Apply" -TaskKind "CleanupRestore" -AccessMode "SystemChange" -RequiresElevation $true -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "oem.inspect" -Category "OEM" -DisplayName "Kiểm tra key OEM OA3" -ScriptFile "windows-oem-license-assistant.ps1" -Operation "Inspect" -TaskKind "OemInspect" -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "oem.apply" -Category "OEM" -DisplayName "Áp dụng key OEM OA3" -ScriptFile "windows-oem-license-assistant.ps1" -Operation "Apply" -TaskKind "OemApply" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "NativeCscript") -ExitCodeMap $oemApply),
-        (New-ToolModuleDescriptor -ModuleId "license.deep-scan" -Category "Windows" -DisplayName "Quét bản quyền chuyên sâu" -ScriptFile "windows-license-deep-scan.ps1" -Operation "Scan" -TaskKind "DeepLicenseScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "forensics.scan" -Category "Forensics" -DisplayName "Điều tra bản quyền" -ScriptFile "windows-license-forensics.ps1" -Operation "Scan" -TaskKind "ForensicsScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "license.manager" -Category "Enterprise" -DisplayName "Trung tâm quản lý license doanh nghiệp" -ScriptFile "enterprise-license-manager.ps1" -Operation "Open" -TaskKind "EnterpriseCenter" -AccessMode "SystemChange" -NetworkScope "LocalOnly" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "NativeCscript") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "license.manager.local" -Category "Office" -DisplayName "Quản lý giấy phép cục bộ hợp lệ" -ScriptFile "windows-office-license-manager.ps1" -Operation "Open" -TaskKind "LicenseManager" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "NativeCscript") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "enterprise.server" -Category "Enterprise" -DisplayName "Máy chủ quản lý license doanh nghiệp" -ScriptFile "Tool-EnterpriseHost.ps1" -Operation "Serve" -TaskKind "EnterpriseServer" -AccessMode "SystemChange" -NetworkScope "Lan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "enterprise.agent" -Category "Enterprise" -DisplayName "Agent máy trạm quản lý license" -ScriptFile "Tool-EnterpriseAgent.ps1" -Operation "Run" -TaskKind "EnterpriseAgent" -AccessMode "SystemChange" -NetworkScope "Lan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "NativeCscript") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "assurance.certificates" -Category "Assurance" -DisplayName "Kiểm tra chứng chỉ số Windows/Office" -ScriptFile "windows-license-assurance.ps1" -Operation "CertificateAudit" -TaskKind "CertificateAudit" -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "assurance.plugins" -Category "Assurance" -DisplayName "Đánh giá plugin quy tắc kiểm tra" -ScriptFile "windows-license-assurance.ps1" -Operation "PluginAudit" -TaskKind "PluginAudit" -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "assurance.timeline" -Category "Assurance" -DisplayName "Xuất timeline thay đổi bản quyền" -ScriptFile "windows-license-assurance.ps1" -Operation "TimelineExport" -TaskKind "TimelineExport" -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "inventory.registry" -Category "Registry" -DisplayName "Nguồn kiểm kê Registry" -ScriptFile "windows-license-deep-scan.ps1" -Operation "Registry" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "inventory.service" -Category "Service" -DisplayName "Nguồn kiểm kê Service" -ScriptFile "windows-license-deep-scan.ps1" -Operation "Service" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
-        (New-ToolModuleDescriptor -ModuleId "inventory.task" -Category "Task" -DisplayName "Nguồn kiểm kê Scheduled Task" -ScriptFile "windows-license-deep-scan.ps1" -Operation "Task" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed)
+        (New-ToolModuleDescriptor -ModuleId "report.all" -Category "Report" -DisplayName (Get-ToolTextCurrent "foundation.module.reportAll") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "All" -TaskKind "Report" -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "report.hardware" -Category "Hardware" -DisplayName (Get-ToolTextCurrent "foundation.module.reportHardware") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Hardware" -TaskKind "Report" -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "report.windows" -Category "Windows" -DisplayName (Get-ToolTextCurrent "foundation.module.reportWindows") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Windows" -TaskKind "Report" -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "report.office" -Category "Office" -DisplayName (Get-ToolTextCurrent "foundation.module.reportOffice") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Office" -TaskKind "Report" -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "report.software" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.reportSoftware") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Software" -TaskKind "Report" -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "software.catalog.update" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.softwareCatalogUpdate") -ScriptFile "software-license-online-update.ps1" -Operation "Update" -TaskKind "SoftwareCatalogUpdate" -NetworkScope "Internet" -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "cleanup.scan" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupScan") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Scan" -TaskKind "CleanupScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "cleanup.repair" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupRepair") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "RepairScanSources" -TaskKind "CleanupScanRepair" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "cleanup.remediate" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupRemediate") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Remediate" -TaskKind "CleanupRemediate" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "cleanup.deep" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupDeep") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "DeepClean" -TaskKind "CleanupDeep" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "backup.create" -Category "Backup" -DisplayName (Get-ToolTextCurrent "foundation.module.backupCreate") -ScriptFile "windows-license-backup.ps1" -Operation "Create" -TaskKind "CleanupBackup" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $backup),
+        (New-ToolModuleDescriptor -ModuleId "restore.apply" -Category "Restore" -DisplayName (Get-ToolTextCurrent "foundation.module.restoreApply") -ScriptFile "windows-license-restore.ps1" -Operation "Apply" -TaskKind "CleanupRestore" -AccessMode "SystemChange" -RequiresElevation $true -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "oem.inspect" -Category "OEM" -DisplayName (Get-ToolTextCurrent "foundation.module.oemInspect") -ScriptFile "windows-oem-license-assistant.ps1" -Operation "Inspect" -TaskKind "OemInspect" -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "oem.apply" -Category "OEM" -DisplayName (Get-ToolTextCurrent "foundation.module.oemApply") -ScriptFile "windows-oem-license-assistant.ps1" -Operation "Apply" -TaskKind "OemApply" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "NativeCscript") -ExitCodeMap $oemApply),
+        (New-ToolModuleDescriptor -ModuleId "license.deep-scan" -Category "Windows" -DisplayName (Get-ToolTextCurrent "foundation.module.licenseDeepScan") -ScriptFile "windows-license-deep-scan.ps1" -Operation "Scan" -TaskKind "DeepLicenseScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "forensics.scan" -Category "Forensics" -DisplayName (Get-ToolTextCurrent "foundation.module.forensicsScan") -ScriptFile "windows-license-forensics.ps1" -Operation "Scan" -TaskKind "ForensicsScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "license.manager" -Category "Enterprise" -DisplayName (Get-ToolTextCurrent "foundation.module.licenseManager") -ScriptFile "enterprise-license-manager.ps1" -Operation "Open" -TaskKind "EnterpriseCenter" -AccessMode "SystemChange" -NetworkScope "LocalOnly" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "NativeCscript") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "license.manager.local" -Category "Office" -DisplayName (Get-ToolTextCurrent "foundation.module.localLicenseManager") -ScriptFile "windows-office-license-manager.ps1" -Operation "Open" -TaskKind "LicenseManager" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "NativeCscript") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "enterprise.server" -Category "Enterprise" -DisplayName (Get-ToolTextCurrent "foundation.module.enterpriseServer") -ScriptFile "Tool-EnterpriseHost.ps1" -Operation "Serve" -TaskKind "EnterpriseServer" -AccessMode "SystemChange" -NetworkScope "Lan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "enterprise.agent" -Category "Enterprise" -DisplayName (Get-ToolTextCurrent "foundation.module.enterpriseAgent") -ScriptFile "Tool-EnterpriseAgent.ps1" -Operation "Run" -TaskKind "EnterpriseAgent" -AccessMode "SystemChange" -NetworkScope "Lan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "NativeCscript") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "assurance.certificates" -Category "Assurance" -DisplayName (Get-ToolTextCurrent "foundation.module.certificateAudit") -ScriptFile "windows-license-assurance.ps1" -Operation "CertificateAudit" -TaskKind "CertificateAudit" -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "assurance.plugins" -Category "Assurance" -DisplayName (Get-ToolTextCurrent "foundation.module.pluginAudit") -ScriptFile "windows-license-assurance.ps1" -Operation "PluginAudit" -TaskKind "PluginAudit" -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "assurance.timeline" -Category "Assurance" -DisplayName (Get-ToolTextCurrent "foundation.module.timelineExport") -ScriptFile "windows-license-assurance.ps1" -Operation "TimelineExport" -TaskKind "TimelineExport" -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "inventory.registry" -Category "Registry" -DisplayName (Get-ToolTextCurrent "foundation.module.registryInventory") -ScriptFile "windows-license-deep-scan.ps1" -Operation "Registry" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "inventory.service" -Category "Service" -DisplayName (Get-ToolTextCurrent "foundation.module.serviceInventory") -ScriptFile "windows-license-deep-scan.ps1" -Operation "Service" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback") -ExitCodeMap $completed),
+        (New-ToolModuleDescriptor -ModuleId "inventory.task" -Category "Task" -DisplayName (Get-ToolTextCurrent "foundation.module.taskInventory") -ScriptFile "windows-license-deep-scan.ps1" -Operation "Task" -IsEntryPoint $false -RequiredCapabilities @("SupportedOperatingSystem", "ScheduledTasksModule|ScheduledTasksFallback") -ExitCodeMap $completed)
     )
     $script:ToolModuleCatalogCache = @($catalog)
     return @($script:ToolModuleCatalogCache)
@@ -130,7 +138,7 @@ function Test-ToolModuleAvailability {
 
     $descriptor = Get-ToolModuleDescriptor -ModuleId $ModuleId
     if (-not $descriptor) {
-        return [pscustomobject][ordered]@{ Available=$false; Status="Unsupported"; ModuleId=$ModuleId; MissingRequirements=@("ModuleNotRegistered"); Message="Mô-đun chưa được đăng ký trong catalog v4.4."; Descriptor=$null }
+        return [pscustomobject][ordered]@{ Available=$false; Status="Unsupported"; ModuleId=$ModuleId; MissingRequirements=@("ModuleNotRegistered"); Message=(Get-ToolTextCurrent "foundation.module.error.notRegisteredCatalog"); Descriptor=$null }
     }
     $missing = New-Object System.Collections.Generic.List[string]
     foreach ($requirement in @($descriptor.RequiredCapabilities)) {
@@ -146,7 +154,7 @@ function Test-ToolModuleAvailability {
         Status = if ($available) { "Available" } else { "Unsupported" }
         ModuleId = $descriptor.ModuleId
         MissingRequirements = @($missing.ToArray())
-        Message = if ($available) { "Mô-đun sẵn sàng theo capability hiện tại." } else { "Thiếu điều kiện: $($missing.ToArray() -join ', ')." }
+        Message = if ($available) { Get-ToolTextCurrent "foundation.module.available" } else { Get-ToolTextCurrent "foundation.module.missingRequirements" @(($missing.ToArray() -join ', ')) }
         Descriptor = $descriptor
     }
 }
@@ -171,7 +179,7 @@ function New-ToolModuleInvocation {
     )
 
     $descriptor = Get-ToolModuleDescriptor -ModuleId $ModuleId
-    if (-not $descriptor) { throw "Mô-đun chưa đăng ký: $ModuleId" }
+    if (-not $descriptor) { throw (Get-ToolTextCurrent "foundation.module.error.notRegistered" @($ModuleId)) }
     if ([string]::IsNullOrWhiteSpace($CorrelationId)) { $CorrelationId = [Guid]::NewGuid().ToString("N") }
     if ([string]::IsNullOrWhiteSpace($InvocationId)) { $InvocationId = [Guid]::NewGuid().ToString("N") }
     return [pscustomobject][ordered]@{
@@ -196,7 +204,7 @@ function Complete-ToolModuleInvocation {
     )
 
     $descriptor = Get-ToolModuleDescriptor -ModuleId ([string]$Invocation.ModuleId)
-    if (-not $descriptor) { throw "Invocation tham chiếu mô-đun chưa đăng ký." }
+    if (-not $descriptor) { throw (Get-ToolTextCurrent "foundation.module.error.invocationUnknown") }
     $completedAt = [DateTime]::UtcNow
     $startedAt = $completedAt
     try { $startedAt = [DateTime]::Parse([string]$Invocation.StartedAtUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind) } catch {}
@@ -227,11 +235,11 @@ function Test-ToolModuleResult {
     param([Parameter(Mandatory = $true)][object]$Result)
 
     $errors = New-Object System.Collections.Generic.List[string]
-    if ([string]$Result.SchemaVersion -ne $script:ToolModuleResultSchemaVersion) { [void]$errors.Add("Sai SchemaVersion.") }
-    if ([string]$Result.ToolVersion -ne $script:ToolModuleContractToolVersion) { [void]$errors.Add("Sai ToolVersion.") }
-    if (-not (Get-ToolModuleDescriptor -ModuleId ([string]$Result.ModuleId))) { [void]$errors.Add("ModuleId chưa đăng ký.") }
-    if ([string]$Result.Status -notin @("Completed", "CompletedWithFindings", "ActionRequired", "Blocked", "Failed", "Cancelled", "Unsupported")) { [void]$errors.Add("Status không thuộc hợp đồng.") }
-    if ([long]$Result.DurationMs -lt 0 -or [int]$Result.FindingCount -lt 0 -or [int]$Result.WarningCount -lt 0 -or [int]$Result.ErrorCount -lt 0) { [void]$errors.Add("Các bộ đếm/thời lượng không được âm.") }
+    if ([string]$Result.SchemaVersion -ne $script:ToolModuleResultSchemaVersion) { [void]$errors.Add((Get-ToolTextCurrent "foundation.module.validation.schemaVersion")) }
+    if ([string]$Result.ToolVersion -ne $script:ToolModuleContractToolVersion) { [void]$errors.Add((Get-ToolTextCurrent "foundation.module.validation.toolVersion")) }
+    if (-not (Get-ToolModuleDescriptor -ModuleId ([string]$Result.ModuleId))) { [void]$errors.Add((Get-ToolTextCurrent "foundation.module.validation.moduleId")) }
+    if ([string]$Result.Status -notin @("Completed", "CompletedWithFindings", "ActionRequired", "Blocked", "Failed", "Cancelled", "Unsupported")) { [void]$errors.Add((Get-ToolTextCurrent "foundation.module.validation.status")) }
+    if ([long]$Result.DurationMs -lt 0 -or [int]$Result.FindingCount -lt 0 -or [int]$Result.WarningCount -lt 0 -or [int]$Result.ErrorCount -lt 0) { [void]$errors.Add((Get-ToolTextCurrent "foundation.module.validation.negativeCounters")) }
     return [pscustomobject][ordered]@{ Valid=[bool]($errors.Count -eq 0); Errors=@($errors.ToArray()) }
 }
 

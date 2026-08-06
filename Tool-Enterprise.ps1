@@ -1,8 +1,38 @@
 ﻿$null = try { Add-Type -AssemblyName System.Security -ErrorAction Stop } catch { $null }
 
+$toolEnterpriseDataLifecyclePath = Join-Path $PSScriptRoot "Tool-DataLifecycle.ps1"
+if (-not (Get-Command Get-ToolDataRoot -ErrorAction SilentlyContinue) -and
+    (Test-Path -LiteralPath $toolEnterpriseDataLifecyclePath -PathType Leaf)) {
+    . $toolEnterpriseDataLifecyclePath
+}
+
+$toolEnterpriseLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if (-not (Get-Command Get-ToolText -ErrorAction SilentlyContinue) -and
+    (Test-Path -LiteralPath $toolEnterpriseLocalizationPath -PathType Leaf)) {
+    . $toolEnterpriseLocalizationPath
+}
+
+function Get-ToolEnterpriseText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [AllowNull()][object[]]$Arguments = @()
+    )
+
+    $culture = [string]$env:TOOL_UI_CULTURE
+    if (Get-Command Test-ToolSupportedCulture -ErrorAction SilentlyContinue) {
+        if (-not (Test-ToolSupportedCulture $culture)) { $culture = Get-ToolCulture }
+    } elseif ($culture -notin @("vi-VN", "en-US")) {
+        $culture = "vi-VN"
+    }
+    if (Get-Command Get-ToolText -ErrorAction SilentlyContinue) {
+        return (Get-ToolText -Key $Key -Culture $culture -FormatArguments $Arguments)
+    }
+    return "[$Key]"
+}
+
 $script:ToolEnterpriseSchemaVersion = "1.0"
 $script:ToolEnterpriseProtocolVersion = "1.0"
-$script:ToolEnterpriseToolVersion = "4.4"
+$script:ToolEnterpriseToolVersion = "4.6.0.0"
 $script:ToolEnterpriseDefaultPort = 49420
 $script:ToolEnterpriseMaximumRequestBytes = 1048576
 $script:ToolEnterpriseMaximumScanHosts = 1024
@@ -14,8 +44,8 @@ function ConvertTo-ToolEnterpriseSafeText {
 
     if ($null -eq $Value) { return "" }
     $text = ([string]$Value).Replace("`0", "").Replace("`r", " ").Replace("`n", " ").Trim()
-    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}(?![A-Z0-9])', 'XXXXX-XXXXX-XXXXX-XXXXX-[ĐÃ CHE]')
-    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{25}(?![A-Z0-9])', '[ĐÃ CHE PRODUCT KEY]')
+    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}(?![A-Z0-9])', (Get-ToolEnterpriseText "enterpriseCore.redaction.fullKey"))
+    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{25}(?![A-Z0-9])', (Get-ToolEnterpriseText "enterpriseCore.redaction.productKey"))
     if ($text.Length -gt $MaximumLength) { return $text.Substring(0, $MaximumLength) }
     return $text
 }
@@ -23,8 +53,11 @@ function ConvertTo-ToolEnterpriseSafeText {
 function Get-ToolEnterpriseRoot {
     $configured = [string]$env:TOOL_ENTERPRISE_ROOT
     if (-not [string]::IsNullOrWhiteSpace($configured)) { return [IO.Path]::GetFullPath($configured) }
+    if (Get-Command Get-ToolDataRoot -ErrorAction SilentlyContinue) {
+        return (Join-Path (Get-ToolDataRoot) "enterprise")
+    }
     $commonData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
-    return (Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.4\enterprise")
+    return (Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.6\enterprise")
 }
 
 function Get-ToolEnterprisePaths {
@@ -91,6 +124,11 @@ function Set-ToolEnterpriseProtectedDirectoryAcl {
 }
 
 function Initialize-ToolEnterpriseStorage {
+    if ((Get-Command Initialize-ToolDataLifecycle -ErrorAction SilentlyContinue) -and
+        (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_DATA_ROOT) -or
+         [string]::IsNullOrWhiteSpace([string]$env:TOOL_ENTERPRISE_ROOT))) {
+        [void](Initialize-ToolDataLifecycle)
+    }
     $paths = Get-ToolEnterprisePaths
     if ($script:ToolEnterpriseInitializedPaths -and
         [string]::Equals([string]$script:ToolEnterpriseInitializedRoot, [string]$paths.Root, [StringComparison]::OrdinalIgnoreCase) -and
@@ -104,13 +142,13 @@ function Initialize-ToolEnterpriseStorage {
         $paths.Client, $paths.ClientOutbox, $paths.ClientProcessed, $paths.Bin
     )
     foreach ($directory in $directories) {
-        if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw "Từ chối thư mục enterprise là junction/symlink: $directory" }
+        if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw (Get-ToolEnterpriseText "enterpriseCore.error.directoryReparse" @($directory)) }
         if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
             New-Item -ItemType Directory -Path $directory -Force | Out-Null
         }
-        if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw "Từ chối thư mục enterprise là junction/symlink: $directory" }
+        if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw (Get-ToolEnterpriseText "enterpriseCore.error.directoryReparse" @($directory)) }
     }
-    # The one-file launcher has already created and locked the v4.4 root.
+    # The one-file launcher has already created and locked the v4.6 root.
     # Avoid re-applying an ACL on every inventory/report call (it is both
     # expensive and can require SeSecurityPrivilege on hardened images).
     # For a newly-created source/standalone root, apply it once; secure launch
@@ -132,7 +170,7 @@ function Assert-ToolEnterprisePath {
     $root = [IO.Path]::GetFullPath((Get-ToolEnterpriseRoot)).TrimEnd('\') + '\'
     $full = [IO.Path]::GetFullPath($Path)
     if (-not $full.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Đường dẫn nằm ngoài vùng enterprise được bảo vệ: $full"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.pathOutsideRoot" @($full))
     }
     return $full
 }
@@ -146,9 +184,9 @@ function Write-ToolEnterpriseJson {
     $full = Assert-ToolEnterprisePath -Path $Path
     $directory = Split-Path -Parent $full
     if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw "Từ chối ghi vào thư mục reparse point: $directory" }
+    if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw (Get-ToolEnterpriseText "enterpriseCore.error.writeDirectoryReparse" @($directory)) }
     if ((Test-Path -LiteralPath $full -PathType Leaf) -and (Test-ToolEnterpriseReparsePoint -Path $full)) {
-        throw "Từ chối ghi đè tệp enterprise là reparse point: $full"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.overwriteFileReparse" @($full))
     }
     $temporary = Join-Path $directory (".write-" + [Guid]::NewGuid().ToString("N") + ".tmp")
     $json = $Value | ConvertTo-Json -Depth 14
@@ -166,8 +204,8 @@ function Read-ToolEnterpriseJson {
     $full = Assert-ToolEnterprisePath -Path $Path
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $null }
     $item = Get-Item -LiteralPath $full -Force
-    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Từ chối đọc tệp enterprise là reparse point: $full" }
-    if ($item.Length -le 0 -or $item.Length -gt $MaximumBytes) { throw "Tệp JSON enterprise rỗng hoặc vượt giới hạn: $full" }
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw (Get-ToolEnterpriseText "enterpriseCore.error.readFileReparse" @($full)) }
+    if ($item.Length -le 0 -or $item.Length -gt $MaximumBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.jsonSize" @($full)) }
     return (Get-Content -LiteralPath $full -Raw -ErrorAction Stop | ConvertFrom-Json)
 }
 
@@ -202,13 +240,15 @@ function ConvertTo-ToolEnterpriseBase64Url {
 
 function ConvertFrom-ToolEnterpriseBase64Url {
     param([Parameter(Mandatory = $true)][string]$Text)
-    if ($Text -notmatch '^[A-Za-z0-9_-]+$') { throw "Chuỗi base64url không hợp lệ." }
+    if ($Text -notmatch '^[A-Za-z0-9_-]+$') { throw (Get-ToolEnterpriseText "enterpriseCore.error.base64UrlInvalid") }
     $normalized = $Text.Replace('-', '+').Replace('_', '/')
     while (($normalized.Length % 4) -ne 0) { $normalized += '=' }
     return [Convert]::FromBase64String($normalized)
 }
 
 function Get-ToolEnterpriseDpapiEntropy {
+    # Stable compatibility identifier: migrated v4.4/v4.5 DPAPI material must
+    # remain decryptable after moving into the isolated v4.6 data root.
     return (Get-ToolEnterpriseSha256Bytes -Bytes ([Text.Encoding]::UTF8.GetBytes("ThanhViet-Tool-Kiem-Tra-v4.4-enterprise")))
 }
 
@@ -235,8 +275,8 @@ function Set-ToolEnterpriseSecret {
     $full = Assert-ToolEnterprisePath -Path $Path
     $directory = Split-Path -Parent $full
     if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw "Từ chối ghi secret vào thư mục reparse point." }
-    if ((Test-Path -LiteralPath $full -PathType Leaf) -and (Test-ToolEnterpriseReparsePoint -Path $full)) { throw "Từ chối ghi đè secret là reparse point." }
+    if (Test-ToolEnterpriseReparsePoint -Path $directory) { throw (Get-ToolEnterpriseText "enterpriseCore.error.secretDirectoryReparse") }
+    if ((Test-Path -LiteralPath $full -PathType Leaf) -and (Test-ToolEnterpriseReparsePoint -Path $full)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.secretFileReparse") }
     $protected = Protect-ToolEnterpriseBytes -Bytes $Secret
     $temporary = Join-Path $directory (".secret-" + [Guid]::NewGuid().ToString("N") + ".tmp")
     try {
@@ -253,14 +293,16 @@ function Get-ToolEnterpriseSecret {
     $full = Assert-ToolEnterprisePath -Path $Path
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $null }
     $item = Get-Item -LiteralPath $full -Force
-    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Tệp secret không được là reparse point." }
-    if ($item.Length -le 0 -or $item.Length -gt 65536) { throw "Tệp secret rỗng hoặc vượt giới hạn." }
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw (Get-ToolEnterpriseText "enterpriseCore.error.secretReadReparse") }
+    if ($item.Length -le 0 -or $item.Length -gt 65536) { throw (Get-ToolEnterpriseText "enterpriseCore.error.secretSize") }
     return (Unprotect-ToolEnterpriseBytes -Bytes ([IO.File]::ReadAllBytes($full)))
 }
 
 function Get-ToolEnterpriseDerivedKey {
     param([Parameter(Mandatory = $true)][byte[]]$Secret, [Parameter(Mandatory = $true)][string]$Purpose)
     $hmac = New-Object Security.Cryptography.HMACSHA256(,$Secret)
+    # Cryptographic domain-separation label, not an active data path or a
+    # product-version claim. Keep it stable for migrated enterprise secrets.
     try { return $hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes("v4.4-enterprise|" + $Purpose)) }
     finally { $hmac.Dispose() }
 }
@@ -283,10 +325,10 @@ function New-ToolEnterpriseEnvelope {
     )
 
     $safeContext = ConvertTo-ToolEnterpriseSafeText $Context 180
-    if ([string]::IsNullOrWhiteSpace($safeContext)) { throw "Context mã hóa không hợp lệ." }
+    if ([string]::IsNullOrWhiteSpace($safeContext)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.encryptionContextInvalid") }
     $plainJson = $Payload | ConvertTo-Json -Depth 14 -Compress
     $plainBytes = [Text.Encoding]::UTF8.GetBytes($plainJson)
-    if ($plainBytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw "Payload enterprise vượt giới hạn 1 MB." }
+    if ($plainBytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.payloadTooLarge") }
     $encryptionKey = Get-ToolEnterpriseDerivedKey -Secret $Secret -Purpose "encryption"
     $authenticationKey = Get-ToolEnterpriseDerivedKey -Secret $Secret -Purpose "authentication"
     $aes = New-Object Security.Cryptography.AesManaged
@@ -335,24 +377,24 @@ function Open-ToolEnterpriseEnvelope {
 
     foreach ($propertyName in @("ProtocolVersion", "Context", "TimestampUtc", "Nonce", "Iv", "CipherText", "Mac")) {
         if ($null -eq $Envelope.PSObject.Properties[$propertyName] -or [string]::IsNullOrWhiteSpace([string]$Envelope.$propertyName)) {
-            throw "Envelope thiếu trường bắt buộc: $propertyName"
+            throw (Get-ToolEnterpriseText "enterpriseCore.error.envelopeFieldMissing" @($propertyName))
         }
     }
-    if ([string]$Envelope.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion) { throw "ProtocolVersion không được hỗ trợ." }
-    if (-not [string]::Equals([string]$Envelope.Context, $ExpectedContext, [StringComparison]::Ordinal)) { throw "Context envelope không khớp." }
+    if ([string]$Envelope.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion) { throw (Get-ToolEnterpriseText "enterpriseCore.error.protocolUnsupported") }
+    if (-not [string]::Equals([string]$Envelope.Context, $ExpectedContext, [StringComparison]::Ordinal)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.envelopeContextMismatch") }
     $timestamp = [DateTime]::MinValue
     if (-not [DateTime]::TryParse([string]$Envelope.TimestampUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$timestamp)) {
-        throw "Timestamp envelope không hợp lệ."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.envelopeTimestampInvalid")
     }
     $age = [DateTime]::UtcNow - $timestamp.ToUniversalTime()
-    if ([Math]::Abs($age.TotalMinutes) -gt $MaximumAgeMinutes) { throw "Envelope đã hết hạn hoặc thời gian hai máy sai lệch quá lớn." }
+    if ([Math]::Abs($age.TotalMinutes) -gt $MaximumAgeMinutes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.envelopeExpired") }
     $authenticationKey = Get-ToolEnterpriseDerivedKey -Secret $Secret -Purpose "authentication"
     $canonical = "$([string]$Envelope.ProtocolVersion)`n$([string]$Envelope.Context)`n$([string]$Envelope.TimestampUtc)`n$([string]$Envelope.Nonce)`n$([string]$Envelope.Iv)`n$([string]$Envelope.CipherText)"
     $hmac = New-Object Security.Cryptography.HMACSHA256(,$authenticationKey)
     try { $expectedMac = $hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonical)) }
     finally { $hmac.Dispose(); [Array]::Clear($authenticationKey, 0, $authenticationKey.Length) }
     $actualMac = ConvertFrom-ToolEnterpriseBase64Url -Text ([string]$Envelope.Mac)
-    if (-not (Test-ToolEnterpriseFixedTimeEquals -Left $expectedMac -Right $actualMac)) { throw "HMAC envelope không hợp lệ." }
+    if (-not (Test-ToolEnterpriseFixedTimeEquals -Left $expectedMac -Right $actualMac)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.envelopeHmacInvalid") }
     $encryptionKey = Get-ToolEnterpriseDerivedKey -Secret $Secret -Purpose "encryption"
     $iv = ConvertFrom-ToolEnterpriseBase64Url -Text ([string]$Envelope.Iv)
     $cipherBytes = ConvertFrom-ToolEnterpriseBase64Url -Text ([string]$Envelope.CipherText)
@@ -367,7 +409,7 @@ function Open-ToolEnterpriseEnvelope {
         $decryptor = $aes.CreateDecryptor()
         try { $plainBytes = $decryptor.TransformFinalBlock($cipherBytes, 0, $cipherBytes.Length) }
         finally { $decryptor.Dispose() }
-        if ($plainBytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw "Payload giải mã vượt giới hạn." }
+        if ($plainBytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.decryptedPayloadTooLarge") }
         $plainJson = [Text.Encoding]::UTF8.GetString($plainBytes)
         $payload = $plainJson | ConvertFrom-Json
         return [pscustomobject][ordered]@{
@@ -384,7 +426,7 @@ function Open-ToolEnterpriseEnvelope {
 
 function New-ToolEnterpriseAdminVerifier {
     param([Parameter(Mandatory = $true)][string]$AdminCode)
-    if ($AdminCode.Length -lt 8 -or $AdminCode.Length -gt 128) { throw "Mã quản trị máy chủ phải từ 8 đến 128 ký tự." }
+    if ($AdminCode.Length -lt 8 -or $AdminCode.Length -gt 128) { throw (Get-ToolEnterpriseText "enterpriseCore.error.adminCodeLength") }
     $salt = New-ToolEnterpriseRandomBytes -Length 24
     $derive = New-Object Security.Cryptography.Rfc2898DeriveBytes($AdminCode, $salt, 120000)
     try { $hash = $derive.GetBytes(32) } finally { $derive.Dispose() }
@@ -422,10 +464,10 @@ function Write-ToolEnterpriseAudit {
     $path = Assert-ToolEnterprisePath -Path $auditCandidate
     $auditDirectory = Split-Path -Parent $path
     if (Test-ToolEnterpriseReparsePoint -Path $auditDirectory) {
-        throw "Từ chối ghi audit vào thư mục reparse point: $auditDirectory"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.auditDirectoryReparse" @($auditDirectory))
     }
     if ((Test-Path -LiteralPath $path -PathType Leaf) -and (Test-ToolEnterpriseReparsePoint -Path $path)) {
-        throw "Từ chối ghi đè audit là reparse point: $path"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.auditFileReparse" @($path))
     }
     $record = [ordered]@{
         SchemaVersion = $script:ToolEnterpriseSchemaVersion
@@ -438,9 +480,9 @@ function Write-ToolEnterpriseAudit {
     }
     $line = ($record | ConvertTo-Json -Depth 10 -Compress) + [Environment]::NewLine
     $created = $false
-    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseAudit", [ref]$created)
+    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.6.EnterpriseAudit", [ref]$created)
     try {
-        if (-not $mutex.WaitOne(5000)) { throw "Không lấy được khóa ghi audit." }
+        if (-not $mutex.WaitOne(5000)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.auditLock") }
         try { [IO.File]::AppendAllText($path, $line, (New-Object Text.UTF8Encoding($false))) }
         finally { $mutex.ReleaseMutex() }
     } finally { $mutex.Dispose() }
@@ -450,7 +492,7 @@ function ConvertTo-ToolEnterpriseIPv4UInt32 {
     param([Parameter(Mandatory = $true)][string]$Address)
     $parsed = $null
     if (-not [Net.IPAddress]::TryParse($Address, [ref]$parsed) -or $parsed.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
-        throw "Địa chỉ IPv4 không hợp lệ: $Address"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.ipv4Invalid" @($Address))
     }
     $bytes = $parsed.GetAddressBytes()
     $value = ([uint64]$bytes[0] * 16777216) + ([uint64]$bytes[1] * 65536) + ([uint64]$bytes[2] * 256) + [uint64]$bytes[3]
@@ -469,10 +511,10 @@ function ConvertFrom-ToolEnterpriseIPv4UInt32 {
 
 function Get-ToolEnterpriseCidrInfo {
     param([Parameter(Mandatory = $true)][string]$Cidr)
-    if ($Cidr -notmatch '^([^/]+)/(\d{1,2})$') { throw "CIDR không hợp lệ: $Cidr" }
+    if ($Cidr -notmatch '^([^/]+)/(\d{1,2})$') { throw (Get-ToolEnterpriseText "enterpriseCore.error.cidrInvalid" @($Cidr)) }
     $address = $matches[1]
     $prefixLength = [int]$matches[2]
-    if ($prefixLength -lt 0 -or $prefixLength -gt 32) { throw "Prefix CIDR phải từ 0 đến 32." }
+    if ($prefixLength -lt 0 -or $prefixLength -gt 32) { throw (Get-ToolEnterpriseText "enterpriseCore.error.cidrPrefix") }
     $ipValue = ConvertTo-ToolEnterpriseIPv4UInt32 -Address $address
     $allBits = [uint64]4294967295
     $mask64 = if ($prefixLength -eq 0) { [uint64]0 } else { (($allBits -shl (32 - $prefixLength)) -band $allBits) }
@@ -502,7 +544,7 @@ function Get-ToolEnterpriseCidrAddresses {
     param([Parameter(Mandatory = $true)][string]$Cidr, [int]$MaximumHosts = $script:ToolEnterpriseMaximumScanHosts)
     $info = Get-ToolEnterpriseCidrInfo -Cidr $Cidr
     if ([uint64]$info.HostCount -gt [uint64]$MaximumHosts) {
-        throw "Dải $($info.Cidr) có $($info.HostCount) địa chỉ; giới hạn mỗi lần quét là $MaximumHosts. Hãy chia nhỏ dải mạng."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.scanRangeTooLarge" @($info.Cidr, $info.HostCount, $MaximumHosts))
     }
     $start = if ($info.PrefixLength -ge 31) { [uint64]$info.NetworkValue } else { [uint64]$info.NetworkValue + 1 }
     $end = if ($info.PrefixLength -ge 31) { [uint64]$info.BroadcastValue } else { [uint64]$info.BroadcastValue - 1 }
@@ -521,7 +563,7 @@ function ConvertTo-ToolEnterprisePrefixLength {
     foreach ($character in $bits.ToCharArray()) {
         $binary += [Convert]::ToString([Convert]::ToInt32([string]$character, 16), 2).PadLeft(4, '0')
     }
-    if ($binary -notmatch '^1*0*$') { throw "Subnet mask không liên tục: $SubnetMask" }
+    if ($binary -notmatch '^1*0*$') { throw (Get-ToolEnterpriseText "enterpriseCore.error.subnetMaskInvalid" @($SubnetMask)) }
     return ($binary -replace '0', '').Length
 }
 
@@ -661,13 +703,13 @@ function New-ToolEnterpriseServerConfiguration {
     )
 
     $paths = Initialize-ToolEnterpriseStorage
-    if (Test-Path -LiteralPath $paths.ServerConfig -PathType Leaf) { throw "Máy này đã có cấu hình máy chủ. Hãy xác thực mã quản trị để chỉnh sửa." }
+    if (Test-Path -LiteralPath $paths.ServerConfig -PathType Leaf) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAlreadyConfigured") }
     $safeName = ConvertTo-ToolEnterpriseSafeText $ServerName 100
-    if ([string]::IsNullOrWhiteSpace($safeName)) { throw "Tên máy chủ không được để trống." }
+    if ([string]::IsNullOrWhiteSpace($safeName)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverNameRequired") }
     if ($BindAddress -ne "0.0.0.0") {
         $parsedAddress = $null
         if (-not [Net.IPAddress]::TryParse($BindAddress, [ref]$parsedAddress) -or $parsedAddress.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
-            throw "BindAddress phải là IPv4 hoặc 0.0.0.0."
+            throw (Get-ToolEnterpriseText "enterpriseCore.error.bindAddressInvalid")
         }
     }
     $normalizedCidrs = New-Object System.Collections.Generic.List[string]
@@ -680,7 +722,7 @@ function New-ToolEnterpriseServerConfiguration {
         foreach ($localCidr in @(Get-ToolEnterpriseLocalCidrs)) { [void]$normalizedCidrs.Add($localCidr) }
     }
     if ($normalizedCidrs.Count -eq 0) {
-        throw "Không tự nhận được dải mạng an toàn. Hãy nhập CIDR thủ công (ví dụ 192.168.1.0/24)."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.safeCidrMissing")
     }
     $masterSecret = New-ToolEnterpriseRandomBytes -Length 32
     $pairingSecret = New-ToolEnterpriseRandomBytes -Length 24
@@ -704,7 +746,7 @@ function New-ToolEnterpriseServerConfiguration {
         UpdatedAtUtc = [DateTime]::UtcNow.ToString("o")
     }
     Write-ToolEnterpriseJson -Path $paths.ServerConfig -Value $config
-    Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationCreated" -Message "Đã tạo cấu hình máy chủ enterprise." -Data ([ordered]@{
+    Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationCreated" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.serverConfigurationCreated") -Data ([ordered]@{
         ServerId=$config.ServerId; ServerName=$config.ServerName; Port=$config.Port; AllowedCidrs=$config.AllowedCidrs; AuthorityFingerprint=$config.AuthorityFingerprint
     })
     [Array]::Clear($masterSecret, 0, $masterSecret.Length)
@@ -742,12 +784,12 @@ function Assert-ToolEnterpriseDirectoryTreeSafe {
     $full = Assert-ToolEnterprisePath -Path $Directory
     if (-not (Test-Path -LiteralPath $full -PathType Container)) { return }
     if (Test-ToolEnterpriseReparsePoint -Path $full) {
-        throw "Từ chối xóa dữ liệu trong thư mục reparse point: $full"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.deleteDirectoryReparse" @($full))
     }
     foreach ($item in @(Get-ChildItem -LiteralPath $full -Force -ErrorAction Stop)) {
         [void](Assert-ToolEnterprisePath -Path $item.FullName)
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-            throw "Từ chối xóa mục reparse point trong vùng enterprise: $($item.FullName)"
+            throw (Get-ToolEnterpriseText "enterpriseCore.error.deleteItemReparse" @($item.FullName))
         }
         if ($item.PSIsContainer) {
             Assert-ToolEnterpriseDirectoryTreeSafe -Directory $item.FullName
@@ -780,7 +822,7 @@ function Remove-ToolEnterpriseFileSafe {
     $full = Assert-ToolEnterprisePath -Path $Path
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $false }
     if (Test-ToolEnterpriseReparsePoint -Path $full) {
-        throw "Từ chối xóa tệp enterprise là reparse point: $full"
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.deleteFileReparse" @($full))
     }
     Remove-Item -LiteralPath $full -Force -ErrorAction Stop
     return $true
@@ -794,12 +836,12 @@ function Remove-ToolEnterpriseServerConfiguration {
 
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseServerConfig
-    if (-not $config) { throw "Máy này chưa có cấu hình máy chủ để xóa." }
+    if (-not $config) { throw (Get-ToolEnterpriseText "enterpriseCore.error.noServerConfigurationToDelete") }
     if (-not (Test-ToolEnterpriseAdminCode -AdminCode $AdminCode -Verifier $config.AdminVerifier)) {
-        throw "Mã quản trị máy chủ không đúng."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.adminCodeInvalid")
     }
 
-    Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationResetRequested" -Message "Quản trị viên đã yêu cầu xóa cấu hình máy chủ; báo cáo, kết quả và audit sẽ được giữ lại." -Data ([ordered]@{
+    Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationResetRequested" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.serverConfigurationResetRequested") -Data ([ordered]@{
         ServerId=[string]$config.ServerId; ServerName=[string]$config.ServerName; Port=[int]$config.Port
     })
 
@@ -809,7 +851,7 @@ function Remove-ToolEnterpriseServerConfiguration {
         Start-Sleep -Milliseconds 200
     }
     if (Test-ToolEnterpriseServerHostRunning) {
-        throw "Máy chủ chưa dừng sau $StopTimeoutSeconds giây. Cấu hình chưa bị xóa; hãy dừng máy chủ rồi thử lại."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.serverStopTimeout" @($StopTimeoutSeconds))
     }
 
     # Kiểm tra toàn bộ cây trước khi xóa để không bao giờ đi qua
@@ -823,7 +865,7 @@ function Remove-ToolEnterpriseServerConfiguration {
     )) {
         $full = Assert-ToolEnterprisePath -Path $file
         if ((Test-Path -LiteralPath $full -PathType Leaf) -and (Test-ToolEnterpriseReparsePoint -Path $full)) {
-            throw "Từ chối xóa tệp enterprise là reparse point: $full"
+            throw (Get-ToolEnterpriseText "enterpriseCore.error.deleteFileReparse" @($full))
         }
     }
 
@@ -845,7 +887,7 @@ function Remove-ToolEnterpriseServerConfiguration {
 
     $auditWritten = $true
     try {
-        Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationResetCompleted" -Message "Đã xóa cấu hình và trạng thái ghép nối máy chủ; giữ nguyên báo cáo, kết quả và audit." -Data ([ordered]@{
+        Write-ToolEnterpriseAudit -Scope Server -Event "Server.ConfigurationResetCompleted" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.serverConfigurationResetCompleted") -Data ([ordered]@{
             ServerId=[string]$config.ServerId
             ServerName=[string]$config.ServerName
             RemovedClientRecords=$removedClientRecords
@@ -876,12 +918,12 @@ function Get-ToolEnterprisePairingCode {
     param([Parameter(Mandatory = $true)][string]$AdminCode)
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseServerConfig
-    if (-not $config) { throw "Máy chủ chưa được khởi tạo." }
-    if (-not (Test-ToolEnterpriseAdminCode -AdminCode $AdminCode -Verifier $config.AdminVerifier)) { throw "Mã quản trị máy chủ không đúng." }
+    if (-not $config) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverNotInitialized") }
+    if (-not (Test-ToolEnterpriseAdminCode -AdminCode $AdminCode -Verifier $config.AdminVerifier)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.adminCodeInvalid") }
     $expires = [DateTime]::Parse([string]$config.PairingExpiresAtUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
-    if ($expires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw "Mã ghép nối đã hết hạn. Hãy tạo mã mới." }
+    if ($expires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw (Get-ToolEnterpriseText "enterpriseCore.error.pairingCodeExpired") }
     $secret = Get-ToolEnterpriseSecret -Path $paths.ServerPairingSecret
-    if (-not $secret) { throw "Thiếu secret ghép nối." }
+    if (-not $secret) { throw (Get-ToolEnterpriseText "enterpriseCore.error.pairingSecretMissing") }
     try { return (ConvertTo-ToolEnterpriseBase64Url -Bytes $secret) }
     finally { [Array]::Clear($secret, 0, $secret.Length) }
 }
@@ -890,14 +932,14 @@ function Reset-ToolEnterprisePairingCode {
     param([Parameter(Mandatory = $true)][string]$AdminCode, [ValidateRange(1, 168)][int]$ValidHours = 24)
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseServerConfig
-    if (-not $config) { throw "Máy chủ chưa được khởi tạo." }
-    if (-not (Test-ToolEnterpriseAdminCode -AdminCode $AdminCode -Verifier $config.AdminVerifier)) { throw "Mã quản trị máy chủ không đúng." }
+    if (-not $config) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverNotInitialized") }
+    if (-not (Test-ToolEnterpriseAdminCode -AdminCode $AdminCode -Verifier $config.AdminVerifier)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.adminCodeInvalid") }
     $secret = New-ToolEnterpriseRandomBytes -Length 24
     Set-ToolEnterpriseSecret -Path $paths.ServerPairingSecret -Secret $secret
     $config.PairingExpiresAtUtc = [DateTime]::UtcNow.AddHours($ValidHours).ToString("o")
     $config.UpdatedAtUtc = [DateTime]::UtcNow.ToString("o")
     Write-ToolEnterpriseJson -Path $paths.ServerConfig -Value $config
-    Write-ToolEnterpriseAudit -Scope Server -Event "Server.PairingCodeRotated" -Message "Đã đổi mã ghép nối; mã cũ hết hiệu lực."
+    Write-ToolEnterpriseAudit -Scope Server -Event "Server.PairingCodeRotated" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.pairingCodeRotated")
     try { return (ConvertTo-ToolEnterpriseBase64Url -Bytes $secret) }
     finally { [Array]::Clear($secret, 0, $secret.Length) }
 }
@@ -915,7 +957,7 @@ function Set-ToolEnterpriseClientConfiguration {
         [bool]$AutoSend = $true
     )
 
-    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw "Địa chỉ máy chủ không hợp lệ." }
+    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressInvalid") }
     $paths = Initialize-ToolEnterpriseStorage
     $existing = Get-ToolEnterpriseClientConfig
     # Keep the GUID parsing compatible with Windows PowerShell 3/5.1.  An
@@ -1066,7 +1108,7 @@ function Get-ToolEnterpriseLicenseSnapshot {
 
 function Get-ToolEnterpriseBaseUri {
     param([Parameter(Mandatory = $true)][string]$ServerAddress, [ValidateRange(1024,65535)][int]$Port)
-    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw "Địa chỉ máy chủ không hợp lệ." }
+    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressInvalid") }
     return "http://$ServerAddress`:$Port/tool/v1"
 }
 
@@ -1079,7 +1121,7 @@ function Invoke-ToolEnterpriseHttpRequest {
         [ValidateRange(500, 30000)][int]$TimeoutMs = 5000
     )
 
-    if ($Uri -notmatch '^http://[A-Za-z0-9.\-]+:\d{2,5}/tool/v1(?:/[A-Za-z0-9\-]+)?$') { throw "URI enterprise không hợp lệ." }
+    if ($Uri -notmatch '^http://[A-Za-z0-9.\-]+:\d{2,5}/tool/v1(?:/[A-Za-z0-9\-]+)?$') { throw (Get-ToolEnterpriseText "enterpriseCore.error.uriInvalid") }
     $request = [Net.HttpWebRequest]::Create($Uri)
     $request.Method = $Method
     $request.Timeout = $TimeoutMs
@@ -1091,7 +1133,7 @@ function Invoke-ToolEnterpriseHttpRequest {
     if ($Method -eq "POST") {
         $json = if ($null -eq $Body) { "{}" } else { $Body | ConvertTo-Json -Depth 14 -Compress }
         $bytes = [Text.Encoding]::UTF8.GetBytes($json)
-        if ($bytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw "Yêu cầu enterprise vượt giới hạn." }
+        if ($bytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.requestTooLarge") }
         $request.ContentType = "application/json; charset=utf-8"
         $request.ContentLength = $bytes.Length
         $stream = $request.GetRequestStream()
@@ -1108,7 +1150,7 @@ function Invoke-ToolEnterpriseHttpRequest {
         $reader = New-Object IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
         try { $responseText = $reader.ReadToEnd() } finally { $reader.Dispose() }
         if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 300) {
-            throw "Máy chủ trả HTTP $([int]$response.StatusCode): $(ConvertTo-ToolEnterpriseSafeText $responseText 500)"
+            throw (Get-ToolEnterpriseText "enterpriseCore.error.httpResponse" @([int]$response.StatusCode, (ConvertTo-ToolEnterpriseSafeText $responseText 500)))
         }
         if ([string]::IsNullOrWhiteSpace($responseText)) { return $null }
         return ($responseText | ConvertFrom-Json)
@@ -1124,7 +1166,9 @@ function Test-ToolEnterpriseServerConnection {
     try {
         $baseUri = Get-ToolEnterpriseBaseUri -ServerAddress $ServerAddress -Port $Port
         $status = Invoke-ToolEnterpriseHttpRequest -Method GET -Uri "$baseUri/status" -TimeoutMs $TimeoutMs
-        if ([string]$status.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion) { return $null }
+        if (-not [bool]$status.Accepted -or
+            [string]$status.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion -or
+            [string]$status.ToolVersion -ne $script:ToolEnterpriseToolVersion) { return $null }
         return $status
     } catch { return $null }
 }
@@ -1139,7 +1183,7 @@ function Register-ToolEnterpriseClient {
     )
 
     $pairingSecret = ConvertFrom-ToolEnterpriseBase64Url -Text $PairingCode.Trim()
-    if ($pairingSecret.Length -lt 20) { throw "Mã ghép nối không hợp lệ." }
+    if ($pairingSecret.Length -lt 20) { throw (Get-ToolEnterpriseText "enterpriseCore.error.pairingCodeInvalid") }
     $paths = Initialize-ToolEnterpriseStorage
     $config = Set-ToolEnterpriseClientConfiguration -ServerAddress $ServerAddress -Port $Port -AllowRemoteLicenseChanges:$AllowRemoteLicenseChanges -AutoSend:$AutoSend
     $requestPayload = [ordered]@{
@@ -1155,16 +1199,16 @@ function Register-ToolEnterpriseClient {
     $responseEnvelope = Invoke-ToolEnterpriseHttpRequest -Method POST -Uri "$baseUri/enroll" -Body $envelope -TimeoutMs 8000
     $opened = Open-ToolEnterpriseEnvelope -Secret $pairingSecret -ExpectedContext "enroll-response:$($config.ClientId)" -Envelope $responseEnvelope -MaximumAgeMinutes 10
     $response = $opened.Payload
-    if (-not [bool]$response.Accepted) { throw "Máy chủ từ chối ghép nối: $(ConvertTo-ToolEnterpriseSafeText $response.Message 500)" }
+    if (-not [bool]$response.Accepted) { throw (Get-ToolEnterpriseText "enterpriseCore.error.enrollmentRejected" @((ConvertTo-ToolEnterpriseSafeText $response.Message 500))) }
     $clientSecret = ConvertFrom-ToolEnterpriseBase64Url -Text ([string]$response.ClientSecret)
-    if ($clientSecret.Length -ne 32) { throw "Secret máy trạm do máy chủ cấp không hợp lệ." }
+    if ($clientSecret.Length -ne 32) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientSecretInvalid") }
     Set-ToolEnterpriseSecret -Path $paths.ClientSecret -Secret $clientSecret
     $config.ServerId = [string]$response.ServerId
     $config.Enrolled = $true
     $config.EnrolledAtUtc = [DateTime]::UtcNow.ToString("o")
     $config.UpdatedAtUtc = [DateTime]::UtcNow.ToString("o")
     Write-ToolEnterpriseJson -Path $paths.ClientConfig -Value $config
-    Write-ToolEnterpriseAudit -Scope Client -Event "Client.Enrolled" -Message "Máy trạm đã ghép nối với máy chủ." -Data ([ordered]@{
+    Write-ToolEnterpriseAudit -Scope Client -Event "Client.Enrolled" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.clientEnrolled") -Data ([ordered]@{
         ClientId=$config.ClientId; ServerId=$config.ServerId; ServerAddress=$config.ServerAddress; Port=$config.Port; RemoteChanges=[bool]$config.AllowRemoteLicenseChanges
     })
     [Array]::Clear($clientSecret, 0, $clientSecret.Length)
@@ -1187,16 +1231,16 @@ function Send-ToolEnterpriseReport {
     param([Parameter(Mandatory = $true)][object]$Report, [switch]$QueueOnFailure)
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseClientConfig
-    if (-not $config -or -not [bool]$config.Enrolled) { throw "Máy trạm chưa ghép nối." }
+    if (-not $config -or -not [bool]$config.Enrolled) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientNotEnrolled") }
     $clientSecret = Get-ToolEnterpriseSecret -Path $paths.ClientSecret
-    if (-not $clientSecret) { throw "Thiếu secret máy trạm." }
+    if (-not $clientSecret) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientSecretMissing") }
     try {
         $context = "report:$([string]$config.ClientId)"
         $envelope = New-ToolEnterpriseEnvelope -Secret $clientSecret -Context $context -Payload $Report
         $baseUri = Get-ToolEnterpriseBaseUri -ServerAddress ([string]$config.ServerAddress) -Port ([int]$config.Port)
         $responseEnvelope = Invoke-ToolEnterpriseHttpRequest -Method POST -Uri "$baseUri/report" -Body $envelope -Headers @{ "X-Tool-ClientId"=[string]$config.ClientId } -TimeoutMs 8000
         $opened = Open-ToolEnterpriseEnvelope -Secret $clientSecret -ExpectedContext "report-response:$([string]$config.ClientId)" -Envelope $responseEnvelope
-        if (-not [bool]$opened.Payload.Accepted) { throw "Máy chủ không chấp nhận báo cáo." }
+        if (-not [bool]$opened.Payload.Accepted) { throw (Get-ToolEnterpriseText "enterpriseCore.error.reportRejected") }
         return $opened.Payload
     } catch {
         if ($QueueOnFailure) {
@@ -1216,9 +1260,9 @@ function Get-ToolEnterpriseClientJob {
     #>
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseClientConfig
-    if (-not $config -or -not [bool]$config.Enrolled) { throw "Máy trạm chưa ghép nối." }
+    if (-not $config -or -not [bool]$config.Enrolled) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientNotEnrolled") }
     $clientSecret = Get-ToolEnterpriseSecret -Path $paths.ClientSecret
-    if (-not $clientSecret) { throw "Thiếu secret máy trạm." }
+    if (-not $clientSecret) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientSecretMissing") }
     try {
         $clientId = [string]$config.ClientId
         $request = New-ToolEnterpriseEnvelope -Secret $clientSecret -Context "poll:$clientId" -Payload ([ordered]@{
@@ -1238,16 +1282,16 @@ function Send-ToolEnterpriseJobResult {
 
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseClientConfig
-    if (-not $config -or -not [bool]$config.Enrolled) { throw "Máy trạm chưa ghép nối." }
+    if (-not $config -or -not [bool]$config.Enrolled) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientNotEnrolled") }
     $clientSecret = Get-ToolEnterpriseSecret -Path $paths.ClientSecret
-    if (-not $clientSecret) { throw "Thiếu secret máy trạm." }
+    if (-not $clientSecret) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientSecretMissing") }
     try {
         $clientId = [string]$config.ClientId
         $request = New-ToolEnterpriseEnvelope -Secret $clientSecret -Context "result:$clientId" -Payload $Result
         $baseUri = Get-ToolEnterpriseBaseUri -ServerAddress ([string]$config.ServerAddress) -Port ([int]$config.Port)
         $responseEnvelope = Invoke-ToolEnterpriseHttpRequest -Method POST -Uri "$baseUri/result" -Body $request -Headers @{ "X-Tool-ClientId"=$clientId } -TimeoutMs 8000
         $opened = Open-ToolEnterpriseEnvelope -Secret $clientSecret -ExpectedContext "result-response:$clientId" -Envelope $responseEnvelope
-        if (-not [bool]$opened.Payload.Accepted) { throw "Máy chủ không chấp nhận kết quả tác vụ." }
+        if (-not [bool]$opened.Payload.Accepted) { throw (Get-ToolEnterpriseText "enterpriseCore.error.jobResultRejected") }
         return $opened.Payload
     } finally { [Array]::Clear($clientSecret, 0, $clientSecret.Length) }
 }
@@ -1257,7 +1301,7 @@ function Flush-ToolEnterpriseOutbox {
     $sent = 0
     foreach ($file in @(Get-ChildItem -LiteralPath $paths.ClientOutbox -Filter "*.queue" -File -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -First 100)) {
         try {
-            if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint -or $file.Length -gt 2097152) { throw "Tệp hàng đợi không an toàn." }
+            if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint -or $file.Length -gt 2097152) { throw (Get-ToolEnterpriseText "enterpriseCore.error.queueFileUnsafe") }
             $plain = Unprotect-ToolEnterpriseBytes -Bytes ([IO.File]::ReadAllBytes($file.FullName))
             $report = [Text.Encoding]::UTF8.GetString($plain) | ConvertFrom-Json
             [void](Send-ToolEnterpriseReport -Report $report)
@@ -1272,7 +1316,7 @@ function Flush-ToolEnterpriseOutbox {
 function Get-ToolEnterpriseServerClientSecretPath {
     param([Parameter(Mandatory = $true)][string]$ClientId)
     $parsed = [Guid]::Empty
-    if (-not [Guid]::TryParse($ClientId, [ref]$parsed)) { throw "ClientId không hợp lệ." }
+    if (-not [Guid]::TryParse($ClientId, [ref]$parsed)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientIdInvalid") }
     $paths = Initialize-ToolEnterpriseStorage
     return (Join-Path $paths.ServerClientSecrets ($parsed.ToString("N") + ".bin"))
 }
@@ -1290,7 +1334,7 @@ function Get-ToolEnterpriseServerClientSecret {
 function Get-ToolEnterpriseServerClientRecordPath {
     param([Parameter(Mandatory = $true)][string]$ClientId)
     $parsed = [Guid]::Empty
-    if (-not [Guid]::TryParse($ClientId, [ref]$parsed)) { throw "ClientId không hợp lệ." }
+    if (-not [Guid]::TryParse($ClientId, [ref]$parsed)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientIdInvalid") }
     $paths = Initialize-ToolEnterpriseStorage
     return (Join-Path $paths.ServerClients ($parsed.ToString("N") + ".json"))
 }
@@ -1305,9 +1349,9 @@ function Save-ToolEnterpriseServerReport {
     $paths = Initialize-ToolEnterpriseStorage
     if (Get-Command Test-ToolReportEnvelope -ErrorAction SilentlyContinue) {
         $validation = Test-ToolReportEnvelope -Report $Report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion $script:ToolEnterpriseToolVersion
-        if (-not $validation.Valid) { throw "Báo cáo enterprise không hợp lệ: $($validation.Errors -join '; ')" }
+        if (-not $validation.Valid) { throw (Get-ToolEnterpriseText "enterpriseCore.error.reportInvalid" @(($validation.Errors -join '; '))) }
     }
-    if ([string]$Report.ClientId -ne $ClientId) { throw "ClientId trong báo cáo không khớp." }
+    if ([string]$Report.ClientId -ne $ClientId) { throw (Get-ToolEnterpriseText "enterpriseCore.error.reportClientIdMismatch") }
     $clientDirectory = Join-Path $paths.ServerReports $ClientId
     if (-not (Test-Path -LiteralPath $clientDirectory -PathType Container)) { New-Item -ItemType Directory -Path $clientDirectory -Force | Out-Null }
     $timestampName = [DateTime]::UtcNow.ToString("yyyyMMdd-HHmmssfff")
@@ -1355,7 +1399,7 @@ function Get-ToolEnterpriseServerClients {
 function Normalize-ToolEnterpriseProductKey {
     param([Parameter(Mandatory = $true)][string]$ProductKey)
     $clean = ($ProductKey -replace '[^A-Za-z0-9]', '').ToUpperInvariant()
-    if ($clean.Length -ne 25) { throw "Product key phải có đúng 25 ký tự." }
+    if ($clean.Length -ne 25) { throw (Get-ToolEnterpriseText "enterpriseCore.error.productKeyLength") }
     return (($clean -split '(.{5})' | Where-Object { $_ }) -join '-')
 }
 
@@ -1369,14 +1413,14 @@ function New-ToolEnterpriseLicenseJob {
 
     $paths = Initialize-ToolEnterpriseStorage
     $clientRecord = Read-ToolEnterpriseJson -Path (Get-ToolEnterpriseServerClientRecordPath -ClientId $ClientId)
-    if (-not $clientRecord) { throw "Máy trạm chưa được ghép nối hoặc chưa gửi báo cáo." }
+    if (-not $clientRecord) { throw (Get-ToolEnterpriseText "enterpriseCore.error.clientRecordMissing") }
     if ($Operation -ne "InventoryOnly" -and -not [bool]$clientRecord.AllowRemoteLicenseChanges) {
-        throw "Máy trạm chưa cho phép thay đổi license từ xa."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.remoteLicenseChangesDisabled")
     }
     $normalizedKey = ""
     if ($Operation -ne "InventoryOnly") { $normalizedKey = Normalize-ToolEnterpriseProductKey -ProductKey $ProductKey }
     $clientSecret = Get-ToolEnterpriseServerClientSecret -ClientId $ClientId
-    if (-not $clientSecret) { throw "Thiếu secret của máy trạm." }
+    if (-not $clientSecret) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverClientSecretMissing") }
     $jobId = [Guid]::NewGuid().ToString("N")
     $job = [ordered]@{
         SchemaVersion = $script:ToolEnterpriseSchemaVersion
@@ -1394,7 +1438,7 @@ function New-ToolEnterpriseLicenseJob {
     $clientJobDirectory = Join-Path $paths.ServerJobs $ClientId
     if (-not (Test-Path -LiteralPath $clientJobDirectory -PathType Container)) { New-Item -ItemType Directory -Path $clientJobDirectory -Force | Out-Null }
     Write-ToolEnterpriseJson -Path (Join-Path $clientJobDirectory ($jobId + ".job")) -Value ([ordered]@{ JobId=$jobId; Envelope=$envelope })
-    Write-ToolEnterpriseAudit -Scope Server -Event "Job.Created" -Message "Đã tạo tác vụ $Operation cho máy trạm." -Data ([ordered]@{
+    Write-ToolEnterpriseAudit -Scope Server -Event "Job.Created" -Message (Get-ToolEnterpriseText "enterpriseCore.audit.jobCreated" @($Operation)) -Data ([ordered]@{
         JobId=$jobId; ClientId=$ClientId; Operation=$Operation; ProductKeyLast5=$job.ProductKeyLast5; RequestedBy=$job.RequestedBy
     })
     [Array]::Clear($clientSecret, 0, $clientSecret.Length)
@@ -1417,7 +1461,7 @@ function Save-ToolEnterpriseJobResult {
     $paths = Initialize-ToolEnterpriseStorage
     $jobId = [string]$Result.JobId
     $parsedJobId = [Guid]::Empty
-    if (-not [Guid]::TryParse($jobId, [ref]$parsedJobId)) { throw "JobId kết quả không hợp lệ." }
+    if (-not [Guid]::TryParse($jobId, [ref]$parsedJobId)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.jobResultIdInvalid") }
     $safeResult = [pscustomobject][ordered]@{
         SchemaVersion = $script:ToolEnterpriseSchemaVersion
         ToolVersion = $script:ToolEnterpriseToolVersion
@@ -1459,7 +1503,7 @@ function Invoke-ToolEnterpriseCapturedProcess {
     $stderrTask = if ($asyncReaderAvailable) { $process.StandardError.ReadToEndAsync() } else { $null }
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         try { $process.Kill() } catch {}
-        throw "Tiến trình vượt thời gian $TimeoutSeconds giây."
+        throw (Get-ToolEnterpriseText "enterpriseCore.error.processTimeout" @($TimeoutSeconds))
     }
     if ($asyncReaderAvailable) {
         $stdout = $stdoutTask.Result
@@ -1514,19 +1558,19 @@ function Invoke-ToolEnterpriseLicenseJob {
     $key = [string]$Job.ProductKey
     try {
         $expires = [DateTime]::Parse([string]$Job.ExpiresAtUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
-        if ($expires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw "Tác vụ đã hết hạn." }
+        if ($expires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw (Get-ToolEnterpriseText "enterpriseCore.error.jobExpired") }
         if ($operation -eq "InventoryOnly") {
-            $message = "Đã quét lại trạng thái license theo yêu cầu máy chủ."
+            $message = Get-ToolEnterpriseText "enterpriseCore.job.inventoryRefreshed"
         } elseif (-not $AllowRemoteLicenseChanges) {
             $status = "Blocked"
             $exitCode = 20
-            $message = "Máy trạm chưa bật quyền thay đổi license từ xa."
+            $message = Get-ToolEnterpriseText "enterpriseCore.job.remoteChangesBlocked"
         } elseif ($operation -eq "WindowsInstallAndActivate") {
             $key = Normalize-ToolEnterpriseProductKey -ProductKey $key
             $service = Get-WmiObject -Class SoftwareLicensingService -ErrorAction Stop | Select-Object -First 1
-            if (-not $service) { throw "Không đọc được SoftwareLicensingService." }
+            if (-not $service) { throw (Get-ToolEnterpriseText "enterpriseCore.error.softwareLicensingServiceUnavailable") }
             $installResult = $service.InstallProductKey($key)
-            if ($null -ne $installResult -and [int64]$installResult -ne 0) { throw "Windows từ chối InstallProductKey, mã $installResult." }
+            if ($null -ne $installResult -and [int64]$installResult -ne 0) { throw (Get-ToolEnterpriseText "enterpriseCore.error.windowsInstallRejected" @($installResult)) }
             try { [void]$service.RefreshLicenseStatus() } catch {}
             $cscript = if (Get-Command Get-ToolNativeSystemPath -ErrorAction SilentlyContinue) { Get-ToolNativeSystemPath "cscript.exe" } else { Join-Path $env:SystemRoot "System32\cscript.exe" }
             $slmgr = if (Get-Command Get-ToolNativeSystemPath -ErrorAction SilentlyContinue) { Get-ToolNativeSystemPath "slmgr.vbs" } else { Join-Path $env:SystemRoot "System32\slmgr.vbs" }
@@ -1534,27 +1578,27 @@ function Invoke-ToolEnterpriseLicenseJob {
             if ($activation.ExitCode -ne 0 -or $activation.Output -match '(?i)error|0xC[0-9A-F]+') {
                 $status = "ActionRequired"
                 $exitCode = 23
-                $message = "Windows đã tiếp nhận key $last5 nhưng chưa xác nhận kích hoạt: $($activation.Output)"
+                $message = Get-ToolEnterpriseText "enterpriseCore.job.windowsActivationUnconfirmed" @($last5, $activation.Output)
             } else {
-                $message = "Windows đã tiếp nhận key $last5 và hoàn tất yêu cầu kích hoạt."
+                $message = Get-ToolEnterpriseText "enterpriseCore.job.windowsActivationCompleted" @($last5)
             }
         } elseif ($operation -eq "OfficeInstallAndActivate") {
             $key = Normalize-ToolEnterpriseProductKey -ProductKey $key
             $osppPaths = @(Get-ToolEnterpriseOfficeOsppPaths)
-            if ($osppPaths.Count -eq 0) { throw "Không tìm thấy OSPP.VBS trên máy trạm." }
+            if ($osppPaths.Count -eq 0) { throw (Get-ToolEnterpriseText "enterpriseCore.error.osppMissing") }
             $cscript = if (Get-Command Get-ToolNativeSystemPath -ErrorAction SilentlyContinue) { Get-ToolNativeSystemPath "cscript.exe" } else { Join-Path $env:SystemRoot "System32\cscript.exe" }
             $ospp = [string]$osppPaths[0]
             $install = Invoke-ToolEnterpriseCapturedProcess -FilePath $cscript -Arguments ('//nologo "{0}" /inpkey:{1}' -f $ospp, $key) -TimeoutSeconds 180
-            if ($install.ExitCode -ne 0 -or $install.Output -match '(?i)error|0xC[0-9A-F]+') { throw "Office từ chối key $last5`: $($install.Output)" }
+            if ($install.ExitCode -ne 0 -or $install.Output -match '(?i)error|0xC[0-9A-F]+') { throw (Get-ToolEnterpriseText "enterpriseCore.error.officeInstallRejected" @($last5, $install.Output)) }
             $activation = Invoke-ToolEnterpriseCapturedProcess -FilePath $cscript -Arguments ('//nologo "{0}" /act' -f $ospp) -TimeoutSeconds 180
             if ($activation.ExitCode -ne 0 -or $activation.Output -match '(?i)error|0xC[0-9A-F]+') {
                 $status = "ActionRequired"
                 $exitCode = 23
-                $message = "Office đã tiếp nhận key $last5 nhưng chưa xác nhận kích hoạt: $($activation.Output)"
+                $message = Get-ToolEnterpriseText "enterpriseCore.job.officeActivationUnconfirmed" @($last5, $activation.Output)
             } else {
-                $message = "Office đã tiếp nhận key $last5 và hoàn tất yêu cầu kích hoạt."
+                $message = Get-ToolEnterpriseText "enterpriseCore.job.officeActivationCompleted" @($last5)
             }
-        } else { throw "Operation không được hỗ trợ." }
+        } else { throw (Get-ToolEnterpriseText "enterpriseCore.error.operationUnsupported") }
     } catch {
         if ($status -ne "Blocked") {
             $status = "Failed"
@@ -1584,14 +1628,14 @@ function Export-ToolEnterpriseFleetReport {
     )
     if (-not (Get-Command New-ToolProfessionalHtmlDocument -ErrorAction SilentlyContinue)) {
         $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"
-        if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw "Thiếu Tool-ReportExport.ps1." }
+        if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw (Get-ToolEnterpriseText "enterpriseReport.error.helperMissing") }
         . $reportExportHelper
     }
     $fullDestination = [IO.Path]::GetFullPath($DestinationDirectory)
     if (-not (Test-Path -LiteralPath $fullDestination -PathType Container)) { New-Item -ItemType Directory -Path $fullDestination -Force | Out-Null }
     $clients = @(Get-ToolEnterpriseServerClients)
     $stamp = [DateTime]::Now.ToString("yyyyMMdd-HHmmss")
-    $baseName = "bao-cao-quan-ly-license-doanh-nghiep-$stamp"
+    $baseName = Get-ToolEnterpriseText "enterpriseReport.fileBase" @($stamp)
     $jsonPath = Join-Path $fullDestination ($baseName + ".json")
     $csvPath = Join-Path $fullDestination ($baseName + ".csv")
     $htmlPath = Join-Path $fullDestination ($baseName + ".html")
@@ -1609,59 +1653,78 @@ function Export-ToolEnterpriseFleetReport {
     # desktop).  Write them directly after resolving the destination; the
     # internal state files continue to use Write-ToolEnterpriseJson.
     if (Test-ToolEnterpriseReparsePoint -Path $fullDestination) {
-        throw "Không thể xuất báo cáo vào thư mục reparse point: $fullDestination"
+        throw (Get-ToolEnterpriseText "enterpriseReport.error.destinationReparse" @($fullDestination))
     }
     [IO.File]::WriteAllText($jsonPath, ($fleet | ConvertTo-Json -Depth 12), (New-Object Text.UTF8Encoding($false)))
-    $clients | Select-Object ComputerName,RemoteAddress,LastSeenUtc,WindowsStatus,WindowsChannel,WindowsLast5,OfficeStatus,OfficeChannel,OfficeLast5,AllowRemoteLicenseChanges |
-        Export-Csv -LiteralPath $csvPath -NoTypeInformation -Encoding UTF8
+    $columnComputer = Get-ToolEnterpriseText "enterpriseReport.column.computer"
+    $columnIp = Get-ToolEnterpriseText "enterpriseReport.column.ip"
+    $columnLastSeen = Get-ToolEnterpriseText "enterpriseReport.column.lastSeen"
+    $columnWindows = Get-ToolEnterpriseText "enterpriseReport.column.windows"
+    $columnWindowsChannel = Get-ToolEnterpriseText "enterpriseReport.column.windowsChannel"
+    $columnWindowsLast5 = Get-ToolEnterpriseText "enterpriseReport.column.windowsLast5"
+    $columnOffice = Get-ToolEnterpriseText "enterpriseReport.column.office"
+    $columnOfficeChannel = Get-ToolEnterpriseText "enterpriseReport.column.officeChannel"
+    $columnOfficeLast5 = Get-ToolEnterpriseText "enterpriseReport.column.officeLast5"
+    $columnRemoteChanges = Get-ToolEnterpriseText "enterpriseReport.column.remoteChanges"
+    $valueYes = Get-ToolEnterpriseText "enterpriseReport.value.yes"
+    $valueNo = Get-ToolEnterpriseText "enterpriseReport.value.no"
     $fleetRows = @($clients | ForEach-Object {
-        [pscustomobject][ordered]@{
-            "Máy" = [string]$_.ComputerName
-            "IP" = [string]$_.RemoteAddress
-            "Lần cuối" = [string]$_.LastSeenUtc
-            "Windows" = [string]$_.WindowsStatus
-            "Kênh Windows" = [string]$_.WindowsChannel
-            "Windows Last5" = [string]$_.WindowsLast5
-            "Office" = [string]$_.OfficeStatus
-            "Kênh Office" = [string]$_.OfficeChannel
-            "Office Last5" = [string]$_.OfficeLast5
-        }
+        $row = [ordered]@{}
+        $row[$columnComputer] = [string]$_.ComputerName
+        $row[$columnIp] = [string]$_.RemoteAddress
+        $row[$columnLastSeen] = [string]$_.LastSeenUtc
+        $row[$columnWindows] = [string]$_.WindowsStatus
+        $row[$columnWindowsChannel] = [string]$_.WindowsChannel
+        $row[$columnWindowsLast5] = [string]$_.WindowsLast5
+        $row[$columnOffice] = [string]$_.OfficeStatus
+        $row[$columnOfficeChannel] = [string]$_.OfficeChannel
+        $row[$columnOfficeLast5] = [string]$_.OfficeLast5
+        $row[$columnRemoteChanges] = if ([bool]$_.AllowRemoteLicenseChanges) { $valueYes } else { $valueNo }
+        [pscustomobject]$row
     })
+    $fleetRows | Export-Csv -LiteralPath $csvPath -NoTypeInformation -Encoding UTF8
     $createdAt = [DateTime]::Now
     $activeWindows = @($clients | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.WindowsStatus) -and [string]$_.WindowsStatus -notin @("NotReported","Unknown") }).Count
     $activeOffice = @($clients | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.OfficeStatus) -and [string]$_.OfficeStatus -notin @("NotReported","Unknown") }).Count
+    $reportCulture = if (Get-Command Get-ToolCulture -ErrorAction SilentlyContinue) {
+        Get-ToolCulture
+    } elseif ([string]$env:TOOL_UI_CULTURE -in @("vi-VN", "en-US")) {
+        [string]$env:TOOL_UI_CULTURE
+    } else {
+        "vi-VN"
+    }
     $html = New-ToolProfessionalHtmlDocument `
-        -Title "Báo cáo quản lý license doanh nghiệp" `
-        -Subtitle "Tổng hợp trạng thái Windows và Office của các máy trạm đã ghép nối; không lưu product key đầy đủ." `
-        -Eyebrow "Báo cáo kiểm kê và bảo đảm bản quyền" `
+        -Title (Get-ToolEnterpriseText "enterpriseReport.title") `
+        -Subtitle (Get-ToolEnterpriseText "enterpriseReport.subtitle") `
+        -Eyebrow (Get-ToolEnterpriseText "enterpriseReport.eyebrow") `
         -Metadata @(
-            [pscustomobject]@{Label="Máy chủ";Value=[string]$env:COMPUTERNAME},
-            [pscustomobject]@{Label="Thời điểm";Value=$createdAt.ToString("yyyy-MM-dd HH:mm:ss")},
-            [pscustomobject]@{Label="Phạm vi";Value="Đội máy doanh nghiệp"},
-            [pscustomobject]@{Label="Riêng tư";Value="Chỉ lưu định danh key rút gọn Last5"}
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.meta.server");Value=[string]$env:COMPUTERNAME},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.meta.time");Value=$createdAt.ToString("yyyy-MM-dd HH:mm:ss")},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.meta.scope");Value=(Get-ToolEnterpriseText "enterpriseReport.value.scope")},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.meta.privacy");Value=(Get-ToolEnterpriseText "enterpriseReport.value.privacy")}
         ) `
         -Cards @(
-            [pscustomobject]@{Label="Máy trạm";Value=[string]$clients.Count;Tone="info"},
-            [pscustomobject]@{Label="Có trạng thái Windows";Value=[string]$activeWindows;Tone=$(if ($activeWindows -eq $clients.Count) {"ok"} else {"warning"})},
-            [pscustomobject]@{Label="Có trạng thái Office";Value=[string]$activeOffice;Tone=$(if ($activeOffice -eq $clients.Count) {"ok"} else {"warning"})},
-            [pscustomobject]@{Label="Định dạng";Value="HTML / PDF / JSON / CSV";Tone="info"}
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.card.clients");Value=[string]$clients.Count;Tone="info"},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.card.windowsStatus");Value=[string]$activeWindows;Tone=$(if ($activeWindows -eq $clients.Count) {"ok"} else {"warning"})},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.card.officeStatus");Value=[string]$activeOffice;Tone=$(if ($activeOffice -eq $clients.Count) {"ok"} else {"warning"})},
+            [pscustomobject]@{Label=(Get-ToolEnterpriseText "enterpriseReport.card.formats");Value="HTML / PDF / JSON / CSV";Tone="info"}
         ) `
         -Sections @(
             [pscustomobject]@{
-                Title="Danh sách máy trạm và trạng thái giấy phép"
-                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @("Máy","IP","Lần cuối","Windows","Kênh Windows","Windows Last5","Office","Kênh Office","Office Last5"))
+                Title=(Get-ToolEnterpriseText "enterpriseReport.section.clientList")
+                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @($columnComputer,$columnIp,$columnLastSeen,$columnWindows,$columnWindowsChannel,$columnWindowsLast5,$columnOffice,$columnOfficeChannel,$columnOfficeLast5,$columnRemoteChanges))
             },
             [pscustomobject]@{
-                Title="Giới hạn sử dụng"
-                BodyHtml="<p class='note'>Báo cáo là bằng chứng kỹ thuật cục bộ, không thay thế hóa đơn, hợp đồng, tài khoản cấp phép hoặc hồ sơ pháp lý.</p>"
+                Title=(Get-ToolEnterpriseText "enterpriseReport.section.limitations")
+                BodyHtml="<p class='note'>$(ConvertTo-ToolHtmlText (Get-ToolEnterpriseText "enterpriseReport.limitationsNote"))</p>"
             }
         ) `
-        -Footer "Phát triển bởi Thanh Việt · Tool v$($script:ToolEnterpriseToolVersion)" -Culture "vi-VN" -OfflineMode $true
+        -Footer (Get-ToolEnterpriseText "enterpriseReport.footer" @($script:ToolEnterpriseToolVersion)) -Culture $reportCulture -OfflineMode $true
     [IO.File]::WriteAllText($htmlPath, $html, (New-Object Text.UTF8Encoding($false)))
-    if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw "Báo cáo doanh nghiệp không đạt kiểm tra HTML ngoại tuyến." }
-    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error="Không yêu cầu xuất PDF." }
+    if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw (Get-ToolEnterpriseText "enterpriseReport.error.htmlUnsafe") }
+    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error=(Get-ToolEnterpriseText "enterpriseReport.pdf.notRequested") }
     if ($IncludePdf) { $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath }
-    $manifestLines = @("# SHA-256 báo cáo quản lý license doanh nghiệp Tool v4.4.")
+    $manifestLines = @((Get-ToolEnterpriseText "enterpriseReport.manifestHeader" @($script:ToolEnterpriseToolVersion)))
     foreach ($path in @($jsonPath,$csvPath,$htmlPath,$pdfPath)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) { $manifestLines += "$(Get-ToolEnterpriseSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))" }
     }
@@ -1751,12 +1814,14 @@ try {
     if ([int]$response.StatusCode -eq 200) {
         $reader = New-Object IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
         try { $status = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
-        if ([string]$status.Service -eq "ThanhViet.ToolKiemTra.EnterpriseServer") {
+        if ([bool]$status.Accepted -and
+            [string]$status.ProtocolVersion -eq "1.0" -and
+            [string]$status.ToolVersion -eq "4.6.0.0") {
             [pscustomobject]@{
                 Address=$Address
                 Port=$Port
-                ServerId=[string]$status.ServerId
-                ServerName=[string]$status.ServerName
+                ServerId=""
+                ServerName=$Address
                 ToolVersion=[string]$status.ToolVersion
                 ProtocolVersion=[string]$status.ProtocolVersion
             }

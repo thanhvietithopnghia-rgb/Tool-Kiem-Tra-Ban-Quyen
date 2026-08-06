@@ -1,5 +1,5 @@
 ﻿<#
-    Trung tâm quản lý license doanh nghiệp (mục 8 của Tool v4.4).
+    Trung tâm quản lý license doanh nghiệp của Tool.
     Giao diện chỉ điều phối các thao tác chính; dữ liệu nhạy cảm được xử lý
     trong Tool-Enterprise.ps1 và không ghi product key đầy đủ vào log.
 #>
@@ -10,12 +10,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$script:enterpriseReleaseVersion = "4.4.0.0"
-$script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion) Enterprise"
+$script:enterpriseReleaseVersion = "4.6.0.0"
+$script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion)"
 . (Join-Path $baseDir "Tool-ReportSchema.ps1")
 . (Join-Path $baseDir "Tool-Enterprise.ps1")
 $localizationHelper = Join-Path $baseDir "Tool-Localization.ps1"
-if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { throw "Missing Tool-Localization.ps1." }
+if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { throw (Get-ToolEnterpriseText "enterprise.missingComponent" @("Tool-Localization.ps1")) }
 . $localizationHelper
 $script:enterpriseCulture = Get-ToolCulture
 $env:TOOL_UI_CULTURE = $script:enterpriseCulture
@@ -320,10 +320,11 @@ function Get-SelectedEnterpriseClient {
 function Test-EnterpriseDuplicateServer {
     param([string[]]$Addresses, [int]$Port)
     $localConfig = Get-EnterpriseServerConfigurationSafe
+    $localAddresses = @("127.0.0.1") + @(Get-ToolEnterpriseLocalIPv4Addresses)
     foreach ($address in @($Addresses)) {
         if ([string]::IsNullOrWhiteSpace($address)) { continue }
         $status = Test-ToolEnterpriseServerConnection -ServerAddress $address -Port $Port -TimeoutMs 500
-        if ($status -and $localConfig -and [string]$status.ServerId -ne [string]$localConfig.ServerId) {
+        if ($status -and $localConfig -and $address -notin $localAddresses) {
             return $status
         }
     }
@@ -382,7 +383,7 @@ function Remove-EnterpriseServerNetworkAccess {
     }
 
     try {
-        $firewallArguments = 'advfirewall firewall delete rule name="ThanhViet Tool v4.4 Enterprise Server" protocol=TCP localport=' + $Port
+        $firewallArguments = 'advfirewall firewall delete rule name="ThanhViet Tool v4.6 Enterprise Server" protocol=TCP localport=' + $Port
         $process = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Wait -PassThru -WindowStyle Hidden
         if ($process.ExitCode -ne 0) { [void]$warnings.Add((Get-EnterpriseText "enterprise.server.revokeFirewallExit" @($Port, $process.ExitCode))) }
     } catch {
@@ -440,18 +441,19 @@ function Invoke-ServerStart {
         $cfg = Get-EnterpriseServerConfigurationSafe
         if (-not $cfg) { throw (Get-EnterpriseText "enterprise.error.createServerFirst") }
         $duplicate = $null
+        $localAddresses = @("127.0.0.1") + @(Get-ToolEnterpriseLocalIPv4Addresses)
         foreach ($cidr in @($cfg.AllowedCidrs)) {
             $info = Get-ToolEnterpriseCidrInfo -Cidr ([string]$cidr)
             if ([uint64]$info.HostCount -gt 1024) {
                 throw (Get-EnterpriseText "enterprise.error.cidrTooLargeDuplicate" @($info.Cidr))
             }
             foreach ($foundServer in @(Find-ToolEnterpriseServers -Cidr $info.Cidr -Port ([int]$cfg.Port) -TimeoutMs 450 -ThrottleLimit 64)) {
-                if ([string]$foundServer.ServerId -ne [string]$cfg.ServerId) { $duplicate = $foundServer; break }
+                if ([string]$foundServer.Address -notin $localAddresses) { $duplicate = $foundServer; break }
             }
             if ($duplicate) { break }
         }
         if ($duplicate) {
-            throw (Get-EnterpriseText "enterprise.error.duplicateServer" @($duplicate.ServerName, $duplicate.ServerId))
+            throw (Get-EnterpriseText "enterprise.error.duplicateServer" @($duplicate.ServerName, $duplicate.Address))
         }
         if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.server.startPrompt" @($cfg.Port)))) { return }
         $script:serverProcess = Start-EnterpriseChild -Role Server
@@ -541,7 +543,7 @@ function Invoke-ServerNetworkAccess {
         }
         if (Get-Command New-NetFirewallRule -ErrorAction SilentlyContinue) {
             try {
-                New-NetFirewallRule -DisplayName "ThanhViet Tool v4.4 Enterprise Server" -Direction Inbound -Action Allow -Protocol TCP -LocalPort ([int]$cfg.Port) -Profile Domain,Private -ErrorAction Stop | Out-Null
+                New-NetFirewallRule -DisplayName "ThanhViet Tool v4.6 Enterprise Server" -Direction Inbound -Action Allow -Protocol TCP -LocalPort ([int]$cfg.Port) -Profile Domain,Private -ErrorAction Stop | Out-Null
             } catch {
                 # A pre-existing rule is harmless; the URL ACL is the
                 # essential listener permission.
@@ -570,7 +572,7 @@ function Invoke-ClientTest {
         $address = Resolve-EnterpriseClientServerAddress
         $status = Test-ToolEnterpriseServerConnection -ServerAddress $address -Port ([int]$script:clientPortBox.Text) -TimeoutMs 1500
         if (-not $status) { throw (Get-EnterpriseText "enterprise.error.connectionFailed") }
-        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.connected" @($status.ServerName, $status.ProtocolVersion)) $true
+        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.connected" @($address, $status.ProtocolVersion)) $true
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 900) }
 }
 
@@ -588,7 +590,7 @@ function Invoke-ClientSchedule {
         if ($Enable -and -not (Confirm-EnterpriseNetworkAccess -ActionKey "enterprise.action.scheduleAgent")) { return }
         $launcher = Get-EnterpriseLauncherPath
         if (-not $launcher) { throw (Get-EnterpriseText "enterprise.error.oneFileRequired") }
-        $taskName = "ThanhViet Tool v4.4 Enterprise Agent"
+        $taskName = "ThanhViet Tool v4.6 Enterprise Agent"
         if ($Enable) {
             if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.client.enableSchedulePrompt"))) { return }
             $taskRun = "`"$launcher`" --enterprise-agent"
@@ -648,6 +650,7 @@ function New-EnterpriseButton {
     $button.FlatAppearance.MouseOverBackColor = $script:enterprisePalette.ButtonHover
     $button.Cursor = [Windows.Forms.Cursors]::Hand
     if ($Action) { $button.Add_Click($Action) }
+    Set-ToolUiActionButtonVisual -Button $button -Mode $script:enterpriseTheme -PreserveColors
     return $button
 }
 
@@ -710,6 +713,65 @@ function Set-EnterpriseBounds {
     $Control.SetBounds($X, $Y, $safeWidth, $safeHeight)
 }
 
+function Set-EnterpriseAdaptiveButtonRows {
+    param(
+        [object[]]$Buttons,
+        [int]$X,
+        [int]$Y,
+        [int]$AvailableWidth,
+        [int]$Height,
+        [int]$Gap = 8,
+        [int]$RowGap = 5
+    )
+
+    $activeButtons = @($Buttons | Where-Object { $null -ne $_ })
+    if ($activeButtons.Count -eq 0) { return 0 }
+    $requiredWidths = @($activeButtons | ForEach-Object {
+        [Math]::Max(92, (Get-ToolUiButtonRequiredWidth -Button $_))
+    })
+    $oneRowWidth = [int](($requiredWidths | Measure-Object -Sum).Sum + (($activeButtons.Count - 1) * $Gap))
+    $columnCount = if ($oneRowWidth -le $AvailableWidth) { $activeButtons.Count } else { [Math]::Ceiling($activeButtons.Count / 2.0) }
+    $rowCount = [int][Math]::Ceiling($activeButtons.Count / [double]$columnCount)
+
+    for ($rowIndex = 0; $rowIndex -lt $rowCount; $rowIndex++) {
+        $startIndex = $rowIndex * $columnCount
+        $endIndex = [Math]::Min($activeButtons.Count - 1, $startIndex + $columnCount - 1)
+        $rowButtons = @($activeButtons[$startIndex..$endIndex])
+        $rowRequired = @($requiredWidths[$startIndex..$endIndex])
+        $rowGapWidth = ($rowButtons.Count - 1) * $Gap
+        $rowMinimumWidth = [int](($rowRequired | Measure-Object -Sum).Sum + $rowGapWidth)
+        $extraPerButton = if ($rowMinimumWidth -lt $AvailableWidth) { [Math]::Floor(($AvailableWidth - $rowMinimumWidth) / $rowButtons.Count) } else { 0 }
+        $rowX = $X
+        for ($columnIndex = 0; $columnIndex -lt $rowButtons.Count; $columnIndex++) {
+            $buttonWidth = if ($rowMinimumWidth -le $AvailableWidth) {
+                [int]$rowRequired[$columnIndex] + $extraPerButton
+            } else {
+                [Math]::Floor(($AvailableWidth - $rowGapWidth) / $rowButtons.Count)
+            }
+            if ($columnIndex -eq ($rowButtons.Count - 1)) {
+                $buttonWidth = $X + $AvailableWidth - $rowX
+            }
+            Set-EnterpriseBounds $rowButtons[$columnIndex] $rowX ($Y + ($rowIndex * ($Height + $RowGap))) $buttonWidth $Height
+            $rowX += $buttonWidth + $Gap
+        }
+    }
+    return $rowCount
+}
+
+function Get-EnterpriseClippedButtonLabels {
+    param([Parameter(Mandatory = $true)][Windows.Forms.Control]$Root)
+
+    foreach ($control in $Root.Controls) {
+        if ($control -is [Windows.Forms.Button]) {
+            $requiredWidth = Get-ToolUiButtonRequiredWidth -Button $control -HorizontalSafety 8
+            if ($control.Width -lt $requiredWidth -or (([string]$control.Text).Contains('&') -and $control.UseMnemonic)) {
+                Write-Output ([string]$control.Text)
+            }
+        }
+        Get-EnterpriseClippedButtonLabels -Root $control
+    }
+}
+
 function Fit-EnterpriseWindowToWorkingArea {
     $workArea = [Windows.Forms.Screen]::FromControl($form).WorkingArea
     $availableWidth = [Math]::Max(560, $workArea.Width - 12)
@@ -741,7 +803,8 @@ function Update-EnterpriseLayout {
             if ($localLabels.Count -gt 0) { Set-EnterpriseBounds $localLabels[0] 24 24 ($localWidth - 48) 30 }
             if ($localLabels.Count -gt 1) { Set-EnterpriseBounds $localLabels[1] 24 60 ($localWidth - 48) 42 }
             if ($localLabels.Count -gt 2) { Set-EnterpriseBounds $localLabels[2] 24 106 ($localWidth - 48) 34 }
-            Set-EnterpriseBounds $localManagerButton 24 154 280 40
+            $localButtonWidth = [Math]::Min(($localWidth - 48), [Math]::Max(280, (Get-ToolUiButtonRequiredWidth -Button $localManagerButton)))
+            Set-EnterpriseBounds $localManagerButton 24 154 $localButtonWidth 40
         }
 
         if ($serverTab) {
@@ -816,15 +879,10 @@ function Update-EnterpriseLayout {
             Set-EnterpriseBounds $script:serverCidrBox $margin $cidrBoxY $contentWidth 40
 
             $actionY = $cidrBoxY + 45
-            $actionWidth = [Math]::Floor(($contentWidth - (4 * $gap)) / 5)
-            Set-EnterpriseBounds $createButton $margin $actionY $actionWidth 34
-            Set-EnterpriseBounds $pairButton ($margin + $actionWidth + $gap) $actionY $actionWidth 34
-            Set-EnterpriseBounds $startButton ($margin + (2 * ($actionWidth + $gap))) $actionY $actionWidth 34
-            Set-EnterpriseBounds $stopButton ($margin + (3 * ($actionWidth + $gap))) $actionY $actionWidth 34
-            Set-EnterpriseBounds $deleteButton ($margin + (4 * ($actionWidth + $gap))) $actionY ($contentWidth - (4 * ($actionWidth + $gap))) 34
+            $actionRowCount = Set-EnterpriseAdaptiveButtonRows -Buttons @($createButton,$pairButton,$startButton,$stopButton,$deleteButton) -X $margin -Y $actionY -AvailableWidth $contentWidth -Height 34 -Gap $gap -RowGap 5
 
-            $pairY = $actionY + 39
-            $networkWidth = [Math]::Min(190, [Math]::Max(150, [Math]::Floor($contentWidth * 0.21)))
+            $pairY = $actionY + ($actionRowCount * 34) + (($actionRowCount - 1) * 5) + 5
+            $networkWidth = [Math]::Min(250, [Math]::Max((Get-ToolUiButtonRequiredWidth -Button $networkButton), [Math]::Floor($contentWidth * 0.21)))
             $pairLabelWidth = [Math]::Min(245, [Math]::Max(190, [Math]::Floor($contentWidth * 0.25)))
             Set-EnterpriseBounds $networkButton $margin $pairY $networkWidth 32
             Set-EnterpriseBounds $pairingLabel ($margin + $networkWidth + $gap) $pairY $pairLabelWidth 32
@@ -840,8 +898,8 @@ function Update-EnterpriseLayout {
             Set-EnterpriseBounds $script:scanResultBox $margin $scanResultY $contentWidth 44
 
             $clientHeaderY = $scanResultY + 49
-            $refreshWidth = 155
-            $exportWidth = 170
+            $refreshWidth = [Math]::Min(220, [Math]::Max(155, (Get-ToolUiButtonRequiredWidth -Button $refreshButton)))
+            $exportWidth = [Math]::Min(220, [Math]::Max(170, (Get-ToolUiButtonRequiredWidth -Button $exportButton)))
             Set-EnterpriseBounds $script:clientCountLabel $margin $clientHeaderY ($contentWidth - $refreshWidth - $exportWidth - (2 * $gap)) 30
             Set-EnterpriseBounds $refreshButton ($margin + $contentWidth - $refreshWidth - $exportWidth - $gap) $clientHeaderY $refreshWidth 30
             Set-EnterpriseBounds $exportButton ($margin + $contentWidth - $exportWidth) $clientHeaderY $exportWidth 30
@@ -853,12 +911,15 @@ function Update-EnterpriseLayout {
 
             $jobLabelWidth = 105
             $operationWidth = [Math]::Min(230, [Math]::Max(170, [Math]::Floor($contentWidth * 0.23)))
-            $jobButtonWidth = [Math]::Min(240, [Math]::Max(205, [Math]::Floor($contentWidth * 0.24)))
+            $jobButtonWidth = [Math]::Min(285, [Math]::Max((Get-ToolUiButtonRequiredWidth -Button $createJobButton), [Math]::Floor($contentWidth * 0.24)))
             $jobKeyWidth = $contentWidth - $jobLabelWidth - $operationWidth - $jobButtonWidth - (2 * $gap)
             Set-EnterpriseBounds $jobLabel $margin $jobY $jobLabelWidth 30
             Set-EnterpriseBounds $script:jobOperationBox ($margin + $jobLabelWidth) $jobY $operationWidth 28
             Set-EnterpriseBounds $script:jobKeyBox ($margin + $jobLabelWidth + $operationWidth + $gap) $jobY $jobKeyWidth 28
             Set-EnterpriseBounds $createJobButton ($margin + $contentWidth - $jobButtonWidth) ($jobY - 2) $jobButtonWidth 34
+            $serverContentBottom = $jobY + 40
+            $serverTab.AutoScroll = [bool]($serverContentBottom -gt $serverTab.ClientSize.Height)
+            $serverTab.AutoScrollMinSize = if ($serverTab.AutoScroll) { New-Object Drawing.Size(0, ($serverContentBottom + 8)) } else { New-Object Drawing.Size(0, 0) }
         }
 
         if ($clientTab) {
@@ -896,15 +957,13 @@ function Update-EnterpriseLayout {
 
             $buttonY = 194
             $clientButtonGap = 7
-            $clientButtonWidth = [Math]::Floor(($clientContentWidth - (5 * $clientButtonGap)) / 6)
-            foreach ($buttonInfo in @(
-                @($discoverButton,0), @($testButton,1), @($enrollButton,2), @($sendButton,3), @($enableAgentButton,4), @($disableAgentButton,5)
-            )) {
-                $buttonIndex = [int]$buttonInfo[1]
-                Set-EnterpriseBounds $buttonInfo[0] ($clientMargin + ($buttonIndex * ($clientButtonWidth + $clientButtonGap))) $buttonY $clientButtonWidth 36
-            }
-            if ($clientNotes.Count -gt 0) { Set-EnterpriseBounds $clientNotes[0] $clientMargin 244 $clientContentWidth 42 }
-            if ($clientNotes.Count -gt 1) { Set-EnterpriseBounds $clientNotes[1] $clientMargin 288 $clientContentWidth 45 }
+            $clientButtonRows = Set-EnterpriseAdaptiveButtonRows -Buttons @($discoverButton,$testButton,$enrollButton,$sendButton,$enableAgentButton,$disableAgentButton) -X $clientMargin -Y $buttonY -AvailableWidth $clientContentWidth -Height 36 -Gap $clientButtonGap -RowGap 6
+            $clientNotesY = $buttonY + ($clientButtonRows * 36) + (($clientButtonRows - 1) * 6) + 14
+            if ($clientNotes.Count -gt 0) { Set-EnterpriseBounds $clientNotes[0] $clientMargin $clientNotesY $clientContentWidth 42 }
+            if ($clientNotes.Count -gt 1) { Set-EnterpriseBounds $clientNotes[1] $clientMargin ($clientNotesY + 44) $clientContentWidth 45 }
+            $clientContentBottom = $clientNotesY + 89
+            $clientTab.AutoScroll = [bool]($clientContentBottom -gt $clientTab.ClientSize.Height)
+            $clientTab.AutoScrollMinSize = if ($clientTab.AutoScroll) { New-Object Drawing.Size(0, ($clientContentBottom + 8)) } else { New-Object Drawing.Size(0, 0) }
         }
 
         $footerY = [Math]::Max(80, $formHeight - 42)
@@ -1193,35 +1252,35 @@ $form.Add_FormClosed({
     foreach ($font in @($script:enterpriseFont,$script:enterpriseSmallFont,$script:enterpriseTitleFont)) { try { $font.Dispose() } catch {} }
 })
 if ($SmokeTest) {
-    if ($tabs.TabPages.Count -ne 3) { throw "Giao diện enterprise phải có đúng 3 chức năng." }
+    if ($tabs.TabPages.Count -ne 3) { throw (Get-EnterpriseText "enterpriseSmoke.tabCount") }
     if ($tabs.TabPages[0].Text -ne (Get-EnterpriseText "enterprise.local.tab") -or
         $tabs.TabPages[1].Text -ne (Get-EnterpriseText "enterprise.server.tab") -or
         $tabs.TabPages[2].Text -ne (Get-EnterpriseText "enterprise.client.tab")) {
-        throw "Tên chức năng enterprise không đúng."
+        throw (Get-EnterpriseText "enterpriseSmoke.tabNames")
     }
     if (-not $localManagerButton -or $localManagerButton.Text -ne (Get-EnterpriseText "enterprise.local.open")) {
-        throw "Thiếu chức năng quản lý license cục bộ."
+        throw (Get-EnterpriseText "enterpriseSmoke.localManagerMissing")
     }
-    if (-not $backButton -or -not $closeButton) { throw "Thiếu nút Back hoặc nút Đóng." }
+    if (-not $backButton -or -not $closeButton) { throw (Get-EnterpriseText "enterpriseSmoke.navigationMissing") }
     if (-not $script:enterpriseNetworkButton -or -not $form.Controls.Contains($script:enterpriseNetworkButton)) {
-        throw "Thiếu điều khiển cho phép mạng; không được ẩn chức năng Máy chủ/Máy trạm khi Offline."
+        throw (Get-EnterpriseText "enterpriseSmoke.networkControlMissing")
     }
     if (-not $script:enterpriseNetworkAllowed -and (-not $serverTab.Enabled -or -not $clientTab.Enabled)) {
-        throw "Offline không được ẩn hoặc vô hiệu hóa chức năng Máy chủ/Máy trạm."
+        throw (Get-EnterpriseText "enterpriseSmoke.offlineTabsUnavailable")
     }
     if ($form.BackColor.ToArgb() -ne $script:enterprisePalette.Form.ToArgb() -or
         $localManagerTab.BackColor.ToArgb() -ne $script:enterprisePalette.LocalSurface.ToArgb() -or
         $serverTab.BackColor.ToArgb() -ne $script:enterprisePalette.ServerSurface.ToArgb() -or
         $clientTab.BackColor.ToArgb() -ne $script:enterprisePalette.ClientSurface.ToArgb()) {
-        throw "Theme $($script:enterpriseTheme) chưa phủ đủ form và ba chức năng enterprise."
+        throw (Get-EnterpriseText "enterpriseSmoke.themeCoverage" @($script:enterpriseTheme))
     }
     if ($script:serverNameBox.BackColor.ToArgb() -ne $script:enterprisePalette.Input.ToArgb() -or
         $script:serverClientList.BackColor.ToArgb() -ne $script:enterprisePalette.Surface.ToArgb()) {
-        throw "Theme $($script:enterpriseTheme) chưa phủ ô nhập hoặc danh sách máy trạm."
+        throw (Get-EnterpriseText "enterpriseSmoke.themeInputs" @($script:enterpriseTheme))
     }
     if ((Get-ToolUiContrastRatio -Foreground $script:enterprisePalette.Text -Background $script:enterprisePalette.Form) -lt 4.5 -or
         (Get-ToolUiContrastRatio -Foreground $script:enterprisePalette.Text -Background $script:enterprisePalette.Input) -lt 4.5) {
-        throw "Theme $($script:enterpriseTheme) không đạt tương phản chữ tối thiểu 4.5:1."
+        throw (Get-EnterpriseText "enterpriseSmoke.themeContrast" @($script:enterpriseTheme))
     }
     $form.Opacity = 0
     $form.ShowInTaskbar = $false
@@ -1232,9 +1291,9 @@ if ($SmokeTest) {
     $tabs.Refresh()
     [Windows.Forms.Application]::DoEvents()
     if ([string]::IsNullOrWhiteSpace($script:scanInputBox.Text)) {
-        throw "Quét nhanh không tự điền được CIDR mặc định trong layout smoke."
+        throw (Get-EnterpriseText "enterpriseSmoke.defaultCidrMissing")
     }
-    if ($serverTab.AutoScroll -or $serverTab.HorizontalScroll.Visible) { throw "Tab Máy chủ không được sinh thanh cuộn ngang." }
+    if ($serverTab.AutoScroll -or $serverTab.HorizontalScroll.Visible) { throw (Get-EnterpriseText "enterpriseSmoke.horizontalScroll") }
     foreach ($buttonText in @(
         (Get-EnterpriseText "enterprise.server.create"),
         (Get-EnterpriseText "enterprise.server.pair"),
@@ -1249,28 +1308,37 @@ if ($SmokeTest) {
     )) {
         $button = Find-EnterpriseDirectControl $serverTab $buttonText
         if (-not $button -or $button.Width -lt 60 -or $button.Right -gt ($serverTab.ClientSize.Width + 1)) {
-            throw "Nút '$buttonText' bị khuất hoặc vượt khung tại layout 980x620."
+            throw (Get-EnterpriseText "enterpriseSmoke.buttonClipped" @($buttonText))
         }
     }
     if ($script:serverClientList.Bottom -gt ($serverTab.ClientSize.Height + 1) -or $script:jobKeyBox.Right -gt ($serverTab.ClientSize.Width + 1)) {
-        throw "Bảng máy trạm hoặc hàng lệnh quản lý bản quyền bị khuất tại layout 980x620."
+        throw (Get-EnterpriseText "enterpriseSmoke.serverLayoutClipped")
     }
     $discoverButton = Find-EnterpriseDirectControl $clientTab (Get-EnterpriseText "enterprise.client.discover")
     if (-not $discoverButton -or $discoverButton.Right -gt ($clientTab.ClientSize.Width + 1)) {
-        throw "Nút tự tìm máy chủ bị khuất tại layout 980x620."
+        throw (Get-EnterpriseText "enterpriseSmoke.discoverClipped")
+    }
+    foreach ($tabIndex in 0..2) {
+        $tabs.SelectedIndex = $tabIndex
+        Update-EnterpriseLayout
+        [Windows.Forms.Application]::DoEvents()
+    }
+    $clippedButtonLabels = @(Get-EnterpriseClippedButtonLabels -Root $form | Select-Object -Unique)
+    if ($clippedButtonLabels.Count -gt 0) {
+        throw (Get-EnterpriseText "enterpriseSmoke.buttonClipped" @(($clippedButtonLabels -join ', ')))
     }
     $tabs.SelectedIndex = 2
     $backButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()
-    if ($tabs.SelectedIndex -ne 1) { throw "Nút Back không chuyển về chức năng trước." }
-    if ($closeButton.Text -ne (Get-EnterpriseText "enterprise.navigation.close")) { throw "Nút Đóng không đúng nhãn." }
+    if ($tabs.SelectedIndex -ne 1) { throw (Get-EnterpriseText "enterpriseSmoke.backNavigation") }
+    if ($closeButton.Text -ne (Get-EnterpriseText "enterprise.navigation.close")) { throw (Get-EnterpriseText "enterpriseSmoke.closeLabel") }
     $networkStateBefore = [bool]$script:enterpriseNetworkAllowed
     $script:enterpriseNetworkButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()
-    if ([bool]$script:enterpriseNetworkAllowed -eq $networkStateBefore) { throw "Nút mạng Mục 8 không đổi được trạng thái." }
+    if ([bool]$script:enterpriseNetworkAllowed -eq $networkStateBefore) { throw (Get-EnterpriseText "enterpriseSmoke.networkDidNotToggle") }
     $script:enterpriseNetworkButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()
-    if ([bool]$script:enterpriseNetworkAllowed -ne $networkStateBefore) { throw "Nút mạng Mục 8 không tắt/bật lại được trạng thái ban đầu." }
+    if ([bool]$script:enterpriseNetworkAllowed -ne $networkStateBefore) { throw (Get-EnterpriseText "enterpriseSmoke.networkDidNotRestore") }
     if ($script:enterpriseCulture -eq "en-US") {
         $visibleText = New-Object System.Collections.Generic.List[string]
         $controlQueue = New-Object System.Collections.Queue
@@ -1287,13 +1355,13 @@ if ($SmokeTest) {
         }
         $englishSurface = $visibleText -join "`n"
         if ($englishSurface -cmatch '[À-ỹ]') {
-            throw "English Section 8 UI still contains Vietnamese text:`n$englishSurface"
+            throw (Get-EnterpriseText "enterpriseSmoke.englishLeak" @($englishSurface))
         }
     }
-    Write-Output "ENTERPRISE-UI-SMOKE: PASS (culture=$($script:enterpriseCulture) + 3 functions + Section8Network=$($script:enterpriseNetworkAllowed) + colors + navigation + theme $($script:enterpriseTheme))"
+    Write-Output (Get-EnterpriseText "enterpriseSmoke.pass" @($script:enterpriseCulture, $script:enterpriseNetworkAllowed, $script:enterpriseTheme))
     $closeButton.PerformClick()
     [Windows.Forms.Application]::DoEvents()
-    if (-not $form.IsDisposed -and $form.Visible) { throw "Nút đóng chức năng 8 không đóng được cửa sổ." }
+    if (-not $form.IsDisposed -and $form.Visible) { throw (Get-EnterpriseText "enterpriseSmoke.closeFailed") }
     foreach ($font in @($script:enterpriseFont,$script:enterpriseSmallFont,$script:enterpriseTitleFont)) { try { $font.Dispose() } catch {} }
     $form.Dispose()
     exit 0

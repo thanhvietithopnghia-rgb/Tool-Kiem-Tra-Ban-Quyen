@@ -1,10 +1,29 @@
 {
-  "SchemaVersion": "1.0",
-  "ToolVersion": "4.4",
-  "ReviewedAtUtc": "2026-07-30T00:00:00Z",
+  "SchemaVersion": "1.1",
+  "CatalogVersion": "1.1.0.0",
+  "ToolVersion": "4.6",
+  "ReviewedAtUtc": "2026-08-05T00:00:00Z",
+  "ReviewWarningAgeDays": 30,
   "MaximumReviewAgeDays": 45,
+  "UpdatePolicy": {
+    "RuntimeAutomaticCheck": false,
+    "ExplicitConsentRequired": true,
+    "UnknownReleaseMode": "ReadOnlyManualReview",
+    "StaleCatalogMode": "ReadOnlyVersionSensitiveActions",
+    "DowngradeProtectionRequired": true,
+    "HumanReviewRequiredBeforePublish": true
+  },
+  "SourcePolicy": {
+    "RequiredScheme": "https",
+    "AllowedHosts": [
+      "learn.microsoft.com"
+    ],
+    "WindowsProgrammaticSource": "Microsoft Graph Windows Updates API",
+    "SourceChangeAction": "GenerateReviewReport"
+  },
   "Sources": {
     "WindowsReleaseHealth": "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information",
+    "Windows10ReleaseHealth": "https://learn.microsoft.com/en-us/windows/release-health/release-information",
     "Office2024Overview": "https://learn.microsoft.com/en-us/office/ltsc/2024/overview",
     "OfficeProductIds": "https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/installation/product-ids-supported-office-deployment-click-to-run",
     "Microsoft365UpdateHistory": "https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date",
@@ -12,29 +31,88 @@
   },
   "WindowsReleases": [
     {
+      "Name": "Windows 10 22H2",
+      "OperatingSystemFamily": "Windows10",
+      "DisplayVersion": "22H2",
+      "Build": 19045,
+      "LatestKnownRevision": 7548,
+      "LatestRevisionDate": "2026-07-14",
+      "ServicingState": "EndOfSupportOrESU",
+      "GeneralAvailability": "2022-10-18"
+    },
+    {
+      "Name": "Windows 11 23H2",
+      "OperatingSystemFamily": "Windows11",
+      "DisplayVersion": "23H2",
+      "Build": 22631,
+      "LatestKnownRevision": 7376,
+      "LatestRevisionDate": "2026-07-14",
+      "ServicingState": "EnterpriseEducationOnly",
+      "GeneralAvailability": "2023-10-31"
+    },
+    {
       "Name": "Windows 11 24H2",
+      "OperatingSystemFamily": "Windows11",
       "DisplayVersion": "24H2",
       "Build": 26100,
-      "LatestKnownRevision": 8875,
+      "LatestKnownRevision": 8973,
+      "LatestRevisionDate": "2026-07-28",
       "ServicingState": "Supported",
       "GeneralAvailability": "2024-10-01"
     },
     {
       "Name": "Windows 11 25H2",
+      "OperatingSystemFamily": "Windows11",
       "DisplayVersion": "25H2",
       "Build": 26200,
-      "LatestKnownRevision": 8875,
+      "LatestKnownRevision": 8973,
+      "LatestRevisionDate": "2026-07-28",
       "ServicingState": "Supported",
       "GeneralAvailability": "2025-09-30"
     },
     {
       "Name": "Windows 11 26H1",
+      "OperatingSystemFamily": "Windows11",
       "DisplayVersion": "26H1",
       "Build": 28000,
-      "LatestKnownRevision": 2525,
+      "LatestKnownRevision": 2608,
+      "LatestRevisionDate": "2026-07-28",
       "ServicingState": "Supported",
       "GeneralAvailability": "2026-02-10"
     }
+  ],
+  "Office2021ProductIds": [
+    "ProPlus2021Retail",
+    "ProPlus2021Volume",
+    "ProPlusSPLA2021Volume",
+    "Standard2021Volume",
+    "StandardSPLA2021Volume",
+    "Professional2021Retail",
+    "HomeBusiness2021Retail",
+    "HomeStudent2021Retail",
+    "Personal2021Retail",
+    "ProjectPro2021Retail",
+    "ProjectPro2021Volume",
+    "ProjectStd2021Retail",
+    "ProjectStd2021Volume",
+    "VisioPro2021Retail",
+    "VisioPro2021Volume",
+    "VisioStd2021Retail",
+    "VisioStd2021Volume",
+    "Access2021Retail",
+    "Access2021Volume",
+    "Excel2021Retail",
+    "Excel2021Volume",
+    "Word2021Retail",
+    "Word2021Volume",
+    "PowerPoint2021Retail",
+    "PowerPoint2021Volume",
+    "Outlook2021Retail",
+    "Outlook2021Volume",
+    "Publisher2021Retail",
+    "Publisher2021Volume",
+    "OneNote2021Volume",
+    "SkypeforBusiness2021Volume"
   ],
   "Office2024ProductIds": [
     "ProPlus2024Retail",
@@ -68,13 +146,33 @@
     "VisioProRetail",
     "ProjectProRetail"
   ],
+  "OfficeProductFamilies": [
+    {
+      "Id": "office-2021",
+      "Name": "Office 2021 / LTSC 2021",
+      "ProductIdProperty": "Office2021ProductIds",
+      "LicenseModel": "Perpetual"
+    },
+    {
+      "Id": "office-2024",
+      "Name": "Office 2024 / LTSC 2024",
+      "ProductIdProperty": "Office2024ProductIds",
+      "LicenseModel": "Perpetual"
+    },
+    {
+      "Id": "microsoft-365",
+      "Name": "Microsoft 365 Apps",
+      "ProductIdProperty": "Microsoft365ProductIds",
+      "LicenseModel": "Subscription"
+    }
+  ],
   "Microsoft365Channels": [
     {
       "Name": "Current Channel",
       "Id": "492350f6-3a01-4f97-b9c0-c7c6ddf67d60",
-      "LatestKnownVersion": "2606",
-      "LatestKnownBuild": "16.0.20131.20154",
-      "LatestKnownReleaseDate": "2026-07-14"
+      "LatestKnownVersion": "2607",
+      "LatestKnownBuild": "16.0.20228.20158",
+      "LatestKnownReleaseDate": "2026-08-04"
     },
     {
       "Name": "Monthly Enterprise Channel",

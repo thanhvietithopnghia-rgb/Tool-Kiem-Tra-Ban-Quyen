@@ -2,22 +2,28 @@
     [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
     [string]$ApprovedKmsServerFile = "",
     [string]$DecisionFile = "",
+    [ValidateSet("vi-VN", "en-US")]
+    [string]$Culture = "vi-VN",
     [switch]$RedactSensitive,
     [switch]$NoOpen
 )
 
-if ($PSVersionTable.PSVersion.Major -lt 3) {
-    Write-Host "Cong cu can PowerShell 3.0 tro len."
-    exit 10
-}
-
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportSchemaHelper = Join-Path $PSScriptRoot "Tool-ReportSchema.ps1"
 $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"
+$localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Localization.ps1"; exit 12 }
+. $localizationHelper
+$env:TOOL_UI_CULTURE = $Culture
+function Get-ForensicsText {
+    param([Parameter(Mandatory = $true)][string]$Key, [object[]]$Arguments = @())
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
+if ($PSVersionTable.PSVersion.Major -lt 3) { Write-Host (Get-ForensicsText "common.powerShellRequired" @(3)); exit 10 }
 try {
-    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
-    if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw "Thiếu Tool-ReportSchema.ps1." }
-    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw "Thiếu Tool-ReportExport.ps1." }
+    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw (Get-ForensicsText "common.missingDependency" @("Tool-Runtime.ps1")) }
+    if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw (Get-ForensicsText "common.missingDependency" @("Tool-ReportSchema.ps1")) }
+    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw (Get-ForensicsText "common.missingDependency" @("Tool-ReportExport.ps1")) }
     . $runtimeHelper
     . $reportSchemaHelper
     . $reportExportHelper
@@ -27,7 +33,8 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "SilentlyContinue"
-$toolVersion = "4.4"
+$toolVersion = "4.6"
+$releaseVersion = "4.6.0.0"
 $scanStarted = Get-Date
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 
@@ -51,16 +58,16 @@ function Write-DecisionFile($Value) {
 if (-not (Test-Administrator)) {
     Write-DecisionFile (New-ToolReportEnvelope -ReportKind "LicenseForensics" -ToolVersion $toolVersion -Data ([ordered]@{
         AccessDenied = $true
-        Overall = "Chưa chạy: cần quyền Administrator"
+        Overall = Get-ForensicsText "forensicsReport.accessDeniedOverall"
         RiskScore = 0
-        RiskLevel = "Chưa xác định"
+        RiskLevel = Get-ForensicsText "common.unknown"
         HighCount = 0
         ReviewCount = 0
         NewFindingCount = 0
         ReportPath = ""
         EvidenceFolder = ""
     }))
-    Write-Host "Che do dieu tra chuyen sau can quyen Administrator."
+    Write-Host (Get-ForensicsText "forensicsReport.accessDeniedMessage")
     exit 20
 }
 
@@ -96,7 +103,7 @@ function Get-CompatibleScheduledTaskRows {
         $raw = @(& $schtasks /Query /FO CSV /V 2>&1)
         if ($LASTEXITCODE -ne 0) { throw (($raw | ForEach-Object { [string]$_ }) -join " | ") }
         $csvLines = @($raw | ForEach-Object { [string]$_ } | Where-Object { $_ -match '^\s*"' })
-        if ($csvLines.Count -lt 2) { throw "schtasks không trả CSV hợp lệ." }
+        if ($csvLines.Count -lt 2) { throw (Get-ForensicsText "deepReport.scheduled.invalidCsv") }
         $rows = New-Object System.Collections.Generic.List[object]
         foreach ($row in @($csvLines | ConvertFrom-Csv)) {
             $values = @($row.PSObject.Properties | ForEach-Object { [string]$_.Value })
@@ -106,11 +113,11 @@ function Get-CompatibleScheduledTaskRows {
             $execute = Get-ExecutablePath $actionText
             [void]$rows.Add([pscustomobject]@{ Name=$name; Actions=$actionText; Execute=$execute })
         }
-        if ($rows.Count -eq 0) { throw "Không phân tích được scheduled task." }
+        if ($rows.Count -eq 0) { throw (Get-ForensicsText "deepReport.scheduled.parseFailed") }
         return $rows.ToArray()
     } catch {
         $detail = if ($firstError) { "$firstError | $($_.Exception.Message)" } else { $_.Exception.Message }
-        throw "Không thể quét Scheduled Tasks: $detail"
+        throw (Get-ForensicsText "deepReport.scheduled.scanFailed" @($detail))
     }
 }
 
@@ -125,12 +132,12 @@ function Protect-Text($Value) {
     foreach ($secret in @($env:COMPUTERNAME, $env:USERNAME) + @($kmsNames)) {
         if ($secret) {
             $secretPattern = '(?<![A-Za-z0-9_.-])' + [regex]::Escape([string]$secret) + '(?![A-Za-z0-9_.-])'
-            $text = [regex]::Replace($text, $secretPattern, "[ĐÃ CHE]", [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $text = [regex]::Replace($text, $secretPattern, (Get-ForensicsText "report.redaction.value"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
     $part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
-    $text = [regex]::Replace($text, "(?<![0-9.])$part(?:\.$part){3}(?![0-9.])", "[IP ĐÃ CHE]")
-    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', '[MAC ĐÃ CHE]')
+    $text = [regex]::Replace($text, "(?<![0-9.])$part(?:\.$part){3}(?![0-9.])", (Get-ForensicsText "report.redaction.ip"))
+    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Get-ForensicsText "report.redaction.mac"))
     return $text
 }
 
@@ -177,32 +184,32 @@ function Test-LicenseHostsBlockLine {
 
 function Get-FileEvidence([string]$Path) {
     if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        return "Không tìm thấy tệp để kiểm tra."
+        return Get-ForensicsText "forensicsReport.file.notFound"
     }
-    $signatureText = "Không hỗ trợ"
+    $signatureText = Get-ForensicsText "forensicsReport.file.unsupported"
     try {
         $signature = Get-AuthenticodeSignature -LiteralPath $Path
-        $signer = if ($signature.SignerCertificate.Subject) { $signature.SignerCertificate.Subject } else { "không có chứng thư" }
+        $signer = if ($signature.SignerCertificate.Subject) { $signature.SignerCertificate.Subject } else { Get-ForensicsText "deepReport.signature.noCertificate" }
         $signatureText = "$($signature.Status); $signer"
-    } catch { $signatureText = "Không đọc được chữ ký" }
+    } catch { $signatureText = Get-ForensicsText "forensicsReport.file.signatureUnreadable" }
     $hash = Get-Sha256 $Path
-    return "$Path | Chữ ký: $signatureText | SHA-256: $hash"
+    return Get-ForensicsText "forensicsReport.file.evidence" @($Path, $signatureText, $hash)
 }
 
 function Get-LicenseChannel($License) {
-    if (-not $License) { return "Không xác định" }
+    if (-not $License) { return Get-ForensicsText "common.unknown" }
     $description = [string]$License.Description
     if ($description -match "VOLUME_KMSCLIENT|KMSCLIENT") { return "KMS" }
     if ($description -match "VOLUME_MAK|MAK") { return "MAK" }
     if ($description -match "OEM") { return "OEM" }
     if ($description -match "RETAIL") { return "Retail" }
-    return "Không xác định"
+    return Get-ForensicsText "common.unknown"
 }
 
 function Mask-Key([string]$Key) {
-    if ([string]::IsNullOrWhiteSpace($Key)) { return "Không tìm thấy" }
+    if ([string]::IsNullOrWhiteSpace($Key)) { return Get-ForensicsText "common.notFound" }
     $compact = ($Key -replace "[^A-Za-z0-9]", "").ToUpperInvariant()
-    if ($compact.Length -lt 5) { return "Đã phát hiện" }
+    if ($compact.Length -lt 5) { return Get-ForensicsText "deepReport.detected" }
     return "*****-*****-*****-*****-" + $compact.Substring($compact.Length - 5)
 }
 
@@ -210,15 +217,22 @@ function New-Finding {
     param(
         [string]$Id,
         [string]$Category,
-        [ValidateSet("OK", "Thông tin", "Cần xác minh", "Rủi ro cao")][string]$Status,
+        [ValidateSet("OK", "Info", "Review", "High")][string]$StatusCode,
         [int]$Score,
         [string]$Evidence,
         [string]$Recommendation
     )
+    $status = switch ($StatusCode) {
+        "High" { Get-ForensicsText "forensicsReport.status.high" }
+        "Review" { Get-ForensicsText "forensicsReport.status.review" }
+        "Info" { Get-ForensicsText "forensicsReport.status.info" }
+        default { Get-ForensicsText "forensicsReport.status.ok" }
+    }
     return [pscustomobject]@{
         Id = $Id
         Category = $Category
-        Status = $Status
+        StatusCode = $StatusCode
+        Status = $status
         Score = [Math]::Max(0, $Score)
         Evidence = $Evidence
         Recommendation = $Recommendation
@@ -267,18 +281,18 @@ $licenses = @(Safe-Cim SoftwareLicensingProduct | Where-Object { $_.PartialProdu
 $activeLicense = $licenses | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
 $licenseForAnalysis = if ($activeLicense) { $activeLicense } else { $licenses | Sort-Object LicenseStatus -Descending | Select-Object -First 1 }
 $channel = Get-LicenseChannel $licenseForAnalysis
-$partialKey = if ($licenseForAnalysis.PartialProductKey) { [string]$licenseForAnalysis.PartialProductKey } else { "Không xác định" }
+$partialKey = if ($licenseForAnalysis.PartialProductKey) { [string]$licenseForAnalysis.PartialProductKey } else { Get-ForensicsText "common.unknown" }
 $kmsServer = if ($licenseForAnalysis.KeyManagementServiceMachine) { [string]$licenseForAnalysis.KeyManagementServiceMachine } else { "" }
 $knownPublicKms = "(?i)^(127\.0\.0\.1|0\.0\.0\.0|localhost)$|massgrave|kms\.loli|kms\.msgang|kms\.digiboy|kms\.03k|kms\.tee"
 if (-not $activeLicense) {
-    Add-Finding (New-Finding "WIN-LICENSE" "Giấy phép Windows" "Cần xác minh" 8 "Windows chưa ở trạng thái LicenseStatus=1. Kênh: $channel; 5 ký tự cuối: $partialKey." "Mở Activation, kiểm tra lỗi và đối chiếu giấy phép hợp lệ.")
+    Add-Finding (New-Finding "WIN-LICENSE" (Get-ForensicsText "forensicsReport.category.windows") "Review" 8 (Get-ForensicsText "forensicsReport.windows.unlicensed" @($channel, $partialKey)) (Get-ForensicsText "forensicsReport.windows.unlicensedRecommendation"))
 } elseif ($channel -eq "KMS" -and $kmsServer -match $knownPublicKms) {
-    Add-Finding (New-Finding "WIN-LICENSE" "Giấy phép Windows" "Rủi ro cao" 30 "Kênh KMS trỏ đến máy chủ công cộng/ảo: $kmsServer." "Xác minh nguồn cấp phép; nếu không hợp lệ, dùng quy trình gỡ KMS/crack có sao lưu.")
+    Add-Finding (New-Finding "WIN-LICENSE" (Get-ForensicsText "forensicsReport.category.windows") "High" 30 (Get-ForensicsText "forensicsReport.windows.publicKms" @($kmsServer)) (Get-ForensicsText "forensicsReport.windows.publicKmsRecommendation"))
 } elseif ($channel -eq "KMS" -and -not (Test-ApprovedKms $kmsServer)) {
-    Add-Finding (New-Finding "WIN-LICENSE" "Giấy phép Windows" "Cần xác minh" 12 "Windows dùng KMS; máy chủ '$kmsServer' chưa có trong danh sách phê duyệt." "Đối chiếu với quản trị viên hoặc hồ sơ Volume Licensing.")
+    Add-Finding (New-Finding "WIN-LICENSE" (Get-ForensicsText "forensicsReport.category.windows") "Review" 12 (Get-ForensicsText "forensicsReport.windows.unapprovedKms" @($kmsServer)) (Get-ForensicsText "forensicsReport.windows.unapprovedKmsRecommendation"))
 } else {
-    $kmsNote = if ($channel -eq "KMS") { "Máy chủ KMS đã phê duyệt: $kmsServer" } else { "Kênh $channel" }
-    Add-Finding (New-Finding "WIN-LICENSE" "Giấy phép Windows" "OK" 0 "Windows đã cấp phép; $kmsNote; 5 ký tự cuối: $partialKey." "Tiếp tục đối chiếu hóa đơn/hợp đồng vì kích hoạt không tự chứng minh quyền sở hữu.")
+    $kmsNote = if ($channel -eq "KMS") { Get-ForensicsText "forensicsReport.windows.approvedKms" @($kmsServer) } else { Get-ForensicsText "forensicsReport.windows.channel" @($channel) }
+    Add-Finding (New-Finding "WIN-LICENSE" (Get-ForensicsText "forensicsReport.category.windows") "OK" 0 (Get-ForensicsText "forensicsReport.windows.licensed" @($kmsNote, $partialKey)) (Get-ForensicsText "forensicsReport.windows.licensedRecommendation"))
 }
 
 # 2. Key OEM firmware và logic edition.
@@ -287,11 +301,11 @@ $oemKey = if ($licensingService) { [string]$licensingService.OA3xOriginalProduct
 $oemMasked = Mask-Key $oemKey
 $currentVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue
 $productName = if ($currentVersion.ProductName) { [string]$currentVersion.ProductName } else { "Windows" }
-$edition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { "Không xác định" }
+$edition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { Get-ForensicsText "common.unknown" }
 if ($oemKey) {
-    Add-Finding (New-Finding "OEM-FIRMWARE" "OEM trong firmware" "Thông tin" 0 "Phát hiện key OA3 dạng che: $oemMasked; edition đang cài: $edition." "Chỉ thử khôi phục bằng chức năng OEM nếu edition phù hợp; tool không ghi key đầy đủ.")
+    Add-Finding (New-Finding "OEM-FIRMWARE" (Get-ForensicsText "forensicsReport.category.oem") "Info" 0 (Get-ForensicsText "forensicsReport.oem.found" @($oemMasked, $edition)) (Get-ForensicsText "forensicsReport.oem.foundRecommendation"))
 } else {
-    Add-Finding (New-Finding "OEM-FIRMWARE" "OEM trong firmware" "Thông tin" 0 "Không tìm thấy key OEM OA3 trong BIOS/UEFI." "Điều này bình thường với máy Retail, Volume hoặc thiết bị không kèm Windows.")
+    Add-Finding (New-Finding "OEM-FIRMWARE" (Get-ForensicsText "forensicsReport.category.oem") "Info" 0 (Get-ForensicsText "forensicsReport.oem.missing") (Get-ForensicsText "forensicsReport.oem.missingRecommendation"))
 }
 
 # 3. Tính toàn vẹn thành phần cấp phép cốt lõi.
@@ -306,7 +320,7 @@ $coreMissing = 0
 foreach ($coreFile in $coreFiles) {
     if (-not (Test-Path -LiteralPath $coreFile -PathType Leaf)) {
         $coreMissing++
-        $coreEvidence.Add("Thiếu: $coreFile")
+        $coreEvidence.Add((Get-ForensicsText "forensicsReport.core.missing" @($coreFile)))
         continue
     }
     $signature = Get-AuthenticodeSignature -LiteralPath $coreFile
@@ -317,11 +331,11 @@ foreach ($coreFile in $coreFiles) {
 $sppService = Get-Service -Name sppsvc -ErrorAction SilentlyContinue
 $sppStart = (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\sppsvc" -ErrorAction SilentlyContinue).Start
 if ($coreBad -gt 0 -or $coreMissing -gt 0) {
-    Add-Finding (New-Finding "CORE-INTEGRITY" "Toàn vẹn thành phần cấp phép" "Rủi ro cao" 35 (($coreEvidence -join "`n") + "`nSPP service: $($sppService.Status); Start=$sppStart") "Chạy DISM/SFC từ nguồn Microsoft và kiểm tra malware; không thay tệp hệ thống bằng bản tải không rõ nguồn.")
+    Add-Finding (New-Finding "CORE-INTEGRITY" (Get-ForensicsText "forensicsReport.category.core") "High" 35 (($coreEvidence -join "`n") + "`n" + (Get-ForensicsText "forensicsReport.core.serviceEvidence" @($sppService.Status, $sppStart))) (Get-ForensicsText "forensicsReport.core.badRecommendation"))
 } elseif ($sppStart -eq 4) {
-    Add-Finding (New-Finding "CORE-INTEGRITY" "Toàn vẹn thành phần cấp phép" "Rủi ro cao" 25 (($coreEvidence -join "`n") + "`nDịch vụ Software Protection đang Disabled.") "Khôi phục cấu hình dịch vụ bằng công cụ Windows hoặc quản trị viên hệ thống.")
+    Add-Finding (New-Finding "CORE-INTEGRITY" (Get-ForensicsText "forensicsReport.category.core") "High" 25 (($coreEvidence -join "`n") + "`n" + (Get-ForensicsText "forensicsReport.core.serviceDisabled")) (Get-ForensicsText "forensicsReport.core.disabledRecommendation"))
 } else {
-    Add-Finding (New-Finding "CORE-INTEGRITY" "Toàn vẹn thành phần cấp phép" "OK" 0 (($coreEvidence -join "`n") + "`nSPP service: $($sppService.Status); Start=$sppStart") "Không cần thay đổi.")
+    Add-Finding (New-Finding "CORE-INTEGRITY" (Get-ForensicsText "forensicsReport.category.core") "OK" 0 (($coreEvidence -join "`n") + "`n" + (Get-ForensicsText "forensicsReport.core.serviceEvidence" @($sppService.Status, $sppStart))) (Get-ForensicsText "forensicsReport.noChange"))
 }
 
 # 4. Dấu vết activator trong tiến trình, dịch vụ, task và startup.
@@ -329,22 +343,22 @@ $activatorRegex = "(?i)(kmspico|kmsauto|autokms|aact|sppextcomobj(?:hook|patcher
 $artifactRows = New-Object System.Collections.Generic.List[object]
 foreach ($serviceItem in @(Safe-Cim Win32_Service | Where-Object { $_.Name -match $activatorRegex -or $_.DisplayName -match $activatorRegex -or $_.PathName -match $activatorRegex })) {
     $path = Get-ExecutablePath ([string]$serviceItem.PathName)
-    $artifactRows.Add([pscustomobject]@{ Type="Service"; Name=$serviceItem.Name; Path=$path; Evidence=(Get-FileEvidence $path) })
+    $artifactRows.Add([pscustomobject]@{ Type=(Get-ForensicsText "forensicsReport.artifact.service"); Name=$serviceItem.Name; Path=$path; Evidence=(Get-FileEvidence $path) })
 }
 foreach ($processItem in @(Get-Process | Where-Object { $_.ProcessName -match $activatorRegex })) {
     $path = ""
     try { $path = [string]$processItem.Path } catch {}
-    $artifactRows.Add([pscustomobject]@{ Type="Process"; Name=$processItem.ProcessName; Path=$path; Evidence=(Get-FileEvidence $path) })
+    $artifactRows.Add([pscustomobject]@{ Type=(Get-ForensicsText "forensicsReport.artifact.process"); Name=$processItem.ProcessName; Path=$path; Evidence=(Get-FileEvidence $path) })
 }
 $taskScanWarning = ""
 try {
     foreach ($task in @(Get-CompatibleScheduledTaskRows | Where-Object { $_.Name -match $activatorRegex -or $_.Actions -match $activatorRegex })) {
-        $artifactRows.Add([pscustomobject]@{ Type="ScheduledTask"; Name=[string]$task.Name; Path=[string]$task.Execute; Evidence=(Get-FileEvidence ([string]$task.Execute)) })
+        $artifactRows.Add([pscustomobject]@{ Type=(Get-ForensicsText "forensicsReport.artifact.task"); Name=[string]$task.Name; Path=[string]$task.Execute; Evidence=(Get-FileEvidence ([string]$task.Execute)) })
     }
 } catch { $taskScanWarning = $_.Exception.Message }
 foreach ($startup in @(Safe-Cim Win32_StartupCommand | Where-Object { $_.Name -match $activatorRegex -or $_.Command -match $activatorRegex })) {
     $path = Get-ExecutablePath ([string]$startup.Command)
-    $artifactRows.Add([pscustomobject]@{ Type="Startup"; Name=$startup.Name; Path=$path; Evidence=(Get-FileEvidence $path) })
+    $artifactRows.Add([pscustomobject]@{ Type=(Get-ForensicsText "forensicsReport.artifact.startup"); Name=$startup.Name; Path=$path; Evidence=(Get-FileEvidence $path) })
 }
 $artifactFolders = @(
     (Join-Path $env:windir "KMS"), (Join-Path $env:windir "AutoKMS"),
@@ -352,12 +366,12 @@ $artifactFolders = @(
     (Join-Path $env:SystemDrive "AAct")
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
 if ($artifactRows.Count -gt 0 -or $artifactFolders.Count -gt 0) {
-    $artifactText = @($artifactRows | ForEach-Object { "$($_.Type): $($_.Name) | $($_.Evidence)" }) + @($artifactFolders | ForEach-Object { "Folder: $_" })
-    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" "Dấu vết activator/persistence" "Rủi ro cao" 35 ($artifactText -join "`n") "Xác minh từng tệp bằng chữ ký/hash; dùng chức năng gỡ KMS/crack sau khi sao lưu và xác nhận.")
+    $artifactText = @($artifactRows | ForEach-Object { Get-ForensicsText "forensicsReport.artifact.evidence" @($_.Type, $_.Name, $_.Evidence) }) + @($artifactFolders | ForEach-Object { Get-ForensicsText "forensicsReport.artifact.folder" @($_) })
+    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" (Get-ForensicsText "forensicsReport.category.activator") "High" 35 ($artifactText -join "`n") (Get-ForensicsText "forensicsReport.activator.detectedRecommendation"))
 } elseif ($taskScanWarning) {
-    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" "Dấu vết activator/persistence" "Cần xác minh" 8 $taskScanWarning "Kiểm tra Task Scheduler/schtasks.exe rồi chạy lại; không kết luận sạch khi nguồn này chưa đọc được.")
+    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" (Get-ForensicsText "forensicsReport.category.activator") "Review" 8 $taskScanWarning (Get-ForensicsText "deepReport.tasks.errorRecommendation"))
 } else {
-    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" "Dấu vết activator/persistence" "OK" 0 "Không thấy tiến trình, dịch vụ, task, startup hoặc thư mục khớp mẫu đặc hiệu." "Không cần xử lý tự động.")
+    Add-Finding (New-Finding "ACTIVATOR-PERSISTENCE" (Get-ForensicsText "forensicsReport.category.activator") "OK" 0 (Get-ForensicsText "forensicsReport.activator.none") (Get-ForensicsText "deepReport.noAutomaticAction"))
 }
 
 # 5. Registry, hosts và proxy có thể can thiệp kích hoạt.
@@ -374,18 +388,18 @@ if (Test-Path -LiteralPath $hostsPath) {
     foreach ($line in Get-Content -LiteralPath $hostsPath -ErrorAction SilentlyContinue) {
         $lineNumber++
         if (Test-LicenseHostsBlockLine $line) {
-            $hostsHits += "Dòng $lineNumber (nội dung được ẩn để tránh lộ cấu hình): khớp mẫu chặn kích hoạt"
+            $hostsHits += Get-ForensicsText "forensicsReport.network.hostsLine" @($lineNumber)
         }
     }
 }
 $winHttpProxy = (& $nativeNetshPath winhttp show proxy 2>$null) -join " "
 $proxyConfigured = $winHttpProxy -and $winHttpProxy -notmatch "(?i)(Direct access|truy cập trực tiếp)"
 if ($hostsHits.Count -gt 0) {
-    Add-Finding (New-Finding "NETWORK-TAMPER" "Hosts/Registry/proxy kích hoạt" "Rủi ro cao" 25 ("Hosts: " + ($hostsHits -join "; ") + "; Policy: " + ($policyItems -join ", ") + "; WinHTTP proxy: " + $winHttpProxy) "Đối chiếu chính sách doanh nghiệp; chỉ sửa đúng dòng/key sau khi xác nhận.")
+    Add-Finding (New-Finding "NETWORK-TAMPER" (Get-ForensicsText "forensicsReport.category.network") "High" 25 (Get-ForensicsText "forensicsReport.network.fullEvidence" @(($hostsHits -join '; '), ($policyItems -join ', '), $winHttpProxy)) (Get-ForensicsText "forensicsReport.network.highRecommendation"))
 } elseif ($policyItems.Count -gt 0 -or $proxyConfigured) {
-    Add-Finding (New-Finding "NETWORK-TAMPER" "Hosts/Registry/proxy kích hoạt" "Cần xác minh" 8 ("Policy: " + ($policyItems -join ", ") + "; WinHTTP proxy: " + $winHttpProxy) "Cấu hình có thể hợp lệ trong doanh nghiệp; xác minh với quản trị viên.")
+    Add-Finding (New-Finding "NETWORK-TAMPER" (Get-ForensicsText "forensicsReport.category.network") "Review" 8 (Get-ForensicsText "forensicsReport.network.policyEvidence" @(($policyItems -join ', '), $winHttpProxy)) (Get-ForensicsText "forensicsReport.network.reviewRecommendation"))
 } else {
-    Add-Finding (New-Finding "NETWORK-TAMPER" "Hosts/Registry/proxy kích hoạt" "OK" 0 "Không thấy dòng hosts chặn kích hoạt, policy SPP đáng chú ý hoặc WinHTTP proxy tùy chỉnh." "Không cần thay đổi.")
+    Add-Finding (New-Finding "NETWORK-TAMPER" (Get-ForensicsText "forensicsReport.category.network") "OK" 0 (Get-ForensicsText "forensicsReport.network.none") (Get-ForensicsText "forensicsReport.noChange"))
 }
 
 # 6. Nhật ký Software Protection trong 30 ngày; chỉ lưu thống kê, không chép nội dung sự kiện.
@@ -398,22 +412,23 @@ foreach ($provider in @("Software Protection Platform Service", "Microsoft-Windo
 }
 $licensingErrors = @($licensingEvents | Where-Object { $_.Level -in @(1,2) })
 $lastEvent = $licensingEvents | Sort-Object TimeCreated -Descending | Select-Object -First 1
-$eventEvidence = "30 ngày: $($licensingEvents.Count) sự kiện SPP; lỗi/nghiêm trọng: $($licensingErrors.Count); gần nhất: $(if ($lastEvent) { $lastEvent.TimeCreated } else { 'không có' }). Nội dung sự kiện không được lưu."
+$lastEventText = if ($lastEvent) { $lastEvent.TimeCreated } else { Get-ForensicsText "common.none" }
+$eventEvidence = Get-ForensicsText "forensicsReport.events.evidence" @($licensingEvents.Count, $licensingErrors.Count, $lastEventText)
 if ($licensingErrors.Count -ge 10) {
-    Add-Finding (New-Finding "SPP-EVENTS" "Nhật ký cấp phép" "Cần xác minh" 10 $eventEvidence "Mở Event Viewer để xem mã lỗi lặp lại và đối chiếu thời điểm thay đổi key/KMS.")
+    Add-Finding (New-Finding "SPP-EVENTS" (Get-ForensicsText "forensicsReport.category.events") "Review" 10 $eventEvidence (Get-ForensicsText "forensicsReport.events.reviewRecommendation"))
 } else {
-    Add-Finding (New-Finding "SPP-EVENTS" "Nhật ký cấp phép" "Thông tin" 0 $eventEvidence "Không kết luận vi phạm chỉ từ số lượng sự kiện.")
+    Add-Finding (New-Finding "SPP-EVENTS" (Get-ForensicsText "forensicsReport.category.events") "Info" 0 $eventEvidence (Get-ForensicsText "forensicsReport.events.infoRecommendation"))
 }
 
 # 7. Đồng bộ thời gian và múi giờ.
 $timeService = Get-Service -Name W32Time -ErrorAction SilentlyContinue
 $timeStatus = (& $nativeW32tmPath /query /status 2>$null) -join " | "
 if ($timeService -and $timeService.StartType -eq "Disabled") {
-    Add-Finding (New-Finding "TIME-SYNC" "Đồng bộ thời gian" "Cần xác minh" 6 "W32Time đang Disabled; múi giờ: $([TimeZoneInfo]::Local.Id)." "Bật đồng bộ thời gian theo chính sách tổ chức; sai giờ có thể gây lỗi xác thực.")
+    Add-Finding (New-Finding "TIME-SYNC" (Get-ForensicsText "forensicsReport.category.time") "Review" 6 (Get-ForensicsText "forensicsReport.time.disabled" @([TimeZoneInfo]::Local.Id)) (Get-ForensicsText "forensicsReport.time.disabledRecommendation"))
 } else {
     $timeSummary = ($timeStatus -replace "\s+", " ").Trim()
     if ($timeSummary.Length -gt 300) { $timeSummary = $timeSummary.Substring(0,300) + "..." }
-    Add-Finding (New-Finding "TIME-SYNC" "Đồng bộ thời gian" "Thông tin" 0 "W32Time: $($timeService.Status); múi giờ: $([TimeZoneInfo]::Local.Id); $timeSummary" "Nếu kích hoạt lỗi, kiểm tra lại ngày giờ và nguồn NTP.")
+    Add-Finding (New-Finding "TIME-SYNC" (Get-ForensicsText "forensicsReport.category.time") "Info" 0 (Get-ForensicsText "forensicsReport.time.evidence" @($timeService.Status, [TimeZoneInfo]::Local.Id, $timeSummary)) (Get-ForensicsText "forensicsReport.time.recommendation"))
 }
 
 # 8. Office: trạng thái, kênh và KMS.
@@ -421,21 +436,21 @@ $officeLicenses = @(Safe-Cim SoftwareLicensingProduct | Where-Object { $_.Partia
 $officeActive = @($officeLicenses | Where-Object { [int]$_.LicenseStatus -eq 1 })
 $officeKms = @($officeLicenses | Where-Object { $_.Description -match "KMSCLIENT|VOLUME_KMS" })
 $officeEvidence = @($officeLicenses | ForEach-Object {
-    "$($_.Name) | Status=$($_.LicenseStatus) | $($_.Description) | Last5=$($_.PartialProductKey) | KMS=$($_.KeyManagementServiceMachine)"
+    Get-ForensicsText "forensicsReport.office.evidence" @($_.Name, $_.LicenseStatus, $_.Description, $_.PartialProductKey, $_.KeyManagementServiceMachine)
 })
 if ($officeKms.Count -gt 0) {
     $unapprovedOfficeKms = @($officeKms | Where-Object { -not (Test-ApprovedKms ([string]$_.KeyManagementServiceMachine)) })
     if ($unapprovedOfficeKms.Count -gt 0) {
-        Add-Finding (New-Finding "OFFICE-LICENSE" "Giấy phép Microsoft Office" "Cần xác minh" 15 ($officeEvidence -join "`n") "Đối chiếu KMS/MAK/Microsoft 365 với hồ sơ cấp phép và tài khoản tổ chức.")
+        Add-Finding (New-Finding "OFFICE-LICENSE" (Get-ForensicsText "forensicsReport.category.office") "Review" 15 ($officeEvidence -join "`n") (Get-ForensicsText "forensicsReport.office.unapprovedRecommendation"))
     } else {
-        Add-Finding (New-Finding "OFFICE-LICENSE" "Giấy phép Microsoft Office" "OK" 0 ($officeEvidence -join "`n") "KMS Office nằm trong danh sách phê duyệt; vẫn cần hồ sơ Volume Licensing.")
+        Add-Finding (New-Finding "OFFICE-LICENSE" (Get-ForensicsText "forensicsReport.category.office") "OK" 0 ($officeEvidence -join "`n") (Get-ForensicsText "forensicsReport.office.approvedRecommendation"))
     }
 } elseif ($officeLicenses.Count -eq 0) {
-    Add-Finding (New-Finding "OFFICE-LICENSE" "Giấy phép Microsoft Office" "Thông tin" 0 "Không phát hiện bản Office dùng SoftwareLicensingProduct. Microsoft 365 gắn tài khoản có thể không hiện đầy đủ tại đây." "Mở Word > Tệp > Tài khoản để xác minh sản phẩm và tài khoản.")
+    Add-Finding (New-Finding "OFFICE-LICENSE" (Get-ForensicsText "forensicsReport.category.office") "Info" 0 (Get-ForensicsText "forensicsReport.office.none") (Get-ForensicsText "forensicsReport.office.noneRecommendation"))
 } elseif ($officeActive.Count -eq 0) {
-    Add-Finding (New-Finding "OFFICE-LICENSE" "Giấy phép Microsoft Office" "Cần xác minh" 8 ($officeEvidence -join "`n") "Kiểm tra trong ứng dụng Office và tài khoản Microsoft 365.")
+    Add-Finding (New-Finding "OFFICE-LICENSE" (Get-ForensicsText "forensicsReport.category.office") "Review" 8 ($officeEvidence -join "`n") (Get-ForensicsText "forensicsReport.office.inactiveRecommendation"))
 } else {
-    Add-Finding (New-Finding "OFFICE-LICENSE" "Giấy phép Microsoft Office" "OK" 0 ($officeEvidence -join "`n") "Đối chiếu hóa đơn/tài khoản; trạng thái kích hoạt không tự chứng minh quyền sở hữu.")
+    Add-Finding (New-Finding "OFFICE-LICENSE" (Get-ForensicsText "forensicsReport.category.office") "OK" 0 ($officeEvidence -join "`n") (Get-ForensicsText "forensicsReport.office.activeRecommendation"))
 }
 
 # 9. Phần mềm cài đặt có tên/publisher khớp mẫu đặc hiệu.
@@ -452,42 +467,42 @@ foreach ($root in $uninstallRoots) {
 }
 $suspiciousApps = @($suspiciousApps | Sort-Object -Unique)
 if ($suspiciousApps.Count -gt 0) {
-    Add-Finding (New-Finding "SUSPICIOUS-APPS" "Phần mềm kích hoạt đáng ngờ" "Rủi ro cao" 30 ($suspiciousApps -join "`n") "Gỡ bằng cơ chế chuẩn sau khi xác minh; quét Defender và kiểm tra persistence.")
+    Add-Finding (New-Finding "SUSPICIOUS-APPS" (Get-ForensicsText "forensicsReport.category.apps") "High" 30 ($suspiciousApps -join "`n") (Get-ForensicsText "forensicsReport.apps.detectedRecommendation"))
 } else {
-    Add-Finding (New-Finding "SUSPICIOUS-APPS" "Phần mềm kích hoạt đáng ngờ" "OK" 0 "Không thấy mục cài đặt khớp mẫu activator đặc hiệu." "Tên phần mềm chỉ là một tín hiệu; kết quả không bao phủ ứng dụng portable.")
+    Add-Finding (New-Finding "SUSPICIOUS-APPS" (Get-ForensicsText "forensicsReport.category.apps") "OK" 0 (Get-ForensicsText "forensicsReport.apps.none") (Get-ForensicsText "forensicsReport.apps.noneRecommendation"))
 }
 
 # 10. Trạng thái Microsoft Defender và tường lửa.
-$defenderText = "Không đọc được Microsoft Defender."
-$defenderStatus = "Thông tin"
+$defenderText = Get-ForensicsText "forensicsReport.security.defenderUnreadable"
+$defenderStatus = "Info"
 $defenderScore = 0
 if (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue) {
     $mp = Get-MpComputerStatus -ErrorAction SilentlyContinue
     if ($mp) {
-        $defenderText = "Antivirus=$($mp.AntivirusEnabled); RealTime=$($mp.RealTimeProtectionEnabled); Behavior=$($mp.BehaviorMonitorEnabled); TamperProtected=$($mp.IsTamperProtected); SignatureAge=$($mp.AntivirusSignatureAge) ngày"
-        if (-not $mp.AntivirusEnabled -or -not $mp.RealTimeProtectionEnabled) { $defenderStatus = "Cần xác minh"; $defenderScore = 7 }
+        $defenderText = Get-ForensicsText "forensicsReport.security.defenderEvidence" @($mp.AntivirusEnabled, $mp.RealTimeProtectionEnabled, $mp.BehaviorMonitorEnabled, $mp.IsTamperProtected, $mp.AntivirusSignatureAge)
+        if (-not $mp.AntivirusEnabled -or -not $mp.RealTimeProtectionEnabled) { $defenderStatus = "Review"; $defenderScore = 7 }
     }
 }
 $firewallText = ""
 if (Get-Command Get-NetFirewallProfile -ErrorAction SilentlyContinue) {
     $firewallText = (@(Get-NetFirewallProfile | ForEach-Object { "$($_.Name)=$($_.Enabled)" }) -join "; ")
 }
-Add-Finding (New-Finding "SECURITY-POSTURE" "Bảo vệ hệ thống" $defenderStatus $defenderScore "$defenderText; Firewall: $firewallText" "Bảo vệ bị tắt không chứng minh crack, nhưng làm tăng rủi ro khi máy từng chạy activator.")
+Add-Finding (New-Finding "SECURITY-POSTURE" (Get-ForensicsText "forensicsReport.category.security") $defenderStatus $defenderScore (Get-ForensicsText "forensicsReport.security.evidence" @($defenderText, $firewallText)) (Get-ForensicsText "forensicsReport.security.recommendation"))
 
 # 11. Secure Boot, TPM và BitLocker - tín hiệu an toàn bổ trợ.
-$secureBoot = "Không hỗ trợ/không xác định"
+$secureBoot = Get-ForensicsText "forensicsReport.platform.unsupported"
 if (Get-Command Confirm-SecureBootUEFI -ErrorAction SilentlyContinue) {
     try { $secureBoot = [string](Confirm-SecureBootUEFI -ErrorAction Stop) } catch {}
 }
-$tpmText = "Không hỗ trợ/không xác định"
+$tpmText = Get-ForensicsText "forensicsReport.platform.unsupported"
 if (Get-Command Get-Tpm -ErrorAction SilentlyContinue) {
-    try { $tpm = Get-Tpm; $tpmText = "Present=$($tpm.TpmPresent); Ready=$($tpm.TpmReady); Enabled=$($tpm.TpmEnabled)" } catch {}
+    try { $tpm = Get-Tpm; $tpmText = Get-ForensicsText "forensicsReport.platform.tpmState" @($tpm.TpmPresent, $tpm.TpmReady, $tpm.TpmEnabled) } catch {}
 }
-$bitLockerText = "Không hỗ trợ/không xác định"
+$bitLockerText = Get-ForensicsText "forensicsReport.platform.unsupported"
 if (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue) {
-    try { $bitLockerText = (@(Get-BitLockerVolume | ForEach-Object { "$($_.MountPoint):$($_.ProtectionStatus)" }) -join "; ") } catch {}
+    try { $bitLockerText = (@(Get-BitLockerVolume | ForEach-Object { Get-ForensicsText "forensicsReport.platform.volumeState" @($_.MountPoint, $_.ProtectionStatus) }) -join "; ") } catch {}
 }
-Add-Finding (New-Finding "PLATFORM-SECURITY" "Nền tảng bảo mật" "Thông tin" 0 "SecureBoot=$secureBoot; TPM: $tpmText; BitLocker: $bitLockerText" "Thông tin này đánh giá mức bảo vệ, không phải bằng chứng pháp lý về giấy phép.")
+Add-Finding (New-Finding "PLATFORM-SECURITY" (Get-ForensicsText "forensicsReport.category.platform") "Info" 0 (Get-ForensicsText "forensicsReport.platform.evidence" @($secureBoot, $tpmText, $bitLockerText)) (Get-ForensicsText "forensicsReport.platform.recommendation"))
 
 # 12. Tệp token cấp phép và ACL cơ bản.
 $tokenCandidates = @(
@@ -498,17 +513,17 @@ $tokenPath = $tokenCandidates | Where-Object { Test-Path -LiteralPath $_ -PathTy
 if ($tokenPath) {
     $tokenInfo = Get-Item -LiteralPath $tokenPath
     $tokenHash = Get-Sha256 $tokenPath
-    Add-Finding (New-Finding "TOKEN-ARTIFACT" "Kho token cấp phép" "Thông tin" 0 "Tệp token tồn tại; kích thước=$($tokenInfo.Length); sửa cuối=$($tokenInfo.LastWriteTime); SHA-256=$tokenHash. Không sao chép nội dung." "Hash giúp đối chiếu thay đổi giữa các lần quét; không dùng để phục hồi sang máy khác.")
+    Add-Finding (New-Finding "TOKEN-ARTIFACT" (Get-ForensicsText "forensicsReport.category.token") "Info" 0 (Get-ForensicsText "forensicsReport.token.found" @($tokenInfo.Length, $tokenInfo.LastWriteTime, $tokenHash)) (Get-ForensicsText "forensicsReport.token.foundRecommendation"))
 } else {
-    Add-Finding (New-Finding "TOKEN-ARTIFACT" "Kho token cấp phép" "Cần xác minh" 10 "Không tìm thấy tokens.dat tại các vị trí chuẩn được hỗ trợ." "Chạy trình khắc phục Activation hoặc DISM/SFC; không tải tokens.dat từ Internet.")
+    Add-Finding (New-Finding "TOKEN-ARTIFACT" (Get-ForensicsText "forensicsReport.category.token") "Review" 10 (Get-ForensicsText "forensicsReport.token.missing") (Get-ForensicsText "forensicsReport.token.missingRecommendation"))
 }
 
 $rawScore = [int](($findings | Measure-Object -Property Score -Sum).Sum)
 $riskScore = [Math]::Min(100, $rawScore)
-$highCount = @($findings | Where-Object { $_.Status -eq "Rủi ro cao" }).Count
-$reviewCount = @($findings | Where-Object { $_.Status -eq "Cần xác minh" }).Count
-$riskLevel = if ($riskScore -ge 70) { "Rất cao" } elseif ($riskScore -ge 40) { "Cao" } elseif ($riskScore -ge 20) { "Trung bình" } elseif ($riskScore -gt 0) { "Thấp" } else { "Không phát hiện rủi ro kỹ thuật" }
-$overall = if ($highCount -gt 0) { "Phát hiện dấu hiệu kỹ thuật mạnh" } elseif ($reviewCount -gt 0) { "Có mục cần xác minh" } else { "Không phát hiện dấu hiệu kỹ thuật rõ" }
+$highCount = @($findings | Where-Object { $_.StatusCode -eq "High" }).Count
+$reviewCount = @($findings | Where-Object { $_.StatusCode -eq "Review" }).Count
+$riskLevel = if ($riskScore -ge 70) { Get-ForensicsText "forensicsReport.risk.veryHigh" } elseif ($riskScore -ge 40) { Get-ForensicsText "forensicsReport.risk.high" } elseif ($riskScore -ge 20) { Get-ForensicsText "forensicsReport.risk.medium" } elseif ($riskScore -gt 0) { Get-ForensicsText "forensicsReport.risk.low" } else { Get-ForensicsText "forensicsReport.risk.none" }
+$overall = if ($highCount -gt 0) { Get-ForensicsText "forensicsReport.overall.high" } elseif ($reviewCount -gt 0) { Get-ForensicsText "forensicsReport.overall.review" } else { Get-ForensicsText "forensicsReport.overall.clear" }
 
 # So sánh với lần quét JSON gần nhất của cùng máy.
 $previousFile = Get-ChildItem -LiteralPath $OutputDir -Recurse -Filter "LicenseForensics_${reportMachine}_*.json" -ErrorAction SilentlyContinue |
@@ -517,10 +532,10 @@ $previous = $null
 if ($previousFile) {
     try { $previous = Get-Content -LiteralPath $previousFile.FullName -Raw | ConvertFrom-Json } catch {}
 }
-$currentProblemIds = @($findings | Where-Object { $_.Status -in @("Rủi ro cao", "Cần xác minh") } | Select-Object -ExpandProperty Id)
+$currentProblemIds = @($findings | Where-Object { $_.StatusCode -in @("High", "Review") } | Select-Object -ExpandProperty Id)
 $previousProblemIds = @()
 if ($previous -and $previous.Findings) {
-    $previousProblemIds = @($previous.Findings | Where-Object { $_.Status -in @("Rủi ro cao", "Cần xác minh") } | Select-Object -ExpandProperty Id)
+    $previousProblemIds = @($previous.Findings | Where-Object { $_.StatusCode -in @("High", "Review") -or $_.Status -in @("Rủi ro cao", "Cần xác minh", "High risk", "Requires verification") } | Select-Object -ExpandProperty Id)
 }
 $newIds = @($currentProblemIds | Where-Object { $previousProblemIds -notcontains $_ })
 $resolvedIds = @($previousProblemIds | Where-Object { $currentProblemIds -notcontains $_ })
@@ -528,7 +543,7 @@ $unchangedIds = @($currentProblemIds | Where-Object { $previousProblemIds -conta
 
 $outputFindings = @($findings | ForEach-Object {
     [pscustomobject]@{
-        Id=$_.Id; Category=$_.Category; Status=$_.Status; Score=$_.Score
+        Id=$_.Id; Category=$_.Category; StatusCode=$_.StatusCode; Status=$_.Status; Score=$_.Score
         Evidence=(Protect-Text $_.Evidence); Recommendation=(Protect-Text $_.Recommendation)
     }
 })
@@ -552,57 +567,64 @@ $scanObject = New-ToolReportEnvelope -ReportKind "LicenseForensics" -ToolVersion
     }
     Findings = $outputFindings
     Redacted = [bool]$RedactSensitive
-    Privacy = if ($RedactSensitive) { "Đã che tên máy/người dùng, KMS nội bộ, IP, MAC và đường dẫn hồ sơ người dùng." } else { "Báo cáo đầy đủ nội bộ; không gửi Internet và không lưu product key đầy đủ." }
+    Privacy = if ($RedactSensitive) { Get-ForensicsText "forensicsReport.privacy.redacted" } else { Get-ForensicsText "forensicsReport.privacy.internal" }
 })
 $scanValidation = Test-ToolReportEnvelope -Report $scanObject -ExpectedReportKind "LicenseForensics" -ExpectedToolVersion $toolVersion
-if (-not $scanValidation.Valid) { throw "Báo cáo forensics không đạt schema: $($scanValidation.Errors -join '; ')" }
+if (-not $scanValidation.Valid) { throw (Get-ForensicsText "forensicsReport.schemaFailed" @(($scanValidation.Errors -join '; '))) }
 $scanObject | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
-$outputFindings | Select-Object Id,Category,Status,Score,Evidence,Recommendation | Export-Csv -LiteralPath $csvPath -NoTypeInformation -Encoding UTF8
+$csvColumns = @(
+    (Get-ForensicsText "forensicsReport.column.id"),
+    (Get-ForensicsText "forensicsReport.column.category"),
+    (Get-ForensicsText "forensicsReport.column.status"),
+    (Get-ForensicsText "forensicsReport.column.score"),
+    (Get-ForensicsText "forensicsReport.column.evidence"),
+    (Get-ForensicsText "forensicsReport.column.recommendation")
+)
+$csvRows = @($outputFindings | ForEach-Object {
+    $row=[ordered]@{}
+    $row[$csvColumns[0]]=$_.Id; $row[$csvColumns[1]]=$_.Category; $row[$csvColumns[2]]=$_.Status
+    $row[$csvColumns[3]]=$_.Score; $row[$csvColumns[4]]=$_.Evidence; $row[$csvColumns[5]]=$_.Recommendation
+    [pscustomobject]$row
+})
+$csvRows | Export-Csv -LiteralPath $csvPath -NoTypeInformation -Encoding UTF8
 
 $baselineText = if ($previous) {
-    "Điểm trước: $($previous.RiskScore)/100 | Mới: $(if ($newIds.Count) { $newIds -join ', ' } else { 'không có' }) | Đã hết: $(if ($resolvedIds.Count) { $resolvedIds -join ', ' } else { 'không có' }) | Không đổi: $(if ($unchangedIds.Count) { $unchangedIds -join ', ' } else { 'không có' })"
-} else { "Đây là lần quét đầu tiên; chưa có baseline để so sánh." }
-$findingRows = @($outputFindings | ForEach-Object {
-    [pscustomobject][ordered]@{
-        "Mã" = [string]$_.Id
-        "Nhóm" = [string]$_.Category
-        "Trạng thái" = [string]$_.Status
-        "Điểm" = [string]$_.Score
-        "Bằng chứng" = [string]$_.Evidence
-        "Khuyến nghị" = [string]$_.Recommendation
-    }
-})
-$overviewBody = "<p><strong>Kết luận:</strong> $(ConvertTo-ToolHtmlText $overall)</p>" +
-    "<p><strong>Windows:</strong> $(ConvertTo-ToolHtmlText "$productName - $edition")<br>" +
-    "<strong>Kênh:</strong> $(ConvertTo-ToolHtmlText $channel)<br>" +
-    "<strong>Key OEM BIOS:</strong> $(ConvertTo-ToolHtmlText $(if ($oemKey) { 'Có (đã che)' } else { 'Không tìm thấy' }))</p>"
-$limitBody = "<p><strong>Giới hạn kết luận:</strong> Điểm rủi ro phản ánh dấu hiệu kỹ thuật trên máy, không phải kết luận pháp lý. Kích hoạt thành công không tự chứng minh quyền sở hữu; cần đối chiếu hóa đơn, hợp đồng, tài khoản hoặc hồ sơ cấp phép.</p>" +
-    "<p class='note'><strong>Quyền riêng tư:</strong> Không gửi dữ liệu ra Internet; không lưu product key đầy đủ, nội dung lịch sử PowerShell hoặc nội dung Event Log.</p>"
+    $noneText=Get-ForensicsText "common.none"
+    Get-ForensicsText "forensicsReport.baseline.summary" @($previous.RiskScore, $(if ($newIds.Count) { $newIds -join ', ' } else { $noneText }), $(if ($resolvedIds.Count) { $resolvedIds -join ', ' } else { $noneText }), $(if ($unchangedIds.Count) { $unchangedIds -join ', ' } else { $noneText }))
+} else { Get-ForensicsText "forensicsReport.baseline.first" }
+$findingRows = $csvRows
+$oemStateText = if ($oemKey) { Get-ForensicsText "forensicsReport.oem.presentRedacted" } else { Get-ForensicsText "common.notFound" }
+$overviewBody = "<p><strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.overview.conclusion'))</strong> $(ConvertTo-ToolHtmlText $overall)</p>" +
+    "<p><strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.overview.windows'))</strong> $(ConvertTo-ToolHtmlText "$productName - $edition")<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.overview.channel'))</strong> $(ConvertTo-ToolHtmlText $channel)<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.overview.oemKey'))</strong> $(ConvertTo-ToolHtmlText $oemStateText)</p>"
+$limitBody = "<p><strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.limit.label'))</strong> $(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.limit.text'))</p>" +
+    "<p class='note'><strong>$(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.privacy.label'))</strong> $(ConvertTo-ToolHtmlText (Get-ForensicsText 'forensicsReport.privacy.text'))</p>"
 $html = New-ToolProfessionalHtmlDocument `
-    -Title "Điều tra bản quyền và chấm điểm rủi ro" `
-    -Subtitle "Báo cáo forensics chỉ đọc theo 12 nhóm kỹ thuật, dùng chung giao diện HTML/PDF của Tool." `
-    -Eyebrow "Báo cáo kiểm kê và bảo đảm bản quyền" `
+    -Title (Get-ForensicsText "forensicsReport.title") `
+    -Subtitle (Get-ForensicsText "forensicsReport.subtitle") `
+    -Eyebrow (Get-ForensicsText "forensicsReport.eyebrow") `
     -Metadata @(
-        [pscustomobject]@{Label="Máy";Value=$reportMachine},
-        [pscustomobject]@{Label="Thời điểm";Value=$scanStarted.ToString("yyyy-MM-dd HH:mm:ss")},
-        [pscustomobject]@{Label="Chế độ";Value="Forensics · chỉ đọc"},
-        [pscustomobject]@{Label="Riêng tư";Value=$(if ($RedactSensitive) { "Đã che dữ liệu nhạy cảm" } else { "Báo cáo đầy đủ nội bộ" })}
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.meta.computer");Value=$reportMachine},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.meta.time");Value=$scanStarted.ToString("yyyy-MM-dd HH:mm:ss")},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.meta.mode");Value=(Get-ForensicsText "forensicsReport.meta.readOnly")},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.meta.privacy");Value=$(if ($RedactSensitive) { Get-ForensicsText "forensicsReport.privacy.redacted" } else { Get-ForensicsText "forensicsReport.privacy.internal" })}
     ) `
     -Cards @(
-        [pscustomobject]@{Label="Điểm rủi ro";Value="$riskScore/100";Tone=$(if ($riskScore -ge 70) {"danger"} elseif ($riskScore -ge 20) {"warning"} else {"ok"})},
-        [pscustomobject]@{Label="Mức rủi ro";Value=$riskLevel;Tone=$(if ($riskScore -ge 70) {"danger"} elseif ($riskScore -ge 20) {"warning"} else {"ok"})},
-        [pscustomobject]@{Label="Rủi ro cao";Value=[string]$highCount;Tone=$(if ($highCount -gt 0) {"danger"} else {"ok"})},
-        [pscustomobject]@{Label="Cần xác minh";Value=[string]$reviewCount;Tone=$(if ($reviewCount -gt 0) {"warning"} else {"ok"})}
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.card.score");Value="$riskScore/100";Tone=$(if ($riskScore -ge 70) {"danger"} elseif ($riskScore -ge 20) {"warning"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.card.level");Value=$riskLevel;Tone=$(if ($riskScore -ge 70) {"danger"} elseif ($riskScore -ge 20) {"warning"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.card.high");Value=[string]$highCount;Tone=$(if ($highCount -gt 0) {"danger"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-ForensicsText "forensicsReport.card.review");Value=[string]$reviewCount;Tone=$(if ($reviewCount -gt 0) {"warning"} else {"ok"})}
     ) `
     -Sections @(
-        [pscustomobject]@{Title="Tổng quan";BodyHtml=$overviewBody},
-        [pscustomobject]@{Title="So sánh với lần quét trước";BodyHtml="<p>$(ConvertTo-ToolHtmlText $baselineText)</p>"},
-        [pscustomobject]@{Title="12 nhóm kiểm tra kỹ thuật";BodyHtml=(ConvertTo-ToolHtmlTable -Rows $findingRows -Columns @("Mã","Nhóm","Trạng thái","Điểm","Bằng chứng","Khuyến nghị"))},
-        [pscustomobject]@{Title="Giới hạn và quyền riêng tư";BodyHtml=$limitBody}
+        [pscustomobject]@{Title=(Get-ForensicsText "forensicsReport.section.overview");BodyHtml=$overviewBody},
+        [pscustomobject]@{Title=(Get-ForensicsText "forensicsReport.section.baseline");BodyHtml="<p>$(ConvertTo-ToolHtmlText $baselineText)</p>"},
+        [pscustomobject]@{Title=(Get-ForensicsText "forensicsReport.section.results");BodyHtml=(ConvertTo-ToolHtmlTable -Rows $findingRows -Columns $csvColumns)},
+        [pscustomobject]@{Title=(Get-ForensicsText "forensicsReport.section.limits");BodyHtml=$limitBody}
     ) `
-    -Footer "Phát triển bởi Thanh Việt · Tool v$toolVersion" -Culture "vi-VN" -OfflineMode $true
+    -Footer (Get-ForensicsText "forensicsReport.footer" @($releaseVersion)) -Culture $Culture -OfflineMode $true
 [IO.File]::WriteAllText($htmlPath, $html, (New-Object Text.UTF8Encoding($false)))
-if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw "Báo cáo forensics không đạt kiểm tra HTML ngoại tuyến." }
+if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw (Get-ForensicsText "forensicsReport.offlineSafetyFailed") }
 $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath
 
 $manifestLines = @()
@@ -628,8 +650,8 @@ $decision = New-ToolReportEnvelope -ReportKind "LicenseForensics" -ToolVersion $
 })
 Write-DecisionFile $decision
 
-Write-Host "Báo cáo: $htmlPath"
-if ($pdfResult.Success) { Write-Host "PDF: $pdfPath" } else { Write-Host "PDF chưa tạo được: $($pdfResult.Error)" }
-Write-Host "Điểm rủi ro: $riskScore/100 - $riskLevel"
+Write-Host (Get-ForensicsText "forensicsReport.output.report" @($htmlPath))
+if ($pdfResult.Success) { Write-Host (Get-ForensicsText "forensicsReport.output.pdf" @($pdfPath)) } else { Write-Host (Get-ForensicsText "forensicsReport.output.pdfFailed" @($pdfResult.Error)) }
+Write-Host (Get-ForensicsText "forensicsReport.output.score" @($riskScore, $riskLevel))
 if (-not $NoOpen) { Start-Process -FilePath $htmlPath }
 exit 0

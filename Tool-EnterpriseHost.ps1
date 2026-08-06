@@ -1,5 +1,5 @@
 ﻿<#
-    Tool v4.4 enterprise server
+    Tool v4.6 enterprise server
 
     The host is deliberately a small HTTP listener instead of a full web
     framework so it can run on Windows 7 SP1 through Windows 11 with the
@@ -20,7 +20,7 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $baseDir "Tool-OfflinePolicy.ps1")
 [void](Assert-ToolNativeArchitecture)
 if (-not $Stop -and -not (Test-ToolEnterpriseNetworkActionAllowed)) {
-    [Console]::Error.WriteLine("ENTERPRISE_NETWORK_BLOCKED: enterprise server không được khởi động khi mạng Mục 8 đang tắt.")
+    [Console]::Error.WriteLine((Get-ToolEnterpriseText "enterpriseHost.error.networkBlocked"))
     exit 30
 }
 
@@ -48,7 +48,7 @@ function Write-ToolEnterpriseHostJsonResponse {
 function Read-ToolEnterpriseHostRequestBody {
     param([Parameter(Mandatory = $true)][Net.HttpListenerRequest]$Request)
     if ($Request.ContentLength64 -lt 0 -or $Request.ContentLength64 -gt $script:ToolEnterpriseMaximumRequestBytes) {
-        throw "Kích thước yêu cầu vượt giới hạn 1 MB."
+        throw (Get-ToolEnterpriseText "enterpriseHost.error.requestTooLarge")
     }
     $length = [int]$Request.ContentLength64
     if ($length -eq 0) { return $null }
@@ -56,7 +56,7 @@ function Read-ToolEnterpriseHostRequestBody {
     $offset = 0
     while ($offset -lt $length) {
         $read = $Request.InputStream.Read($bytes, $offset, $length - $offset)
-        if ($read -le 0) { throw "Kết nối gửi yêu cầu không đầy đủ." }
+        if ($read -le 0) { throw (Get-ToolEnterpriseText "enterpriseHost.error.requestIncomplete") }
         $offset += $read
     }
     try { return ([Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json) }
@@ -67,7 +67,7 @@ function Get-ToolEnterpriseHostClientId {
     param([Parameter(Mandatory = $true)][Net.HttpListenerRequest]$Request)
     $clientId = [string]$Request.Headers["X-Tool-ClientId"]
     $parsed = [Guid]::Empty
-    if (-not [Guid]::TryParse($clientId, [ref]$parsed)) { throw "ClientId không hợp lệ." }
+    if (-not [Guid]::TryParse($clientId, [ref]$parsed)) { throw (Get-ToolEnterpriseText "enterpriseHost.error.clientIdInvalid") }
     return $parsed.ToString("N")
 }
 
@@ -91,23 +91,13 @@ function Test-ToolEnterpriseHostRemoteAddress {
 
 function Get-ToolEnterpriseHostStatus {
     param([Parameter(Mandatory = $true)][object]$Configuration, [Parameter(Mandatory = $true)][datetime]$StartedAtUtc)
-    $localAddresses = @(Get-ToolEnterpriseLocalIPv4Addresses)
+    # This endpoint is intentionally unauthenticated so clients can discover a
+    # compatible listener before enrollment. Never expose server identity,
+    # addresses, ACLs, uptime, or fleet information here.
     return [ordered]@{
         Accepted = $true
-        Service = "ThanhViet.ToolKiemTra.EnterpriseServer"
         ProtocolVersion = $script:ToolEnterpriseProtocolVersion
         ToolVersion = $script:ToolEnterpriseToolVersion
-        SchemaVersion = $script:ToolEnterpriseSchemaVersion
-        ServerId = [string]$Configuration.ServerId
-        ServerName = [string]$Configuration.ServerName
-        Port = [int]$Configuration.Port
-        BindAddress = [string]$Configuration.BindAddress
-        PreferredAddress = if ($localAddresses.Count -gt 0) { [string]$localAddresses[0] } else { "" }
-        NetworkAddresses = $localAddresses
-        AllowedCidrs = @($Configuration.AllowedCidrs)
-        StartedAtUtc = $StartedAtUtc.ToString("o")
-        UtcNow = [DateTime]::UtcNow.ToString("o")
-        ClientCount = @(Get-ToolEnterpriseServerClients).Count
     }
 }
 
@@ -118,12 +108,12 @@ function Test-ToolEnterpriseHostReplay {
         [int]$MaximumEntries = 2048
     )
     $nonce = [string]$OpenedEnvelope.Nonce
-    if ([string]::IsNullOrWhiteSpace($nonce)) { throw "Envelope thiếu nonce." }
+    if ([string]::IsNullOrWhiteSpace($nonce)) { throw (Get-ToolEnterpriseText "enterpriseHost.error.envelopeNonceMissing") }
     $now = [DateTime]::UtcNow
     foreach ($key in @($ReplayCache.Keys)) {
         if (($now - [datetime]$ReplayCache[$key]).TotalMinutes -gt 15) { [void]$ReplayCache.Remove($key) }
     }
-    if ($ReplayCache.ContainsKey($nonce)) { throw "Envelope bị gửi lặp." }
+    if ($ReplayCache.ContainsKey($nonce)) { throw (Get-ToolEnterpriseText "enterpriseHost.error.envelopeReplay") }
     if ($ReplayCache.Count -ge $MaximumEntries) {
         $oldest = $ReplayCache.GetEnumerator() | Sort-Object Value | Select-Object -First 1
         if ($oldest) { [void]$ReplayCache.Remove([string]$oldest.Key) }
@@ -150,17 +140,17 @@ function Start-ToolEnterpriseHost {
     $paths = Initialize-ToolEnterpriseStorage
     $configuration = Get-ToolEnterpriseServerConfig
     if (-not $configuration -or [string]$configuration.Role -ne "Server") {
-        throw "Chưa cấu hình máy này làm máy chủ enterprise."
+        throw (Get-ToolEnterpriseText "enterpriseHost.error.notConfigured")
     }
     if (Test-Path -LiteralPath $paths.ServerStop -PathType Leaf) {
         Remove-Item -LiteralPath $paths.ServerStop -Force -ErrorAction SilentlyContinue
     }
 
     $created = $false
-    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseServer", [ref]$created)
+    $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.6.EnterpriseServer", [ref]$created)
     if (-not $created) {
         $mutex.Dispose()
-        throw "Máy chủ enterprise đã đang chạy trên máy này."
+        throw (Get-ToolEnterpriseText "enterpriseHost.error.alreadyRunning")
     }
 
     $listener = New-Object Net.HttpListener
@@ -184,9 +174,9 @@ function Start-ToolEnterpriseHost {
         $listener.Prefixes.Add($prefix)
         try { $listener.Start() }
         catch {
-            throw "Không thể mở cổng $($configuration.Port). Hãy kiểm tra Firewall/URL ACL và quyền Administrator: $($_.Exception.Message)"
+            throw (Get-ToolEnterpriseText "enterpriseHost.error.openPort" @($configuration.Port, $_.Exception.Message))
         }
-        Write-ToolEnterpriseAudit -Scope Server -Event "Server.Started" -Message "Máy chủ enterprise đã khởi động." -Data ([ordered]@{
+        Write-ToolEnterpriseAudit -Scope Server -Event "Server.Started" -Message (Get-ToolEnterpriseText "enterpriseHost.audit.started") -Data ([ordered]@{
             ServerId=$configuration.ServerId; Prefix=$prefix; AllowedCidrs=@($configuration.AllowedCidrs)
         })
 
@@ -216,13 +206,13 @@ function Start-ToolEnterpriseHost {
             $rate.Count++
             $rateCache[$remoteAddress] = $rate
             if ($rate.Count -gt 120) {
-                Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 429 -Value ([ordered]@{ Accepted=$false; Message="Quá nhiều yêu cầu trong một phút." })
+                Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 429 -Value ([ordered]@{ Accepted=$false; Message=(Get-ToolEnterpriseText "enterpriseHost.response.rateLimited") })
                 continue
             }
 
             try {
                 if (-not (Test-ToolEnterpriseHostRemoteAddress -Address $remoteAddress -Configuration $configuration)) {
-                    Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 403 -Value ([ordered]@{ Accepted=$false; Message="Địa chỉ máy trạm không nằm trong dải mạng được phép." })
+                    Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 403 -Value ([ordered]@{ Accepted=$false; Message=(Get-ToolEnterpriseText "enterpriseHost.response.addressDenied") })
                     continue
                 }
                 $path = $context.Request.Url.AbsolutePath.TrimEnd("/")
@@ -237,16 +227,16 @@ function Start-ToolEnterpriseHost {
                 }
 
                 if ($method -ne "POST" -or $path -notin @("/tool/v1/enroll", "/tool/v1/report", "/tool/v1/poll", "/tool/v1/result")) {
-                    Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 404 -Value ([ordered]@{ Accepted=$false; Message="Endpoint không tồn tại." })
+                    Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 404 -Value ([ordered]@{ Accepted=$false; Message=(Get-ToolEnterpriseText "enterpriseHost.response.endpointMissing") })
                     continue
                 }
-                if (-not $body) { throw "Thiếu envelope JSON." }
+                if (-not $body) { throw (Get-ToolEnterpriseText "enterpriseHost.error.envelopeMissing") }
 
                 if ($path -eq "/tool/v1/enroll") {
                     $pairingExpires = [DateTime]::Parse([string]$configuration.PairingExpiresAtUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
-                    if ($pairingExpires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw "Mã ghép nối đã hết hạn." }
+                    if ($pairingExpires.ToUniversalTime() -lt [DateTime]::UtcNow) { throw (Get-ToolEnterpriseText "enterpriseHost.error.pairingExpired") }
                     $pairingSecret = Get-ToolEnterpriseSecret -Path $paths.ServerPairingSecret
-                    if (-not $pairingSecret) { throw "Máy chủ thiếu secret ghép nối." }
+                    if (-not $pairingSecret) { throw (Get-ToolEnterpriseText "enterpriseHost.error.pairingSecretMissing") }
                     try {
                         $payloadId = [string]$body.Context
                         $opened = Open-ToolEnterpriseEnvelope -Secret $pairingSecret -ExpectedContext "enroll" -Envelope $body
@@ -254,10 +244,10 @@ function Start-ToolEnterpriseHost {
                         $payload = $opened.Payload
                         if ([string]$payload.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion -or
                             [string]$payload.ToolVersion -ne $script:ToolEnterpriseToolVersion) {
-                            throw "Máy trạm dùng protocol hoặc phiên bản tool không tương thích."
+                            throw (Get-ToolEnterpriseText "enterpriseHost.error.clientVersionMismatch")
                         }
                         $clientId = [Guid]::Empty
-                        if (-not [Guid]::TryParse([string]$payload.ClientId, [ref]$clientId)) { throw "ClientId đăng ký không hợp lệ." }
+                        if (-not [Guid]::TryParse([string]$payload.ClientId, [ref]$clientId)) { throw (Get-ToolEnterpriseText "enterpriseHost.error.enrollmentClientIdInvalid") }
                         $clientIdText = $clientId.ToString("N")
                         $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
                         Set-ToolEnterpriseServerClientSecret -ClientId $clientIdText -Secret $clientSecret
@@ -274,11 +264,11 @@ function Start-ToolEnterpriseHost {
                         }
                         Write-ToolEnterpriseJson -Path (Get-ToolEnterpriseServerClientRecordPath -ClientId $clientIdText) -Value $record
                         $responsePayload = [ordered]@{
-                            Accepted=$true; Message="Ghép nối thành công."; ServerId=[string]$configuration.ServerId
+                            Accepted=$true; Message=(Get-ToolEnterpriseText "enterpriseHost.response.enrollmentSucceeded"); ServerId=[string]$configuration.ServerId
                             ClientId=$clientIdText; ClientSecret=(ConvertTo-ToolEnterpriseBase64Url -Bytes $clientSecret)
                         }
                         $response = New-ToolEnterpriseEnvelope -Secret $pairingSecret -Context "enroll-response:$clientIdText" -Payload $responsePayload
-                        Write-ToolEnterpriseAudit -Scope Server -Event "Client.Enrolled" -Message "Đã ghép nối máy trạm." -Data ([ordered]@{
+                        Write-ToolEnterpriseAudit -Scope Server -Event "Client.Enrolled" -Message (Get-ToolEnterpriseText "enterpriseHost.audit.clientEnrolled") -Data ([ordered]@{
                             ClientId=$clientIdText; ComputerName=$record.ComputerName; RemoteAddress=$remoteAddress
                         })
                         Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 200 -Value $response
@@ -289,16 +279,16 @@ function Start-ToolEnterpriseHost {
 
                 $clientId = Get-ToolEnterpriseHostClientId -Request $context.Request
                 $clientSecret = Get-ToolEnterpriseServerClientSecret -ClientId $clientId
-                if (-not $clientSecret) { throw "Máy trạm chưa được ghép nối." }
+                if (-not $clientSecret) { throw (Get-ToolEnterpriseText "enterpriseHost.error.clientNotEnrolled") }
                 try {
                     if ($path -eq "/tool/v1/report") {
                         $opened = Open-ToolEnterpriseEnvelope -Secret $clientSecret -ExpectedContext "report:$clientId" -Envelope $body
                         Test-ToolEnterpriseHostReplay -ReplayCache $replayCache -OpenedEnvelope $opened
                         $report = $opened.Payload
                         $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion $script:ToolEnterpriseToolVersion
-                        if (-not $validation.Valid) { throw "Báo cáo không hợp lệ: $($validation.Errors -join '; ')" }
+                        if (-not $validation.Valid) { throw (Get-ToolEnterpriseText "enterpriseHost.error.reportInvalid" @(($validation.Errors -join '; '))) }
                         [void](Save-ToolEnterpriseServerReport -ClientId $clientId -Report $report -RemoteAddress $remoteAddress)
-                        $responsePayload = [ordered]@{ Accepted=$true; Message="Đã nhận báo cáo."; ReceivedAtUtc=[DateTime]::UtcNow.ToString("o") }
+                        $responsePayload = [ordered]@{ Accepted=$true; Message=(Get-ToolEnterpriseText "enterpriseHost.response.reportReceived"); ReceivedAtUtc=[DateTime]::UtcNow.ToString("o") }
                         $response = New-ToolEnterpriseEnvelope -Secret $clientSecret -Context "report-response:$clientId" -Payload $responsePayload
                         Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 200 -Value $response
                     } elseif ($path -eq "/tool/v1/poll") {
@@ -317,7 +307,7 @@ function Start-ToolEnterpriseHost {
                         Test-ToolEnterpriseHostReplay -ReplayCache $replayCache -OpenedEnvelope $opened
                         $result = $opened.Payload
                         [void](Save-ToolEnterpriseJobResult -ClientId $clientId -Result $result)
-                        $responsePayload = [ordered]@{ Accepted=$true; Message="Đã nhận kết quả tác vụ."; ReceivedAtUtc=[DateTime]::UtcNow.ToString("o") }
+                        $responsePayload = [ordered]@{ Accepted=$true; Message=(Get-ToolEnterpriseText "enterpriseHost.response.jobResultReceived"); ReceivedAtUtc=[DateTime]::UtcNow.ToString("o") }
                         $response = New-ToolEnterpriseEnvelope -Secret $clientSecret -Context "result-response:$clientId" -Payload $responsePayload
                         Write-ToolEnterpriseHostJsonResponse -Response $context.Response -StatusCode 200 -Value $response
                     }
@@ -339,7 +329,7 @@ function Start-ToolEnterpriseHost {
         try { Remove-Item -LiteralPath $paths.ServerPid -Force -ErrorAction SilentlyContinue } catch {}
         try { Remove-Item -LiteralPath $paths.ServerHeartbeat -Force -ErrorAction SilentlyContinue } catch {}
         try { Remove-Item -LiteralPath $paths.ServerStop -Force -ErrorAction SilentlyContinue } catch {}
-        try { Write-ToolEnterpriseAudit -Scope Server -Event "Server.Stopped" -Message "Máy chủ enterprise đã dừng." } catch {}
+        try { Write-ToolEnterpriseAudit -Scope Server -Event "Server.Stopped" -Message (Get-ToolEnterpriseText "enterpriseHost.audit.stopped") } catch {}
         try { $mutex.ReleaseMutex() } catch {}
         $mutex.Dispose()
     }

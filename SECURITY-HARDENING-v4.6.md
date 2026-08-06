@@ -1,10 +1,10 @@
-# Security hardening baseline — Tool-Kiem-Tra v4.4
+# Security hardening baseline — Tool-Kiem-Tra v4.6
 
 ## Artefact và build
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| EXE | `Tool-Kiem-Tra-v4.4.exe` |
+| EXE | `Tool-Kiem-Tra-v4.6.exe` |
 | Runtime | .NET Framework 4 / CLR v4 |
 | Kiến trúc | AnyCPU, không Prefer 32-bit |
 | PowerShell | native x64/x86, `RemoteSigned` |
@@ -15,7 +15,8 @@
 ## Secure launch
 
 - Launcher lấy PowerShell từ System32 native, không dùng PATH.
-- Payload nhúng được ghi vào session ProgramData v4.4.
+- Payload nhúng và dữ liệu ghi nằm trong vùng ProgramData v4.6 riêng; log/backup v4.4/v4.5 không còn dùng chung để ghi.
+- Payload được nén Deflate riêng từng tệp khi có lợi; tệp không giảm được dung lượng giữ nguyên raw. Đây chỉ là tối ưu đóng gói, không bỏ mô-đun hay giảm phạm vi quét.
 - Mỗi payload được đối chiếu SHA-256.
 - Root/session từ chối reparse point.
 - ACL chỉ Administrators/SYSTEM.
@@ -28,14 +29,18 @@ Offline toàn ứng dụng mặc định khi preference thiếu/lỗi. Launcher 
 
 - không telemetry;
 - không auto-update;
-- không tải script/binary/rule;
+- không tải script/binary; chỉ tải catalog đối chiếu JSON sau khi người dùng bấm **Kết nối online** và xác nhận;
 - HTML/PDF không dùng remote asset;
 - plugin không có URL hoặc command;
 - network opt-in được audit.
 
+Catalog phần mềm dùng HTTPS GET, host allowlist, không redirect, timeout và giới hạn 2 MiB; schema được xác minh trước khi ghi cache. Luồng này không có POST/PUT/PATCH và không gửi inventory, đường dẫn, product key, token hoặc bằng chứng cục bộ. Không truyền consent hoặc truyền `false` trả mã `2` trước khi nạp updater hay gọi mạng; wrapper chuyển đúng giá trị caller thay vì gán `true`.
+
+Quy tắc tải online chỉ được dùng để mở rộng nhận diện và tạo bằng chứng không quyết định. Hash/tên activator từ cache online chỉ có thể tự tạo kết luận `NonGenuine` khi SHA-256 của toàn catalog giống byte-for-byte catalog tích hợp đã phát hành; catalog khác biệt phải được review, đưa vào bản dựng và đi qua verifier trước. Quét sâu cũng loại root hệ thống quá rộng, reparse point và phần mở rộng tài liệu khỏi bằng chứng artifact quyết định.
+
 ## Dữ liệu
 
-ProgramData v4.4:
+ProgramData v4.6 (vùng ghi hiện hành):
 
 - log JSONL;
 - backup hash/HMAC/DPAPI;
@@ -45,6 +50,8 @@ ProgramData v4.4:
 
 Full product key bị loại khỏi log/report/timeline. Enterprise key chỉ nằm trong envelope mã hóa và audit chỉ lưu last-5.
 
+`data-state.json` ghi DataSchema 2.0 và ProducerVersion. Migration từ v4.4/v4.5 dùng staging GUID, đối chiếu danh sách/kích thước/SHA-256 rồi commit; lỗi commit khôi phục tệp bị ghi đè, xóa đúng mục mới và không ghi trạng thái hoàn tất. Dữ liệu cũ không bị sửa/xóa; log và backup cũ chỉ được tham chiếu đọc. Launcher kiểm tra mutex cũ trước migration, còn agent/audit dùng mutex v4.6 riêng.
+
 ## Backup/restore
 
 - root cố định, canonical path check;
@@ -52,7 +59,7 @@ Full product key bị loại khỏi log/report/timeline. Enterprise key chỉ n�
 - machine binding;
 - SHA-256 + HMAC;
 - DPAPI LocalMachine;
-- manifest ToolVersion 4.4;
+- manifest ToolVersion 4.6;
 - restore từ chối dữ liệu sai schema/hash/máy/root.
 
 ## Plugin threat model
@@ -80,8 +87,16 @@ Denied:
 - client opt-in cho remote license changes.
 - DPAPI LocalMachine cho secret/queue.
 - endpoint cố định; không arbitrary execution.
+- `GET /tool/v1/status` không xác thực chỉ trả `Accepted`, `ProtocolVersion`, `ToolVersion`; không trả Server ID/tên máy, IP, bind address, CIDR hoặc số client và vẫn chịu rate limit.
 
 HTTP transport không tự cung cấp TLS; bảo mật nội dung dựa trên envelope. Môi trường doanh nghiệp nên giới hạn firewall/VLAN và cân nhắc TLS/reverse proxy trong roadmap.
+
+## Dry Run threat model
+
+- lập kế hoạch từ candidate đã chọn nhưng không gọi restore point, backup, service/process, Registry, file, MSI hoặc lệnh mạng;
+- report đặt `SimulationOnly=true` và `NoSystemChangesApplied=true`;
+- mỗi dòng công bố target, action, backup/restorability và yêu cầu quyền;
+- chuyển sang thực hiện thật luôn mở lại chọn mục/xác nhận, không tái sử dụng kế hoạch như một lệnh tự động.
 
 ## Report hardening
 
@@ -109,8 +124,8 @@ Build phát triển chưa ký vẫn có thể tạo để test, nhưng không đ
 ```powershell
 .\BUILD.ps1 -OutputDirectory .\dist
 .\VERIFY-RELEASE.ps1 -SourceDirectory . -DistributionDirectory .\dist
-Get-FileHash .\dist\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.4.exe
+Get-FileHash .\dist\Tool-Kiem-Tra-v4.6.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.6.exe
 ```
 
 ## Giới hạn

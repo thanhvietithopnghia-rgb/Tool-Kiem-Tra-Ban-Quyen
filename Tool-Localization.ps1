@@ -1,5 +1,5 @@
 ﻿$script:ToolLocalizationSchemaVersion = "1.0"
-$script:ToolLocalizationToolVersion = "4.4"
+$script:ToolLocalizationToolVersion = "4.6.0.0"
 $script:ToolLocalizationDefaultCulture = "vi-VN"
 $script:ToolLocalizationSupportedCultures = @("vi-VN", "en-US")
 $script:ToolLocalizationCatalogCache = @{}
@@ -72,11 +72,11 @@ function Get-ToolLocalizationCatalog {
         if ($Culture -ne $script:ToolLocalizationDefaultCulture) {
             return Get-ToolLocalizationCatalog -Culture $script:ToolLocalizationDefaultCulture
         }
-        throw "Thiếu catalog ngôn ngữ: $path"
+        throw "[localization.catalogMissing] $path"
     }
     $item = Get-Item -LiteralPath $path -Force
-    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $item.Length -le 2 -or $item.Length -gt 262144) {
-        throw "Catalog ngôn ngữ không an toàn hoặc vượt giới hạn: $path"
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $item.Length -le 2 -or $item.Length -gt 1048576) {
+        throw "[localization.catalogUnsafe] $path"
     }
     $catalog = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
     $script:ToolLocalizationCatalogCache[$Culture] = $catalog
@@ -100,7 +100,7 @@ function Get-ToolText {
         $property = $fallback.PSObject.Properties[$Key]
     }
     $text = if ($property) { [string]$property.Value } else { "[$Key]" }
-    if ($FormatArguments -and @($FormatArguments).Count -gt 0) {
+    if ($null -ne $FormatArguments -and @($FormatArguments).Count -gt 0) {
         try {
             $cultureInfo = [Globalization.CultureInfo]::GetCultureInfo($Culture)
             return [string]::Format($cultureInfo, $text, [object[]]$FormatArguments)
@@ -109,6 +109,15 @@ function Get-ToolText {
         }
     }
     return $text
+}
+
+function Get-ToolTextCurrent {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [AllowNull()][object[]]$FormatArguments = @()
+    )
+
+    return Get-ToolText -Key $Key -Culture (Get-ToolCulture) -FormatArguments $FormatArguments
 }
 
 function Get-ToolLocalizationMetadata {

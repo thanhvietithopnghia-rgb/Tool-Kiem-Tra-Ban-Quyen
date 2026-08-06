@@ -1,12 +1,36 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.0.0.0",
-  "GeneratedAtUtc": "2026-08-04T08:30:00Z",
+  "CatalogVersion": "1.2.0.0",
+  "GeneratedAtUtc": "2026-08-06T04:00:00Z",
+  "CatalogScope": ["General", "Design", "CAD", "CAM", "CAE", "BIM", "GIS", "Simulation", "Engineering"],
   "UpdateUrl": "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json",
   "Privacy": {
     "DownloadOnly": true,
     "UploadsInstalledInventory": false,
     "UploadsLicenseKeys": false
+  },
+  "DeepScan": {
+    "KnownActivatorNamePatterns": [
+      "\\bAdobe[\\s._-]*GenP\\b",
+      "\\bCCMaker\\b",
+      "\\bamtlib[\\s._-]*(?:patch|emulator)\\b",
+      "\\bXF[\\s._-]*ADSK\\b",
+      "\\bX[\\s._-]*Force\\b",
+      "\\bKMSPico\\b",
+      "\\bKMSAuto\\b",
+      "\\bAAct(?:Portable)?\\b",
+      "\\bHWIDGen\\b",
+      "\\bMassgrave\\b"
+    ],
+    "SuspiciousArtifactNamePatterns": [
+      "\\bcrack(?:ed)?\\b",
+      "\\bkeygen\\b",
+      "\\bactivator\\b",
+      "\\bactivation[\\s._-]*bypass\\b",
+      "\\blicen[cs]e[\\s._-]*(?:bypass|patch)\\b",
+      "\\bserial[\\s._-]*generator\\b"
+    ],
+    "KnownBadSha256": []
   },
   "Products": [
     {
@@ -300,6 +324,129 @@
       "OfficialUrl": "",
       "LicenseDomains": [],
       "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "dassault-systemes-commercial", "Category": "CAD/CAE/Simulation", "Vendor": "Dassault Systemes",
+      "NamePatterns": ["\\bSOLIDWORKS\\b", "\\bCATIA\\b", "\\bDELMIA\\b", "\\bSIMULIA\\b", "\\b3DEXPERIENCE\\b", "\\bDraftSight\\b"],
+      "PublisherPatterns": ["\\bDassault (?:Systemes|Syst[eè]mes)\\b", "\\bSolidWorks Corp\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.3ds.com/products", "LicenseDomains": ["(?:^|\\.)3ds\\.com$", "(?:^|\\.)solidworks\\.com$"],
+      "UnauthorizedNamePatterns": ["\\b(?:Team[._ -]*)?SolidSQUAD\\b", "\\bSW20\\d{2}[._ -]*(?:crack|loader)\\b", "\\blicen[cs]e[._ -]*patch\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:SLDWORKS|CATSTART|CNEXT|DSLicSrv)\\.exe$"], "LicenseProcessPatterns": ["^(?:SolidNetWork License Manager|DS License Server|DSLicSrv)$"]
+    },
+    {
+      "Id": "ansys-commercial", "Category": "CAE/Simulation", "Vendor": "Ansys",
+      "NamePatterns": ["\\bANSYS\\b", "\\bAnsys (?:Workbench|Fluent|Mechanical|Electronics|Discovery|SpaceClaim)\\b"],
+      "PublisherPatterns": ["\\bANSYS\\b", "\\bAnsys,? Inc\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.ansys.com/products", "LicenseDomains": ["(?:^|\\.)ansys\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bANSYS[._ -]*(?:crack|patch|keygen)\\b", "\\bMAGNiTUDE\\b", "\\blicen[cs]e[._ -]*bypass\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:runwb2|fluent|ansysedt|ansysli_server)\\.exe$"], "LicenseProcessPatterns": ["^(?:ANSYS, Inc. License Manager|ANSYSLI_SERVERS|ansysli_server)$"]
+    },
+    {
+      "Id": "siemens-engineering-commercial", "Category": "CAD/CAE/PLM", "Vendor": "Siemens Digital Industries Software",
+      "NamePatterns": ["\\bSiemens NX\\b", "\\bSimcenter\\b", "\\bSolid Edge\\b", "\\bTeamcenter\\b", "\\bTecnomatix\\b", "\\bSTAR-CCM\\+\\b"],
+      "PublisherPatterns": ["\\bSiemens\\b", "\\bSiemens PLM\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://plm.sw.siemens.com/en-US/", "LicenseDomains": ["(?:^|\\.)siemens\\.com$", "(?:^|\\.)sw\\.siemens\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bSiemens[._ -]*(?:NX|Simcenter)?[._ -]*(?:crack|patch|keygen)\\b", "\\bSolidSQUAD\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:ugraf|ugslicensing|SolidEdge)\\.exe$"], "LicenseProcessPatterns": ["^(?:Siemens PLM License Server|Siemens License Server|lmgrd)$"]
+    },
+    {
+      "Id": "bentley-commercial", "Category": "CAD/BIM/Infrastructure", "Vendor": "Bentley Systems",
+      "NamePatterns": ["\\bMicroStation\\b", "\\bOpenRoads\\b", "\\bOpenBuildings\\b", "\\bSTAAD\\.Pro\\b", "\\bPLAXIS\\b", "\\bBentley\\b"],
+      "PublisherPatterns": ["\\bBentley Systems\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.bentley.com/software/", "LicenseDomains": ["(?:^|\\.)bentley\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bBentley[._ -]*(?:crack|patch|keygen)\\b", "\\bSELECTserver[._ -]*emulator\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:microstation|Bentley\\.Licensing\\.Service)\\.exe$"], "LicenseProcessPatterns": ["^(?:Bentley Licensing Service|Bentley CONNECT Client)$"]
+    },
+    {
+      "Id": "mathworks-matlab-simulink", "Category": "Engineering/Simulation", "Vendor": "MathWorks",
+      "NamePatterns": ["\\bMATLAB\\b", "\\bSimulink\\b", "\\bMathWorks\\b"], "PublisherPatterns": ["\\bMathWorks\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.mathworks.com/products.html", "LicenseDomains": ["(?:^|\\.)mathworks\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bMATLAB[._ -]*(?:crack|patch|keygen)\\b", "\\blicen[cs]e_standalone\\.lic\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:matlab|MathWorksServiceHost|lmutil)\\.exe$"], "LicenseProcessPatterns": ["^(?:MATLAB Web App Server|MathWorks Service Host|lmgrd)$"]
+    },
+    {
+      "Id": "ptc-engineering-commercial", "Category": "CAD/PLM", "Vendor": "PTC",
+      "NamePatterns": ["\\bPTC Creo\\b", "\\bCreo Parametric\\b", "\\bWindchill\\b", "\\bMathcad\\b"],
+      "PublisherPatterns": ["\\bPTC\\b", "\\bParametric Technology\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.ptc.com/en/products", "LicenseDomains": ["(?:^|\\.)ptc\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bPTC[._ -]*(?:Creo)?[._ -]*(?:crack|patch|keygen)\\b", "\\bSolidSQUAD\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:parametric|ptc_d|lmgrd)\\.exe$"], "LicenseProcessPatterns": ["^(?:PTC License Server|lmgrd)$"]
+    },
+    {
+      "Id": "comsol-multiphysics", "Category": "CAE/Simulation", "Vendor": "COMSOL",
+      "NamePatterns": ["\\bCOMSOL Multiphysics\\b", "\\bCOMSOL Server\\b"], "PublisherPatterns": ["\\bCOMSOL\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.comsol.com/products", "LicenseDomains": ["(?:^|\\.)comsol\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bCOMSOL[._ -]*(?:crack|patch|keygen)\\b", "\\bSolidSQUAD\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:comsol|lmgrd|lmcomsol)\\.exe$"], "LicenseProcessPatterns": ["^(?:COMSOL License Manager|lmgrd)$"]
+    },
+    {
+      "Id": "altair-engineering-commercial", "Category": "CAE/Simulation", "Vendor": "Altair Engineering",
+      "NamePatterns": ["\\bAltair HyperWorks\\b", "\\bAltair Inspire\\b", "\\bAltair SimLab\\b", "\\bHyperMesh\\b", "\\bHyperView\\b"],
+      "PublisherPatterns": ["\\bAltair Engineering\\b", "\\bAltair\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://altair.com/products", "LicenseDomains": ["(?:^|\\.)altair\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bAltair[._ -]*(?:crack|patch|keygen)\\b", "\\bMAGNiTUDE\\b", "\\bSolidSQUAD\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:hw|hmbatch|almutil|lmx-serv-altair)\\.exe$"], "LicenseProcessPatterns": ["^(?:Altair License Server|lmx-serv-altair)$"]
+    },
+    {
+      "Id": "trimble-design-commercial", "Category": "CAD/BIM", "Vendor": "Trimble",
+      "NamePatterns": ["\\bSketchUp Pro\\b", "\\bTekla Structures\\b", "\\bTrimble Business Center\\b"],
+      "PublisherPatterns": ["\\bTrimble\\b", "\\bSketchUp\\b", "\\bTrimble Solutions\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.trimble.com/en/products", "LicenseDomains": ["(?:^|\\.)trimble\\.com$", "(?:^|\\.)sketchup\\.com$", "(?:^|\\.)tekla\\.com$"],
+      "UnauthorizedNamePatterns": ["\\b(?:SketchUp|Tekla)[._ -]*(?:crack|patch|keygen)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:SketchUp|TeklaStructures|TeklaLicenseService)\\.exe$"], "LicenseProcessPatterns": ["^(?:Tekla Licensing Service|Trimble Identity)$"]
+    },
+    {
+      "Id": "graphisoft-archicad", "Category": "BIM", "Vendor": "Graphisoft",
+      "NamePatterns": ["\\bARCHICAD\\b", "\\bGraphisoft\\b", "\\bBIMcloud\\b"], "PublisherPatterns": ["\\bGRAPHISOFT\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://graphisoft.com/solutions/archicad", "LicenseDomains": ["(?:^|\\.)graphisoft\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bARCHICAD[._ -]*(?:crack|patch|keygen)\\b", "\\bCodeMeter[._ -]*(?:patch|emulator)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:ARCHICAD|CodeMeter|LicenseManagerTool)\\.exe$"], "LicenseProcessPatterns": ["^(?:CodeMeter Runtime Server|Graphisoft License Manager)$"]
+    },
+    {
+      "Id": "chaos-rendering-commercial", "Category": "Design/Rendering", "Vendor": "Chaos",
+      "NamePatterns": ["\\bV-Ray\\b", "\\bChaos Corona\\b", "\\bChaos Cosmos\\b", "\\bChaos License Server\\b"],
+      "PublisherPatterns": ["\\bChaos Software\\b", "\\bChaos Czech\\b", "\\bChaos Group\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.chaos.com/", "LicenseDomains": ["(?:^|\\.)chaos\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bV-Ray[._ -]*(?:crack|patch|keygen)\\b", "\\bCorona[._ -]*(?:crack|patch)\\b", "\\bChaos[._ -]*license[._ -]*(?:bypass|emulator)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:vray|vrlservice|Corona)\\.exe$"], "LicenseProcessPatterns": ["^(?:Chaos License Server|VRLService)$"]
+    },
+    {
+      "Id": "eplan-platform-commercial", "Category": "Electrical Engineering", "Vendor": "EPLAN",
+      "NamePatterns": ["\\bEPLAN Electric P8\\b", "\\bEPLAN Platform\\b", "\\bEPLAN Pro Panel\\b"], "PublisherPatterns": ["\\bEPLAN\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.eplan-software.com/solutions/", "LicenseDomains": ["(?:^|\\.)eplan\\.com$", "(?:^|\\.)eplan-software\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bEPLAN[._ -]*(?:crack|patch|keygen)\\b", "\\bEPLAN[._ -]*dongle[._ -]*emulator\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:Eplan|EplanLicenseClient)\\.exe$"], "LicenseProcessPatterns": ["^(?:EPLAN License Client|EPLAN License Manager)$"]
+    },
+    {
+      "Id": "national-instruments-engineering", "Category": "Test/Measurement/Simulation", "Vendor": "National Instruments",
+      "NamePatterns": ["\\bNI LabVIEW\\b", "\\bLabVIEW\\b", "\\bNI Multisim\\b", "\\bNI DIAdem\\b", "\\bNI TestStand\\b"],
+      "PublisherPatterns": ["\\bNational Instruments\\b", "\\bNI\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.ni.com/en/shop.html", "LicenseDomains": ["(?:^|\\.)ni\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bNI[._ -]*(?:License)?[._ -]*(?:Activator|crack|patch|keygen)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:LabVIEW|NILMUtil|Multisim)\\.exe$"], "LicenseProcessPatterns": ["^(?:NI License Manager|NILM License Manager)$"]
+    },
+    {
+      "Id": "altium-designer-commercial", "Category": "PCB/Electronics Design", "Vendor": "Altium",
+      "NamePatterns": ["\\bAltium Designer\\b", "\\bAltium NEXUS\\b"], "PublisherPatterns": ["\\bAltium\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.altium.com/altium-designer", "LicenseDomains": ["(?:^|\\.)altium\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bAltium[._ -]*(?:crack|patch|keygen)\\b", "\\bAltium[._ -]*license[._ -]*(?:bypass|server)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:X2|DXP|AltiumDesigner)\\.exe$"], "LicenseProcessPatterns": ["^(?:Altium Infrastructure Server|Altium Licensing Service)$"]
+    },
+    {
+      "Id": "csi-structural-commercial", "Category": "Structural Engineering/Simulation", "Vendor": "Computers and Structures",
+      "NamePatterns": ["\\bETABS\\b", "\\bSAP2000\\b", "\\bSAFE\\b", "\\bCSiBridge\\b"],
+      "PublisherPatterns": ["\\bComputers and Structures\\b", "\\bCSI\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.csiamerica.com/products", "LicenseDomains": ["(?:^|\\.)csiamerica\\.com$"],
+      "UnauthorizedNamePatterns": ["\\b(?:ETABS|SAP2000|CSiBridge|SAFE)[._ -]*(?:crack|patch|keygen)\\b", "\\bSentinel[._ -]*emulator\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:ETABS|SAP2000|SAFE|CSiBridge)\\.exe$"], "LicenseProcessPatterns": ["^(?:Sentinel LDK License Manager|Sentinel RMS License Manager)$"]
+    },
+    {
+      "Id": "esri-arcgis-commercial", "Category": "GIS/Simulation", "Vendor": "Esri",
+      "NamePatterns": ["\\bArcGIS Pro\\b", "\\bArcGIS Desktop\\b", "\\bArcGIS CityEngine\\b"],
+      "PublisherPatterns": ["\\bEsri\\b", "\\bEnvironmental Systems Research Institute\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.esri.com/en-us/arcgis/products/index", "LicenseDomains": ["(?:^|\\.)esri\\.com$", "(?:^|\\.)arcgis\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bArcGIS[._ -]*(?:crack|patch|keygen)\\b", "\\bArcGIS[._ -]*license[._ -]*(?:bypass|server)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:ArcGISPro|ArcMap|ArcGISAdmin)\\.exe$"], "LicenseProcessPatterns": ["^(?:ArcGIS License Manager|ArcGIS Licensing Service)$"]
     }
   ]
 }

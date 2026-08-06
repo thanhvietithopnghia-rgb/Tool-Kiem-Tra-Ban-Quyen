@@ -1,14 +1,14 @@
-# Tool Kiểm Tra v4.4 Enterprise – Bản nâng cấp toàn diện
+# Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.6
 
-Phiên bản v4.4 Enterprise là bản nâng cấp quan trọng của Tool Kiểm Tra, tập trung cải thiện khả năng kiểm kê hệ thống, quản lý bản quyền và bảo mật dữ liệu trong môi trường doanh nghiệp.
+Phiên bản v4.6 hỗ trợ người dùng cá nhân và doanh nghiệp, tập trung vào giao diện dễ đọc, kiểm kê toàn bộ phần mềm phát hiện được, đối chiếu bằng chứng bản quyền và bảo mật dữ liệu.
 
-Bản cập nhật mở rộng khả năng nhận diện Windows 11 24H2, 25H2, 26H1; Office 2024, LTSC 2024 và Microsoft 365 Apps. Giao diện Dashboard 2.0 được thiết kế trực quan hơn, hỗ trợ chế độ Sáng/Tối và tự động tối ưu theo độ phân giải màn hình.
+Bản cập nhật dùng Catalog Lifecycle 1.1 để nhận diện Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1; Office 2021/2024, Microsoft 365 Apps và phần mềm khác từ nhiều nguồn cài đặt. Catalog cảnh báo tuổi 30/45 ngày; phiên bản Microsoft chưa biết chuyển sang chỉ đọc và yêu cầu rà soát thay vì bị kết luận sai. Giao diện Dashboard 2.0 hỗ trợ Sáng/Tối, tự tối ưu theo DPI và chỉ kết nối online khi người dùng đồng ý.
 
-V4.4 tiếp tục ưu tiên quyền riêng tư với cơ chế hoạt động ngoại tuyến, không thu thập dữ liệu và không tự ý kết nối mạng. Báo cáo HTML/PDF được tăng cường bảo vệ, đồng thời tính toàn vẹn của dữ liệu được xác minh bằng SHA-256 và HMAC.
+Offline vẫn là mặc định: công cụ không tự kết nối mạng và không tải lên danh sách phần mềm, đường dẫn, khóa hoặc token. Báo cáo HTML/PDF được tăng cường bảo vệ, đồng thời tính toàn vẹn của dữ liệu được xác minh bằng SHA-256 và HMAC.
 
 Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
 
-Phiên bản hiện tại: **v4.4 Enterprise — FileVersion 4.4.0.0 — Build 2026.07.31**
+Phiên bản hiện tại: **v4.6 — FileVersion 4.6.0.0 — Build 2026.08.06**
 
 Tác giả và phát triển: **Thanh Việt**
 
@@ -20,6 +20,10 @@ Tác giả và phát triển: **Thanh Việt**
 - Cảnh báo khi chạy trong máy ảo hoặc Remote Desktop mà không khóa chức năng.
 - Có nút **Sao chép toàn bộ log**, **Mở thư mục báo cáo** và lịch sử phiên bản hiển thị ngay trong Tool.
 - Quét nhiều bản Office và nhiều nguồn tệp song song có giới hạn để tăng tốc trên máy nhiều ổ đĩa.
+- Quét sâu phổ quát từng phần mềm phát hiện được: phân bổ ngân sách chữ ký có trọng số nhưng vẫn giữ độ phủ cho mọi nhóm, kiểm tra nhiều EXE/DLL, hash xấu đã biết, artifact, hosts, firewall, IFEO, dịch vụ và autorun; mọi giới hạn và độ phủ đều được ghi vào báo cáo.
+- Catalog phần mềm `1.2.0.0` có 45 quy tắc, gồm 16 nhóm phần mềm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering.
+- **Dry Run** cho khắc phục: lập kế hoạch chi tiết và báo cáo nhưng không tạo restore point/backup, không dừng, xóa hoặc sửa hệ thống; thực hiện thật phải chọn và xác nhận lại.
+- DataSchema `2.0` dùng vùng ghi v4.6 riêng; migration từ v4.4/v4.5 được staging, kiểm tra SHA-256, commit có rollback và không xóa dữ liệu cũ.
 - Mười chức năng được đánh số rõ ràng từ 01 đến 10.
 - Khu vực hoạt động để trống khi khởi động; khi có tác vụ mới hiển thị tiến độ, thời gian, nhật ký và nút **Dừng**.
 - Hai trạng thái mạng ngắn gọn **Offline/Online**; Tool luôn khởi động Offline và chỉ dùng mạng sau khi người dùng chủ động bật.
@@ -33,9 +37,9 @@ Tác giả và phát triển: **Thanh Việt**
 1. **Kiểm tra toàn bộ** — tổng hợp cấu hình, Windows, Office, phần mềm và đánh giá chung.
 2. **Cấu hình phần cứng** — CPU, RAM, bo mạch, BIOS/UEFI, ổ đĩa, đồ họa, mạng và thiết bị.
 3. **Bản quyền Windows** — trạng thái kích hoạt, edition, kênh cấp phép, PartialProductKey và KMS nếu có.
-4. **Bản quyền Microsoft Office** — Office 2024/LTSC, Microsoft 365 Apps, Click-to-Run, SKU và OSPP.
-5. **Phần mềm & dấu hiệu can thiệp** — giữ giao diện/báo cáo truyền thống, đồng thời bổ sung chữ ký số, nguồn cài, tự động chạy, dịch vụ, tác vụ, phiên bản song song và lý do cần rà soát.
-6. **Khắc phục KMS/Activator** — quét chỉ đọc, backup có kiểm chứng, lựa chọn từng mục, xác nhận, hậu kiểm và khôi phục.
+4. **Bản quyền Microsoft Office** — Office 2021/2024/LTSC, Microsoft 365 Apps, Click-to-Run, SKU và OSPP.
+5. **Phần mềm & dấu hiệu can thiệp** — kiểm kê mọi nguồn cài đặt được hỗ trợ và quét sâu có giới hạn cho từng ứng dụng, gồm nhiều tệp thực thi/DLL, chữ ký số, hash, artifact, hosts, firewall, IFEO, tự động chạy, dịch vụ, tác vụ và bằng chứng kỹ thuật kích hoạt bị can thiệp.
+6. **Khắc phục KMS/Activator** — chọn Quét toàn bộ, Windows & Office hoặc Phần mềm khác; có Dry Run không thay đổi hệ thống và luồng thực yêu cầu chọn/xác nhận lại. Mọi mục Không chính hãng/Nghi vấn đều chọn thủ công được; tự động chỉ chạy kế hoạch an toàn đã khóa phạm vi, còn gỡ/cài lại chính thức luôn cần xác nhận riêng và backup có kiểm chứng.
 7. **Khôi phục key OEM** — kiểm tra key firmware và chỉ áp dụng khi người dùng xác nhận edition phù hợp.
 8. **Quản lý giấy phép hợp lệ** — quản lý Windows/Office cục bộ hoặc máy chủ/máy trạm trong LAN được cho phép.
 9. **Kiểm tra chuyên sâu** — quét sâu và điều tra forensics dành cho quản trị viên.
@@ -45,12 +49,12 @@ Tác giả và phát triển: **Thanh Việt**
 
 1. Tải gói phát hành chính thức và đối chiếu SHA-256.
 2. Giải nén toàn bộ gói vào một thư mục cố định; không chạy EXE trực tiếp bên trong ZIP.
-3. Chạy `Tool-Kiem-Tra-v4.4.exe` và chấp nhận UAC.
+3. Chạy `Tool-Kiem-Tra-v4.6.exe` và chấp nhận UAC.
 4. Tool khôi phục theme và Offline/Online đã lưu. Chỉ chuyển sang **Online** khi chức năng đang dùng thực sự cần Internet/LAN.
 5. Chọn chức năng 01–10 trên màn hình chính.
 6. Khi tác vụ hoàn tất, đọc bản HTML được mở tự động; bản HTML và PDF nằm trên Desktop.
 
-HDSD đầy đủ nằm trong `HUONG-DAN.txt` và được mở nhanh bằng:
+Hướng dẫn sử dụng v4.6 dành cho người trực tiếp chạy EXE nằm trong `HUONG-DAN.txt` và được mở nhanh bằng:
 
 - nút **Mở hướng dẫn** trong cửa sổ Giới thiệu; hoặc
 - **Chức năng 10 → 6. Mở hướng dẫn sử dụng chi tiết bằng HTML/PDF**.
@@ -79,25 +83,26 @@ Tool dùng mô hình **local-first, offline-first**: một EXE cung cấp 10 ch�
 - **Launcher:** C#/.NET Framework 4, AnyCPU, kiểm tra SHA-256 của payload và chọn Windows PowerShell native.
 - **Giao diện và nghiệp vụ:** Windows PowerShell 3+/WinForms; theo dõi tiến trình con và cho phép dừng tác vụ đang chạy.
 - **Hợp đồng dữ liệu:** JSON cho catalog, localization, plugin và kết quả mô-đun.
+- **Vòng đời dữ liệu:** DataSchema 2.0, `ProducerVersion`, mutex migration, staging/đối chiếu SHA-256/rollback và vùng ghi `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6`.
 - **Báo cáo:** HTML/CSS tự chứa, JSON, XML và SHA-256.
 - **PDF:** tạo cục bộ bằng Microsoft Edge, Google Chrome hoặc Microsoft Word; không dùng dịch vụ chuyển đổi trực tuyến.
 - **Plugin:** quy tắc JSON khai báo chỉ đọc; không nạp DLL hoặc thực thi mã plugin tùy ý.
 - **Timeline:** DPAPI LocalMachine, HMAC-SHA256 và chuỗi hash.
-- **Mạng doanh nghiệp tùy chọn:** Mục 8 có công tắc Online/Offline riêng; HTTP trong LAN với phong bì ứng dụng AES-256-CBC + HMAC-SHA256, nonce, timestamp và kiểm soát replay.
+- **Mạng doanh nghiệp tùy chọn:** Trung tâm quản lý giấy phép có công tắc Online/Offline riêng; HTTP trong LAN với phong bì ứng dụng AES-256-CBC + HMAC-SHA256, nonce, timestamp và kiểm soát replay.
 
 Mã nguồn PowerShell là nguồn sự thật cho logic nghiệp vụ. Launcher C# chỉ đóng gói, xác minh và khởi chạy đúng môi trường.
 
 ## Lịch sử phát triển chính
 
-Lịch sử trên GitHub chỉ dùng số phiên bản chính như `v4.4`; các số vá nội bộ được gộp vào cùng mốc để tránh danh sách dài và trùng nội dung.
+Lịch sử trên GitHub dùng số phiên bản phát hành như `v4.6`; các số vá nội bộ được gộp khi không thay đổi hợp đồng công khai.
 
 - **v1.0–v1.3:** hình thành giao diện Windows, kiểm tra cấu hình/bản quyền, tiến độ tác vụ, key OEM và quét chuyên sâu có UAC nhưng vẫn chỉ đọc.
 - **v2.4–v2.9:** tối ưu bố cục, quản lý key/edition hợp lệ, điều tra 7/12 nhóm, chấm điểm rủi ro, bộ bằng chứng HTML/JSON/CSV/SHA-256 và hậu kiểm.
 - **v3.0–v3.5:** khắc phục chọn lọc, backup/restore, manifest, DPAPI/HMAC, kiểm tra toàn vẹn, nhật ký trực tiếp và chính sách fail-closed.
 - **v3.6–v3.9:** một EXE AnyCPU, build deterministic, PE hardening, capability schema, JSONL logging, module contract và report schema có verifier x64/x86.
-- **v4.0–v4.4:** dashboard hiện đại, Trung tâm bảo đảm, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, cấu hình ghi nhớ, cảnh báo môi trường, quét song song và báo cáo HTML/PDF thống nhất.
+- **v4.0–v4.6:** dashboard hiện đại, giao diện Light mặc định, Trung tâm bảo đảm, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, cảnh báo môi trường, quét song song và báo cáo HTML/PDF thống nhất.
 
-Chi tiết từng mốc từ `v1.0` đến `v4.4`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
+Chi tiết từng mốc từ `v1.0` đến `v4.6`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
 
 ## An toàn khi dùng chức năng 06, 07 và 08
 
@@ -113,19 +118,20 @@ Chi tiết từng mốc từ `v1.0` đến `v4.4`, gồm nâng cấp, công ngh�
 Trong PowerShell:
 
 ```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.4.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.4.exe | Format-List Status,StatusMessage,SignerCertificate
+Get-FileHash .\Tool-Kiem-Tra-v4.6.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.6.exe | Format-List Status,StatusMessage,SignerCertificate
 ```
 
 Đối chiếu hash với manifest trong gói phát hành. EXE chỉ được công bố là đã ký khi trạng thái Authenticode thực tế là `Valid`; nếu chưa có chứng thư ký mã, tài liệu phát hành phải ghi rõ `NotSigned`.
 
 ## Tài liệu
 
-- `HUONG-DAN.txt` — hướng dẫn chi tiết theo từng chức năng.
-- `USER-GUIDE-en-US.md` — English user guide.
-- `LICH-SU-PHIEN-BAN.txt` — giới thiệu phiên bản, nội dung thay đổi và mô hình/công nghệ.
+- `HUONG-DAN.txt` — hướng dẫn người dùng v4.6: điểm mới, cách chạy EXE và toàn bộ chức năng.
+- `USER-GUIDE-en-US.md` — complete English v4.6 end-user guide.
+- `LICH-SU-PHIEN-BAN.txt` — lịch sử phiên bản tiếng Việt.
+- `VERSION-HISTORY-en-US.md` — English version history.
 - `README-MA-NGUON.md` — cách build, kiểm thử và đóng gói.
-- `TECHNICAL-ARCHITECTURE-v4.4.md` — kiến trúc kỹ thuật.
+- `TECHNICAL-ARCHITECTURE-v4.6.md` — kiến trúc kỹ thuật.
 - `SAFETY-POLICY-v1.0.md` — ranh giới an toàn.
 
 ## Tải chính thức và hỗ trợ

@@ -1,8 +1,8 @@
-# Offline mode và báo cáo v4.4
+# Offline mode và báo cáo v4.6
 
 ## Chính sách mặc định
 
-v4.4 khôi phục lựa chọn **Offline/Online** đã lưu; tài khoản chưa có cấu hình vẫn khởi động **Offline** nếu:
+v4.6 khôi phục lựa chọn **Offline/Online** đã lưu; tài khoản chưa có cấu hình vẫn khởi động **Offline** nếu:
 
 - chưa có thiết lập;
 - tệp thiết lập không đọc được hoặc sai định dạng;
@@ -21,12 +21,14 @@ Trong Offline mode, tool chặn:
 - mở URL hỗ trợ/release;
 - mọi telemetry và kiểm tra cập nhật tự động.
 
-Không có module nào cần Internet. Enterprise UI là `LocalOnly`; server và agent khai báo `NetworkScope=Lan` và cần công tắc mạng riêng của Mục 8.
+Ngoại lệ duy nhất là `software.catalog.update` (`NetworkScope=Internet`). Mô-đun chỉ chạy một lượt sau khi người dùng bấm **Kết nối online**, đọc giải thích và xác nhận. Nó tải catalog JSON qua HTTPS GET từ host allowlist, không tải inventory/đường dẫn/khóa/token lên mạng và không đổi chế độ Offline mặc định. Enterprise UI là `LocalOnly`; server và agent khai báo `NetworkScope=Lan` và cần công tắc mạng riêng của Mục 8.
 
 ## Những gì vẫn hoạt động
 
 - kiểm kê phần cứng, Windows, Office và phần mềm;
+- quét sâu cục bộ có giới hạn cho từng ứng dụng bằng nhiều EXE/DLL, chữ ký, hash xấu đã biết và dấu vết hệ thống tương quan;
 - nhận diện Windows 11/Office bằng catalog cục bộ;
+- đối chiếu phần mềm bằng catalog đi kèm hoặc bản cache online đã xác minh;
 - quét tuân thủ, deep scan, forensics;
 - backup/restore và xử lý đã xác nhận;
 - OEM inspect/apply đã xác nhận;
@@ -43,6 +45,14 @@ Mục 8 dùng preference riêng, mặc định `Allowed=false`, độc lập v�
 - nút đổi thành **Offline** ngay sau khi bật;
 - chọn lại sẽ lưu `Allowed=false`, yêu cầu dừng server/agent do cửa sổ hiện tại khởi động và giữ nguyên cấu hình;
 - ba chức năng Quản lý cục bộ, Máy chủ và Máy trạm không bị ẩn hoặc xóa ở bất kỳ trạng thái nào.
+
+## Kết nối online để đối chiếu phần mềm
+
+- Không tự chạy và không phụ thuộc công tắc LAN của Mục 8.
+- Mỗi lần chạy đều hiển thị nội dung sẽ tải, dữ liệu không gửi đi và yêu cầu xác nhận Yes/No; mặc định là No.
+- Chỉ chấp nhận HTTPS, host `raw.githubusercontent.com`, phương thức GET, không redirect và tối đa 2 MiB.
+- Catalog tải về phải qua kiểm tra schema/quy tắc trước khi ghi cache. Nếu tải lỗi, người dùng có thể tiếp tục quét bằng catalog cục bộ/cache hợp lệ.
+- Catalog cache khác catalog tích hợp không được tạo bằng chứng hash/tên activator mang tính quyết định; không có kết nối mạng nào được dùng để tải inventory lên hoặc hỏi trạng thái giấy phép tài khoản.
 
 ## HTML
 
@@ -90,6 +100,7 @@ Tất cả định dạng dùng cùng dữ liệu nguồn. Consumer phải xác 
 - Không ghi product key đầy đủ vào báo cáo/log.
 - Chế độ redact che tên máy, user, profile path, địa chỉ mạng và KMS host.
 - Không tự upload hoặc gửi report.
+- **Kết nối online** không gửi danh sách phần mềm, tên máy, đường dẫn, product key, token hoặc bằng chứng cục bộ.
 - Export chỉ ghi vào thư mục người dùng chọn.
 
 ## Phạm vi bảo đảm Offline

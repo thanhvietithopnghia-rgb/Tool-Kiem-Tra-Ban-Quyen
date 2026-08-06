@@ -25,7 +25,7 @@ $required = @(
     "Tool-UiTheme.ps1",
     "Tool-ReportSchema.ps1",
     "Tool-ModuleContract.ps1",
-    "Tool-Kiem-Tra-v4.4-OneFile.cs"
+    "Tool-Kiem-Tra-v4.6-OneFile.cs"
 )
 foreach ($name in $required) {
     $path = Join-Path $SourceDirectory $name
@@ -57,7 +57,7 @@ try {
     . (Join-Path $SourceDirectory "Tool-Enterprise.ps1")
 
     $metadata = Get-ToolEnterpriseMetadata
-    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.4") "Enterprise ToolVersion không phải 4.4."
+    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.6.0.0") "Enterprise ToolVersion không phải 4.6.0.0."
     Assert-Enterprise ([string]$metadata.ProtocolVersion -eq "1.0") "Enterprise protocol không phải 1.0."
     Assert-Enterprise (-not [bool]$metadata.FullProductKeysInReports) "Metadata không được cho phép full product key trong báo cáo."
 
@@ -84,7 +84,7 @@ try {
     Assert-Enterprise $tamperRejected "Envelope bị sửa HMAC không bị từ chối."
 
     $report = Get-ToolEnterpriseLicenseSnapshot -ClientId $client.ClientId
-    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.4"
+    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.6.0.0"
     Assert-Enterprise ([bool]$validation.Valid) "Báo cáo EnterpriseInventory không đạt schema: $($validation.Errors -join '; ')"
     Assert-Enterprise (-not [bool]$report.Privacy.FullProductKeyIncluded) "Báo cáo khai báo chứa full product key."
     $reportJson = $report | ConvertTo-Json -Depth 14
@@ -93,7 +93,7 @@ try {
     $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
     Set-ToolEnterpriseServerClientSecret -ClientId $client.ClientId -Secret $clientSecret
     $record = [pscustomobject][ordered]@{
-        SchemaVersion="1.0"; ToolVersion="4.4"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
+        SchemaVersion="1.0"; ToolVersion="4.6.0.0"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
         RemoteAddress="127.0.0.1"; NetworkAddresses=@("127.0.0.1"); LastSeenUtc=[DateTime]::UtcNow.ToString("o")
         FirstSeenUtc=[DateTime]::UtcNow.ToString("o"); AllowRemoteLicenseChanges=$true
         WindowsStatus="NotReported"; WindowsChannel=""; WindowsLast5=""
@@ -173,7 +173,7 @@ try {
     }
     $managerContract = @($catalog | Where-Object ModuleId -eq "license.manager")[0]
     Assert-Enterprise ([string]$managerContract.NetworkScope -eq "LocalOnly") "Mở Mục 8 phải hoạt động Offline; chỉ tiến trình server/agent mới dùng LAN."
-    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.4-OneFile.cs") -Raw
+    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.6-OneFile.cs") -Raw
     foreach ($mode in @("--enterprise-ui","--enterprise-server","--enterprise-agent","--enterprise-agent-force","--local-license-manager")) {
         Assert-Enterprise ($launcherText.Contains($mode)) "Launcher thiếu mode $mode."
     }
@@ -192,6 +192,8 @@ try {
     Assert-Enterprise ($enterpriseUiText -notmatch '(?<!\$)\(if\s*\(') "Giao diện enterprise chứa biểu thức ngoặc-if không hợp lệ khi chạy; hãy dùng biến trung gian hoặc subexpression PowerShell."
     Assert-Enterprise ($enterpriseUiText -match 'function\s+Fit-EnterpriseWindowToWorkingArea' -and
         $enterpriseUiText -match 'function\s+Update-EnterpriseLayout' -and
+        $enterpriseUiText -match 'function\s+Set-EnterpriseAdaptiveButtonRows' -and
+        $enterpriseUiText -match 'function\s+Get-EnterpriseClippedButtonLabels' -and
         $enterpriseUiText -match 'AutoScaleMode\]::Dpi' -and
         $enterpriseUiText -match 'HorizontalScroll\.Visible') "Giao diện enterprise thiếu layout thích ứng DPI hoặc kiểm tra chống tràn ngang."
     Assert-Enterprise ($enterpriseUiText -match 'Get-ToolEnterpriseLocalCidrs' -and
@@ -262,8 +264,22 @@ try {
     Assert-Enterprise ($enterpriseCoreText -match 'function\s+Remove-ToolEnterpriseServerConfiguration' -and
         $enterpriseCoreText -match 'Test-ToolEnterpriseAdminCode' -and
         $enterpriseCoreText -match 'PreservedReportsPath') "Lõi enterprise thiếu xóa cấu hình có xác thực/giữ báo cáo."
-    $hostText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-EnterpriseHost.ps1") -Raw -Encoding UTF8
-    Assert-Enterprise ($hostText -match 'PreferredAddress' -and $hostText -match 'NetworkAddresses') "Status máy chủ chưa công bố IP LAN tự nhận."
+    $hostPath = Join-Path $SourceDirectory "Tool-EnterpriseHost.ps1"
+    $hostText = Get-Content -LiteralPath $hostPath -Raw -Encoding UTF8
+    $hostTokens = $null
+    $hostParseErrors = $null
+    $hostAst = [Management.Automation.Language.Parser]::ParseFile($hostPath, [ref]$hostTokens, [ref]$hostParseErrors)
+    Assert-Enterprise (@($hostParseErrors).Count -eq 0) "Tool-EnterpriseHost.ps1 lỗi cú pháp."
+    $statusFunction = $hostAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ToolEnterpriseHostStatus' }, $true)
+    Assert-Enterprise ($null -ne $statusFunction) "Thiếu endpoint status tối giản."
+    $statusFunctionText = [string]$statusFunction.Extent.Text
+    foreach ($requiredField in @('Accepted','ProtocolVersion','ToolVersion')) {
+        Assert-Enterprise ($statusFunctionText -match ("(?m)^\s*" + [regex]::Escape($requiredField) + "\s*=")) "Status tối giản thiếu trường $requiredField."
+    }
+    foreach ($sensitiveField in @('ServerId','ServerName','PreferredAddress','NetworkAddresses','BindAddress','AllowedCidrs','ClientCount','Uptime')) {
+        Assert-Enterprise ($statusFunctionText -notmatch ("(?m)^\s*" + [regex]::Escape($sensitiveField) + "\s*=")) "Status không xác thực còn lộ $sensitiveField."
+    }
+    Assert-Enterprise ($hostText -match 'rate\.Count\+\+' -and $hostText -match 'StatusCode\s+429') "Endpoint Enterprise thiếu rate limit."
     $nativePowerShell = Join-Path $PSHOME "powershell.exe"
     if (-not (Test-Path -LiteralPath $nativePowerShell -PathType Leaf)) {
         $nativePowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
@@ -280,7 +296,7 @@ try {
                     $uiSmokeExitCode = $LASTEXITCODE
                     Assert-Enterprise ($uiSmokeExitCode -eq 0) "Enterprise UI runtime smoke theme=$uiTheme culture=$uiCulture network=$networkState trả mã ${uiSmokeExitCode}: $($uiSmokeOutput -join '; ')"
                     $expectedNetwork = if ($networkState -eq "1") { "True" } else { "False" }
-                    Assert-Enterprise (($uiSmokeOutput -join "`n") -match "ENTERPRISE-UI-SMOKE: PASS \(culture=$uiCulture \+ 3 functions \+ Section8Network=$expectedNetwork.*theme $uiTheme\)") "Enterprise UI smoke không xác nhận theme=$uiTheme, culture=$uiCulture và trạng thái mạng Mục 8."
+                    Assert-Enterprise (($uiSmokeOutput -join "`n") -match "ENTERPRISE-UI-SMOKE: PASS \(culture=$uiCulture .*Section8Network=$expectedNetwork.*theme $uiTheme\)") "Enterprise UI smoke không xác nhận theme=$uiTheme, culture=$uiCulture và trạng thái mạng Mục 8."
                 }
             }
         }

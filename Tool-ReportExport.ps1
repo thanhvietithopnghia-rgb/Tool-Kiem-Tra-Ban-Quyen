@@ -1,5 +1,22 @@
-﻿$script:ToolReportExportToolVersion = "4.4"
+﻿$script:ToolReportExportToolVersion = "4.6"
 $script:ToolReportExportSchemaVersion = "1.2"
+
+$toolReportExportLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolReportExportLocalizationPath -PathType Leaf)) {
+    . $toolReportExportLocalizationPath
+}
+
+function Get-ToolReportExportText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [string]$Culture = "",
+        [AllowNull()][object[]]$Arguments = @()
+    )
+    if ([string]::IsNullOrWhiteSpace($Culture)) { $Culture = Get-ToolCulture }
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
 
 function Get-ToolReportExportMetadata {
     return [pscustomobject][ordered]@{
@@ -88,7 +105,7 @@ function ConvertTo-ToolHtmlTable {
     )
 
     if (-not $Rows -or @($Rows).Count -eq 0) {
-        return "<p class='muted'>Không có dữ liệu.</p>"
+        return "<p class='muted'>$(ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.noData"))</p>"
     }
     $builder = New-Object Text.StringBuilder
     [void]$builder.Append("<div class='table-wrap'><table><thead><tr>")
@@ -123,7 +140,7 @@ function New-ToolProfessionalHtmlDocument {
     )
 
     if ([string]::IsNullOrWhiteSpace($Eyebrow)) {
-        $Eyebrow = if ($Culture -eq "en-US") { "License assurance report" } else { "Báo cáo bảo đảm bản quyền" }
+        $Eyebrow = Get-ToolReportExportText "foundation.reportExport.eyebrow" -Culture $Culture
     }
     $metaHtml = New-Object Text.StringBuilder
     foreach ($item in @($Metadata)) {
@@ -144,11 +161,11 @@ function New-ToolProfessionalHtmlDocument {
         [void]$tocHtml.Append("<li><a href='#$id'>$(ConvertTo-ToolHtmlText $section.Title)</a></li>")
         [void]$sectionsHtml.Append("<section id='$id'><h2>$(ConvertTo-ToolHtmlText $section.Title)</h2>$([string]$section.BodyHtml)</section>")
     }
-    $tocLabel = if ($Culture -eq "en-US") { "Contents" } else { "Mục lục" }
+    $tocLabel = Get-ToolReportExportText "foundation.reportExport.toc" -Culture $Culture
     $modeLabel = if ($OfflineMode) {
-        if ($Culture -eq "en-US") { "Offline report" } else { "Báo cáo offline" }
+        Get-ToolReportExportText "foundation.reportExport.offlineReport" -Culture $Culture
     } else {
-        if ($Culture -eq "en-US") { "Network allowed" } else { "Đã cho phép mạng" }
+        Get-ToolReportExportText "foundation.reportExport.networkAllowed" -Culture $Culture
     }
     $htmlLanguage = if ($Culture -eq "en-US") { "en" } else { "vi" }
     $tocBlock = if ($index -gt 1) { "<nav class='toc'><strong>$tocLabel</strong><ol>$($tocHtml.ToString())</ol></nav>" } else { "" }
@@ -204,53 +221,45 @@ function Export-ToolTextReportPresentation {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
     }
     if ([string]::IsNullOrWhiteSpace($SectionTitle)) {
-        $SectionTitle = if ($Culture -eq "en-US") { "Complete report content" } else { "Nội dung báo cáo đầy đủ" }
+        $SectionTitle = Get-ToolReportExportText "foundation.reportExport.completeContent" -Culture $Culture
     }
     if ([string]::IsNullOrWhiteSpace($Subtitle)) {
-        $Subtitle = if ($Culture -eq "en-US") {
-            "The original technical content is preserved in full and presented with the shared HTML/PDF report layout."
-        } else {
-            "Nội dung kỹ thuật gốc được giữ đầy đủ và trình bày bằng giao diện HTML/PDF dùng chung."
-        }
+        $Subtitle = Get-ToolReportExportText "foundation.reportExport.defaultSubtitle" -Culture $Culture
     }
     if ([string]::IsNullOrWhiteSpace($Footer)) {
-        $Footer = if ($Culture -eq "en-US") {
-            "Configuration & License Assurance Tool · Local report"
-        } else {
-            "Công cụ kiểm tra cấu hình và bản quyền · Báo cáo cục bộ"
-        }
+        $Footer = Get-ToolReportExportText "foundation.reportExport.defaultFooter" -Culture $Culture
     }
     if (@($Metadata).Count -eq 0) {
         $Metadata = @(
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Computer" } else { "Máy" }
+                Label = Get-ToolReportExportText "foundation.reportExport.computer" -Culture $Culture
                 Value = [string]$env:COMPUTERNAME
             },
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Export time" } else { "Thời điểm xuất" }
+                Label = Get-ToolReportExportText "foundation.reportExport.exportTime" -Culture $Culture
                 Value = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
             },
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Format" } else { "Định dạng" }
-                Value = "HTML / PDF · A4"
+                Label = Get-ToolReportExportText "foundation.reportExport.format" -Culture $Culture
+                Value = Get-ToolReportExportText "foundation.reportExport.formatValue" -Culture $Culture
             }
         )
     }
     if (@($Cards).Count -eq 0) {
         $Cards = @(
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Content" } else { "Nội dung" }
-                Value = if ($Culture -eq "en-US") { "Complete" } else { "Đầy đủ" }
+                Label = Get-ToolReportExportText "foundation.reportExport.content" -Culture $Culture
+                Value = Get-ToolReportExportText "foundation.reportExport.complete" -Culture $Culture
                 Tone = "ok"
             },
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Text lines" } else { "Dòng nội dung" }
+                Label = Get-ToolReportExportText "foundation.reportExport.textLines" -Culture $Culture
                 Value = [string]@($Lines).Count
                 Tone = "info"
             },
             [pscustomobject]@{
-                Label = if ($Culture -eq "en-US") { "Storage" } else { "Nơi lưu" }
-                Value = if ($Culture -eq "en-US") { "Desktop" } else { "Màn hình nền" }
+                Label = Get-ToolReportExportText "foundation.reportExport.storage" -Culture $Culture
+                Value = Get-ToolReportExportText "foundation.reportExport.desktop" -Culture $Culture
                 Tone = "info"
             }
         )
@@ -274,14 +283,14 @@ function Export-ToolTextReportPresentation {
     }
     [IO.File]::WriteAllText($htmlPath, $html, (New-Object Text.UTF8Encoding($false)))
     if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) {
-        throw "HTML report presentation failed the local-only safety check."
+        throw (Get-ToolReportExportText "foundation.reportExport.presentationUnsafe" -Culture $Culture)
     }
 
-    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error="Không yêu cầu xuất PDF." }
+    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error=(Get-ToolReportExportText "foundation.reportExport.pdfNotRequested" -Culture $Culture) }
     if ($IncludePdf) {
         $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath
     }
-    $hashLines = @("# SHA-256 professional text report package schema $($script:ToolReportExportSchemaVersion).")
+    $hashLines = @((Get-ToolReportExportText "foundation.reportExport.textManifestHeader" -Culture $Culture -Arguments @($script:ToolReportExportSchemaVersion)))
     foreach ($path in @($htmlPath, $pdfPath)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) {
             $hashLines += "$(Get-ToolSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))"
@@ -464,14 +473,14 @@ function Get-ToolPdfProfileRoot {
         $localAppData = [string]$env:LOCALAPPDATA
     }
     if ([string]::IsNullOrWhiteSpace($localAppData)) {
-        throw "Không xác định được LocalApplicationData của người dùng hiện tại."
+        throw (Get-ToolReportExportText "foundation.reportExport.localAppDataMissing")
     }
 
     $localAppDataFull = [IO.Path]::GetFullPath($localAppData).TrimEnd([char]92)
     $localTempFull = [IO.Path]::GetFullPath((Join-Path $localAppDataFull "Temp"))
     $expectedPrefix = $localAppDataFull + [char]92
     if (-not $localTempFull.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Thư mục Temp không nằm trong LocalApplicationData của người dùng hiện tại."
+        throw (Get-ToolReportExportText "foundation.reportExport.tempOutsideLocalAppData")
     }
 
     return [IO.Path]::GetFullPath((Join-Path $localTempFull "ThanhViet-Tool-Kiem-Tra\pdf"))
@@ -480,7 +489,7 @@ function Get-ToolPdfProfileRoot {
 function New-ToolPdfProfileAcl {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     if ($null -eq $identity -or $null -eq $identity.User) {
-        throw "Không xác định được SID của người dùng hiện tại."
+        throw (Get-ToolReportExportText "foundation.reportExport.currentUserSidMissing")
     }
 
     $currentUserSid = $identity.User
@@ -541,20 +550,20 @@ function New-ToolPdfProfileDirectory {
     if (Test-Path -LiteralPath $profileRoot) {
         $rootItem = Get-Item -LiteralPath $profileRoot -Force -ErrorAction Stop
         if (-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-            throw "Vùng profile PDF là reparse point hoặc không phải thư mục."
+            throw (Get-ToolReportExportText "foundation.reportExport.pdfProfileInvalid")
         }
     } else {
         [void][IO.Directory]::CreateDirectory($profileRoot, $profileAcl)
     }
     [IO.Directory]::SetAccessControl($profileRoot, $profileAcl)
     if (-not (Test-ToolPdfProfileDirectoryAcl -Path $profileRoot)) {
-        throw "ACL vùng profile PDF không chỉ giới hạn cho người dùng hiện tại và SYSTEM."
+        throw (Get-ToolReportExportText "foundation.reportExport.pdfProfileAclBroad")
     }
 
     $profilePath = Join-Path $profileRoot ("pdf-profile-" + [Guid]::NewGuid().ToString("N"))
     [void][IO.Directory]::CreateDirectory($profilePath, $profileAcl)
     if (-not (Test-ToolPdfProfileDirectoryAcl -Path $profilePath)) {
-        throw "ACL profile PDF tạm không hợp lệ."
+        throw (Get-ToolReportExportText "foundation.reportExport.pdfTemporaryAclInvalid")
     }
 
     return [pscustomobject][ordered]@{
@@ -613,7 +622,7 @@ function Convert-ToolHtmlToPdf {
             Success = $false
             Engine = ""
             Path = ""
-            Error = "HTML không đạt chính sách offline: chỉ cho phép CSS/data cục bộ, không cho script hoặc tài nguyên mạng."
+            Error = Get-ToolReportExportText "foundation.reportExport.htmlOfflineUnsafe"
         }
     }
     $browser = Get-ToolPdfBrowser
@@ -647,21 +656,21 @@ function Convert-ToolHtmlToPdf {
             $process = Start-Process -FilePath $browser -ArgumentList $arguments -PassThru -WindowStyle Hidden
             if (-not $process.WaitForExit([Math]::Max(5, $TimeoutSeconds) * 1000)) {
                 try { $process.Kill() } catch {}
-                throw "Trình duyệt vượt quá thời gian chờ $TimeoutSeconds giây."
+                throw (Get-ToolReportExportText "foundation.reportExport.browserTimeout" -Arguments @($TimeoutSeconds))
             }
             if ($process.ExitCode -eq 0 -and (Test-Path -LiteralPath $PdfPath -PathType Leaf) -and (Get-Item -LiteralPath $PdfPath).Length -gt 1024) {
                 return [pscustomobject][ordered]@{ Success=$true; Engine=[IO.Path]::GetFileNameWithoutExtension($browser); Path=$PdfPath; Error="" }
             }
-            throw "Trình duyệt kết thúc với mã $($process.ExitCode) hoặc PDF không hợp lệ."
+            throw (Get-ToolReportExportText "foundation.reportExport.browserPdfInvalid" -Arguments @($process.ExitCode))
         } catch {
-            [void]$errors.Add("Browser: $($_.Exception.Message)")
+            [void]$errors.Add((Get-ToolReportExportText "foundation.reportExport.browserError" -Arguments @($_.Exception.Message)))
         } finally {
             if (-not [string]::IsNullOrWhiteSpace($profilePath) -and -not [string]::IsNullOrWhiteSpace($profileRoot)) {
                 [void](Remove-ToolPdfProfileDirectory -ProfilePath $profilePath -ProfileRoot $profileRoot)
             }
         }
     } else {
-        [void]$errors.Add("Browser: không tìm thấy Microsoft Edge hoặc Google Chrome.")
+        [void]$errors.Add((Get-ToolReportExportText "foundation.reportExport.browserMissing"))
     }
 
     $word = $null
@@ -676,9 +685,9 @@ function Convert-ToolHtmlToPdf {
         if ((Test-Path -LiteralPath $PdfPath -PathType Leaf) -and (Get-Item -LiteralPath $PdfPath).Length -gt 1024) {
             return [pscustomobject][ordered]@{ Success=$true; Engine="Microsoft Word"; Path=$PdfPath; Error="" }
         }
-        throw "Word không tạo được tệp PDF hợp lệ."
+        throw (Get-ToolReportExportText "foundation.reportExport.wordPdfInvalid")
     } catch {
-        [void]$errors.Add("Word: $($_.Exception.Message)")
+        [void]$errors.Add((Get-ToolReportExportText "foundation.reportExport.wordError" -Arguments @($_.Exception.Message)))
     } finally {
         if ($document) { try { $document.Close(0) } catch {}; try { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($document) } catch {} }
         if ($word) { try { $word.Quit() } catch {}; try { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) } catch {} }
@@ -714,7 +723,7 @@ function Export-ToolReportPackage {
     }
     [IO.File]::WriteAllText($htmlPath, $HtmlContent, (New-Object Text.UTF8Encoding($false)))
 
-    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error="Không yêu cầu xuất PDF." }
+    $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error=(Get-ToolReportExportText "foundation.reportExport.pdfNotRequested") }
     if ($IncludePdf) {
         $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath
     }
@@ -730,7 +739,7 @@ function Export-ToolReportPackage {
                 $displayPdfError = [regex]::Replace(
                     $displayPdfError,
                     [regex]::Escape([string]$secret),
-                    "[ĐÃ CHE]",
+                    (Get-ToolReportExportText "foundation.reportExport.redacted"),
                     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
             }
         }
@@ -740,7 +749,7 @@ function Export-ToolReportPackage {
                 $displayPdfError = [regex]::Replace(
                     $displayPdfError,
                     $identityPattern,
-                    "[ĐÃ CHE]",
+                    (Get-ToolReportExportText "foundation.reportExport.redacted"),
                     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
             }
         }
@@ -764,7 +773,7 @@ function Export-ToolReportPackage {
     [IO.File]::WriteAllText($jsonPath, ($Report | ConvertTo-Json -Depth 12), (New-Object Text.UTF8Encoding($false)))
     Export-ToolReportXml -Report $Report -Path $xmlPath
 
-    $hashLines = @("# SHA-256 report package schema $($script:ToolReportExportSchemaVersion).")
+    $hashLines = @((Get-ToolReportExportText "foundation.reportExport.packageManifestHeader" -Arguments @($script:ToolReportExportSchemaVersion)))
     foreach ($path in @($htmlPath, $pdfPath, $jsonPath, $xmlPath)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) {
             $hashLines += "$(Get-ToolSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))"

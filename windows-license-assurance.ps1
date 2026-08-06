@@ -10,9 +10,22 @@ param(
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.4"
+$ToolVersion = "4.6"
+$ReleaseVersion = "4.6.0.0"
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Off
+
+$localizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if (-not (Test-Path -LiteralPath $localizationPath -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Localization.ps1"; exit 12 }
+. $localizationPath
+$env:TOOL_UI_CULTURE = $Culture
+function Get-AssuranceText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [object[]]$Arguments = @()
+    )
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
 
 $helperNames = @(
     "Tool-Runtime.ps1",
@@ -22,13 +35,12 @@ $helperNames = @(
     "Tool-ReportSchema.ps1",
     "Tool-ReportExport.ps1",
     "Tool-PluginEngine.ps1",
-    "Tool-LicenseTimeline.ps1",
-    "Tool-Localization.ps1"
+    "Tool-LicenseTimeline.ps1"
 )
 try {
     foreach ($name in $helperNames) {
         $path = Join-Path $PSScriptRoot $name
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Thiếu $name." }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw (Get-AssuranceText "common.missingDependency" @($name)) }
         . $path
     }
     [void](Assert-ToolNativeArchitecture)
@@ -39,14 +51,13 @@ try {
         "TimelineExport" { "assurance.timeline" }
     }
     if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_MODULE_ID) -and [string]$env:TOOL_MODULE_ID -ne $moduleId) {
-        throw "ModuleId launcher không khớp Operation $Operation."
+        throw (Get-AssuranceText "assurance.bootstrap.moduleMismatch" @($Operation))
     }
     $moduleAvailability = Test-ToolModuleAvailability -ModuleId $moduleId -CapabilityProfile $capabilityState -SourceDirectory $PSScriptRoot
     if (-not $moduleAvailability.Available) { throw $moduleAvailability.Message }
     $moduleInvocation = New-ToolModuleInvocation -ModuleId $moduleId
     $loggingState = Initialize-ToolLogging -Component "Assurance" -ToolVersion $ToolVersion
     $timelineState = Initialize-ToolLicenseTimeline -ToolVersion $ToolVersion
-    $env:TOOL_UI_CULTURE = $Culture
 } catch {
     Write-Host $_.Exception.Message
     exit 12
@@ -58,48 +69,20 @@ if (-not (Test-Path -LiteralPath $OutputDir -PathType Container)) {
 }
 $started = Get-Date
 $stamp = $started.ToString("yyyyMMdd_HHmmss")
-$computer = if ($RedactSensitive) { if ($Culture -eq "en-US") { "REDACTED" } else { "AN_DANH" } } else { [string]$env:COMPUTERNAME }
+$computer = if ($RedactSensitive) { Get-AssuranceText "assurance.file.redactedToken" } else { [string]$env:COMPUTERNAME }
 $toolName = Get-ToolText -Key "app.title" -Culture $Culture
-$developer = Get-ToolText -Key "app.developer" -Culture $Culture
-
-function Select-AssuranceText {
-    param(
-        [Parameter(Mandatory = $true)][string]$Vietnamese,
-        [Parameter(Mandatory = $true)][string]$English
-    )
-    if ($Culture -eq "en-US") { return $English }
-    return $Vietnamese
-}
+$developer = Get-ToolText -Key "report.footer" -Culture $Culture
 
 function ConvertTo-AssuranceHtmlTable {
     param(
         [object[]]$Rows,
-        [string[]]$Columns,
-        [hashtable]$EnglishLabels
+        [string[]]$Columns
     )
 
     if (-not $Rows -or @($Rows).Count -eq 0) {
-        return "<p class='muted'>$(Select-AssuranceText 'Không có dữ liệu.' 'No data available.')</p>"
+        return "<p class='muted'>$(Get-AssuranceText "assurance.text.001")</p>"
     }
-    if ($Culture -ne "en-US") {
-        return ConvertTo-ToolHtmlTable -Rows $Rows -Columns $Columns
-    }
-    $localizedColumns = New-Object System.Collections.Generic.List[string]
-    $localizedRows = @()
-    foreach ($column in $Columns) {
-        $label = if ($EnglishLabels -and $EnglishLabels.ContainsKey($column)) { [string]$EnglishLabels[$column] } else { [string]$column }
-        [void]$localizedColumns.Add($label)
-    }
-    foreach ($row in @($Rows)) {
-        $localizedRow = [ordered]@{}
-        for ($index = 0; $index -lt $Columns.Count; $index++) {
-            $sourceColumn = [string]$Columns[$index]
-            $targetColumn = [string]$localizedColumns[$index]
-            $localizedRow[$targetColumn] = $row.PSObject.Properties[$sourceColumn].Value
-        }
-        $localizedRows += [pscustomobject]$localizedRow
-    }
-    return ConvertTo-ToolHtmlTable -Rows $localizedRows -Columns $localizedColumns.ToArray()
+    return ConvertTo-ToolHtmlTable -Rows $Rows -Columns $Columns
 }
 
 function Protect-AssuranceText {
@@ -114,12 +97,12 @@ function Protect-AssuranceText {
     foreach ($secret in @($env:COMPUTERNAME, $env:USERNAME)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$secret)) {
             $pattern = '(?<![A-Za-z0-9_.-])' + [regex]::Escape([string]$secret) + '(?![A-Za-z0-9_.-])'
-            $text = [regex]::Replace($text, $pattern, (Select-AssuranceText "[ĐÃ CHE]" "[REDACTED]"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $text = [regex]::Replace($text, $pattern, (Get-AssuranceText "assurance.text.002"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
-    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}(?![A-Z0-9])', (Select-AssuranceText '[PRODUCT-KEY ĐÃ CHE]' '[PRODUCT KEY REDACTED]'))
-    $text = [regex]::Replace($text, '(?<!\d)(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?!\d)', (Select-AssuranceText '[IP ĐÃ CHE]' '[IP REDACTED]'))
-    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Select-AssuranceText '[MAC ĐÃ CHE]' '[MAC REDACTED]'))
+    $text = [regex]::Replace($text, '(?i)(?<![A-Z0-9])[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}(?![A-Z0-9])', (Get-AssuranceText "assurance.text.003"))
+    $text = [regex]::Replace($text, '(?<!\d)(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?!\d)', (Get-AssuranceText "assurance.text.004"))
+    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Get-AssuranceText "assurance.text.005"))
     return $text
 }
 
@@ -317,15 +300,15 @@ function Complete-AndExportAssuranceReport {
     if ($RedactSensitive) {
         $predictedPaths = @($predictedPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
     }
-    $moduleResult = Complete-ToolModuleInvocation -Invocation $moduleInvocation -ExitCode 0 -Summary (Select-AssuranceText "Đã hoàn tất $Operation." "Completed $Operation.") -OutputPaths $predictedPaths -FindingCount $FindingCount -WarningCount $WarningCount
+    $moduleResult = Complete-ToolModuleInvocation -Invocation $moduleInvocation -ExitCode 0 -Summary (Get-AssuranceText "assurance.text.006" @($Operation)) -OutputPaths $predictedPaths -FindingCount $FindingCount -WarningCount $WarningCount
     if ($Envelope.PSObject.Properties["ModuleResult"]) { $Envelope.ModuleResult = $moduleResult }
     else { $Envelope | Add-Member -NotePropertyName ModuleResult -NotePropertyValue $moduleResult }
     $validation = Test-ToolReportEnvelope -Report $Envelope -ExpectedToolVersion $ToolVersion
-    if (-not $validation.Valid) { throw "Báo cáo không đạt schema: $($validation.Errors -join '; ')" }
+    if (-not $validation.Valid) { throw (Get-AssuranceText "assurance.schemaFailed" @(($validation.Errors -join '; '))) }
     return Export-ToolReportPackage -Report $Envelope -HtmlContent $Html -BasePath $basePath -IncludePdf:$Pdf -RedactPaths:$RedactSensitive
 }
 
-[void](Write-ToolLog -Level "INFO" -Event "Assurance.Start" -Message (Select-AssuranceText "Bắt đầu $Operation." "Started $Operation."))
+[void](Write-ToolLog -Level "INFO" -Event "Assurance.Start" -Message (Get-AssuranceText "assurance.text.007" @($Operation)))
 
 if ($Operation -eq "CertificateAudit") {
     $targets = @(Get-CertificateAuditTargets)
@@ -344,41 +327,44 @@ if ($Operation -eq "CertificateAudit") {
         InvalidSignatureCount = $invalidRecords.Count
         RequiredFailureCount = $requiredFailures.Count
         OfficeFileCount = $officeCount
-        RevocationMode = Select-AssuranceText "Offline/NoCheck (không phát sinh truy cập mạng)" "Offline/NoCheck (no network access)"
+        RevocationMode = Get-AssuranceText "assurance.text.008"
         Targets = $records
         Redacted = [bool]$RedactSensitive
     })
+    $certificateColumns = @(
+        Get-AssuranceText "assurance.column.product"
+        Get-AssuranceText "assurance.column.component"
+        Get-AssuranceText "assurance.column.status"
+        Get-AssuranceText "assurance.column.trustChain"
+        Get-AssuranceText "assurance.column.signer"
+        Get-AssuranceText "assurance.column.validUntil"
+        Get-AssuranceText "assurance.column.path"
+    )
     $tableRows = @($records | ForEach-Object {
-        [pscustomobject][ordered]@{
-            "Sản phẩm"=$_.Product; "Thành phần"=$_.Component; "Trạng thái"=$_.SignatureStatus
-            "Chuỗi tin cậy"=$(if ($_.ChainValid) { Select-AssuranceText "Hợp lệ" "Valid" } else { $_.ChainStatus })
-            "Chủ thể ký"=$_.Signer; "Hết hạn"=$_.ValidTo; "Đường dẫn"=$_.Path
-        }
+        $row = [ordered]@{}
+        $row[$certificateColumns[0]]=$_.Product; $row[$certificateColumns[1]]=$_.Component; $row[$certificateColumns[2]]=$_.SignatureStatus
+        $row[$certificateColumns[3]]=$(if ($_.ChainValid) { Get-AssuranceText "assurance.text.009" } else { $_.ChainStatus })
+        $row[$certificateColumns[4]]=$_.Signer; $row[$certificateColumns[5]]=$_.ValidTo; $row[$certificateColumns[6]]=$_.Path
+        [pscustomobject]$row
     })
-    $certificateLabels = @{
-        "Sản phẩm"="Product"; "Thành phần"="Component"; "Trạng thái"="Status"
-        "Chuỗi tin cậy"="Trust chain"; "Chủ thể ký"="Signer subject"; "Hết hạn"="Valid until"; "Đường dẫn"="Path"
-    }
-    $certificateInterpretation = Select-AssuranceText `
-        "<p>Trạng thái <b>Valid</b> xác nhận chữ ký Authenticode tại thời điểm quét. Kiểm tra chuỗi dùng kho chứng chỉ cục bộ và không kiểm tra thu hồi trực tuyến, vì vậy hệ thống tích hợp nên thực hiện OCSP/CRL riêng nếu chính sách yêu cầu.</p><p class='note'>Chứng chỉ ký tệp không tự chứng minh Windows/Office đã được cấp phép hợp lệ; cần đối chiếu thêm kênh bản quyền và hồ sơ mua hàng.</p>" `
-        "<p>A <b>Valid</b> state confirms the Authenticode signature at scan time. Chain validation uses the local certificate store without online revocation checks; integrated environments should perform OCSP/CRL validation separately when policy requires it.</p><p class='note'>A file-signing certificate does not by itself prove that Windows or Office is properly licensed; reconcile the licensing channel and purchase records as well.</p>"
-    $html = New-ToolProfessionalHtmlDocument -Title (Select-AssuranceText "Kiểm tra chứng chỉ số Windows/Office" "Windows/Office digital certificate inspection") `
-        -Subtitle (Select-AssuranceText "Xác minh Authenticode và chuỗi tin cậy của các tệp lõi Windows, Office đã phát hiện và chính launcher." "Verify Authenticode signatures and trust chains for core Windows files, detected Office files, and the launcher.") `
+    $certificateInterpretation = Get-AssuranceText "assurance.text.010"
+    $html = New-ToolProfessionalHtmlDocument -Title (Get-AssuranceText "assurance.text.011") `
+        -Subtitle (Get-AssuranceText "assurance.text.012") `
         -Metadata @(
-            [pscustomobject]@{Label=(Select-AssuranceText "Máy" "Computer");Value=$computer},
-            [pscustomobject]@{Label=(Select-AssuranceText "Thời điểm" "Time");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
-            [pscustomobject]@{Label="Schema";Value="Report 1.4 / Certificate audit"},
-            [pscustomobject]@{Label=(Select-AssuranceText "Chế độ thu hồi" "Revocation mode");Value=(Select-AssuranceText "Ngoại tuyến, không truy cập mạng" "Offline, no network access")}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.013");Value=$computer},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.014");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.meta.schema");Value="Report 1.4 / Certificate audit"},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.015");Value=(Get-AssuranceText "assurance.text.016")}
         ) -Cards @(
-            [pscustomobject]@{Label=(Select-AssuranceText "Kết luận" "Conclusion");Value=$overall;Tone=$(if ($requiredFailures.Count -gt 0) {"danger"} elseif ($invalidRecords.Count -gt 0) {"warning"} else {"ok"})},
-            [pscustomobject]@{Label=(Select-AssuranceText "Chữ ký hợp lệ" "Valid signatures");Value=$validCount;Tone="ok"},
-            [pscustomobject]@{Label=(Select-AssuranceText "Cần xem lại" "Requires review");Value=$invalidRecords.Count;Tone=$(if ($invalidRecords.Count) {"warning"} else {"ok"})},
-            [pscustomobject]@{Label=(Select-AssuranceText "Tệp Office" "Office files");Value=$officeCount;Tone="info"}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.017");Value=$overall;Tone=$(if ($requiredFailures.Count -gt 0) {"danger"} elseif ($invalidRecords.Count -gt 0) {"warning"} else {"ok"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.018");Value=$validCount;Tone="ok"},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.019");Value=$invalidRecords.Count;Tone=$(if ($invalidRecords.Count) {"warning"} else {"ok"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.020");Value=$officeCount;Tone="info"}
         ) -Sections @(
-            [pscustomobject]@{Title=(Select-AssuranceText "Kết quả theo tệp" "Per-file results");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $tableRows -Columns @("Sản phẩm","Thành phần","Trạng thái","Chuỗi tin cậy","Chủ thể ký","Hết hạn","Đường dẫn") -EnglishLabels $certificateLabels)},
-            [pscustomobject]@{Title=(Select-AssuranceText "Cách diễn giải" "Interpretation");BodyHtml=$certificateInterpretation}
-        ) -Footer "$developer · Tool v$ToolVersion" -Culture $Culture -OfflineMode $true
-    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName "BaoCao_ChungChi_${computer}_${stamp}" -FindingCount $invalidRecords.Count
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.021");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $tableRows -Columns $certificateColumns)},
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.022");BodyHtml=$certificateInterpretation}
+        ) -Footer "$developer · Tool v$ReleaseVersion" -Culture $Culture -OfflineMode $true
+    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName ((Get-AssuranceText "assurance.file.certificate") + "_${computer}_${stamp}") -FindingCount $invalidRecords.Count
     Write-AssuranceTimelineEventSafe -EventType "CertificateAuditCompleted" -Data ([ordered]@{
         Overall=$overall; ValidSignatureCount=$validCount; InvalidSignatureCount=$invalidRecords.Count; RequiredFailureCount=$requiredFailures.Count
     })
@@ -391,7 +377,7 @@ if ($Operation -eq "CertificateAudit") {
         ToolName = $toolName
         CreatedAt = $started.ToString("o")
         ComputerName = $computer
-        PluginModel = Select-AssuranceText "Khai báo chỉ đọc; không chạy script/command từ plugin" "Declarative read-only; plugin scripts and commands are never executed"
+        PluginModel = Get-AssuranceText "assurance.text.023"
         DirectoryProtected = [bool]$audit.Directory.Protected
         PluginCount = [int]$audit.PluginCount
         EnabledPluginCount = [int]$audit.EnabledPluginCount
@@ -404,37 +390,55 @@ if ($Operation -eq "CertificateAudit") {
         InvalidPlugins = $reportInvalidPlugins
         Error = Protect-AssuranceText $audit.Error
     })
+    $pluginColumns = @(
+        Get-AssuranceText "assurance.column.plugin"
+        Get-AssuranceText "assurance.column.id"
+        Get-AssuranceText "assurance.column.version"
+        Get-AssuranceText "assurance.column.publisher"
+        Get-AssuranceText "assurance.column.enabled"
+        Get-AssuranceText "assurance.column.ruleCount"
+        Get-AssuranceText "assurance.column.trust"
+    )
+    $findingColumns = @(
+        Get-AssuranceText "assurance.column.severity"
+        Get-AssuranceText "assurance.column.plugin"
+        Get-AssuranceText "assurance.column.rule"
+        Get-AssuranceText "assurance.column.observed"
+        Get-AssuranceText "assurance.column.assessment"
+        Get-AssuranceText "assurance.column.remediation"
+        Get-AssuranceText "assurance.column.error"
+    )
     $pluginRows = @($reportPlugins | ForEach-Object {
-        [pscustomobject][ordered]@{"Plugin"=$_.Name;"ID"=$_.PluginId;"Phiên bản"=$_.Version;"Nhà phát hành"=$_.Publisher;"Bật"=$_.Enabled;"Số quy tắc"=$_.RuleCount;"Tin cậy"=$_.Trust}
+        $row=[ordered]@{}
+        $row[$pluginColumns[0]]=$_.Name; $row[$pluginColumns[1]]=$_.PluginId; $row[$pluginColumns[2]]=$_.Version
+        $row[$pluginColumns[3]]=$_.Publisher; $row[$pluginColumns[4]]=$_.Enabled; $row[$pluginColumns[5]]=$_.RuleCount; $row[$pluginColumns[6]]=$_.Trust
+        [pscustomobject]$row
     })
     $findingRows = @($reportFindings | ForEach-Object {
-        [pscustomobject][ordered]@{"Mức"=$_.Severity;"Plugin"=$_.PluginName;"Quy tắc"=$_.RuleId;"Kết quả quan sát"=$_.Observed;"Nhận định"=$_.Message;"Hướng xử lý"=$_.Remediation;"Lỗi"=$_.Error}
+        $row=[ordered]@{}
+        $row[$findingColumns[0]]=$_.Severity; $row[$findingColumns[1]]=$_.PluginName; $row[$findingColumns[2]]=$_.RuleId
+        $row[$findingColumns[3]]=$_.Observed; $row[$findingColumns[4]]=$_.Message; $row[$findingColumns[5]]=$_.Remediation; $row[$findingColumns[6]]=$_.Error
+        [pscustomobject]$row
     })
-    $pluginLabels = @{
-        "Phiên bản"="Version"; "Nhà phát hành"="Publisher"; "Bật"="Enabled"; "Số quy tắc"="Rule count"; "Tin cậy"="Trust"
-        "Mức"="Severity"; "Quy tắc"="Rule"; "Kết quả quan sát"="Observed result"; "Nhận định"="Assessment"; "Hướng xử lý"="Remediation"; "Lỗi"="Error"
-    }
-    $pluginSafetyBody = Select-AssuranceText `
-        "<p>Engine chỉ hỗ trợ ba nguồn đọc: Registry value, tệp trong Windows/Program Files/ProgramData và Windows service. Mọi trường ngoài schema đều bị từ chối.</p><p class='note'>Plugin nằm trong ProgramData có ACL chỉ Administrators/SYSTEM được ghi. Việc cài plugin cần xác nhận của quản trị viên và luôn đối chiếu lại SHA-256 sau khi sao chép.</p>" `
-        "<p>The engine supports only three read sources: registry values, files under Windows/Program Files/ProgramData, and Windows services. Fields outside the schema are rejected.</p><p class='note'>Plugins under ProgramData use an ACL that permits writes only by Administrators/SYSTEM. Plugin installation requires administrator confirmation and SHA-256 is verified after copying.</p>"
-    $html = New-ToolProfessionalHtmlDocument -Title (Select-AssuranceText "Đánh giá plugin quy tắc kiểm tra" "Inspection-rule plugin assessment") `
-        -Subtitle (Select-AssuranceText "Plugin v4.4 là JSON khai báo, chỉ đọc và không được phép chứa mã PowerShell, lệnh hệ thống hoặc tải mạng." "v4.4 plugins are declarative, read-only JSON and cannot contain PowerShell code, system commands, or network downloads.") `
+    $pluginSafetyBody = Get-AssuranceText "assurance.text.024"
+    $html = New-ToolProfessionalHtmlDocument -Title (Get-AssuranceText "assurance.text.025") `
+        -Subtitle (Get-AssuranceText "assurance.text.026") `
         -Metadata @(
-            [pscustomobject]@{Label=(Select-AssuranceText "Máy" "Computer");Value=$computer},
-            [pscustomobject]@{Label=(Select-AssuranceText "Thời điểm" "Time");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
-            [pscustomobject]@{Label=(Select-AssuranceText "Thư mục bảo vệ" "Protected directory");Value=$(if ($audit.Directory.Protected) {Select-AssuranceText "Có" "Yes"} else {Select-AssuranceText "Không / chế độ source" "No / source mode"})},
-            [pscustomobject]@{Label="Engine";Value="Plugin schema 1.0"}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.027");Value=$computer},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.028");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.029");Value=$(if ($audit.Directory.Protected) {Get-AssuranceText "assurance.text.030"} else {Get-AssuranceText "assurance.text.031"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.meta.engine");Value="Plugin schema 1.0"}
         ) -Cards @(
-            [pscustomobject]@{Label="Plugin";Value=$audit.PluginCount;Tone="info"},
-            [pscustomobject]@{Label=(Select-AssuranceText "Quy tắc đã chạy" "Evaluated rules");Value=$audit.EvaluatedRuleCount;Tone="info"},
-            [pscustomobject]@{Label=(Select-AssuranceText "Phát hiện" "Findings");Value=$audit.TriggeredFindingCount;Tone=$(if ($audit.TriggeredFindingCount) {"warning"} else {"ok"})},
-            [pscustomobject]@{Label="High/Critical";Value=$audit.HighOrCriticalCount;Tone=$(if ($audit.HighOrCriticalCount) {"danger"} else {"ok"})}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.card.plugin");Value=$audit.PluginCount;Tone="info"},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.032");Value=$audit.EvaluatedRuleCount;Tone="info"},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.033");Value=$audit.TriggeredFindingCount;Tone=$(if ($audit.TriggeredFindingCount) {"warning"} else {"ok"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.card.highCritical");Value=$audit.HighOrCriticalCount;Tone=$(if ($audit.HighOrCriticalCount) {"danger"} else {"ok"})}
         ) -Sections @(
-            [pscustomobject]@{Title=(Select-AssuranceText "Plugin đã nạp" "Loaded plugins");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $pluginRows -Columns @("Plugin","ID","Phiên bản","Nhà phát hành","Bật","Số quy tắc","Tin cậy") -EnglishLabels $pluginLabels)},
-            [pscustomobject]@{Title=(Select-AssuranceText "Phát hiện của plugin" "Plugin findings");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $findingRows -Columns @("Mức","Plugin","Quy tắc","Kết quả quan sát","Nhận định","Hướng xử lý","Lỗi") -EnglishLabels $pluginLabels)},
-            [pscustomobject]@{Title=(Select-AssuranceText "Mô hình an toàn" "Safety model");BodyHtml=$pluginSafetyBody}
-        ) -Footer "$developer · Tool v$ToolVersion" -Culture $Culture -OfflineMode $true
-    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName "BaoCao_Plugin_${computer}_${stamp}" -FindingCount ([int]$audit.TriggeredFindingCount) -WarningCount ([int]$audit.InvalidPluginCount)
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.034");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $pluginRows -Columns $pluginColumns)},
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.035");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $findingRows -Columns $findingColumns)},
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.036");BodyHtml=$pluginSafetyBody}
+        ) -Footer "$developer · Tool v$ReleaseVersion" -Culture $Culture -OfflineMode $true
+    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName ((Get-AssuranceText "assurance.file.plugin") + "_${computer}_${stamp}") -FindingCount ([int]$audit.TriggeredFindingCount) -WarningCount ([int]$audit.InvalidPluginCount)
     Write-AssuranceTimelineEventSafe -EventType "PluginAuditCompleted" -Data ([ordered]@{
         PluginCount=$audit.PluginCount; TriggeredFindingCount=$audit.TriggeredFindingCount; HighOrCriticalCount=$audit.HighOrCriticalCount
     })
@@ -443,10 +447,18 @@ if ($Operation -eq "CertificateAudit") {
     $reportEvents = @(ConvertTo-AssuranceRedactedObject $history.Events)
     if ($RedactSensitive) {
         foreach ($event in $reportEvents) {
-            if ($event.PSObject.Properties["MachineBinding"]) { $event.MachineBinding = Select-AssuranceText "[ĐÃ CHE]" "[REDACTED]" }
-            if ($event.PSObject.Properties["CorrelationId"]) { $event.CorrelationId = Select-AssuranceText "[ĐÃ CHE]" "[REDACTED]" }
+            if ($event.PSObject.Properties["MachineBinding"]) { $event.MachineBinding = Get-AssuranceText "assurance.text.037" }
+            if ($event.PSObject.Properties["CorrelationId"]) { $event.CorrelationId = Get-AssuranceText "assurance.text.038" }
         }
     }
+    $timelineColumns = @(
+        Get-AssuranceText "assurance.column.sequence"
+        Get-AssuranceText "assurance.column.utc"
+        Get-AssuranceText "assurance.column.event"
+        Get-AssuranceText "assurance.column.source"
+        Get-AssuranceText "assurance.column.changed"
+        Get-AssuranceText "assurance.column.details"
+    )
     $eventRows = @($reportEvents | ForEach-Object {
         $detail = ""
         if ($_.Data -and $_.Data.Changes) { $detail = (@($_.Data.Changes | ForEach-Object { [string]$_.Field }) -join ", ") }
@@ -454,10 +466,10 @@ if ($Operation -eq "CertificateAudit") {
             $detail = Protect-AssuranceText (($_.Data | ConvertTo-Json -Depth 4 -Compress))
             if ($detail.Length -gt 300) { $detail = $detail.Substring(0,300) + "..." }
         }
-        [pscustomobject][ordered]@{
-            "STT"=$_.Sequence; "UTC"=$_.TimestampUtc; "Sự kiện"=$_.EventType; "Nguồn"=$_.Source
-            "Có thay đổi"=$(if ($_.IsChange) {Select-AssuranceText "Có" "Yes"} else {Select-AssuranceText "Không" "No"}); "Chi tiết"=$detail
-        }
+        $row=[ordered]@{}
+        $row[$timelineColumns[0]]=$_.Sequence; $row[$timelineColumns[1]]=$_.TimestampUtc; $row[$timelineColumns[2]]=$_.EventType
+        $row[$timelineColumns[3]]=$_.Source; $row[$timelineColumns[4]]=$(if ($_.IsChange) {Get-AssuranceText "assurance.text.039"} else {Get-AssuranceText "assurance.text.040"}); $row[$timelineColumns[5]]=$detail
+        [pscustomobject]$row
     })
     $envelope = New-ToolReportEnvelope -ReportKind "LicenseTimeline" -ToolVersion $ToolVersion -Data ([ordered]@{
         ToolName = $toolName
@@ -467,43 +479,38 @@ if ($Operation -eq "CertificateAudit") {
         EventCount = [int]$history.RecordCount
         ChangeCount = [int]$history.ChangeCount
         ValidationErrors = ConvertTo-AssuranceRedactedObject $history.Errors
-        Integrity = Select-AssuranceText "HMAC-SHA256 + chuỗi PreviousRecordHash; khóa DPAPI LocalMachine" "HMAC-SHA256 + PreviousRecordHash chain; DPAPI LocalMachine key"
+        Integrity = Get-AssuranceText "assurance.text.041"
         Events = $reportEvents
     })
-    $timelineLabels = @{
-        "Sự kiện"="Event"; "Nguồn"="Source"; "Có thay đổi"="Changed"; "Chi tiết"="Details"
-    }
-    $timelineLimitBody = Select-AssuranceText `
-        "<p>Timeline chứng minh tính liên tục của các bản ghi do tool tạo trên máy này; nó không thay thế Windows Event Log, hồ sơ mua bản quyền hoặc hệ thống SIEM.</p><p class='note'>Không xóa/sửa thủ công timeline hay tệp khóa. Nếu chuỗi không hợp lệ, tool dừng nối thêm để giữ nguyên bằng chứng.</p>" `
-        "<p>The timeline demonstrates continuity for records created by this tool on this computer; it does not replace Windows Event Log, purchase records, or a SIEM.</p><p class='note'>Do not manually delete or edit the timeline or its key file. If chain validation fails, the tool stops appending records to preserve the evidence.</p>"
-    $html = New-ToolProfessionalHtmlDocument -Title (Select-AssuranceText "Nhật ký thay đổi bản quyền" "License change timeline") `
-        -Subtitle (Select-AssuranceText "Timeline bền vững ghi snapshot và thao tác liên quan bản quyền, có HMAC-SHA256, chuỗi hash và ràng buộc theo máy." "A durable timeline of licensing snapshots and actions protected by HMAC-SHA256, a hash chain, and machine binding.") `
+    $timelineLimitBody = Get-AssuranceText "assurance.text.042"
+    $html = New-ToolProfessionalHtmlDocument -Title (Get-AssuranceText "assurance.text.043") `
+        -Subtitle (Get-AssuranceText "assurance.text.044") `
         -Metadata @(
-            [pscustomobject]@{Label=(Select-AssuranceText "Máy" "Computer");Value=$computer},
-            [pscustomobject]@{Label=(Select-AssuranceText "Thời điểm xuất" "Export time");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
-            [pscustomobject]@{Label=(Select-AssuranceText "Xác minh chuỗi" "Chain validation");Value=$(if ($history.Valid) {Select-AssuranceText "Hợp lệ" "Valid"} else {Select-AssuranceText "Không hợp lệ" "Invalid"})},
-            [pscustomobject]@{Label=(Select-AssuranceText "Bảo vệ khóa" "Key protection");Value="DPAPI LocalMachine"}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.045");Value=$computer},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.046");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.047");Value=$(if ($history.Valid) {Get-AssuranceText "assurance.text.048"} else {Get-AssuranceText "assurance.text.049"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.050");Value="DPAPI LocalMachine"}
         ) -Cards @(
-            [pscustomobject]@{Label=(Select-AssuranceText "Sự kiện" "Events");Value=$history.RecordCount;Tone="info"},
-            [pscustomobject]@{Label=(Select-AssuranceText "Thay đổi" "Changes");Value=$history.ChangeCount;Tone=$(if ($history.ChangeCount) {"warning"} else {"ok"})},
-            [pscustomobject]@{Label=(Select-AssuranceText "Chuỗi HMAC/hash" "HMAC/hash chain");Value=$(if ($history.Valid) {Select-AssuranceText "Hợp lệ" "Valid"} else {Select-AssuranceText "Lỗi" "Error"});Tone=$(if ($history.Valid) {"ok"} else {"danger"})},
-            [pscustomobject]@{Label="Schema";Value="Timeline 1.0";Tone="info"}
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.051");Value=$history.RecordCount;Tone="info"},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.052");Value=$history.ChangeCount;Tone=$(if ($history.ChangeCount) {"warning"} else {"ok"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.053");Value=$(if ($history.Valid) {Get-AssuranceText "assurance.text.054"} else {Get-AssuranceText "assurance.text.055"});Tone=$(if ($history.Valid) {"ok"} else {"danger"})},
+            [pscustomobject]@{Label=(Get-AssuranceText "assurance.meta.schema");Value="Timeline 1.0";Tone="info"}
         ) -Sections @(
-            [pscustomobject]@{Title=(Select-AssuranceText "Dòng thời gian" "Timeline");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $eventRows -Columns @("STT","UTC","Sự kiện","Nguồn","Có thay đổi","Chi tiết") -EnglishLabels $timelineLabels)},
-            [pscustomobject]@{Title=(Select-AssuranceText "Giới hạn và cách dùng" "Limits and usage");BodyHtml=$timelineLimitBody}
-        ) -Footer "$developer · Tool v$ToolVersion" -Culture $Culture -OfflineMode $true
-    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName "BaoCao_Timeline_${computer}_${stamp}" -WarningCount @($history.Errors).Count
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.056");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $eventRows -Columns $timelineColumns)},
+            [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.057");BodyHtml=$timelineLimitBody}
+        ) -Footer "$developer · Tool v$ReleaseVersion" -Culture $Culture -OfflineMode $true
+    $package = Complete-AndExportAssuranceReport -Envelope $envelope -Html $html -BaseName ((Get-AssuranceText "assurance.file.timeline") + "_${computer}_${stamp}") -WarningCount @($history.Errors).Count
 }
 
-[void](Write-ToolLog -Level "INFO" -Event "Assurance.Complete" -Message (Select-AssuranceText "Đã hoàn tất $Operation." "Completed $Operation.") -Data ([ordered]@{
+[void](Write-ToolLog -Level "INFO" -Event "Assurance.Complete" -Message (Get-AssuranceText "assurance.text.058" @($Operation)) -Data ([ordered]@{
     Html=$package.HtmlPath; Pdf=$package.PdfPath; Json=$package.JsonPath; Xml=$package.XmlPath
 }))
-Write-Host "HTML: $($package.HtmlPath)"
-if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host "PDF: $($package.PdfPath)" }
-elseif ($Pdf) { Write-Host "$(Select-AssuranceText 'Không tạo được PDF' 'PDF could not be created'): $($package.Pdf.Error)" }
-Write-Host "JSON: $($package.JsonPath)"
-Write-Host "XML: $($package.XmlPath)"
-Write-Host "SHA-256: $($package.ManifestPath)"
+Write-Host (Get-AssuranceText "assurance.output.html" @($package.HtmlPath))
+if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host (Get-AssuranceText "assurance.output.pdf" @($package.PdfPath)) }
+elseif ($Pdf) { Write-Host (Get-AssuranceText "assurance.output.pdfFailed" @($package.Pdf.Error)) }
+Write-Host (Get-AssuranceText "assurance.output.json" @($package.JsonPath))
+Write-Host (Get-AssuranceText "assurance.output.xml" @($package.XmlPath))
+Write-Host (Get-AssuranceText "assurance.output.manifest" @($package.ManifestPath))
 if (-not $NoOpen) {
     $preferredPath = $package.HtmlPath
     Start-Process -FilePath $preferredPath

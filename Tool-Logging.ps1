@@ -9,11 +9,18 @@ function ConvertTo-ToolLogSafeText {
     return $text
 }
 
+$toolLoggingLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolLoggingLocalizationPath -PathType Leaf)) {
+    . $toolLoggingLocalizationPath
+}
+
 function Initialize-ToolLogging {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Component,
-        [string]$ToolVersion = "4.4"
+        [string]$ToolVersion = "4.6"
     )
 
     $path = [string]$env:TOOL_LOG_PATH
@@ -33,23 +40,28 @@ function Initialize-ToolLogging {
 
     try {
         if ([string]::IsNullOrWhiteSpace($path)) {
-            $state.Error = "TOOL_LOG_PATH chưa được launcher thiết lập; logging bền vững đang tắt."
+            $state.Error = Get-ToolTextCurrent "foundation.logging.pathNotSet"
             $script:ToolLogState = $state
             return $state
         }
-        if (-not [IO.Path]::IsPathRooted($path)) { throw "Đường dẫn log phải là đường dẫn tuyệt đối." }
+        if (-not [IO.Path]::IsPathRooted($path)) { throw (Get-ToolTextCurrent "foundation.logging.pathNotAbsolute") }
         $fullPath = [IO.Path]::GetFullPath($path)
-        if ([IO.Path]::GetExtension($fullPath) -ne ".jsonl") { throw "Log phải dùng phần mở rộng .jsonl." }
+        if ([IO.Path]::GetExtension($fullPath) -ne ".jsonl") { throw (Get-ToolTextCurrent "foundation.logging.extensionInvalid") }
         $directory = Split-Path -Parent $fullPath
-        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { throw "Thư mục log chưa được launcher tạo." }
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { throw (Get-ToolTextCurrent "foundation.logging.directoryMissing") }
         $directoryInfo = Get-Item -LiteralPath $directory -Force -ErrorAction Stop
-        if (($directoryInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Thư mục log không được là reparse point." }
+        if (($directoryInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-ToolTextCurrent "foundation.logging.directoryReparse") }
 
         if ($env:TOOL_SECURE_LAUNCH -eq "1") {
-            $expectedRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.4\logs"
+            $dataRoot = if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_DATA_ROOT)) {
+                [IO.Path]::GetFullPath([string]$env:TOOL_DATA_ROOT)
+            } else {
+                Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) "ThanhViet-Tool-Kiem-Tra\v4.6"
+            }
+            $expectedRoot = Join-Path $dataRoot "logs"
             $expectedFull = [IO.Path]::GetFullPath($expectedRoot).TrimEnd([char]92) + [char]92
             if (-not $fullPath.StartsWith($expectedFull, [StringComparison]::OrdinalIgnoreCase)) {
-                throw "Launcher truyền đường dẫn log ngoài vùng ProgramData bảo vệ."
+                throw (Get-ToolTextCurrent "foundation.logging.pathOutsideProtectedRoot")
             }
         }
 
@@ -92,7 +104,7 @@ function Write-ToolLog {
         if ($null -ne $DurationMs) { $record.DurationMs = [long]$DurationMs }
         if ($null -ne $Data) { $record.Data = $Data }
         $line = ([pscustomobject]$record | ConvertTo-Json -Depth 6 -Compress)
-        if ($line.Length -gt 32768) { throw "Bản ghi log vượt giới hạn 32 KB." }
+        if ($line.Length -gt 32768) { throw (Get-ToolTextCurrent "foundation.logging.recordTooLarge") }
         $encoding = New-Object Text.UTF8Encoding($false)
         for ($attempt = 0; $attempt -lt 5; $attempt++) {
             try {

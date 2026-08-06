@@ -2,19 +2,25 @@
     [ValidateSet("Inspect", "Apply")]
     [string]$Mode = "Inspect",
     [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
-    [string]$DecisionFile = ""
+    [string]$DecisionFile = "",
+    [ValidateSet("vi-VN", "en-US")]
+    [string]$Culture = "vi-VN"
 )
-
-if ($PSVersionTable.PSVersion.Major -lt 3) {
-    Write-Host "Cong cu can PowerShell 3.0 tro len."
-    exit 10
-}
 
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"
+$localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Localization.ps1"; exit 12 }
+. $localizationHelper
+$env:TOOL_UI_CULTURE = $Culture
+function Get-OemText {
+    param([Parameter(Mandatory = $true)][string]$Key, [object[]]$Arguments = @())
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
+if ($PSVersionTable.PSVersion.Major -lt 3) { Write-Host (Get-OemText "common.powerShellRequired" @(3)); exit 10 }
 try {
-    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
-    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw "Thiếu Tool-ReportExport.ps1." }
+    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw (Get-OemText "common.missingDependency" @("Tool-Runtime.ps1")) }
+    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw (Get-OemText "common.missingDependency" @("Tool-ReportExport.ps1")) }
     . $runtimeHelper
     . $reportExportHelper
     [void](Assert-ToolNativeArchitecture)
@@ -22,6 +28,7 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "Continue"
+$releaseVersion = "4.6.0.0"
 
 function Safe-Cim {
     param([string]$ClassName, [string]$Namespace = "root/cimv2")
@@ -38,7 +45,7 @@ function Safe-Cim {
 
 function Get-LicenseChannel {
     param($License)
-    if (-not $License) { return "Không xác định" }
+    if (-not $License) { return Get-OemText "common.unknown" }
     $description = [string]$License.Description
     if ($description -match "VOLUME_KMSCLIENT|KMSCLIENT") { return "KMS" }
     if ($description -match "VOLUME_MAK|MAK") { return "MAK" }
@@ -49,9 +56,9 @@ function Get-LicenseChannel {
 
 function Mask-Key {
     param([string]$Key)
-    if ([string]::IsNullOrWhiteSpace($Key)) { return "Không tìm thấy" }
+    if ([string]::IsNullOrWhiteSpace($Key)) { return Get-OemText "common.notFound" }
     $compact = ($Key -replace "[^A-Za-z0-9]", "").ToUpperInvariant()
-    if ($compact.Length -lt 5) { return "Đã phát hiện (không đọc được 5 ký tự cuối)" }
+    if ($compact.Length -lt 5) { return Get-OemText "oemReport.keyDetectedNoSuffix" }
     return "*****-*****-*****-*****-" + $compact.Substring($compact.Length - 5)
 }
 
@@ -89,15 +96,15 @@ function Write-Report {
         New-Item -ItemType Directory -Path $expandedOutput -Force | Out-Null
     }
     $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
-    $basePath = Join-Path $expandedOutput "BaoCao_Key_OEM_BIOS_$($env:COMPUTERNAME)_$stamp"
+    $basePath = Join-Path $expandedOutput ((Get-OemText "oemReport.fileBase") + "_$($env:COMPUTERNAME)_$stamp")
     $package = Export-ToolTextReportPresentation `
-        -Lines $Lines.ToArray() -Title "Báo cáo key OEM trong BIOS" -BasePath $basePath `
-        -Subtitle "Kiểm tra key OEM OA3 trong firmware, trạng thái Windows và kết quả áp dụng có xác nhận." `
-        -Eyebrow "Báo cáo kiểm kê và bảo đảm bản quyền" `
-        -Footer "Phát triển bởi Thanh Việt · Tool v4.4" -Culture "vi-VN" -IncludePdf
-    Write-Host "HTML: $($package.HtmlPath)"
-    if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host "PDF: $($package.PdfPath)" }
-    else { Write-Host "PDF chưa tạo được: $($package.Pdf.Error)" }
+        -Lines $Lines.ToArray() -Title (Get-OemText "oemReport.title") -BasePath $basePath `
+        -Subtitle (Get-OemText "oemReport.subtitle") `
+        -Eyebrow (Get-OemText "forensicsReport.eyebrow") `
+        -Footer (Get-OemText "forensicsReport.footer" @($releaseVersion)) -Culture $Culture -IncludePdf
+    Write-Host (Get-OemText "oemReport.output.html" @($package.HtmlPath))
+    if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host (Get-OemText "oemReport.output.pdf" @($package.PdfPath)) }
+    else { Write-Host (Get-OemText "oemReport.output.pdfFailed" @($package.Pdf.Error)) }
     return $package
 }
 
@@ -118,7 +125,7 @@ function Complete-OemReport {
 }
 
 $currentVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue
-$currentEdition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { "Không xác định" }
+$currentEdition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { Get-OemText "common.unknown" }
 $productName = if ($currentVersion.ProductName) { [string]$currentVersion.ProductName } else { "Windows" }
 
 $licensingService = Safe-Cim SoftwareLicensingService | Select-Object -First 1
@@ -131,7 +138,7 @@ $windowsLicenses = Safe-Cim SoftwareLicensingProduct | Where-Object {
 }
 $activeLicense = $windowsLicenses | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
 $currentChannel = Get-LicenseChannel $activeLicense
-$currentPartialKey = if ($activeLicense.PartialProductKey) { [string]$activeLicense.PartialProductKey } else { "Không xác định" }
+$currentPartialKey = if ($activeLicense.PartialProductKey) { [string]$activeLicense.PartialProductKey } else { Get-OemText "common.unknown" }
 $isActivated = [bool]$activeLicense
 
 $decision = [pscustomobject]@{
@@ -145,19 +152,19 @@ $decision = [pscustomobject]@{
 }
 
 $report = New-Object 'System.Collections.Generic.List[string]'
-$report.Add("CÔNG CỤ KIỂM TRA KEY OEM TRONG BIOS - PHIÊN BẢN 4.4")
-$report.Add("Phát triển bởi Thanh Việt")
-$report.Add("Máy: $env:COMPUTERNAME")
-$report.Add("Thời điểm: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))")
+$report.Add((Get-OemText "oemReport.heading" @($releaseVersion)))
+$report.Add((Get-OemText "oemReport.developer"))
+$report.Add((Get-OemText "oemReport.computer" @($env:COMPUTERNAME)))
+$report.Add((Get-OemText "oemReport.time" @((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))))
 $report.Add("")
-$report.Add("Windows: $productName")
-$report.Add("Edition hiện tại: $currentEdition")
-$report.Add("Trạng thái kích hoạt hiện tại: $(if ($isActivated) { 'Đã cấp phép' } else { 'Chưa xác nhận được cấp phép' })")
-$report.Add("Kênh cấp phép hiện tại: $currentChannel")
-$report.Add("5 ký tự cuối key hiện tại: $currentPartialKey")
-$report.Add("Key OEM OA3 trong BIOS: $(if ($firmwareKeyFound) { $maskedFirmwareKey } else { 'Không tìm thấy' })")
+$report.Add((Get-OemText "oemReport.windows" @($productName)))
+$report.Add((Get-OemText "oemReport.edition" @($currentEdition)))
+$report.Add((Get-OemText "oemReport.activation" @($(if ($isActivated) { Get-OemText "deepReport.license.licensed" } else { Get-OemText "oemReport.licenseUnconfirmed" }))))
+$report.Add((Get-OemText "oemReport.channel" @($currentChannel)))
+$report.Add((Get-OemText "oemReport.lastFive" @($currentPartialKey)))
+$report.Add((Get-OemText "oemReport.firmwareKey" @($(if ($firmwareKeyFound) { $maskedFirmwareKey } else { Get-OemText "common.notFound" }))))
 $report.Add("")
-$report.Add("Lưu ý: Công cụ không lưu hoặc hiển thị product key đầy đủ. Có key OEM trong BIOS không tự động chứng minh edition Windows đang cài khớp với key đó.")
+$report.Add((Get-OemText "oemReport.note"))
 
 if ($Mode -eq "Inspect") {
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 0)
@@ -165,30 +172,30 @@ if ($Mode -eq "Inspect") {
 }
 
 if (-not (Test-Administrator)) {
-    $report.Add("Kết quả: Cần quyền Quản trị viên để cài key OEM.")
+    $report.Add((Get-OemText "oemReport.result.adminRequired"))
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 20)
     exit 20
 }
 
 if (-not $firmwareKeyFound) {
-    $report.Add("Kết quả: Không tìm thấy key OEM OA3 trong BIOS; không thay đổi hệ thống.")
+    $report.Add((Get-OemText "oemReport.result.notFound"))
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 21)
     exit 21
 }
 
 $slmgr = Get-ToolNativeSystemPath "slmgr.vbs"
 if (-not (Test-Path -LiteralPath $slmgr)) {
-    $report.Add("Kết quả: Không tìm thấy slmgr.vbs; không thay đổi hệ thống.")
+    $report.Add((Get-OemText "oemReport.result.slmgrMissing"))
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 24)
     exit 24
 }
 
-$report.Add("Đã được người dùng xác nhận cài key OEM từ BIOS.")
-$report.Add("Cơ chế bảo vệ: không chạy /upk hoặc /cpky trước; nếu Windows từ chối key OEM, cấu hình key hiện tại không bị gỡ trước.")
+$report.Add((Get-OemText "oemReport.applyConfirmed"))
+$report.Add((Get-OemText "oemReport.safety"))
 
 $installOutput = & $nativeCscriptPath //nologo $slmgr /ipk $firmwareKey 2>&1
 $installExitCode = $LASTEXITCODE
-$report.Add("Kết quả cài key (đã ẩn key):")
+$report.Add((Get-OemText "oemReport.installOutput"))
 $report.Add((Sanitize-Text $installOutput $firmwareKey))
 
 $lastFive = ($firmwareKey -replace "[^A-Za-z0-9]", "")
@@ -202,14 +209,14 @@ for ($attempt = 1; $attempt -le 3 -and -not $installedLicense; $attempt++) {
 }
 
 if ($installExitCode -ne 0 -or -not $installedLicense) {
-    $report.Add("Kết luận: Windows không chấp nhận key OEM cho edition hiện tại. Công cụ không gỡ key cũ trước khi thử cài.")
+    $report.Add((Get-OemText "oemReport.conclusion.rejected"))
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 22)
     exit 22
 }
 
 $activationOutput = & $nativeCscriptPath //nologo $slmgr /ato 2>&1
 $activationExitCode = $LASTEXITCODE
-$report.Add("Kết quả yêu cầu kích hoạt:")
+$report.Add((Get-OemText "oemReport.activationOutput"))
 $report.Add((Sanitize-Text $activationOutput $firmwareKey))
 
 $activatedFirmwareLicense = $null
@@ -221,11 +228,11 @@ for ($attempt = 1; $attempt -le 3 -and -not $activatedFirmwareLicense; $attempt+
 }
 
 if ($activationExitCode -eq 0 -and $activatedFirmwareLicense) {
-    $report.Add("Kết luận: Đã cài key OEM và Windows xác nhận trạng thái đã cấp phép.")
+    $report.Add((Get-OemText "oemReport.conclusion.licensed"))
     [void](Complete-OemReport -Lines $report -State $decision -ExitCode 0)
     exit 0
 }
 
-$report.Add("Kết luận: Key OEM đã được Windows chấp nhận nhưng chưa xác nhận kích hoạt. Hãy kiểm tra edition, kết nối mạng hoặc liên hệ Microsoft/nhà sản xuất.")
+$report.Add((Get-OemText "oemReport.conclusion.pending"))
 [void](Complete-OemReport -Lines $report -State $decision -ExitCode 23)
 exit 23

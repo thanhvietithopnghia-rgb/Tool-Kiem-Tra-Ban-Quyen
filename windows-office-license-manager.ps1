@@ -2,7 +2,7 @@
 
 if ($PSVersionTable.PSVersion.Major -lt 3) { exit 10 }
 
-$script:localLicenseVersion = "4.4.0.0"
+$script:localLicenseVersion = "4.6.0.0"
 $localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { exit 12 }
 . $localizationHelper
@@ -281,20 +281,20 @@ $winApply = New-Object System.Windows.Forms.Button
 $winApply.Text = Get-LocalLicenseText "localLicense.windows.apply"
 $winApply.Font = $fontBold
 $winApply.Location = New-Object System.Drawing.Point(365, 151)
-$winApply.Size = New-Object System.Drawing.Size(185, 31)
+$winApply.Size = New-Object System.Drawing.Size(220, 31)
 $windowsTab.Controls.Add($winApply)
 
 $winActivation = New-Object System.Windows.Forms.Button
 $winActivation.Text = Get-LocalLicenseText "localLicense.windows.activation"
 $winActivation.Location = New-Object System.Drawing.Point(18, 196)
-$winActivation.Size = New-Object System.Drawing.Size(210, 30)
+$winActivation.Size = New-Object System.Drawing.Size(230, 30)
 $winActivation.Add_Click({ Start-Process 'ms-settings:activation' })
 $windowsTab.Controls.Add($winActivation)
 
 $winStore = New-Object System.Windows.Forms.Button
 $winStore.Text = Get-LocalLicenseText "localLicense.windows.store"
-$winStore.Location = New-Object System.Drawing.Point(238, 196)
-$winStore.Size = New-Object System.Drawing.Size(230, 30)
+$winStore.Location = New-Object System.Drawing.Point(258, 196)
+$winStore.Size = New-Object System.Drawing.Size(290, 30)
 $winStore.Add_Click({
     if ($script:localOfflineMode) { Show-LocalOfflineBlocked "Microsoft Store"; return }
     Start-Process 'ms-windows-store://windowsupgrade/'
@@ -380,14 +380,14 @@ $officeApply = New-Object System.Windows.Forms.Button
 $officeApply.Text = Get-LocalLicenseText "localLicense.office.apply"
 $officeApply.Font = $fontBold
 $officeApply.Location = New-Object System.Drawing.Point(365, 89)
-$officeApply.Size = New-Object System.Drawing.Size(185, 31)
+$officeApply.Size = New-Object System.Drawing.Size(220, 31)
 $officeApply.Enabled = ($osppPaths.Count -gt 0)
 $officeTab.Controls.Add($officeApply)
 
 $officeSwitch = New-Object System.Windows.Forms.Button
 $officeSwitch.Text = Get-LocalLicenseText "localLicense.office.licenses"
 $officeSwitch.Location = New-Object System.Drawing.Point(18, 138)
-$officeSwitch.Size = New-Object System.Drawing.Size(225, 30)
+$officeSwitch.Size = New-Object System.Drawing.Size(260, 30)
 $officeSwitch.Add_Click({
     if ($script:localOfflineMode) { Show-LocalOfflineBlocked (Get-LocalLicenseText "localLicense.office.licenses"); return }
     Start-Process 'https://account.microsoft.com/services'
@@ -396,8 +396,8 @@ $officeTab.Controls.Add($officeSwitch)
 
 $officeRedeem = New-Object System.Windows.Forms.Button
 $officeRedeem.Text = Get-LocalLicenseText "localLicense.office.redeem"
-$officeRedeem.Location = New-Object System.Drawing.Point(253, 138)
-$officeRedeem.Size = New-Object System.Drawing.Size(205, 30)
+$officeRedeem.Location = New-Object System.Drawing.Point(288, 138)
+$officeRedeem.Size = New-Object System.Drawing.Size(270, 30)
 $officeRedeem.Add_Click({
     if ($script:localOfflineMode) { Show-LocalOfflineBlocked (Get-LocalLicenseText "localLicense.office.redeem"); return }
     Start-Process 'https://microsoft365.com/setup'
@@ -475,13 +475,13 @@ $winApply.Enabled = -not $script:localOfflineMode
 $officeApply.Enabled = [bool]($osppPaths.Count -gt 0 -and -not $script:localOfflineMode)
 if ([string]$env:TOOL_UI_SMOKE_TEST -eq "1") {
     if ($form.Text -ne (Get-LocalLicenseText "localLicense.form.title" @($script:localLicenseVersion))) {
-        throw "Local license form title is not localized."
+        throw (Get-LocalLicenseText "localLicense.smoke.title")
     }
     if ($title.Text -ne (Get-LocalLicenseText "localLicense.title") -or
         $close.Text -ne (Get-LocalLicenseText "localLicense.close") -or
         $winApply.Text -ne (Get-LocalLicenseText "localLicense.windows.apply") -or
         $officeApply.Text -ne (Get-LocalLicenseText "localLicense.office.apply")) {
-        throw "Local license controls are not synchronized with the selected culture."
+        throw (Get-LocalLicenseText "localLicense.smoke.controls")
     }
     if ($script:localLicenseCulture -eq "en-US") {
         $visibleText = @(
@@ -490,9 +490,19 @@ if ([string]$env:TOOL_UI_SMOKE_TEST -eq "1") {
             $winActivation.Text, $winStore.Text, $officeKeyLabel.Text,
             $officeApply.Text, $officeSwitch.Text, $officeRedeem.Text
         ) -join "`n"
-        if ($visibleText -cmatch '[À-ỹ]') { throw "English local license UI still contains Vietnamese text:`n$visibleText" }
+        if ($visibleText -cmatch '[À-ỹ]') { throw (Get-LocalLicenseText "localLicense.smoke.englishLeak" @($visibleText)) }
     }
-    Write-Output "LOCAL-LICENSE-UI-SMOKE: PASS (culture=$($script:localLicenseCulture) + Section8NetworkAllowed=$(-not $script:localOfflineMode))"
+    $clippedButtons = New-Object System.Collections.Generic.List[string]
+    foreach ($localButton in @($close,$winApply,$winActivation,$winStore,$officeApply,$officeSwitch,$officeRedeem)) {
+        $requiredButtonWidth = Get-ToolUiButtonRequiredWidth -Button $localButton -HorizontalSafety 8
+        if ($localButton.Width -lt $requiredButtonWidth -or (([string]$localButton.Text).Contains('&') -and $localButton.UseMnemonic)) {
+            [void]$clippedButtons.Add([string]$localButton.Text)
+        }
+    }
+    if ($clippedButtons.Count -gt 0) {
+        throw (Get-LocalLicenseText "localLicense.smoke.buttonClipped" @(($clippedButtons -join ', ')))
+    }
+    Write-Output (Get-LocalLicenseText "localLicense.smoke.pass" @($script:localLicenseCulture, (-not $script:localOfflineMode)))
     foreach ($resource in @($font, $fontBold, $fontTitle)) { try { $resource.Dispose() } catch {} }
     $form.Dispose()
     exit 0

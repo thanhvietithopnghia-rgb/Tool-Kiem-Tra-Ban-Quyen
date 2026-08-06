@@ -2,23 +2,30 @@
     [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
     [string]$ApprovedKmsServerFile = "",
     [string]$DecisionFile = "",
+    [ValidateSet("vi-VN", "en-US")]
+    [string]$Culture = "vi-VN",
     [switch]$RedactSensitive,
     [switch]$NoOpen
 )
 
-if ($PSVersionTable.PSVersion.Major -lt 3) {
-    Write-Host "Cong cu can PowerShell 3.0 tro len."
-    exit 10
-}
-
-$toolVersion = "4.4"
+$toolVersion = "4.6"
+$releaseVersion = "4.6.0.0"
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportSchemaHelper = Join-Path $PSScriptRoot "Tool-ReportSchema.ps1"
 $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"
+$localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Localization.ps1"; exit 12 }
+. $localizationHelper
+$env:TOOL_UI_CULTURE = $Culture
+function Get-DeepText {
+    param([Parameter(Mandatory = $true)][string]$Key, [object[]]$Arguments = @())
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
+if ($PSVersionTable.PSVersion.Major -lt 3) { Write-Host (Get-DeepText "common.powerShellRequired" @(3)); exit 10 }
 try {
-    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
-    if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw "Thiếu Tool-ReportSchema.ps1." }
-    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw "Thiếu Tool-ReportExport.ps1." }
+    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw (Get-DeepText "common.missingDependency" @("Tool-Runtime.ps1")) }
+    if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw (Get-DeepText "common.missingDependency" @("Tool-ReportSchema.ps1")) }
+    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw (Get-DeepText "common.missingDependency" @("Tool-ReportExport.ps1")) }
     . $runtimeHelper
     . $reportSchemaHelper
     . $reportExportHelper
@@ -28,6 +35,11 @@ try {
 
 $ErrorActionPreference = "SilentlyContinue"
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
+
+$statusStrong = Get-DeepText "deepReport.status.strong"
+$statusClear = Get-DeepText "deepReport.status.clear"
+$statusReview = Get-DeepText "deepReport.status.review"
+$statusUnverified = Get-DeepText "deepReport.status.unverified"
 
 function Safe-Cim {
     param([string]$ClassName, [string]$Namespace = "root/cimv2")
@@ -56,18 +68,18 @@ function Get-CompatibleScheduledTaskRows {
         $raw = @(& $schtasks /Query /FO CSV /V 2>&1)
         if ($LASTEXITCODE -ne 0) { throw (($raw | ForEach-Object { [string]$_ }) -join " | ") }
         $csvLines = @($raw | ForEach-Object { [string]$_ } | Where-Object { $_ -match '^\s*"' })
-        if ($csvLines.Count -lt 2) { throw "schtasks không trả CSV hợp lệ." }
+        if ($csvLines.Count -lt 2) { throw (Get-DeepText "deepReport.scheduled.invalidCsv") }
         $rows = New-Object System.Collections.Generic.List[object]
         foreach ($row in @($csvLines | ConvertFrom-Csv)) {
             $values = @($row.PSObject.Properties | ForEach-Object { [string]$_.Value })
             $name = [string]($values | Where-Object { $_ -match '^\\[^\\]+' } | Select-Object -First 1)
             if ($name) { [void]$rows.Add([pscustomobject]@{ Name=$name; Actions=($values -join " | ") }) }
         }
-        if ($rows.Count -eq 0) { throw "Không phân tích được scheduled task." }
+        if ($rows.Count -eq 0) { throw (Get-DeepText "deepReport.scheduled.parseFailed") }
         return $rows.ToArray()
     } catch {
         $detail = if ($firstError) { "$firstError | $($_.Exception.Message)" } else { $_.Exception.Message }
-        throw "Không thể quét Scheduled Tasks: $detail"
+        throw (Get-DeepText "deepReport.scheduled.scanFailed" @($detail))
     }
 }
 
@@ -85,14 +97,14 @@ if (-not (Test-Administrator)) {
         if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
         $accessDeniedDecision = New-ToolReportEnvelope -ReportKind "DeepScanDecision" -ToolVersion $toolVersion -Data ([ordered]@{
             AccessDenied = $true
-            Overall = "Chưa chạy: cần quyền Administrator"
+            Overall = Get-DeepText "deepReport.accessDeniedOverall"
             HighCount = 0
             ReviewCount = 0
             ReportPath = ""
         })
         $accessDeniedDecision | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $DecisionFile -Encoding UTF8
     }
-    Write-Host "Kiểm tra chuyên sâu cần được chạy bằng quyền Administrator để đọc đủ thành phần hệ thống."
+    Write-Host (Get-DeepText "deepReport.accessDeniedMessage")
     exit 20
 }
 
@@ -105,12 +117,12 @@ function Protect-Text($Value) {
     foreach ($secret in @($env:COMPUTERNAME, $env:USERNAME, $kmsServer) + @($approvedKmsServers)) {
         if ($secret) {
             $secretPattern = '(?<![A-Za-z0-9_.-])' + [regex]::Escape([string]$secret) + '(?![A-Za-z0-9_.-])'
-            $text = [regex]::Replace($text, $secretPattern, "[ĐÃ CHE]", [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $text = [regex]::Replace($text, $secretPattern, (Get-DeepText "report.redaction.value"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
     $part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
-    $text = [regex]::Replace($text, "(?<![0-9.])$part(?:\.$part){3}(?![0-9.])", "[IP ĐÃ CHE]")
-    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', '[MAC ĐÃ CHE]')
+    $text = [regex]::Replace($text, "(?<![0-9.])$part(?:\.$part){3}(?![0-9.])", (Get-DeepText "report.redaction.ip"))
+    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Get-DeepText "report.redaction.mac"))
     return $text
 }
 
@@ -126,13 +138,13 @@ function Html {
 
 function Get-Channel {
     param($License)
-    if (-not $License) { return "Không xác định" }
+    if (-not $License) { return Get-DeepText "common.unknown" }
     $description = [string]$License.Description
     if ($description -match "VOLUME_KMSCLIENT|KMSCLIENT") { return "KMS" }
     if ($description -match "VOLUME_MAK|MAK") { return "MAK" }
     if ($description -match "OEM") { return "OEM" }
     if ($description -match "RETAIL") { return "Retail" }
-    return "Không xác định"
+    return Get-DeepText "common.unknown"
 }
 
 function New-Result {
@@ -149,23 +161,23 @@ function New-Result {
 function Get-SignatureSummary {
     param([object[]]$Paths)
     $items = New-Object System.Collections.Generic.List[string]
-    if (-not (Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue)) { return "Không hỗ trợ đọc chữ ký trên PowerShell này." }
+    if (-not (Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue)) { return Get-DeepText "deepReport.signature.unsupported" }
     foreach ($path in @($Paths | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -Unique)) {
         try {
             $signature = Get-AuthenticodeSignature -LiteralPath $path
-            $signer = if ($signature.SignerCertificate.Subject) { $signature.SignerCertificate.Subject } else { "không có chứng thư" }
+            $signer = if ($signature.SignerCertificate.Subject) { $signature.SignerCertificate.Subject } else { Get-DeepText "deepReport.signature.noCertificate" }
             $items.Add("$([IO.Path]::GetFileName($path)): $($signature.Status); $signer")
-        } catch { $items.Add("$([IO.Path]::GetFileName($path)): không đọc được chữ ký") }
+        } catch { $items.Add((Get-DeepText "deepReport.signature.readFailed" @([IO.Path]::GetFileName($path)))) }
     }
-    if ($items.Count -eq 0) { return "Không có đường dẫn tệp để kiểm tra chữ ký." }
+    if ($items.Count -eq 0) { return Get-DeepText "deepReport.signature.noPaths" }
     return ($items -join " | ")
 }
 
 function Mask-Key {
     param([string]$Key)
-    if ([string]::IsNullOrWhiteSpace($Key)) { return "Không tìm thấy" }
+    if ([string]::IsNullOrWhiteSpace($Key)) { return Get-DeepText "common.notFound" }
     $compact = ($Key -replace "[^A-Za-z0-9]", "").ToUpperInvariant()
-    if ($compact.Length -lt 5) { return "Đã phát hiện" }
+    if ($compact.Length -lt 5) { return Get-DeepText "deepReport.detected" }
     return "*****-*****-*****-*****-" + $compact.Substring($compact.Length - 5)
 }
 
@@ -212,8 +224,8 @@ $results = New-Object System.Collections.Generic.List[object]
 
 $currentVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue
 $productName = if ($currentVersion.ProductName) { [string]$currentVersion.ProductName } else { "Windows" }
-$edition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { "Không xác định" }
-$installDate = "Không xác định"
+$edition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { Get-DeepText "common.unknown" }
+$installDate = Get-DeepText "common.unknown"
 $os = Safe-Cim Win32_OperatingSystem | Select-Object -First 1
 if ($os.InstallDate) { $installDate = [string]$os.InstallDate }
 
@@ -229,7 +241,7 @@ $activeLicense = $licenses | Where-Object { [int]$_.LicenseStatus -eq 1 } | Sele
 $licenseForAnalysis = if ($activeLicense) { $activeLicense } else { $licenses | Sort-Object LicenseStatus -Descending | Select-Object -First 1 }
 $isActivated = [bool]$activeLicense
 $channel = Get-Channel $licenseForAnalysis
-$partialKey = if ($licenseForAnalysis.PartialProductKey) { [string]$licenseForAnalysis.PartialProductKey } else { "Không xác định" }
+$partialKey = if ($licenseForAnalysis.PartialProductKey) { [string]$licenseForAnalysis.PartialProductKey } else { Get-DeepText "common.unknown" }
 $kmsServer = if ($licenseForAnalysis.KeyManagementServiceMachine) { [string]$licenseForAnalysis.KeyManagementServiceMachine } else { "" }
 
 $slmgr = Get-ToolNativeSystemPath "slmgr.vbs"
@@ -242,15 +254,15 @@ if (Test-Path -LiteralPath $slmgr) {
 if ($channel -eq "KMS") {
     $knownPublicPattern = "(?i)^(127\.0\.0\.1|0\.0\.0\.0|localhost)$|massgrave|kms\.loli|kms\.msgang|kms\.digiboy|kms\.03k|kms\.tee"
     if ($kmsServer -match $knownPublicPattern) {
-        $results.Add((New-Result 1 "KMS server / cấu hình KMS" "Phát hiện dấu hiệu mạnh" "KMS trỏ đến máy chủ công cộng/ảo: $kmsServer" "Gỡ cấu hình KMS sau khi xác nhận máy không có giấy phép KMS hợp lệ."))
+        $results.Add((New-Result 1 (Get-DeepText "deepReport.group.kms") $statusStrong (Get-DeepText "deepReport.kms.public" @($kmsServer)) (Get-DeepText "deepReport.kms.publicRecommendation")))
     } elseif (Test-ApprovedKms $kmsServer) {
-        $results.Add((New-Result 1 "KMS server / cấu hình KMS" "Không phát hiện bất thường" "Máy chủ KMS đã phê duyệt: $kmsServer" "Giữ nguyên và đối chiếu hồ sơ cấp phép doanh nghiệp."))
+        $results.Add((New-Result 1 (Get-DeepText "deepReport.group.kms") $statusClear (Get-DeepText "deepReport.kms.approved" @($kmsServer)) (Get-DeepText "deepReport.kms.approvedRecommendation")))
     } else {
-        $shownServer = if ($kmsServer) { $kmsServer } else { "không đọc được tên máy chủ" }
-        $results.Add((New-Result 1 "KMS server / cấu hình KMS" "Cần xác minh" "Windows dùng kênh KMS; $shownServer chưa nằm trong danh sách phê duyệt." "Xác minh với quản trị viên và thêm KMS hợp lệ vào approved-kms-servers.txt."))
+        $shownServer = if ($kmsServer) { $kmsServer } else { Get-DeepText "deepReport.kms.serverUnreadable" }
+        $results.Add((New-Result 1 (Get-DeepText "deepReport.group.kms") $statusReview (Get-DeepText "deepReport.kms.unapproved" @($shownServer)) (Get-DeepText "deepReport.kms.unapprovedRecommendation")))
     }
 } else {
-    $results.Add((New-Result 1 "KMS server / cấu hình KMS" "Không phát hiện bất thường" "Kênh hiện tại: $channel" "Tiếp tục đối chiếu hóa đơn hoặc hồ sơ cấp phép."))
+    $results.Add((New-Result 1 (Get-DeepText "deepReport.group.kms") $statusClear (Get-DeepText "deepReport.kms.currentChannel" @($channel)) (Get-DeepText "deepReport.kms.channelRecommendation")))
 }
 
 # 2. Services/processes/history markers. History content is never copied to the report.
@@ -270,29 +282,29 @@ $runtimeCount = $serviceHits.Count + $processHits.Count
 if ($runtimeCount -gt 0) {
     $names = @($serviceHits | Select-Object -ExpandProperty Name) + @($processHits | Select-Object -ExpandProperty ProcessName)
     $signatureSummary = Get-SignatureSummary $runtimePaths
-    $results.Add((New-Result 2 "Activator / MAS / HWID" "Phát hiện dấu hiệu mạnh" "Dịch vụ/tiến trình nghi vấn: $($names -join ', '). Lịch sử có $historyHitCount dòng khớp mẫu; nội dung không được lưu. Chữ ký tệp: $signatureSummary" "Kiểm tra chữ ký và nguồn tệp trước khi dùng mục gỡ KMS/crack."))
+    $results.Add((New-Result 2 (Get-DeepText "deepReport.group.activator") $statusStrong (Get-DeepText "deepReport.activator.runtime" @(($names -join ', '), $historyHitCount, $signatureSummary)) (Get-DeepText "deepReport.activator.runtimeRecommendation")))
 } elseif ($historyHitCount -gt 0) {
-    $results.Add((New-Result 2 "Activator / MAS / HWID" "Không phát hiện bất thường" "Không thấy tiến trình/dịch vụ đang chạy; chỉ có lịch sử cũ $historyHitCount dòng khớp mẫu. Nội dung lịch sử không được lưu." "Không cần xử lý lịch sử lệnh; chỉ dùng để tham khảo nếu còn dấu hiệu đang hoạt động ở nhóm khác."))
+    $results.Add((New-Result 2 (Get-DeepText "deepReport.group.activator") $statusClear (Get-DeepText "deepReport.activator.historyOnly" @($historyHitCount)) (Get-DeepText "deepReport.activator.historyRecommendation")))
 } else {
-    $results.Add((New-Result 2 "Activator / MAS / HWID" "Không phát hiện bất thường" "Không thấy dịch vụ, tiến trình hoặc dấu lịch sử theo các mẫu đặc hiệu." "Không cần xử lý tự động."))
+    $results.Add((New-Result 2 (Get-DeepText "deepReport.group.activator") $statusClear (Get-DeepText "deepReport.activator.none") (Get-DeepText "deepReport.noAutomaticAction")))
 }
 
 # 3. KMS38/expiration pattern
 if ($channel -eq "KMS" -and $xprText -match "2038") {
-    $results.Add((New-Result 3 "KMS38 / thời hạn kích hoạt" "Phát hiện dấu hiệu mạnh" "Kênh KMS có thời hạn hiển thị năm 2038, không phù hợp chu kỳ KMS thông thường." "Xác minh và gỡ cấu hình kích hoạt không hợp lệ nếu không có hồ sơ hợp pháp."))
+    $results.Add((New-Result 3 (Get-DeepText "deepReport.group.kms38") $statusStrong (Get-DeepText "deepReport.kms38.detected") (Get-DeepText "deepReport.kms38.recommendation")))
 } else {
     $summaryXpr = ($xprText -replace "\s+", " ").Trim()
     if ($summaryXpr.Length -gt 180) { $summaryXpr = $summaryXpr.Substring(0,180) + "..." }
-    $results.Add((New-Result 3 "KMS38 / thời hạn kích hoạt" "Không phát hiện bất thường" $summaryXpr "Trạng thái kích hoạt không tự chứng minh quyền sở hữu giấy phép."))
+    $results.Add((New-Result 3 (Get-DeepText "deepReport.group.kms38") $statusClear $summaryXpr (Get-DeepText "deepReport.activationNotEntitlement")))
 }
 
 # 4. Generic key/digital-license logic: informational only, never treated as proof of piracy.
 $genericLast5 = @("3V66T","T83GX","YKHCF","TXYCV","8HVX7","233PK","8XC4K","WFG99","6F4BT","YTDFH","2YT43","H8Q99","7CFBY","VCFB2","J8JXD","8HV2C","PDQGT","YY74H","2YV77","6Q84J")
 if ($genericLast5 -contains $partialKey) {
-    $oemText = if ($oemPresent) { "Có key OEM BIOS $oemMasked." } else { "Không tìm thấy key OEM BIOS." }
-    $results.Add((New-Result 4 "Logic key / giấy phép số" "Cần xác minh" "Windows dùng key chung theo 5 ký tự cuối $partialKey. $oemText" "Key chung có thể đi cùng Digital License hợp lệ; đối chiếu tài khoản, hóa đơn hoặc lịch sử nâng cấp."))
+    $oemText = if ($oemPresent) { Get-DeepText "deepReport.key.oemPresent" @($oemMasked) } else { Get-DeepText "deepReport.key.oemMissing" }
+    $results.Add((New-Result 4 (Get-DeepText "deepReport.group.keyLogic") $statusReview (Get-DeepText "deepReport.key.generic" @($partialKey, $oemText)) (Get-DeepText "deepReport.key.genericRecommendation")))
 } else {
-    $results.Add((New-Result 4 "Logic key / giấy phép số" "Không phát hiện bất thường" "Kênh $channel; 5 ký tự cuối $partialKey; OEM BIOS: $oemMasked" "Đối chiếu hồ sơ mua hàng để kết luận pháp lý."))
+    $results.Add((New-Result 4 (Get-DeepText "deepReport.group.keyLogic") $statusClear (Get-DeepText "deepReport.key.normal" @($channel, $partialKey, $oemMasked)) (Get-DeepText "deepReport.key.normalRecommendation")))
 }
 
 # 5. Suspicious activator folders
@@ -305,9 +317,9 @@ $folderCandidates = @(
 ) | Where-Object { $_ }
 $folderHits = @($folderCandidates | Where-Object { Test-Path -LiteralPath $_ })
 if ($folderHits.Count -gt 0) {
-    $results.Add((New-Result 5 "Thư mục công cụ kích hoạt" "Phát hiện dấu hiệu mạnh" ($folderHits -join "; ") "Kiểm tra nội dung và sao lưu trước khi xóa; báo cáo này không xóa thư mục."))
+    $results.Add((New-Result 5 (Get-DeepText "deepReport.group.folders") $statusStrong ($folderHits -join "; ") (Get-DeepText "deepReport.folders.recommendation")))
 } else {
-    $results.Add((New-Result 5 "Thư mục công cụ kích hoạt" "Không phát hiện bất thường" "Không thấy các thư mục activator phổ biến tại vị trí hệ thống." "Không cần xử lý tự động."))
+    $results.Add((New-Result 5 (Get-DeepText "deepReport.group.folders") $statusClear (Get-DeepText "deepReport.folders.none") (Get-DeepText "deepReport.noAutomaticAction")))
 }
 
 # 6. Scheduled tasks
@@ -317,12 +329,12 @@ try {
     $taskHits = @(Get-CompatibleScheduledTaskRows | Where-Object { $_.Name -match $activatorRegex -or $_.Actions -match $activatorRegex })
 } catch { $taskScanError = $_.Exception.Message }
 if ($taskScanError) {
-    $results.Add((New-Result 6 "Tác vụ chạy ngầm" "Chưa xác minh" $taskScanError "Kiểm tra Task Scheduler/schtasks.exe rồi chạy lại; không kết luận sạch khi nguồn này chưa đọc được."))
+    $results.Add((New-Result 6 (Get-DeepText "deepReport.group.tasks") $statusUnverified $taskScanError (Get-DeepText "deepReport.tasks.errorRecommendation")))
 } elseif ($taskHits.Count -gt 0) {
     $taskNames = @($taskHits | ForEach-Object { [string]$_.Name })
-    $results.Add((New-Result 6 "Tác vụ chạy ngầm" "Phát hiện dấu hiệu mạnh" ($taskNames -join "; ") "Dùng mục gỡ KMS/crack để vô hiệu hóa sau khi xác nhận."))
+    $results.Add((New-Result 6 (Get-DeepText "deepReport.group.tasks") $statusStrong ($taskNames -join "; ") (Get-DeepText "deepReport.tasks.detectedRecommendation")))
 } else {
-    $results.Add((New-Result 6 "Tác vụ chạy ngầm" "Không phát hiện bất thường" "Không thấy scheduled task khớp mẫu activator." "Không cần xử lý tự động."))
+    $results.Add((New-Result 6 (Get-DeepText "deepReport.group.tasks") $statusClear (Get-DeepText "deepReport.tasks.none") (Get-DeepText "deepReport.noAutomaticAction")))
 }
 
 # 7. Registry policy and hosts; report only, never overwrite either source.
@@ -340,22 +352,23 @@ if (Test-Path -LiteralPath $hostsPath) {
     }).Count
 }
 if ($policyNames.Count -gt 0 -or $hostsHitCount -gt 0) {
-    $evidence = "Registry: $(if ($policyNames.Count) { $policyNames -join ', ' } else { 'không thấy policy nghi vấn' }); hosts có $hostsHitCount dòng cần kiểm tra."
-    $results.Add((New-Result 7 "Registry / file hosts" "Cần xác minh" $evidence "Xác minh chính sách doanh nghiệp. Không ghi đè hosts; chỉ sửa đúng dòng/key sau khi có xác nhận."))
+    $policyEvidence = if ($policyNames.Count) { $policyNames -join ', ' } else { Get-DeepText "deepReport.registry.noSuspiciousPolicy" }
+    $evidence = Get-DeepText "deepReport.registry.evidence" @($policyEvidence, $hostsHitCount)
+    $results.Add((New-Result 7 (Get-DeepText "deepReport.group.registry") $statusReview $evidence (Get-DeepText "deepReport.registry.recommendation")))
 } else {
-    $results.Add((New-Result 7 "Registry / file hosts" "Không phát hiện bất thường" "Không thấy policy SPP hoặc dòng hosts theo mẫu chặn kích hoạt." "Không cần xử lý tự động."))
+    $results.Add((New-Result 7 (Get-DeepText "deepReport.group.registry") $statusClear (Get-DeepText "deepReport.registry.none") (Get-DeepText "deepReport.noAutomaticAction")))
 }
 
-$highCount = @($results | Where-Object { $_.Status -eq "Phát hiện dấu hiệu mạnh" }).Count
-$reviewCount = @($results | Where-Object { $_.Status -in @("Cần xác minh", "Chưa xác minh") }).Count
+$highCount = @($results | Where-Object { $_.Status -eq $statusStrong }).Count
+$reviewCount = @($results | Where-Object { $_.Status -in @($statusReview, $statusUnverified) }).Count
 $overall = if ($highCount -gt 0) {
-    "Phát hiện dấu hiệu kỹ thuật cần xử lý"
+    Get-DeepText "deepReport.overall.strong"
 } elseif ($reviewCount -gt 0) {
-    "Cần xác minh hồ sơ hoặc cấu hình"
+    Get-DeepText "deepReport.overall.review"
 } else {
-    "Không phát hiện dấu hiệu kỹ thuật rõ"
+    Get-DeepText "deepReport.overall.clear"
 }
-$reviewItems = @($results | Where-Object { $_.Status -in @("Cần xác minh", "Chưa xác minh", "Phát hiện dấu hiệu mạnh") } | ForEach-Object {
+$reviewItems = @($results | Where-Object { $_.Status -in @($statusReview, $statusUnverified, $statusStrong) } | ForEach-Object {
     [pscustomobject]@{
         Name = [string]$_.Name
         Status = [string]$_.Status
@@ -365,62 +378,70 @@ $reviewItems = @($results | Where-Object { $_.Status -in @("Cần xác minh", "C
 })
 $handlingGuidance = New-Object System.Collections.Generic.List[string]
 if ($highCount -gt 0) {
-    $handlingGuidance.Add("Có dấu hiệu mạnh: chạy mục 6 để backup, chọn đúng từng mục KMS/activator/tồn dư và xử lý; sau đó khởi động lại và quét lại mục 6 + mục 9.")
+    $handlingGuidance.Add((Get-DeepText "deepReport.guidance.strong"))
 }
-if (@($results | Where-Object { $_.Name -eq "Registry / file hosts" -and $_.Evidence -match "NoGenTicket=1" }).Count -gt 0) {
-    $handlingGuidance.Add("NoGenTicket=1 có thể cản giấy phép số. Nếu không phải chính sách doanh nghiệp, chạy mục 6, chọn mục policy SPP/NoGenTicket, xử lý rồi khởi động lại.")
+if (@($results | Where-Object { $_.Name -eq (Get-DeepText "deepReport.group.registry") -and $_.Evidence -match "NoGenTicket=1" }).Count -gt 0) {
+    $handlingGuidance.Add((Get-DeepText "deepReport.guidance.noGenTicket"))
 }
 if ($reviewCount -gt 0 -and $handlingGuidance.Count -eq 0) {
-    $handlingGuidance.Add("Mở báo cáo chi tiết, xử lý từng mục Cần xác minh theo cột Khuyến nghị rồi chạy lại kiểm tra.")
+    $handlingGuidance.Add((Get-DeepText "deepReport.guidance.review"))
 }
 if ($reviewCount -eq 0 -and $highCount -eq 0) {
-    $handlingGuidance.Add("Không cần gỡ thêm theo mục 9; kích hoạt bằng giấy phép chính thức rồi lưu báo cáo hậu kiểm.")
+    $handlingGuidance.Add((Get-DeepText "deepReport.guidance.clear"))
 }
 
+$reportColumns = @(
+    "#",
+    (Get-DeepText "deepReport.column.group"),
+    (Get-DeepText "deepReport.column.status"),
+    (Get-DeepText "deepReport.column.evidence"),
+    (Get-DeepText "deepReport.column.recommendation")
+)
 $reportRows = @($results | ForEach-Object {
-    [pscustomobject][ordered]@{
-        "#" = [string]$_.Id
-        "Nhóm kiểm tra" = [string]$_.Name
-        "Trạng thái" = [string]$_.Status
-        "Bằng chứng kỹ thuật" = [string]$_.Evidence
-        "Khuyến nghị" = [string]$_.Recommendation
-    }
+    $row = [ordered]@{}
+    $row[$reportColumns[0]] = [string]$_.Id
+    $row[$reportColumns[1]] = [string]$_.Name
+    $row[$reportColumns[2]] = [string]$_.Status
+    $row[$reportColumns[3]] = [string]$_.Evidence
+    $row[$reportColumns[4]] = [string]$_.Recommendation
+    [pscustomobject]$row
 })
-$summaryBody = "<p><strong>Kết quả tổng hợp:</strong> $(ConvertTo-ToolHtmlText $overall)</p>" +
+$licenseState = if ($isActivated) { Get-DeepText "deepReport.license.licensed" } else { Get-DeepText "deepReport.license.notLicensed" }
+$summaryBody = "<p><strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.result'))</strong> $(ConvertTo-ToolHtmlText $overall)</p>" +
     "<p><strong>Windows:</strong> $(ConvertTo-ToolHtmlText "$productName - $edition")<br>" +
-    "<strong>Ngày cài đặt:</strong> $(ConvertTo-ToolHtmlText $installDate)<br>" +
-    "<strong>Trạng thái cấp phép:</strong> $(ConvertTo-ToolHtmlText $(if ($isActivated) { 'Đã cấp phép' } else { 'Chưa cấp phép hoặc đang ở trạng thái thông báo/gia hạn' }))<br>" +
-    "<strong>Kênh hiện tại:</strong> $(ConvertTo-ToolHtmlText $channel)<br>" +
-    "<strong>5 ký tự cuối:</strong> $(ConvertTo-ToolHtmlText $partialKey)<br>" +
-    "<strong>Key OEM BIOS:</strong> $(ConvertTo-ToolHtmlText $oemMasked)</p>"
+    "<strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.installDate'))</strong> $(ConvertTo-ToolHtmlText $installDate)<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.licenseState'))</strong> $(ConvertTo-ToolHtmlText $licenseState)<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.channel'))</strong> $(ConvertTo-ToolHtmlText $channel)<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.lastFive'))</strong> $(ConvertTo-ToolHtmlText $partialKey)<br>" +
+    "<strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.summary.oemKey'))</strong> $(ConvertTo-ToolHtmlText $oemMasked)</p>"
 $guidanceBody = "<ul>" + ((@($handlingGuidance) | ForEach-Object { "<li>$(ConvertTo-ToolHtmlText $_)</li>" }) -join "") + "</ul>" +
-    "<p class='note'><strong>Lưu ý:</strong> Báo cáo chỉ đọc, không sửa Registry, file hosts, firewall, product key, task, service hoặc lịch sử PowerShell. Trạng thái kích hoạt không tự động chứng minh bản quyền hợp pháp; cần đối chiếu hóa đơn, hợp đồng, tài khoản hoặc hồ sơ cấp phép.</p>"
+    "<p class='note'><strong>$(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.noteLabel'))</strong> $(ConvertTo-ToolHtmlText (Get-DeepText 'deepReport.note'))</p>"
 $html = New-ToolProfessionalHtmlDocument `
-    -Title "Kiểm tra bản quyền Windows chuyên sâu - 7 nhóm tiêu chí" `
-    -Subtitle "Báo cáo chuyên sâu chỉ đọc, dùng chung giao diện với toàn bộ báo cáo HTML/PDF của Tool." `
-    -Eyebrow "Báo cáo kiểm kê và bảo đảm bản quyền" `
+    -Title (Get-DeepText "deepReport.title") `
+    -Subtitle (Get-DeepText "deepReport.subtitle") `
+    -Eyebrow (Get-DeepText "deepReport.eyebrow") `
     -Metadata @(
-        [pscustomobject]@{Label="Máy";Value=$reportMachine},
-        [pscustomobject]@{Label="Thời điểm";Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
-        [pscustomobject]@{Label="Quyền";Value="Administrator · chỉ đọc"},
-        [pscustomobject]@{Label="Riêng tư";Value=$(if ($RedactSensitive) { "Đã che dữ liệu nhạy cảm" } else { "Báo cáo đầy đủ nội bộ" })}
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.meta.computer");Value=$reportMachine},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.meta.time");Value=$started.ToString("yyyy-MM-dd HH:mm:ss")},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.meta.permission");Value=(Get-DeepText "deepReport.meta.adminReadOnly")},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.meta.privacy");Value=$(if ($RedactSensitive) { Get-DeepText "report.redacted" } else { Get-DeepText "deepReport.privacy.internal" })}
     ) `
     -Cards @(
-        [pscustomobject]@{Label="Kết quả";Value=$overall;Tone=$(if ($highCount -gt 0) {"danger"} elseif ($reviewCount -gt 0) {"warning"} else {"ok"})},
-        [pscustomobject]@{Label="Dấu hiệu mạnh";Value=[string]$highCount;Tone=$(if ($highCount -gt 0) {"danger"} else {"ok"})},
-        [pscustomobject]@{Label="Cần xác minh";Value=[string]$reviewCount;Tone=$(if ($reviewCount -gt 0) {"warning"} else {"ok"})},
-        [pscustomobject]@{Label="Nhóm kiểm tra";Value=[string]$reportRows.Count;Tone="info"}
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.card.result");Value=$overall;Tone=$(if ($highCount -gt 0) {"danger"} elseif ($reviewCount -gt 0) {"warning"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.card.strong");Value=[string]$highCount;Tone=$(if ($highCount -gt 0) {"danger"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.card.review");Value=[string]$reviewCount;Tone=$(if ($reviewCount -gt 0) {"warning"} else {"ok"})},
+        [pscustomobject]@{Label=(Get-DeepText "deepReport.card.groups");Value=[string]$reportRows.Count;Tone="info"}
     ) `
     -Sections @(
-        [pscustomobject]@{Title="Tổng quan";BodyHtml=$summaryBody},
-        [pscustomobject]@{Title="Kết quả 7 nhóm kiểm tra";BodyHtml=(ConvertTo-ToolHtmlTable -Rows $reportRows -Columns @("#","Nhóm kiểm tra","Trạng thái","Bằng chứng kỹ thuật","Khuyến nghị"))},
-        [pscustomobject]@{Title="Hướng xử lý và giới hạn";BodyHtml=$guidanceBody}
+        [pscustomobject]@{Title=(Get-DeepText "deepReport.section.overview");BodyHtml=$summaryBody},
+        [pscustomobject]@{Title=(Get-DeepText "deepReport.section.results");BodyHtml=(ConvertTo-ToolHtmlTable -Rows $reportRows -Columns $reportColumns)},
+        [pscustomobject]@{Title=(Get-DeepText "deepReport.section.guidance");BodyHtml=$guidanceBody}
     ) `
-    -Footer "Phát triển bởi Thanh Việt · Tool v$toolVersion" -Culture "vi-VN" -OfflineMode $true
+    -Footer "$(Get-DeepText 'report.footer') · v$releaseVersion" -Culture $Culture -OfflineMode $true
 [IO.File]::WriteAllText($reportPath, $html, (New-Object Text.UTF8Encoding($false)))
-if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $reportPath)) { throw "Báo cáo chuyên sâu không đạt kiểm tra HTML ngoại tuyến." }
+if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $reportPath)) { throw (Get-DeepText "deepReport.offlineSafetyFailed") }
 $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $reportPath -PdfPath $pdfPath
-$hashLines = @("# SHA-256 deep scan report package.")
+$hashLines = @((Get-DeepText "deepReport.manifestHeader"))
 foreach ($path in @($reportPath, $pdfPath)) {
     if (Test-Path -LiteralPath $path -PathType Leaf) { $hashLines += "$(Get-ToolSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))" }
 }
@@ -439,13 +460,13 @@ $decision = New-ToolReportEnvelope -ReportKind "DeepScanDecision" -ToolVersion $
     HandlingGuidance = $handlingGuidance.ToArray()
 })
 $decisionValidation = Test-ToolReportEnvelope -Report $decision -ExpectedReportKind "DeepScanDecision" -ExpectedToolVersion $toolVersion
-if (-not $decisionValidation.Valid) { throw "DeepScanDecision không đạt schema: $($decisionValidation.Errors -join '; ')" }
+if (-not $decisionValidation.Valid) { throw (Get-DeepText "deepReport.schemaFailed" @(($decisionValidation.Errors -join '; '))) }
 if (-not [string]::IsNullOrWhiteSpace($DecisionFile)) {
     $decision | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $DecisionFile -Encoding UTF8
 }
 
-Write-Host "Báo cáo: $reportPath"
-if ($pdfResult.Success) { Write-Host "PDF: $pdfPath" } else { Write-Host "PDF chưa tạo được: $($pdfResult.Error)" }
-Write-Host "Kết quả: $overall"
+Write-Host (Get-DeepText "common.reportPath" @($reportPath))
+if ($pdfResult.Success) { Write-Host (Get-DeepText "deepReport.output.pdf" @($pdfPath)) } else { Write-Host (Get-DeepText "deepReport.pdfFailed" @($pdfResult.Error)) }
+Write-Host (Get-DeepText "deepReport.resultHost" @($overall))
 if (-not $NoOpen) { Start-Process -FilePath $reportPath }
 exit 0

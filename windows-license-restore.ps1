@@ -1,14 +1,31 @@
 ﻿param(
     [Parameter(Mandatory = $true)][string]$BackupDir,
-    [string]$DecisionFile = ""
+    [string]$DecisionFile = "",
+    [ValidateSet("All", "Windows", "Office", "ThirdParty")]
+    [string]$Scope = "All",
+    [ValidateSet("vi-VN", "en-US")]
+    [string]$Culture = "vi-VN"
 )
 
-if ($PSVersionTable.PSVersion.Major -lt 3) { exit 10 }
+$catalogPath = Join-Path $PSScriptRoot "Tool-Strings.$Culture.json"
+if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Strings.$Culture.json"; exit 12 }
+try { $script:restoreCatalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+catch { Write-Host "[localization.catalogInvalid] Tool-Strings.$Culture.json"; exit 12 }
+function Get-RestoreText {
+    param([Parameter(Mandatory = $true)][string]$Key, [object[]]$Arguments = @())
+    $property = $script:restoreCatalog.PSObject.Properties[$Key]
+    $text = if ($property) { [string]$property.Value } else { "[$Key]" }
+    if ($Arguments -and @($Arguments).Count -gt 0) {
+        try { return [string]::Format([Globalization.CultureInfo]::GetCultureInfo($Culture), $text, [object[]]$Arguments) } catch { return $text }
+    }
+    return $text
+}
+if ($PSVersionTable.PSVersion.Major -lt 3) { Write-Host (Get-RestoreText "common.powerShellRequired" @(3)); exit 10 }
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $safetyPolicyHelper = Join-Path $PSScriptRoot "Tool-SafetyPolicy.ps1"
 try {
-    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
-    if (-not (Test-Path -LiteralPath $safetyPolicyHelper -PathType Leaf)) { throw "Thiếu Tool-SafetyPolicy.ps1." }
+    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw (Get-RestoreText "common.missingDependency" @("Tool-Runtime.ps1")) }
+    if (-not (Test-Path -LiteralPath $safetyPolicyHelper -PathType Leaf)) { throw (Get-RestoreText "common.missingDependency" @("Tool-SafetyPolicy.ps1")) }
     . $runtimeHelper
     . $safetyPolicyHelper
     [void](Assert-ToolNativeArchitecture)
@@ -16,6 +33,7 @@ try {
     $nativeScPath = Get-ToolNativeSystemPath "sc.exe"
 } catch { Write-Host $_.Exception.Message; exit 12 }
 $ErrorActionPreference = "Continue"
+$releaseVersion = "4.6.0.0"
 
 function Is-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -34,7 +52,7 @@ function Fail-Restore([int]$Code, [string]$Message) {
 }
 
 try { Add-Type -AssemblyName System.Security -ErrorAction Stop }
-catch { Fail-Restore 11 "Không tải được System.Security để xác thực backup." }
+catch { Fail-Restore 11 (Get-RestoreText "restoreReport.securityAssemblyFailed") }
 
 function Get-Sha256([string]$Path) {
     $stream = [IO.File]::OpenRead($Path)
@@ -47,12 +65,12 @@ function Get-Sha256([string]$Path) {
 
 function Get-PathHash([string]$Path) {
     $rootItem = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
-    if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Từ chối reparse point: $Path" }
+    if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-RestoreText "restoreReport.reparseRejected" @($Path)) }
     if (-not $rootItem.PSIsContainer) { return Get-Sha256 $Path }
     $root = ([IO.Path]::GetFullPath($Path)).TrimEnd('\')
     $lines = New-Object System.Collections.Generic.List[string]
     $children = @(Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction Stop | Sort-Object FullName)
-    if (@($children | Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }).Count -gt 0) { throw "Dữ liệu backup chứa reparse point: $Path" }
+    if (@($children | Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }).Count -gt 0) { throw (Get-RestoreText "restoreReport.reparseContained" @($Path)) }
     foreach ($file in @($children | Where-Object { -not $_.PSIsContainer })) {
         $relative = $file.FullName.Substring($root.Length).TrimStart('\')
         $lines.Add(($relative + "|" + (Get-Sha256 $file.FullName)))
@@ -99,6 +117,28 @@ function Resolve-BackupPath([string]$RelativePath) {
     } catch { return "" }
 }
 
+function Get-RestoreItemScope($Item) {
+    $kind = [string]$Item.Kind
+    $name = [string]$Item.Name
+    $path = [string]$Item.OriginalPath
+    $combined = "$kind|$name|$path"
+    if ($kind -match '^ThirdParty' -or $combined -match '(?i)ThirdPartyInventory|InstalledSoftware') { return "ThirdParty" }
+    if ($kind -match '^Office' -or $combined -match '(?i)OfficeSoftwareProtectionPlatform|\bospp(?:svc|\.vbs)?\b|Office_SPP') { return "Office" }
+    if ($kind -match '^Windows' -or $combined -match '(?i)Windows NT\\CurrentVersion\\SoftwareProtectionPlatform|\bsppsvc\b|SppExtComObj|Windows_SPP|NoGenTicket') { return "Windows" }
+    return "WindowsOfficeShared"
+}
+
+function Get-RestoreItemsForScope {
+    param($Items, [ValidateSet("All", "Windows", "Office", "ThirdParty")][string]$RequestedScope)
+    $allItems = @($Items)
+    switch ($RequestedScope) {
+        "Windows" { return @($allItems | Where-Object { (Get-RestoreItemScope $_) -in @("Windows", "WindowsOfficeShared") }) }
+        "Office" { return @($allItems | Where-Object { (Get-RestoreItemScope $_) -in @("Office", "WindowsOfficeShared") }) }
+        "ThirdParty" { return @($allItems | Where-Object { (Get-RestoreItemScope $_) -eq "ThirdParty" }) }
+        default { return $allItems }
+    }
+}
+
 function Test-RegFileScope([string]$FilePath, [string]$ExpectedNativePath) {
     try {
         $headers = @(Get-Content -LiteralPath $FilePath -ErrorAction Stop | ForEach-Object {
@@ -140,60 +180,84 @@ function Register-CompatibleScheduledTask([string]$TaskName, [string]$TaskPath, 
     }
 }
 
-if (-not (Is-Admin)) { Fail-Restore 20 "Cần quyền Administrator." }
-try { $script:backupRoot = ([IO.Path]::GetFullPath($BackupDir)).TrimEnd('\') } catch { Fail-Restore 21 "Đường dẫn backup không hợp lệ." }
-if (-not (Test-Path -LiteralPath $script:backupRoot -PathType Container)) { Fail-Restore 21 "Không tìm thấy thư mục backup." }
+if (-not (Is-Admin)) { Fail-Restore 20 (Get-RestoreText "restoreReport.adminRequired") }
+try { $script:backupRoot = ([IO.Path]::GetFullPath($BackupDir)).TrimEnd('\') } catch { Fail-Restore 21 (Get-RestoreText "restoreReport.invalidPath") }
+if (-not (Test-Path -LiteralPath $script:backupRoot -PathType Container)) { Fail-Restore 21 (Get-RestoreText "restoreReport.directoryMissing") }
 $commonData = [Environment]::GetFolderPath("CommonApplicationData")
-$productRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra"
-$versionRoot = Join-Path $productRoot "v4.4"
-$expectedBackupRoot = Join-Path $versionRoot "backups"
-try { $expectedBackupRoot = ([IO.Path]::GetFullPath($expectedBackupRoot)).TrimEnd('\') } catch { Fail-Restore 21 "Không xác định được vùng backup bảo vệ." }
-$expectedPrefix = $expectedBackupRoot + '\'
-if (-not $script:backupRoot.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) { Fail-Restore 23 "Chỉ khôi phục backup nguyên bản trong vùng ProgramData được bảo vệ." }
+$currentDataRoot = [string]$env:TOOL_DATA_ROOT
+if ([string]::IsNullOrWhiteSpace($currentDataRoot)) { $currentDataRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.6" }
+$legacyDataRoot = [string]$env:TOOL_LEGACY_DATA_ROOT
+if ([string]::IsNullOrWhiteSpace($legacyDataRoot)) { $legacyDataRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.4" }
+$allowedBackupRoots = @($currentDataRoot, $legacyDataRoot) | ForEach-Object {
+    try { ([IO.Path]::GetFullPath((Join-Path $_ "backups"))).TrimEnd('\') } catch { $null }
+} | Where-Object { $_ } | Select-Object -Unique
+$insideAllowedRoot = $false
+foreach ($allowedRoot in $allowedBackupRoots) {
+    if ($script:backupRoot.StartsWith(($allowedRoot + '\'), [StringComparison]::OrdinalIgnoreCase)) { $insideAllowedRoot = $true; break }
+}
+if (-not $insideAllowedRoot) { Fail-Restore 23 (Get-RestoreText "restoreReport.outsideProtectedRoot") }
 foreach ($protectedPath in @($productRoot, $versionRoot, $expectedBackupRoot, $script:backupRoot)) {
-    if (-not (Test-ProtectedBackupAcl $protectedPath)) { Fail-Restore 23 "Thư mục backup hoặc thư mục cha không còn ACL an toàn." }
+    if (-not (Test-ProtectedBackupAcl $protectedPath)) { Fail-Restore 23 (Get-RestoreText "restoreReport.unsafeAcl") }
 }
 
 $manifestPath = Join-Path $script:backupRoot "RESTORE-MANIFEST.json"
 $hmacPath = Join-Path $script:backupRoot "RESTORE-MANIFEST.hmac"
 $authPath = Join-Path $script:backupRoot "RESTORE-AUTH.bin"
 foreach ($required in @($manifestPath, $hmacPath, $authPath)) {
-    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { Fail-Restore 21 "Bộ backup thiếu thành phần xác thực bắt buộc." }
-    if (((Get-Item -LiteralPath $required -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail-Restore 23 "Thành phần xác thực backup là reparse point không an toàn." }
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { Fail-Restore 21 (Get-RestoreText "restoreReport.authComponentMissing") }
+    if (((Get-Item -LiteralPath $required -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail-Restore 23 (Get-RestoreText "restoreReport.authComponentReparse") }
 }
 
 try {
     $protectedKey = [IO.File]::ReadAllBytes($authPath)
     $hmacKey = [Security.Cryptography.ProtectedData]::Unprotect($protectedKey, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
     $expectedHmac = ([IO.File]::ReadAllText($hmacPath)).Trim().ToUpperInvariant()
-    if ($expectedHmac -notmatch '^[0-9A-F]{64}$') { throw "HMAC sai định dạng." }
+    if ($expectedHmac -notmatch '^[0-9A-F]{64}$') { throw (Get-RestoreText "restoreReport.hmacInvalid") }
     $hmac = New-Object Security.Cryptography.HMACSHA256(,$hmacKey)
     try { $actualHmac = ([BitConverter]::ToString($hmac.ComputeHash([IO.File]::ReadAllBytes($manifestPath))) -replace '-', '').ToUpperInvariant() }
     finally { $hmac.Dispose() }
-    if ($actualHmac -ne $expectedHmac) { throw "HMAC của manifest không khớp." }
+    if ($actualHmac -ne $expectedHmac) { throw (Get-RestoreText "restoreReport.hmacMismatch") }
     if ($hmacKey) { [Array]::Clear($hmacKey, 0, $hmacKey.Length) }
-} catch { Fail-Restore 24 "Xác thực manifest thất bại: $($_.Exception.Message)" }
+} catch { Fail-Restore 24 (Get-RestoreText "restoreReport.manifestAuthFailed" @($_.Exception.Message)) }
 
-try { $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { Fail-Restore 22 "Manifest không hợp lệ: $($_.Exception.Message)" }
-if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -ne "4.4") { Fail-Restore 25 "Phiên bản manifest không được hỗ trợ an toàn." }
-if ([string]$manifest.ComputerName -ne $env:COMPUTERNAME -or [string]$manifest.MachineBinding -ne (Get-MachineBinding)) { Fail-Restore 26 "Backup không thuộc đúng máy hiện tại." }
-$manifestItems = @($manifest.Items)
-if ($manifestItems.Count -eq 0 -or $manifestItems.Count -gt 5000) { Fail-Restore 27 "Số lượng mục trong manifest không hợp lệ." }
+try { $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { Fail-Restore 22 (Get-RestoreText "restoreReport.manifestInvalid" @($_.Exception.Message)) }
+if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -ne "4.6") { Fail-Restore 25 (Get-RestoreText "restoreReport.manifestVersionUnsupported") }
+if ([string]$manifest.ComputerName -ne $env:COMPUTERNAME -or [string]$manifest.MachineBinding -ne (Get-MachineBinding)) { Fail-Restore 26 (Get-RestoreText "restoreReport.wrongDevice") }
+$allManifestItems = @($manifest.Items)
+if ($allManifestItems.Count -eq 0 -or $allManifestItems.Count -gt 5000) { Fail-Restore 27 (Get-RestoreText "restoreReport.itemCountInvalid") }
+$manifestItems = @(Get-RestoreItemsForScope -Items $allManifestItems -RequestedScope $Scope)
+if ($manifestItems.Count -eq 0) { Fail-Restore 27 (Get-RestoreText "restoreReport.scopeNoItems" @($Scope)) }
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::Equals(([IO.Path]::GetFullPath($scriptDirectory)).TrimEnd('\'), $script:backupRoot, [StringComparison]::OrdinalIgnoreCase)) {
     if ([string]$manifest.RestoreScriptSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or (Get-Sha256 $MyInvocation.MyCommand.Path) -ne ([string]$manifest.RestoreScriptSha256).ToUpperInvariant()) {
-        Fail-Restore 28 "Script khôi phục trong thư mục backup không còn nguyên vẹn."
+        Fail-Restore 28 (Get-RestoreText "restoreReport.integrity.restoreScript")
     }
     if ([string]$manifest.RuntimeHelperSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or
         -not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf) -or
         (Get-Sha256 $runtimeHelper) -ne ([string]$manifest.RuntimeHelperSha256).ToUpperInvariant()) {
-        Fail-Restore 28 "Tool-Runtime.ps1 trong thư mục backup không còn nguyên vẹn."
+        Fail-Restore 28 (Get-RestoreText "restoreReport.integrity.runtime")
     }
     if ([string]$manifest.SafetyPolicySha256 -notmatch '^[0-9A-Fa-f]{64}$' -or
         -not (Test-Path -LiteralPath $safetyPolicyHelper -PathType Leaf) -or
         (Get-Sha256 $safetyPolicyHelper) -ne ([string]$manifest.SafetyPolicySha256).ToUpperInvariant()) {
-        Fail-Restore 28 "Tool-SafetyPolicy.ps1 trong thư mục backup không còn nguyên vẹn."
+        Fail-Restore 28 (Get-RestoreText "restoreReport.integrity.safetyPolicy")
+    }
+    $localizationHelper = Join-Path $scriptDirectory "Tool-Localization.ps1"
+    if ([string]$manifest.LocalizationHelperSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or
+        -not (Test-Path -LiteralPath $localizationHelper -PathType Leaf) -or
+        (Get-Sha256 $localizationHelper) -ne ([string]$manifest.LocalizationHelperSha256).ToUpperInvariant()) {
+        Fail-Restore 28 (Get-RestoreText "restoreReport.integrity.localization")
+    }
+    $viCatalogPath = Join-Path $scriptDirectory "Tool-Strings.vi-VN.json"
+    $enCatalogPath = Join-Path $scriptDirectory "Tool-Strings.en-US.json"
+    if ([string]$manifest.ViCatalogSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or
+        -not (Test-Path -LiteralPath $viCatalogPath -PathType Leaf) -or
+        (Get-Sha256 $viCatalogPath) -ne ([string]$manifest.ViCatalogSha256).ToUpperInvariant() -or
+        [string]$manifest.EnCatalogSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or
+        -not (Test-Path -LiteralPath $enCatalogPath -PathType Leaf) -or
+        (Get-Sha256 $enCatalogPath) -ne ([string]$manifest.EnCatalogSha256).ToUpperInvariant()) {
+        Fail-Restore 28 (Get-RestoreText "restoreReport.integrity.catalogs")
     }
 }
 
@@ -201,16 +265,16 @@ if ([string]::Equals(([IO.Path]::GetFullPath($scriptDirectory)).TrimEnd('\'), $s
 $allowedTypes = @("RegistryValues", "Registry", "ScheduledTask", "Service", "File", "Folder", "Defender", "LicenseNotice")
 $resolvedPaths = @{}
 foreach ($item in $manifestItems) {
-    if ($allowedTypes -notcontains [string]$item.Type) { Fail-Restore 29 "Manifest chứa loại mục không được hỗ trợ: $($item.Type)" }
+    if ($allowedTypes -notcontains [string]$item.Type) { Fail-Restore 29 (Get-RestoreText "restoreReport.unsupportedItem" @($item.Type)) }
     if (-not [string]::IsNullOrWhiteSpace([string]$item.BackupPath)) {
         $source = Resolve-BackupPath ([string]$item.BackupPath)
-        if (-not $source -or -not (Test-Path -LiteralPath $source)) { Fail-Restore 30 "Thiếu dữ liệu backup cho $($item.Type): $($item.Name)" }
+        if (-not $source -or -not (Test-Path -LiteralPath $source)) { Fail-Restore 30 (Get-RestoreText "restoreReport.dataMissing" @($item.Type, $item.Name)) }
         if ([string]$item.BackupSha256 -notmatch '^[0-9A-Fa-f]{64}$' -or (Get-PathHash $source) -ne ([string]$item.BackupSha256).ToUpperInvariant()) {
-            Fail-Restore 31 "SHA-256 dữ liệu backup không khớp: $($item.Name)"
+            Fail-Restore 31 (Get-RestoreText "restoreReport.dataHashMismatch" @($item.Name))
         }
         $resolvedPaths[[string]$item.BackupPath] = $source
     } elseif ([string]$item.Type -notin @("Defender", "LicenseNotice")) {
-        Fail-Restore 32 "Mục backup thiếu đường dẫn dữ liệu: $($item.Type) - $($item.Name)"
+        Fail-Restore 32 (Get-RestoreText "restoreReport.dataPathMissing" @($item.Type, $item.Name))
     }
 }
 
@@ -224,15 +288,18 @@ $registryValueRestorePolicy = @(Get-ToolRegistryValueRestorePolicy)
 foreach ($item in $manifestItems) {
     try {
         $source = if ([string]$item.BackupPath) { [string]$resolvedPaths[[string]$item.BackupPath] } else { "" }
+        if ($item.PSObject.Properties['Restorable'] -and -not [bool]$item.Restorable) {
+            $actions.Add((Get-RestoreText "restoreReport.action.nonRestorableSkipped" @($item.Name, $item.Kind))); $skipped++; continue
+        }
         switch ([string]$item.Type) {
             "RegistryValues" {
                 $allowedNamesForPath = @(Get-ToolAllowedRegistryValueNames -Path ([string]$item.OriginalPath))
-                if ($allowedNamesForPath.Count -eq 0) { throw "RegistryValues nằm ngoài phạm vi SPP/policy cho phép." }
+                if ($allowedNamesForPath.Count -eq 0) { throw (Get-RestoreText "restoreReport.registryValuesOutsideScope") }
                 $data = Get-Content -LiteralPath $source -Raw | ConvertFrom-Json
-                if ([string]$data.RegistryPath -ne [string]$item.OriginalPath) { throw "Đường dẫn RegistryValues không khớp manifest." }
+                if ([string]$data.RegistryPath -ne [string]$item.OriginalPath) { throw (Get-RestoreText "restoreReport.registryValuesPathMismatch") }
                 $key = Get-Item -LiteralPath ([string]$item.OriginalPath) -ErrorAction Stop
                 foreach ($entry in @($data.Values)) {
-                    if (-not (Test-ToolRegistryValueRestoreAllowed -Path ([string]$item.OriginalPath) -ValueName ([string]$entry.Name))) { throw "Tên Registry value nằm ngoài phạm vi cho phép tại đường dẫn này: $($entry.Name)" }
+                    if (-not (Test-ToolRegistryValueRestoreAllowed -Path ([string]$item.OriginalPath) -ValueName ([string]$entry.Name))) { throw (Get-RestoreText "restoreReport.registryValueOutsideScope" @($entry.Name)) }
                     $kind = [Microsoft.Win32.RegistryValueKind]([Enum]::Parse([Microsoft.Win32.RegistryValueKind], [string]$entry.Kind, $true))
                     $value = $entry.Value
                     if ($kind -eq [Microsoft.Win32.RegistryValueKind]::Binary) { $value = [Convert]::FromBase64String([string]$value) }
@@ -242,27 +309,27 @@ foreach ($item in $manifestItems) {
                     else { $value = [string]$value }
                     $key.SetValue([string]$entry.Name, $value, $kind)
                 }
-                $actions.Add("Đã phục hồi các giá trị Registry: $($item.Name)"); $restored++
+                $actions.Add((Get-RestoreText "restoreReport.action.registryValues" @($item.Name))); $restored++
             }
             "Registry" {
                 $nativePath = ([string]$item.OriginalPath) -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
                 $allowed = $nativePath -like 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\*'
-                if (-not $allowed -or -not (Test-RegFileScope $source $nativePath)) { throw "File Registry nằm ngoài phạm vi IFEO đã xác thực." }
+                if (-not $allowed -or -not (Test-RegFileScope $source $nativePath)) { throw (Get-RestoreText "restoreReport.registryOutsideScope") }
                 $output = (& $nativeRegPath import $source 2>&1) -join " | "; if ($LASTEXITCODE -ne 0) { throw $output }
-                $actions.Add("Đã phục hồi Registry: $($item.Name)"); $restored++
+                $actions.Add((Get-RestoreText "restoreReport.action.registry" @($item.Name))); $restored++
             }
             "ScheduledTask" {
                 $taskName = [string]$item.Name; $taskPath = [string]$item.OriginalPath
-                if ([string]::IsNullOrWhiteSpace($taskName) -or -not $taskPath.StartsWith('\') -or $taskPath.Contains('..')) { throw "Tên hoặc đường dẫn task không hợp lệ." }
-                if (Test-CompatibleScheduledTask -TaskName $taskName -TaskPath $taskPath) { $actions.Add("BỎ QUA task đã tồn tại: $taskPath$taskName"); $skipped++; break }
+                if ([string]::IsNullOrWhiteSpace($taskName) -or -not $taskPath.StartsWith('\') -or $taskPath.Contains('..')) { throw (Get-RestoreText "restoreReport.taskInvalid") }
+                if (Test-CompatibleScheduledTask -TaskName $taskName -TaskPath $taskPath) { $actions.Add((Get-RestoreText "restoreReport.action.taskExists" @($taskPath + $taskName))); $skipped++; break }
                 Register-CompatibleScheduledTask -TaskName $taskName -TaskPath $taskPath -XmlPath $source -WasEnabled ([bool]$item.WasEnabled)
-                $actions.Add("Đã phục hồi scheduled task: $taskPath$taskName"); $restored++
+                $actions.Add((Get-RestoreText "restoreReport.action.task" @($taskPath + $taskName))); $restored++
             }
             "Service" {
                 $serviceName = [string]$item.Name
-                if ($serviceName -notmatch '^[A-Za-z0-9_.-]{1,256}$') { throw "Tên service không hợp lệ." }
+                if ($serviceName -notmatch '^[A-Za-z0-9_.-]{1,256}$') { throw (Get-RestoreText "restoreReport.serviceNameInvalid") }
                 $nativePath = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\$serviceName"
-                if (-not (Test-RegFileScope $source $nativePath)) { throw "File Registry service vượt ra ngoài khóa service đã xác thực." }
+                if (-not (Test-RegFileScope $source $nativePath)) { throw (Get-RestoreText "restoreReport.serviceRegistryOutsideScope") }
                 if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
                     $startMode = switch ([string]$item.StartMode) { "Auto" { "auto" }; "Automatic" { "auto" }; "Disabled" { "disabled" }; default { "demand" } }
                     $arguments = @("create", $serviceName, "binPath=", [string]$item.PathName, "start=", $startMode, "DisplayName=", [string]$item.DisplayName)
@@ -274,56 +341,57 @@ foreach ($item in $manifestItems) {
                 $regOutput = (& $nativeRegPath import $source 2>&1) -join " | "; if ($LASTEXITCODE -ne 0) { throw $regOutput }
                 if ([string]$item.SecurityDescriptor -match '^D:') { & $nativeScPath sdset $serviceName ([string]$item.SecurityDescriptor) | Out-Null }
                 if ([bool]$item.WasRunning -and ([string]$item.StartName -match '^(LocalSystem|NT AUTHORITY\\(LocalService|NetworkService))$')) { Start-Service -Name $serviceName -ErrorAction SilentlyContinue }
-                if ([string]$item.StartName -and ([string]$item.StartName -notmatch '^(LocalSystem|NT AUTHORITY\\(LocalService|NetworkService))$')) { $actions.Add("LƯU Ý: service $serviceName dùng tài khoản riêng; cần nhập lại mật khẩu dịch vụ trước khi chạy.") }
-                $actions.Add("Đã phục hồi cấu hình service đã sao lưu: $serviceName"); $restored++
+                if ([string]$item.StartName -and ([string]$item.StartName -notmatch '^(LocalSystem|NT AUTHORITY\\(LocalService|NetworkService))$')) { $actions.Add((Get-RestoreText "restoreReport.action.serviceCredential" @($serviceName))) }
+                $actions.Add((Get-RestoreText "restoreReport.action.service" @($serviceName))); $restored++
             }
             { $_ -in @("File", "Folder") } {
                 $destination = [string]$item.OriginalPath
-                if (-not [IO.Path]::IsPathRooted($destination)) { throw "Đường dẫn đích không tuyệt đối." }
-                if (Test-Path -LiteralPath $destination) { $actions.Add("BỎ QUA vì đích đã tồn tại: $destination"); $skipped++; break }
+                if (-not [IO.Path]::IsPathRooted($destination)) { throw (Get-RestoreText "restoreReport.destinationNotAbsolute") }
+                if (Test-Path -LiteralPath $destination) { $actions.Add((Get-RestoreText "restoreReport.action.destinationExists" @($destination))); $skipped++; break }
                 $parent = Split-Path -Parent $destination; if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
                 Copy-Item -LiteralPath $source -Destination $destination -Recurse:([string]$item.Type -eq "Folder") -Force -ErrorAction Stop
-                $actions.Add("Đã phục hồi $([string]$item.Type): $destination"); $restored++
+                $actions.Add((Get-RestoreText "restoreReport.action.path" @($item.Type, $destination))); $restored++
             }
             "Defender" {
-                $actions.Add("BỎ QUA AN TOÀN ngoại lệ Defender, không tự động thêm lại: $($item.OriginalPath)"); $skipped++
+                $actions.Add((Get-RestoreText "restoreReport.action.defenderSkipped" @($item.OriginalPath))); $skipped++
             }
             "LicenseNotice" {
-                $actions.Add("KHÔNG THỂ TỰ KHÔI PHỤC product key (tool không lưu key đầy đủ): $($item.Name)"); $skipped++
+                $actions.Add((Get-RestoreText "restoreReport.action.licenseSkipped" @($item.Name))); $skipped++
             }
         }
     } catch {
-        $message = "LỖI [$($item.Type)] $($item.Name): $($_.Exception.Message)"
+        $message = Get-RestoreText "restoreReport.action.error" @($item.Type, $item.Name, $_.Exception.Message)
         $errors.Add($message); $actions.Add($message)
     }
 }
 
 $restoreGuidance = if ($errors.Count -gt 0) {
     @(
-        "Dừng mọi lần gỡ tiếp theo; không xóa hoặc di chuyển thư mục backup."
-        "Không bỏ qua cảnh báo ACL, HMAC, ràng buộc máy hoặc SHA-256."
-        "Mở báo cáo này, xử lý nguyên nhân được ghi ở phần CHI TIẾT rồi chạy lại chức năng xem trước bằng bản tool mới nhất."
+        (Get-RestoreText "restoreReport.guidance.error.stop")
+        (Get-RestoreText "restoreReport.guidance.error.validation")
+        (Get-RestoreText "restoreReport.guidance.error.retry")
     )
 } else {
     @(
-        "Quét lại mục 6 để xác nhận KMS/activator/tồn dư đã về 0."
-        "Nếu Windows hoặc Office chưa kích hoạt, chỉ dùng giấy phép chính thức hoặc KMS nội bộ đã được đơn vị xác nhận."
+        (Get-RestoreText "restoreReport.guidance.success.rescan")
+        (Get-RestoreText "restoreReport.guidance.success.license")
     )
 }
 $restoreReport = @(
-    "KHÔI PHỤC TỰ ĐỘNG - TOOL KIỂM TRA v4.4"
-    "Thời gian: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-    "Thư mục backup: $script:backupRoot"
-    "Đã phục hồi: $restored"
-    "Bỏ qua: $skipped"
-    "Lỗi: $($errors.Count)"
+    (Get-RestoreText "restoreReport.heading" @($releaseVersion))
+    (Get-RestoreText "restoreReport.time" @((Get-Date -Format 'yyyy-MM-dd HH:mm:ss')))
+    (Get-RestoreText "restoreReport.directory" @($script:backupRoot))
+    (Get-RestoreText "restoreReport.scope" @($Scope))
+    (Get-RestoreText "restoreReport.restored" @($restored))
+    (Get-RestoreText "restoreReport.skipped" @($skipped))
+    (Get-RestoreText "restoreReport.errors" @($errors.Count))
     ""
-    "CHI TIẾT:"
+    (Get-RestoreText "restoreReport.detailsHeading")
 ) + $actions.ToArray() + @(
     ""
-    "HƯỚNG XỬ LÝ TIẾP:"
+    (Get-RestoreText "restoreReport.guidanceHeading")
 ) + $restoreGuidance
 $restoreReport | Set-Content -LiteralPath $reportPath -Encoding UTF8
 $success = [bool]($errors.Count -eq 0)
-Write-ResultFile ([pscustomobject]@{ Success=$success; RestoredCount=[int]$restored; SkippedCount=[int]$skipped; ErrorCount=[int]$errors.Count; ReportPath=$reportPath; Message=if ($success) { "Khôi phục hoàn tất sau khi xác thực toàn bộ backup." } else { "Khôi phục hoàn tất nhưng có mục lỗi." } })
+Write-ResultFile ([pscustomobject]@{ Success=$success; Scope=$Scope; RestoredCount=[int]$restored; SkippedCount=[int]$skipped; ErrorCount=[int]$errors.Count; ReportPath=$reportPath; Message=if ($success) { Get-RestoreText "restoreReport.complete" } else { Get-RestoreText "restoreReport.completeWithErrors" } })
 if ($success) { exit 0 } else { exit 4 }

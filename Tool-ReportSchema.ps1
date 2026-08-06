@@ -1,5 +1,5 @@
 ﻿$script:ToolReportSchemaVersion = "1.5"
-$script:ToolReportSchemaToolVersion = "4.4"
+$script:ToolReportSchemaToolVersion = "4.6"
 $script:ToolReportKinds = @(
     "InventoryAndLicense",
     "CleanupCompliance",
@@ -21,6 +21,13 @@ $script:ToolReportRequiredFieldsByKind = [ordered]@{
     PluginEvaluation = @("CreatedAt", "PluginCount", "EvaluatedRuleCount", "TriggeredFindingCount")
     LicenseTimeline = @("CreatedAt", "ChainValid", "EventCount", "ChangeCount")
     EnterpriseInventory = @("CreatedAt", "ClientId", "ComputerName", "NetworkAddresses", "WindowsLicenses", "OfficeLicenses", "Privacy")
+}
+
+$toolReportSchemaLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolReportSchemaLocalizationPath -PathType Leaf)) {
+    . $toolReportSchemaLocalizationPath
 }
 
 function Get-ToolReportRequiredFields {
@@ -48,10 +55,10 @@ function New-ToolReportEnvelope {
     )
 
     if ($script:ToolReportKinds -notcontains $ReportKind) {
-        throw "ReportKind không được hỗ trợ bởi schema $($script:ToolReportSchemaVersion): $ReportKind"
+        throw (Get-ToolTextCurrent "foundation.reportSchema.kindUnsupportedForSchema" @($script:ToolReportSchemaVersion, $ReportKind))
     }
     if ([string]::IsNullOrWhiteSpace($ToolVersion)) {
-        throw "ToolVersion của báo cáo không được để trống."
+        throw (Get-ToolTextCurrent "foundation.reportSchema.toolVersionRequired")
     }
 
     $result = [ordered]@{
@@ -90,14 +97,14 @@ function Test-ToolReportEnvelope {
 
     $errors = New-Object System.Collections.Generic.List[string]
     if ($null -eq $Report) {
-        $errors.Add("Report là null.")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.reportNull"))
         return [pscustomobject]@{ Valid=$false; Errors=$errors.ToArray() }
     }
 
     foreach ($field in @("SchemaVersion", "ReportSchemaVersion", "ReportKind", "ToolVersion")) {
         $property = $Report.PSObject.Properties[$field]
         if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) {
-            $errors.Add("Thiếu trường bắt buộc: $field")
+            $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.requiredFieldMissing" @($field)))
         }
     }
 
@@ -111,25 +118,25 @@ function Test-ToolReportEnvelope {
     $toolVersion = if ($null -ne $toolVersionProperty) { [string]$toolVersionProperty.Value } else { '' }
 
     if ($schemaVersion -ne [string]$script:ToolReportSchemaVersion) {
-        $errors.Add("SchemaVersion không được hỗ trợ: $schemaVersion")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.schemaUnsupported" @($schemaVersion)))
     }
     if ($reportSchemaVersion -ne [string]$script:ToolReportSchemaVersion) {
-        $errors.Add("ReportSchemaVersion không đồng nhất: $reportSchemaVersion")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.reportSchemaMismatch" @($reportSchemaVersion)))
     }
     if ($script:ToolReportKinds -notcontains $reportKind) {
-        $errors.Add("ReportKind không được hỗ trợ: $reportKind")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.kindUnsupported" @($reportKind)))
     } else {
         foreach ($field in @(Get-ToolReportRequiredFields -ReportKind $reportKind)) {
             if ($null -eq $Report.PSObject.Properties[$field]) {
-                $errors.Add("Thiếu trường bắt buộc của ${reportKind}: $field")
+                $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.kindFieldMissing" @($reportKind, $field)))
             }
         }
     }
     if (-not [string]::IsNullOrWhiteSpace($ExpectedReportKind) -and $reportKind -ne $ExpectedReportKind) {
-        $errors.Add("ReportKind không khớp: cần $ExpectedReportKind, nhận $reportKind")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.kindMismatch" @($ExpectedReportKind, $reportKind)))
     }
     if (-not [string]::IsNullOrWhiteSpace($ExpectedToolVersion) -and $toolVersion -ne $ExpectedToolVersion) {
-        $errors.Add("ToolVersion không khớp: cần $ExpectedToolVersion, nhận $toolVersion")
+        $errors.Add((Get-ToolTextCurrent "foundation.reportSchema.toolVersionMismatch" @($ExpectedToolVersion, $toolVersion)))
     }
 
     return [pscustomobject]@{

@@ -1,11 +1,11 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$SourceDirectory = '')
 
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($SourceDirectory)) { $SourceDirectory = $PSScriptRoot }
 $root = [IO.Path]::GetFullPath($SourceDirectory)
 $failures = New-Object System.Collections.Generic.List[string]
-$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("Tool-Kiem-Tra-v4.4-performance-" + [Guid]::NewGuid().ToString('N'))
+$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("Tool-Kiem-Tra-v4.6-performance-" + [Guid]::NewGuid().ToString('N'))
 
 function Add-Failure([string]$Message) { [void]$failures.Add($Message) }
 
@@ -15,10 +15,11 @@ try {
     . $helperPath
 
     $metadata = Get-ToolScanOptimizationMetadata
-    if ([string]$metadata.Version -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.4' -or
+    if ([string]$metadata.Version -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.6' -or
         -not [bool]$metadata.PreservesExistingScanRoots -or [int]$metadata.OfficeStatusThrottle -gt 3 -or
-        [int]$metadata.FileScanThrottle -gt 4) {
-        Add-Failure 'Scan optimization metadata does not match the v4.4 contract.'
+        [int]$metadata.FileScanThrottle -gt 4 -or [int]$metadata.FileScanMaximumDepth -ne 4 -or
+        [int]$metadata.FileScanPerRootTimeoutSeconds -ne 12) {
+        Add-Failure 'Scan optimization metadata does not match the v4.6 contract.'
     }
 
     $rootOne = Join-Path $tempRoot 'disk-one'
@@ -28,6 +29,9 @@ try {
     [IO.File]::WriteAllText((Join-Path $rootOne 'nested\kms-tool.exe'), 'fixture')
     [IO.File]::WriteAllText((Join-Path $rootTwo 'activator-readme.txt'), 'fixture')
     [IO.File]::WriteAllText((Join-Path $rootTwo 'normal.txt'), 'fixture')
+    $tooDeep = Join-Path $rootOne 'd1\d2\d3\d4\d5'
+    [void](New-Item -ItemType Directory -Path $tooDeep -Force)
+    [IO.File]::WriteAllText((Join-Path $tooDeep 'activator-too-deep.txt'), 'fixture')
 
     $matches = @(Find-ToolPatternFilesParallel -Roots @($rootOne, $rootTwo) -Pattern '(?i)(kms|activator)' -MaximumResults 10 -ThrottleLimit 2)
     $unexpectedMatches = @($matches | Where-Object { $_ -notmatch '(kms-tool|activator-readme)' })
@@ -49,6 +53,9 @@ try {
     if ($inventoryText -notmatch 'Find-ToolPatternFilesParallel') {
         Add-Failure 'Inventory flow does not use parallel per-root file scanning.'
     }
+    if ($inventoryText -notmatch 'Text\.StringBuilder' -or $inventoryText -notmatch 'reportPresentationCache') {
+        Add-Failure 'Large software reports do not use bounded table construction and presentation-text caching.'
+    }
 } catch {
     Add-Failure $_.Exception.Message
 } finally {
@@ -56,7 +63,7 @@ try {
         $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
         $systemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
         if ($resolvedTemp.StartsWith($systemTemp, [StringComparison]::OrdinalIgnoreCase) -and
-            [IO.Path]::GetFileName($resolvedTemp).StartsWith('Tool-Kiem-Tra-v4.4-performance-', [StringComparison]::OrdinalIgnoreCase)) {
+            [IO.Path]::GetFileName($resolvedTemp).StartsWith('Tool-Kiem-Tra-v4.6-performance-', [StringComparison]::OrdinalIgnoreCase)) {
             Remove-Item -LiteralPath $resolvedTemp -Recurse -Force
         }
     }

@@ -1,5 +1,12 @@
 ﻿$script:ToolOfflinePolicySchemaVersion = "1.0"
-$script:ToolOfflinePolicyToolVersion = "4.4"
+$script:ToolOfflinePolicyToolVersion = "4.6"
+
+$toolOfflineLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolOfflineLocalizationPath -PathType Leaf)) {
+    . $toolOfflineLocalizationPath
+}
 
 function Get-ToolOfflineSettingsPath {
     if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_OFFLINE_SETTINGS_PATH)) {
@@ -15,10 +22,14 @@ function Get-ToolEnterpriseNetworkSettingsPath {
     if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH)) {
         return [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables([string]$env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH))
     }
-    $commonData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
-    if ([string]::IsNullOrWhiteSpace($commonData)) { $commonData = [string]$env:ProgramData }
-    if ([string]::IsNullOrWhiteSpace($commonData)) { return "" }
-    return Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.4\enterprise-network-settings.json"
+    $dataRoot = [string]$env:TOOL_DATA_ROOT
+    if ([string]::IsNullOrWhiteSpace($dataRoot)) {
+        $commonData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
+        if ([string]::IsNullOrWhiteSpace($commonData)) { $commonData = [string]$env:ProgramData }
+        if ([string]::IsNullOrWhiteSpace($commonData)) { return "" }
+        $dataRoot = Join-Path $commonData "ThanhViet-Tool-Kiem-Tra\v4.6"
+    }
+    return Join-Path ([IO.Path]::GetFullPath($dataRoot)) "enterprise-network-settings.json"
 }
 
 function Get-ToolOfflineMode {
@@ -109,18 +120,20 @@ function Test-ToolEnterpriseNetworkActionAllowed {
 function Assert-ToolNetworkActionAllowed {
     param(
         [ValidateSet("Internet", "Lan", "Loopback")][string]$Scope = "Internet",
-        [string]$Action = "tác vụ mạng"
+        [string]$Action = ""
     )
+    if ([string]::IsNullOrWhiteSpace($Action)) { $Action = Get-ToolTextCurrent "foundation.offline.defaultNetworkAction" }
     if (-not (Test-ToolNetworkActionAllowed -Scope $Scope)) {
-        throw "OFFLINE_MODE_BLOCKED: $Action bị chặn bởi chế độ Offline."
+        throw (Get-ToolTextCurrent "foundation.offline.actionBlocked" @($Action))
     }
     return $true
 }
 
 function Assert-ToolEnterpriseNetworkActionAllowed {
-    param([string]$Action = "tác vụ mạng của Mục 8")
+    param([string]$Action = "")
+    if ([string]::IsNullOrWhiteSpace($Action)) { $Action = Get-ToolTextCurrent "foundation.offline.defaultEnterpriseAction" }
     if (-not (Test-ToolEnterpriseNetworkActionAllowed)) {
-        throw "ENTERPRISE_NETWORK_BLOCKED: $Action bị chặn vì mạng Mục 8 đang tắt."
+        throw (Get-ToolTextCurrent "foundation.offline.enterpriseActionBlocked" @($Action))
     }
     return $true
 }

@@ -1,328 +1,170 @@
-# Giới thiệu phiên bản và lịch sử phát triển Tool Kiểm Tra
+# Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
 
-Tài liệu này trình bày các phiên bản chính của Tool Kiểm Tra từ v1 đến bản hiện tại. Các bản vá lẻ được gộp vào mốc phiên bản chính để lịch sử ngắn gọn, dễ theo dõi và phản ánh đúng từng thế hệ sản phẩm.
+Tài liệu này tóm tắt các phiên bản chính từ v1.0 đến v4.6. Các bản cập nhật lẻ dạng `x.y.z` được gộp vào phiên bản `x.y` tương ứng và không tạo mục riêng.
 
-Bản phát hành hiện tại: **v4.4 Enterprise**
-FileVersion: **4.4.0.0** · Build **2026.07.31**
+Phiên bản hiện tại: **v4.6**  
+FileVersion: **4.6.0.0** · Build **2026.08.06**
 
-Kho phát hành chính thức:
-https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen
+## v4.6 — 06/08/2026
 
-## v4.4 Enterprise – 31/07/2026
+Trọng tâm: mô phỏng khắc phục không thay đổi hệ thống, mở rộng nhận diện phần mềm kỹ thuật và tách vòng đời dữ liệu an toàn khỏi v4.4/v4.5.  
+Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell 3+/WinForms; JSON catalog 1.2; DataSchema 2.0; SHA-256/HMAC/DPAPI; HTTP LAN với phong bì AES-256-CBC + HMAC-SHA256.
 
-Trọng tâm: cải thiện trải nghiệm vận hành và tốc độ quét, chỉ bổ sung, không loại bỏ chức năng hiện có.
+- Mở rộng catalog phần mềm lên `1.2.0.0`, gồm 45 quy tắc sản phẩm và 16 nhóm CAD/CAM/CAE, BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering; vẫn dùng engine quét sâu phổ quát cho phần mềm chưa có quy tắc riêng.
+- Thêm **Chạy thử (Dry Run)** cho Khắc phục KMS/Activator: liệt kê đúng tệp, Registry, service, task, product key/KMS, Repair MSI hoặc gỡ cài đặt dự kiến; nêu backup và khả năng hoàn tác nhưng không tạo restore point, không backup, không dừng/xóa/sửa gì. Muốn thực hiện thật phải mở lại bước chọn mục và xác nhận lần nữa.
+- Sửa consent catalog online theo fail-closed: không truyền consent hoặc truyền `false` trả mã `2` trước mọi thao tác mạng; launcher không còn ghi đè lựa chọn thành `true`.
+- Thu gọn endpoint Enterprise `GET /tool/v1/status` không xác thực xuống đúng ba trường `Accepted`, `ProtocolVersion`, `ToolVersion`; không trả Server ID/tên máy, IP, bind address, CIDR hoặc số client; giữ rate limit và envelope xác thực cho các endpoint nghiệp vụ.
+- Tách dữ liệu ghi sang `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6`, thêm `DataSchemaVersion=2.0`, `ProducerVersion`, khóa migration và trạng thái máy đọc. Migration dùng staging, đối chiếu SHA-256, commit có rollback; dữ liệu v4.4/v4.5 được giữ nguyên, log/backup cũ chỉ được tham chiếu đọc.
+- Launcher dùng mutex v4.6 riêng và chặn khi phát hiện launcher v4.4/v4.5 đang chạy trước migration; Enterprise agent/audit cũng chuyển sang mutex v4.6. Các nhãn mật mã cũ chỉ được giữ làm định danh tương thích để giải mã timeline/secret đã migrate.
+- Đồng bộ phiên bản v4.6 trên module contract, report/safety/capability/catalog, tài liệu, User-Agent và toàn bộ verifier; thêm `VERIFY-DATA-LIFECYCLE.ps1` kiểm tra migration một lần, giữ dữ liệu cũ và rollback khi lỗi.
 
-- Bổ sung **Tự động làm sạch an toàn** tại Mục 6: quét trước, chỉ tự chọn cấu hình Registry cấp phép nằm trong allowlist và có thể khôi phục, hiển thị đầy đủ mục đề xuất để xác nhận, tạo backup có HMAC, yêu cầu Administrator và hậu kiểm sau xử lý. Chế độ này không tự gỡ key bản quyền, service, task, tiến trình, tệp/thư mục, ngoại lệ Defender hoặc lịch sử Event Log.
-- Thêm nút **Sao chép toàn bộ log** và **Mở thư mục báo cáo** ngay tại khu vực hoạt động.
-- Ghi nhớ ngôn ngữ, giao diện Light/Dark và trạng thái Offline/Online mặc định theo tài khoản người dùng.
-- Cảnh báo rõ ràng khi phát hiện Tool đang chạy trong máy ảo hoặc phiên Remote Desktop; cảnh báo không khóa chức năng.
-- Hiển thị toàn bộ lịch sử phiên bản trong cửa sổ của Tool, có nút sao chép, không cần mở tài liệu ngoài.
-- Tối ưu quét nhiều bản Office song song bằng runspace pool có giới hạn; quét tệp theo từng ổ/thư mục song song, giới hạn độ sâu và bỏ qua reparse point.
-- Giữ nguyên phạm vi quét, các chức năng 01–10, hợp đồng báo cáo Mục 5 của v4.3.0.3 và các cơ chế an toàn hiện có.
+## v4.5 — 06/08/2026
 
-Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell/WinForms; runspace pool; WMI/CIM và Registry; JSON localization/preferences; HTML/PDF/JSON/XML.
+Trọng tâm: kiểm kê toàn bộ phần mềm, đối chiếu tùy chọn có xin phép và khắc phục an toàn theo phạm vi.  
+Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell/WinForms; JSON; HTTPS GET có allowlist; HMAC/DPAPI/SHA-256.
 
-## v4.3 Enterprise – 30–31/07/2026
+- Hoàn thiện giao diện Light/Dark, biểu tượng và màu nút dùng chung; đổi tên sản phẩm thành **Công cụ kiểm tra cấu hình máy và bản quyền phần mềm** và căn lại nội dung theo DPI.
+- Quét toàn bộ phần mềm phát hiện được từ Registry, AppX/MSIX, Start Menu, Desktop và các vị trí cài đặt/portable có giới hạn; đối chiếu mô hình cấp phép và bằng chứng kỹ thuật, không xem “không có bằng chứng” là chính hãng.
+- Bổ sung quét sâu phổ quát cho từng ứng dụng: nhiều EXE/DLL, Authenticode, hash xấu đã biết, artifact và dấu vết hệ thống tương quan; phân tầng bằng chứng Conclusive/Strong/Moderate/Weak, phân bổ ngân sách chữ ký có trọng số và công bố rõ độ phủ chưa hoàn tất.
+- Thêm **Kết nối online** có giải thích và xin phép trước khi tải danh mục đối chiếu HTTPS; không gửi danh sách phần mềm, đường dẫn, khóa hay token ra ngoài; Offline vẫn là mặc định.
+- Liệt kê đầy đủ kết quả phần mềm khác, cho chọn từng mục hoặc tất cả mục đủ điều kiện; bắt buộc backup trước khi đưa phạm vi được hỗ trợ về trạng thái gốc/chưa kích hoạt và hướng dẫn Repair/Cleanup/cài lại chính thức với phần mềm chưa có bộ xử lý an toàn.
+- Mở chọn thủ công cho mọi phần mềm Không chính hãng/Nghi vấn; bổ sung kế hoạch tổng quát gồm cách ly artifact chính xác, khôi phục hosts, Repair MSI đã xác thực và gỡ bản đóng gói không được phép để cài lại chính thức. Chế độ tự động không tự gỡ phần mềm.
+- Tách phạm vi Quét toàn bộ, Windows và Office, Phần mềm khác; mở rộng Backup/Khôi phục theo cùng phạm vi; bổ sung timeout, heartbeat và tạo HTML/PDF theo yêu cầu để giảm hiện tượng treo.
+- Tối ưu toàn bộ 44 payload nhúng theo cơ chế chọn Deflate/raw riêng từng tệp, giải nén và kiểm tra SHA-256 trước khi chạy; giữ nguyên mô-đun và phạm vi quét.
+- Viết lại đồng bộ hướng dẫn Việt/Anh dành cho người trực tiếp sử dụng v4.5 theo bố cục từng chức năng của v4.4: nêu điểm mới, cách chạy EXE, mười tác vụ, trạng thái phần mềm, quét sâu, khắc phục an toàn, báo cáo và xử lý lỗi; loại nội dung đóng gói kỹ thuật khỏi hướng dẫn người dùng.
 
-Trọng tâm: giao diện thích ứng, Offline mặc định, song ngữ và báo cáo chuyên nghiệp.
+## v4.4 — 31/07/2026
 
-- Nâng dashboard lên schema 2.0: bố cục hiện đại, card trạng thái, 10 tile hai dòng, màu nhận diện Mục 8 và co giãn theo DPI/WorkingArea.
-- Giao diện luôn mở ở chế độ sáng; người dùng vẫn có thể chuyển sang tối trong phiên hiện tại.
-- Loại thanh cuộn của cửa sổ chính. Khu vực hoạt động để trống khi mở Tool và chỉ xuất hiện sau khi người dùng chạy tác vụ.
-- Thêm nút **Dừng** khi có tiến trình con đang chạy, kèm xác nhận và nhật ký hủy an toàn.
-- Rút gọn nút mạng thành **Offline/Online** trên dashboard và Mục 8; Offline vẫn là mặc định fail-closed.
-- Chuẩn hóa Mục 8 thành Quản lý cục bộ, Máy chủ và Máy trạm; bỏ chữ “laptop” trên nút, đổi điều hướng thành **Back**, nút thoát thành **Đóng** và “Tác vụ giấy phép” thành “Lệnh quản lý bản quyền”.
-- Hoàn thiện vi-VN/en-US, catalog tương thích Windows 11/Office mới, báo cáo HTML/PDF thống nhất, HDSD HTML/PDF và tài liệu phiên bản riêng.
-- Mở rộng kiểm kê phần mềm bên thứ ba, chữ ký Authenticode, autorun/dịch vụ/tác vụ, nguồn cài và dữ liệu `DetailedInventory` nhưng giữ hợp đồng báo cáo cũ.
+- Bổ sung khắc phục tự động an toàn theo danh sách cho phép, chỉ xử lý mục có thể backup/khôi phục và luôn quét lại sau thay đổi.
+- Hoàn thiện bản địa hóa Việt/Anh cho giao diện, hộp thoại, báo cáo và mô-đun con; đồng bộ mã trạng thái máy đọc được giữa hai ngôn ngữ.
+- Làm mới Dashboard theo kiểu Fluent, thêm bộ lọc Kiểm tra/Khắc phục/Báo cáo, hộp Cài đặt và biểu tượng vector nội bộ cho Light/Dark.
+- Tối ưu quét Office/tệp có giới hạn, thêm Sao chép toàn bộ nhật ký, Mở thư mục báo cáo và cảnh báo máy ảo/Remote Desktop.
 
-Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell/WinForms; JSON localization/catalog/contract; HTML/CSS, JSON, XML, SHA-256; PDF cục bộ bằng Edge/Chrome/Word.
+## v4.3 — 30–31/07/2026
 
-## v4.2 Enterprise – 24–25/07/2026
+- Nâng Dashboard lên schema 2.0, bố cục đáp ứng DPI/kích thước màn hình và bổ sung nút dừng tác vụ con an toàn.
+- Chuẩn hóa Offline mặc định, hai ngôn ngữ Việt/Anh, quản lý cục bộ/Server/Workstation và bộ báo cáo HTML/PDF/JSON/XML.
+- Mở rộng kiểm kê phần mềm, chữ ký số, autorun, dịch vụ, tác vụ và nguồn cài đặt mà không phá hợp đồng báo cáo cũ.
 
-Trọng tâm: quản lý giấy phép tập trung trong mạng nội bộ.
+## v4.2 — 24–25/07/2026
 
-- Thêm trung tâm Mục 8 với ba chức năng: quản lý Windows/Office cục bộ, Máy chủ và Máy trạm.
-- Máy chủ quản lý phạm vi CIDR/IP, ghép nối máy trạm, gửi lệnh kiểm kê hoặc thay đổi giấy phép có ủy quyền và xuất báo cáo fleet.
-- Máy trạm có thể tự tìm máy chủ, ghép nối bằng mã, gửi báo cáo ngay hoặc chạy agent định kỳ; khi mất mạng, dữ liệu được xếp hàng cục bộ.
-- Ngăn máy chủ thứ hai trong cùng phạm vi; hỗ trợ xóa cấu hình có mã quản trị, xác nhận cuối và thu hồi URL ACL/Firewall do Tool tạo.
-- Hoàn thiện Light/Dark cho dashboard, cửa sổ con và toàn bộ Mục 8; theme được truyền qua launcher và UAC.
+- Thêm trung tâm quản lý bản quyền nội bộ với chế độ Cục bộ, Server và Workstation.
+- Hỗ trợ ghép cặp, kiểm kê, hàng đợi khi mất mạng LAN và báo cáo tập trung có mã hóa/xác thực.
+- Bảo vệ cấu hình URL ACL/tường lửa bằng xác nhận và ngăn nhiều máy chủ quản lý cùng phạm vi.
 
-Nền tảng/công nghệ: PowerShell host/agent; HTTP trong LAN; phong bì AES-256-CBC + HMAC-SHA256, nonce/timestamp/replay control; DPAPI LocalMachine cho secret cục bộ; JSON/CSV/HTML cho báo cáo.
+## v4.1 — 23/07/2026
 
-## v4.1 – 23/07/2026
+- Thêm Trung tâm báo cáo, kiểm tra chứng thư, plugin khai báo chỉ đọc và dòng thời gian bản quyền.
+- Chuẩn hóa xuất HTML, PDF, JSON, XML và manifest SHA-256; bảo vệ timeline bằng DPAPI/HMAC/hash chain.
+- Bổ sung quy trình ký phát hành, cửa sổ Giới thiệu và nhóm năng lực sản phẩm.
 
-Trọng tâm: Trung tâm bảo đảm, báo cáo mở rộng và giới thiệu sản phẩm.
+## v4.0 — 23/07/2026
 
-- Thêm Trung tâm báo cáo, kiểm tra chứng chỉ, plugin khai báo và timeline giấy phép.
-- Chuẩn hóa xuất HTML, JSON, XML, PDF và manifest SHA-256 qua lớp `Tool-ReportExport.ps1`.
-- Plugin schema 1.0 chỉ cho phép quy tắc Registry/File/Service dạng JSON; từ chối DLL, URL, mã tùy ý và trường ngoài schema.
-- Thêm audit Authenticode/X.509 offline và timeline có DPAPI, HMAC-SHA256, `PreviousRecordHash`.
-- Bổ sung luồng ký phát hành; Tool chỉ được công bố đã ký khi chữ ký thực tế trả trạng thái `Valid`.
-- Hoàn thiện banner, cửa sổ Giới thiệu và bốn nhóm năng lực; sửa vùng profile PDF cục bộ có ACL bảo vệ.
+- Chuyển từ menu truyền thống sang Dashboard WinForms với thẻ trạng thái, mười chức năng, Light/Dark và bố cục theo DPI.
+- Thêm schema báo cáo, chính sách an toàn, bộ kiểm tra hồi quy và cơ chế chọn đúng công cụ Windows native x64/x86.
+- Xây dựng trung tâm khắc phục KMS/Activator có xem trước, xác nhận, backup và hậu kiểm.
 
-Nền tảng/công nghệ: PowerShell/WinForms; JSON/XML; HTML/CSS/PDF; Authenticode/X.509; DPAPI/HMAC/hash-chain; SHA-256 và build deterministic cho bản chưa ký.
+## v3.9 — 22/07/2026
 
-## v4.0 – 23/07/2026
+- Nâng hợp đồng báo cáo lên schema 1.3, thêm nguồn quét dự phòng và chặn phát hành khi sai schema.
+- Giảm cảnh báo nhầm đối với tiến trình Windows hợp lệ, lịch sử PowerShell cũ, hosts và SKU Office không hoạt động.
+- Tối ưu bộ nhớ đệm trong phiên và làm mới dữ liệu trước hậu kiểm.
 
-Trọng tâm: chuyển từ giao diện menu truyền thống sang dashboard.
+## v3.8 — 22/07/2026
 
-- Ra mắt dashboard WinForms với bốn card trạng thái, 10 chức năng hai cột, Light/Dark và bố cục thích ứng DPI.
-- Thêm report schema, module safety policy, verifier và lời gọi công cụ Windows qua System32/Sysnative native.
-- Trung tâm xử lý Mục 6 thay hộp thoại dài, cho phép xử lý mục còn lại, xác nhận KMS nội bộ, quét lại, khôi phục và mở báo cáo.
-- Cải thiện Office KMS nhiều SKU, ràng buộc thao tác theo SKU, kiểm tra mã thoát và hậu kiểm đầy đủ.
-- Sửa giao diện màn hình thấp, loại thanh cuộn ngang và bổ sung fixture hồi quy cho layout/nghiệp vụ.
+- Bổ sung quét sâu Windows/Office và tổng hợp bằng chứng theo mức độ tin cậy.
+- Cải thiện báo cáo chi tiết, hướng dẫn khắc phục và khả năng làm việc khi một nguồn quét bị lỗi.
 
-Nền tảng/công nghệ: Windows PowerShell/WinForms dashboard schema 1.x; JSON report schema; policy/module metadata; PowerShell verifier và fixture hồi quy.
+## v3.7 — 22/07/2026
 
-## v3.9 – 22/07/2026
+- Bổ sung kiểm tra tính toàn vẹn, chữ ký tệp và các dấu hiệu can thiệp cấp phép phổ biến.
+- Chuẩn hóa trạng thái phát hiện để giao diện và báo cáo dùng chung kết quả.
 
-Trọng tâm: độ tin cậy của kết luận và hợp đồng báo cáo.
+## v3.6 — 22/07/2026
 
-- Nâng JSON report schema lên 1.3 với `ReportSchemaVersion` và `ReportKind`; build bắt buộc chạy verifier schema.
-- Bổ sung nguồn quét dự phòng, sửa nhanh WMI/CIM/Task Scheduler và hướng dẫn bước tiếp theo khi nguồn quét lỗi.
-- Giảm false positive đối với tiến trình Windows hợp lệ, lịch sử PowerShell cũ, hosts và license definition Office đã hết hiệu lực.
-- Tối ưu cache trong một lượt cleanup, làm mới cache trước hậu kiểm và cải thiện bố cục co giãn.
+- Mở rộng kiểm tra Office nhiều phiên bản/SKU và phát hiện cấu hình KMS bất thường.
+- Thêm nhật ký kỹ thuật và bước xác minh sau thao tác khắc phục.
 
-Nền tảng/công nghệ: PowerShell; WMI/CIM; Task Scheduler; JSON schema/fixture; HTML/JSON reporting; verifier x64/x86.
+## v3.5 — 21/07/2026
 
-## v3.8 – 22/07/2026
+- Thêm sao lưu và khôi phục trạng thái cấp phép Windows/Office có kiểm tra toàn vẹn.
+- Yêu cầu quyền quản trị, xem trước và xác nhận trước mọi thay đổi hệ thống.
 
-Trọng tâm: chuẩn hóa mô-đun và kết quả chạy.
+## v3.4 — 21/07/2026
 
-- Thêm `Tool-ModuleContract.ps1` với descriptor và `ModuleResult` schema 1.0.
-- Chuẩn hóa ModuleId, nhóm chức năng, quyền ReadOnly/SystemChange, yêu cầu elevation, capability và exit-code map.
-- Dashboard dùng một cổng khởi chạy chung, truyền InvocationId và kiểm tra kết quả mô-đun khi tiến trình kết thúc.
-- Báo cáo và JSONL log ghi định danh mô-đun; verifier chạy hợp đồng dưới cả PowerShell x64/x86.
+- Cải thiện nhận diện bản quyền số, OEM và kênh cấp phép Windows.
+- Bổ sung kiểm tra khóa cục bộ an toàn, chỉ hiển thị phần khóa cần thiết.
 
-Nền tảng/công nghệ: PowerShell module contract; JSON/JSONL; correlation/invocation ID; verifier đa kiến trúc.
+## v3.3 — 20/07/2026
 
-## v3.7 – 22/07/2026
+- Mở rộng kiểm kê phần mềm, tiến trình, dịch vụ và tác vụ liên quan đến kích hoạt.
+- Bổ sung xuất báo cáo và thông báo kết quả rõ ràng hơn.
 
-Trọng tâm: nhận diện năng lực hệ điều hành và nhật ký kỹ thuật.
+## v3.2 — 20/07/2026
 
-- Thêm capability schema 1.0 cho Windows, kiến trúc, CIM/WMI, Scheduled Tasks, Defender, TPM, BitLocker và Secure Boot.
-- Tính năng không có trên Windows cũ dùng fallback hoặc báo không hỗ trợ, không làm toàn bộ Tool khởi động thất bại.
-- Thêm nhật ký JSONL theo ngày trong ProgramData có ACL, correlation ID, kiến trúc, event và thời lượng.
-- Launcher truyền cùng correlation ID cho dashboard và tác vụ con; build kiểm tra foundation trên x64/x86.
+- Thêm kiểm tra Office song song với Windows và phân biệt nhiều kiểu cấp phép.
+- Cải thiện xử lý lỗi khi công cụ hệ thống không có hoặc trả về dữ liệu thiếu.
 
-Nền tảng/công nghệ: PowerShell capability detection; JSONL logging; ProgramData ACL; correlation ID; Windows security APIs.
+## v3.1 — 20/07/2026
 
-## v3.6 – 22/07/2026
+- Bổ sung kiểm tra cấu hình máy, kiến trúc hệ điều hành và thông tin phần cứng chính.
+- Tổ chức lại nhật ký và kết luận theo từng nhóm chức năng.
 
-Trọng tâm: một EXE AnyCPU và chuỗi build có thể kiểm chứng.
+## v3.0 — 20/07/2026
 
-- Chuyển sang một `Tool-Kiem-Tra.exe` AnyCPU, tự dùng CLR/Windows PowerShell x64 hoặc x86 đúng với hệ điều hành.
-- Loại việc tìm `powershell.exe` từ PATH; luôn phân giải Windows PowerShell native.
-- Thêm PE hardening, kiểm tra IL-only/ASLR/NX/High Entropy VA và đối chiếu cùng payload trên CLR x64/x86.
-- Build bằng Roslyn deterministic + pathmap; cùng source/toolchain tạo lại cùng SHA-256.
-- Chuyển các lệnh con từ ExecutionPolicy Bypass sang RemoteSigned.
+- Hợp nhất kiểm tra cấu hình và bản quyền vào một quy trình dùng chung.
+- Thêm giao diện lựa chọn chức năng và báo cáo tổng hợp.
 
-Nền tảng/công nghệ: C#/.NET Framework AnyCPU; Roslyn; PE/CLR metadata; PowerShell native; SHA-256 deterministic build.
+## v2.9 — 20/07/2026
 
-## v3.5 – 21/07/2026
+- Cải thiện phát hiện KMS/Activator và giảm kết luận dựa trên một dấu hiệu yếu.
+- Bổ sung hướng dẫn xử lý thủ công khi chưa đủ bằng chứng.
 
-Trọng tâm: bảo vệ vùng chạy, backup/restore và kết luận fail-closed.
+## v2.8 — 20/07/2026
 
-- Chuyển cấu hình bền vững vào ProgramData có ACL Administrators/SYSTEM; vùng runtime từ chối reparse point để giảm TOCTOU.
-- Nếu WMI/CIM, slmgr, service hoặc Scheduled Tasks quan trọng không đọc được, Tool báo chưa thể kết luận và khóa khắc phục.
-- Cleanup mặc định không chọn mục; chỉ xử lý đúng Activation ID/mục đã được người dùng xác minh.
-- Backup/restore dùng manifest, hash từng tệp, HMAC-SHA256, DPAPI LocalMachine và ràng buộc máy; giữ nguyên backup sau khi khôi phục.
-- Bổ sung chế độ che dữ liệu nhạy cảm, fallback `schtasks.exe` cho Windows cũ và verifier đầy đủ source/release/payload.
+- Mở rộng truy vấn trạng thái kích hoạt Windows và Office từ nhiều nguồn hệ thống.
+- Chuẩn hóa mã lỗi và thông tin chẩn đoán.
 
-Nền tảng/công nghệ: PowerShell; ProgramData ACL; DPAPI; HMAC-SHA256; manifest/JSON; deterministic packaging và fail-closed policy.
+## v2.7 — 20/07/2026
 
-## v3.4 – 21/07/2026
+- Thêm kiểm tra dịch vụ, tác vụ hẹn giờ và cấu hình mạng có liên quan đến kích hoạt.
+- Bổ sung xác nhận trước các thao tác có thể thay đổi hệ thống.
 
-Trọng tâm: khắc phục chọn lọc và khả năng khôi phục.
+## v2.6 — 20/07/2026
 
-- Mục 6 có ba lựa chọn rõ ràng: Backup, Kiểm tra và gỡ, Khôi phục tự động.
-- Hiển thị checkbox cho từng service, task, thư mục, tệp, ngoại lệ Defender, Registry và mục giấy phép.
-- Không vô hiệu hóa hoặc gỡ trước khi người dùng chọn và xác nhận tổng thể.
-- Tạo `RESTORE-MANIFEST.json` cùng script/nút khôi phục cho Registry, task, service và dữ liệu cách ly.
+- Cải thiện tương thích Windows PowerShell/.NET Framework và Windows x86/x64.
+- Bổ sung xử lý ngoại lệ để quá trình quét tiếp tục khi một hạng mục thất bại.
 
-Nền tảng/công nghệ: PowerShell/WinForms; Registry/Service/Task Scheduler APIs; JSON restore manifest; SHA-256.
+## v2.5 — 18/07/2026
 
-## v3.3 – 20/07/2026
+- Thêm kiểm tra Microsoft Office và hiển thị phiên bản/kênh cấp phép.
+- Cải thiện báo cáo văn bản và khả năng sao chép kết quả.
 
-Trọng tâm: quản lý danh sách KMS nội bộ được phê duyệt.
+## v2.4 — 18/07/2026
 
-- Cảnh báo khi `approved-kms-servers.txt` trống hoặc có dòng sai định dạng.
-- Hiển thị máy chủ KMS phát hiện để quản trị viên đối chiếu và xác nhận.
-- Cho phép chỉnh sửa/lưu danh sách KMS nhưng không tự phê duyệt và không gửi dữ liệu ra Internet.
-- Báo cáo ghi đường dẫn cấu hình, số dòng hợp lệ và cảnh báo để phục vụ kiểm toán.
+- Mở rộng thông tin cấu hình máy và trạng thái Windows.
+- Tối ưu giao diện và cách sắp xếp các tác vụ kiểm tra.
 
-Nền tảng/công nghệ: PowerShell; cấu hình văn bản cục bộ; validation tên miền/IP; báo cáo offline.
+## v1.3 — 18/07/2026
 
-## v3.2 – 20/07/2026
+- Bổ sung kiểm tra khóa OEM/BIOS và thông tin kích hoạt cơ bản.
+- Cải thiện thông báo lỗi và hướng dẫn người dùng.
 
-Trọng tâm: hiển thị tiến độ tác vụ theo thời gian thực.
+## v1.2 — 18/07/2026
 
-- Thêm tên tác vụ, thanh hoạt động, đồng hồ thời gian và nhật ký trực tiếp.
-- Ghi nhịp mỗi 10 giây để người dùng biết tiến trình vẫn chạy.
-- Tự chuyển sang trạng thái hoàn tất, cảnh báo hoặc lỗi theo mã kết thúc của mô-đun.
-- Các luồng mở chức năng/tài liệu cũng có trạng thái rõ ràng thay vì chỉ đổi một dòng chữ.
+- Thêm xuất kết quả và các bước kiểm tra Office ban đầu.
+- Hoàn thiện xử lý Unicode tiếng Việt.
 
-Nền tảng/công nghệ: PowerShell WinForms Timer; child process tracking; elapsed time và live log.
+## v1.1 — 18/07/2026
 
-## v3.1 – 20/07/2026
+- Bổ sung giao diện lựa chọn và thông tin cấu hình cơ bản.
+- Cải thiện khả năng chạy trên nhiều phiên bản Windows.
 
-Trọng tâm: toàn vẹn và báo cáo có thể đối chiếu.
+## v1.0 — 17/07/2026
 
-- Kiểm tra SHA-256 khi khởi động; cấu hình KMS được tách khỏi manifest vì được phép chỉnh sửa.
-- Báo cáo tổng hợp xuất thêm JSON và hash để phát hiện thay đổi.
-- Mục 6 bổ sung chẩn đoán chỉ đọc về `sppsvc`, `osppsvc`, `w32time`, chữ ký tệp cấp phép và trạng thái cần khởi động lại.
-- Giữ nguyên bảo vệ OEM/Retail/MAK/KMS nội bộ và toàn bộ giới hạn riêng tư.
+- Phát hành phiên bản đầu tiên để kiểm tra cấu hình máy và trạng thái kích hoạt Windows.
+- Cung cấp nhật ký kết quả cục bộ, không tự động kết nối Internet.
 
-Nền tảng/công nghệ: PowerShell; SHA-256; JSON; service/signature diagnostics.
+---
 
-## v3.0 – 20/07/2026
-
-Trọng tâm: gỡ sâu có kiểm soát và hậu kiểm.
-
-- Mục 6 luôn hỏi xác nhận trước khi khắc phục KMS/crack cơ bản.
-- Khi hậu kiểm còn tồn dư, người dùng có thể chọn gỡ sâu hoặc giữ nguyên và xem báo cáo.
-- Gỡ sâu sao lưu Registry/task/service, cách ly tệp/thư mục hook, xử lý IFEO/ngoại lệ Defender đặc hiệu và dùng SFC phục hồi tệp hệ thống.
-- Quét lần cuối và chỉ báo sẵn sàng kích hoạt chính thức khi không còn dấu hiệu đang hoạt động trong phạm vi kiểm tra.
-
-Nền tảng/công nghệ: PowerShell; Registry/Service/Task Scheduler; Defender; SFC; backup/quarantine và post-scan.
-
-## v2.9 – 20/07/2026
-
-Trọng tâm: phân biệt dấu vết lịch sử với bất thường đang hoạt động.
-
-- Truy xuất tối đa 180 ngày từ SPP, Defender, Task Scheduler và lịch sử PowerShell theo mẫu đặc hiệu.
-- Che product key/URL và không dùng lịch sử cũ làm lý do tự động gỡ key.
-- Sau khắc phục, Tool tự quét lại và cho biết còn tồn dư hay đã sẵn sàng dùng bản quyền chính thức.
-- Viết lại tóm tắt và HDSD theo đúng thứ tự 10 chức năng.
-
-Nền tảng/công nghệ: PowerShell; Windows Event Logs; Task Scheduler/Defender history; redaction và post-remediation scan.
-
-## v2.8 – 20/07/2026
-
-Trọng tâm: ổn định cấu trúc 10 chức năng.
-
-- Chuyển Hướng dẫn sử dụng xuống Mục 10.
-- Chuyển nhóm kiểm tra chuyên sâu lên Mục 9.
-- Giữ hộp lựa chọn giữa quét 7 nhóm và điều tra 12 nhóm/chấm điểm rủi ro.
-
-Nền tảng/công nghệ: PowerShell/WinForms; menu 10 mục và cửa sổ lựa chọn mô-đun.
-
-## v2.7 – 20/07/2026
-
-Trọng tâm: gộp chức năng để giao diện gọn hơn.
-
-- Gộp điều tra 12 nhóm vào trung tâm kiểm tra chuyên sâu thay vì tạo Mục 11.
-- Cho phép chọn quét 7 nhóm hoặc điều tra 12 nhóm/chấm điểm từ cùng một cửa sổ.
-- Giữ nguyên UAC, chế độ chỉ đọc, báo cáo SHA-256 và ranh giới an toàn của v2.6.
-
-Nền tảng/công nghệ: PowerShell/WinForms; mô-đun quét dùng chung; HTML/JSON/CSV/SHA-256.
-
-## v2.6 – 20/07/2026
-
-Trọng tâm: điều tra bản quyền chuyên sâu và bộ bằng chứng.
-
-- Thêm điều tra chỉ đọc theo 12 nhóm kỹ thuật và chấm điểm rủi ro 0–100.
-- Kiểm tra Authenticode/SHA-256 của thành phần cấp phép và tệp nghi vấn.
-- Phân tích SPP 30 ngày, thời gian/proxy/hosts/policy, Office KMS, Defender/Firewall, Secure Boot, TPM, BitLocker và token store.
-- Xuất HTML/JSON/CSV kèm `SHA256SUMS.txt`, tạo baseline và so sánh lần quét trước.
-- Không lưu product key đầy đủ, không gửi dữ liệu ra Internet và không thay đổi hệ thống trong chế độ điều tra.
-
-Nền tảng/công nghệ: PowerShell; Event Logs/WMI/Registry; Authenticode; HTML/JSON/CSV; SHA-256 baseline/diff.
-
-## v2.5 – 18/07/2026
-
-Trọng tâm: quản lý key/edition hợp lệ bằng cơ chế chính thức.
-
-- Thêm đổi edition hoặc product key Windows bằng `changepk.exe`; danh sách edition đích lấy từ DISM.
-- Thêm cài product key Office hợp lệ bằng `OSPP.VBS` và yêu cầu kích hoạt trực tuyến.
-- Có lối mở trang tải, giấy phép và redeem key chính thức của Microsoft.
-- Không lưu key đầy đủ, không cung cấp key công cộng/crack và không tự gỡ key Office cũ.
-
-Nền tảng/công nghệ: PowerShell/WinForms; Windows `changepk.exe`/DISM; Office `OSPP.VBS`; liên kết Microsoft chính thức.
-
-## v2.4 – 18/07/2026
-
-Trọng tâm: bố cục gọn cho màn hình và DPI cao.
-
-- Đổi nhãn phát hành sang Tool-Kiem-Tra v2.4.
-- Chuyển nút Đóng lên cùng hàng trạng thái để luôn nhìn thấy.
-- Giữ nguyên kiểm tra chuyên sâu, UAC/Administrator và giới hạn an toàn của v1.3.
-
-Nền tảng/công nghệ: Windows PowerShell/WinForms; layout theo vùng làm việc và DPI.
-
-## v1.3 – 18/07/2026
-
-Trọng tâm: quét chuyên sâu có UAC nhưng vẫn chỉ đọc.
-
-- Yêu cầu Administrator để đọc đủ WMI/license, service, process, task, Registry policy, hosts và chữ ký/tệp hệ thống.
-- Nếu người dùng từ chối UAC, tác vụ dừng an toàn và không thay đổi hệ thống.
-- Giới hạn quyền nâng cao ở phạm vi kiểm tra; không đọc tài liệu cá nhân và không tải/chạy mã từ xa.
-
-Nền tảng/công nghệ: Windows PowerShell/WinForms; UAC; WMI/Registry/Service/Task Scheduler; Authenticode.
-
-## v1.2 – 18/07/2026
-
-Trọng tâm: kiểm tra bản quyền Windows theo 7 nhóm.
-
-- Phân biệt dấu hiệu mạnh, nội dung cần xác minh và không phát hiện bất thường để giảm kết luận nhầm.
-- Kiểm tra KMS được phê duyệt, activator/MAS/HWID, KMS38, key chung, thư mục, task, Registry và hosts.
-- Báo cáo chuyên sâu chỉ đọc, không lưu nội dung lịch sử PowerShell và không sửa hệ thống.
-- Sửa Mục 6 để trạng thái Notification/chưa kích hoạt không tự động dẫn đến gỡ product key.
-
-Nền tảng/công nghệ: PowerShell; WMI/license APIs; Registry/File/Task/hosts scanning; local report.
-
-## v1.1 – 18/07/2026
-
-Trọng tâm: key OEM và các thao tác Windows/Office hợp lệ.
-
-- Tích hợp có chọn lọc các chức năng an toàn từ IWC Checker.
-- Kiểm tra key OEM OA3 trong BIOS nhưng chỉ hiển thị dạng che và 5 ký tự cuối.
-- Thêm quy trình khôi phục key OEM có xác nhận; không gỡ key hiện tại trước khi Windows chấp nhận key OEM.
-- Thêm nút mở cửa sổ nhập product key chính thức của Windows; loại bỏ các thao tác rủi ro như key crack/generic, xóa lịch sử diện rộng hoặc sửa firewall/hosts toàn máy.
-
-Nền tảng/công nghệ: Windows PowerShell/WinForms; firmware OA3/WMI; UAC; cơ chế kích hoạt chính thức của Windows.
-
-## v1.0 – 17/07/2026
-
-Trọng tâm: hình thành ứng dụng Windows đầu tiên.
-
-- Tạo giao diện kiểm tra cấu hình và bản quyền, vùng tiến độ và trạng thái hoàn tất/lỗi rõ ràng.
-- Thêm kiểm tra dấu hiệu KMS/crack có xác nhận; bảo vệ OEM/Retail/MAK và KMS nội bộ được phê duyệt.
-- Hoàn thiện tiếng Việt, phạm vi Windows 7 SP1 trở lên và nguyên tắc không trích xuất mật khẩu/product key đầy đủ.
-- Tối ưu nhiều vòng cho màn hình thấp/DPI: tự xuống dòng, thu gọn menu/nhật ký và hiển thị toàn bộ nút trên màn hình thông thường.
-- Đóng gói thành một EXE tự giải nén mô-đun, chờ giao diện đóng rồi dọn thư mục tạm.
-
-Nền tảng/công nghệ: Windows PowerShell 3+/WinForms; WMI/Registry; cấu hình KMS cục bộ; launcher một tệp.
-
-## CÔNG NGHỆ & NGÔN NGỮ
-
-Ứng dụng được phát triển bằng C# trên nền tảng .NET Framework 4, biên dịch AnyCPU để tương thích với cả Windows 32-bit và 64-bit. Giao diện sử dụng Windows Forms, tối ưu cho môi trường quản trị hệ thống.
-
-Dữ liệu được lưu trữ và trao đổi theo các định dạng chuẩn như JSON, XML và CSV; báo cáo được xuất dưới dạng HTML và có thể chuyển đổi sang PDF thông qua trình duyệt Microsoft Edge hoặc Google Chrome. Cơ chế kiểm tra tính toàn vẹn sử dụng SHA-256, trong khi các dữ liệu nhạy cảm được bảo vệ bằng DPAPI và HMAC. Toàn bộ quá trình xử lý được thực hiện cục bộ (Offline), không phụ thuộc dịch vụ trực tuyến hoặc nền tảng đám mây.
-
-## MỤC ĐÍCH SỬ DỤNG
-
-Bộ công cụ được thiết kế để hỗ trợ quản trị viên hệ thống, kỹ thuật viên và người dùng doanh nghiệp trong việc kiểm tra, đánh giá và xác minh tình trạng bản quyền Windows và Microsoft Office. Công cụ cung cấp các chức năng rà soát cấu hình kích hoạt, phát hiện dấu hiệu can thiệp trái phép hoặc kích hoạt không hợp lệ, kiểm tra tính toàn vẹn của môi trường hệ thống, đồng thời hỗ trợ sao lưu, khôi phục và tạo báo cáo phục vụ công tác quản lý, kiểm toán và xử lý sự cố.
-
-## MÔ HÌNH VẬN HÀNH
-
-Ứng dụng hoạt động theo mô hình cục bộ (Offline-first), toàn bộ quá trình kiểm tra, phân tích và xử lý được thực hiện trực tiếp trên máy tính người dùng. Mặc định, công cụ chỉ thực hiện các chức năng đọc, đánh giá và tạo báo cáo mà không thay đổi cấu hình hệ thống. Các thao tác có khả năng ảnh hưởng đến hệ thống (như sao lưu, khôi phục hoặc xử lý cấu hình) chỉ được thực hiện khi người dùng chủ động lựa chọn, xác nhận và chạy với quyền Administrator.
-
-Đối với môi trường doanh nghiệp, công cụ hỗ trợ chế độ Enterprise để quản lý và tổng hợp báo cáo thông qua mạng LAN nội bộ khi được cấu hình. Ứng dụng không yêu cầu dịch vụ đám mây, không bắt buộc kết nối Internet và không tự động thu thập hoặc gửi dữ liệu ra bên ngoài nếu không có cấu hình của người quản trị.
-
-## Cách kiểm tra bản tải về
-
-1. Chỉ tải từ trang Releases của kho chính thức.
-2. Đối chiếu FileVersion, build và `RELEASE-MANIFEST.json`.
-3. Chạy `Get-FileHash -Algorithm SHA256` và so với manifest.
-4. Chạy `Get-AuthenticodeSignature`; chỉ coi là đã ký khi trạng thái là `Valid`.
-5. Không trộn EXE hoặc payload của hai bản phát hành.
-
-## Cách mở tài liệu này trong Tool
-
-- Chọn **Giới thiệu → Phiên bản & cập nhật**; hoặc
-- chọn **Chức năng 10 → 7. Lịch sử phiên bản**.
-
-Tool tạo bản HTML/PDF trên Desktop, mở HTML bằng trình duyệt mặc định và dùng cache SHA-256 để lần mở sau nhanh hơn.
-
-© 2026 Thanh Việt.
+Nguyên tắc xuyên suốt: kiểm tra mặc định chỉ đọc; không thu thập telemetry; không tự ý thay đổi bản quyền; khắc phục phải có lựa chọn, xác nhận, backup và hậu kiểm.

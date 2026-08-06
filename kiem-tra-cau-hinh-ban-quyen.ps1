@@ -9,13 +9,8 @@
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.4"
-$ToolReleaseVersion = "4.4.0.0"
-
-if ($PSVersionTable.PSVersion.Major -lt 3) {
-    Write-Host "Cong cu can PowerShell 3.0 tro len. Windows 7 co the cai Windows Management Framework 3+ de chay."
-    exit 10
-}
+$ToolVersion = "4.6"
+$ToolReleaseVersion = "4.6.0.0"
 
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $compatibilityHelper = Join-Path $PSScriptRoot "Tool-Compatibility.ps1"
@@ -29,19 +24,22 @@ $timelineHelper = Join-Path $PSScriptRoot "Tool-LicenseTimeline.ps1"
 $localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 $offlinePolicyHelper = Join-Path $PSScriptRoot "Tool-OfflinePolicy.ps1"
 $scanOptimizationHelper = Join-Path $PSScriptRoot "Tool-ScanOptimization.ps1"
+$softwareInventoryHelper = Join-Path $PSScriptRoot "Tool-SoftwareInventory.ps1"
+if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { Write-Host "[common.missingDependency] Tool-Localization.ps1"; exit 12 }
+. $localizationHelper
+$env:TOOL_UI_CULTURE = $Culture
+function Get-ReportText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [object[]]$Arguments = @()
+    )
+    return Get-ToolText -Key $Key -Culture $Culture -FormatArguments $Arguments
+}
+if ($PSVersionTable.PSVersion.Major -lt 3) { Write-Host (Get-ReportText "report.bootstrap.powerShellRequired"); exit 10 }
 try {
-    if (-not (Test-Path -LiteralPath $runtimeHelper -PathType Leaf)) { throw "Thiếu Tool-Runtime.ps1." }
-    if (-not (Test-Path -LiteralPath $compatibilityHelper -PathType Leaf)) { throw "Thiếu Tool-Compatibility.ps1." }
-    if (-not (Test-Path -LiteralPath $capabilityHelper -PathType Leaf)) { throw "Thiếu Tool-Capabilities.ps1." }
-    if (-not (Test-Path -LiteralPath $loggingHelper -PathType Leaf)) { throw "Thiếu Tool-Logging.ps1." }
-    if (-not (Test-Path -LiteralPath $moduleContractHelper -PathType Leaf)) { throw "Thiếu Tool-ModuleContract.ps1." }
-    if (-not (Test-Path -LiteralPath $reportSchemaHelper -PathType Leaf)) { throw "Thiếu Tool-ReportSchema.ps1." }
-    if (-not (Test-Path -LiteralPath $reportExportHelper -PathType Leaf)) { throw "Thiếu Tool-ReportExport.ps1." }
-    if (-not (Test-Path -LiteralPath $pluginEngineHelper -PathType Leaf)) { throw "Thiếu Tool-PluginEngine.ps1." }
-    if (-not (Test-Path -LiteralPath $timelineHelper -PathType Leaf)) { throw "Thiếu Tool-LicenseTimeline.ps1." }
-    if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf)) { throw "Thiếu Tool-Localization.ps1." }
-    if (-not (Test-Path -LiteralPath $offlinePolicyHelper -PathType Leaf)) { throw "Thiếu Tool-OfflinePolicy.ps1." }
-    if (-not (Test-Path -LiteralPath $scanOptimizationHelper -PathType Leaf)) { throw "Thiếu Tool-ScanOptimization.ps1." }
+    foreach ($requiredPath in @($runtimeHelper, $compatibilityHelper, $capabilityHelper, $loggingHelper, $moduleContractHelper, $reportSchemaHelper, $reportExportHelper, $pluginEngineHelper, $timelineHelper, $offlinePolicyHelper, $scanOptimizationHelper, $softwareInventoryHelper)) {
+        if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { throw (Get-ReportText "common.missingDependency" @([IO.Path]::GetFileName($requiredPath))) }
+    }
     . $runtimeHelper
     . $compatibilityHelper
     . $capabilityHelper
@@ -51,9 +49,9 @@ try {
     . $reportExportHelper
     . $pluginEngineHelper
     . $timelineHelper
-    . $localizationHelper
     . $offlinePolicyHelper
     . $scanOptimizationHelper
+    . $softwareInventoryHelper
     [void](Assert-ToolNativeArchitecture)
     $nativeCscriptPath = Get-ToolNativeSystemPath "cscript.exe"
     $nativeExplorerPath = Get-ToolNativeSystemPath "explorer.exe"
@@ -64,16 +62,15 @@ try {
     $reportSchemaState = Get-ToolReportSchemaMetadata
     $script:reportCulture = $Culture
     $script:reportOfflineMode = [bool](Get-ToolOfflineMode)
-    $env:TOOL_UI_CULTURE = $Culture
     $moduleContractState = Get-ToolModuleContractMetadata
     $reportModuleId = Get-ToolReportModuleId -Mode $Mode
-    if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_MODULE_ID) -and [string]$env:TOOL_MODULE_ID -ne $reportModuleId) { throw "ModuleId launcher không khớp chế độ báo cáo: $($env:TOOL_MODULE_ID)." }
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:TOOL_MODULE_ID) -and [string]$env:TOOL_MODULE_ID -ne $reportModuleId) { throw (Get-ReportText "report.bootstrap.moduleMismatch" @($env:TOOL_MODULE_ID)) }
     $moduleAvailability = Test-ToolModuleAvailability -ModuleId $reportModuleId -CapabilityProfile $capabilityState -SourceDirectory $PSScriptRoot
     if (-not $moduleAvailability.Available) { throw $moduleAvailability.Message }
     $moduleInvocation = New-ToolModuleInvocation -ModuleId $reportModuleId
     $loggingState = Initialize-ToolLogging -Component "Report" -ToolVersion $ToolVersion
     $timelineState = Initialize-ToolLicenseTimeline -ToolVersion $ToolVersion
-    [void](Write-ToolLog -Level "INFO" -Event "Report.Start" -Message "Bắt đầu tạo báo cáo $Mode." -Data ([ordered]@{ ModuleId=$reportModuleId; InvocationId=$moduleInvocation.InvocationId; Mode=$Mode; Culture=$Culture; OfflineMode=[bool]$script:reportOfflineMode; Redacted=[bool]$RedactSensitive; Capabilities=$capabilityState }))
+    [void](Write-ToolLog -Level "INFO" -Event "Report.Start" -Message (Get-ReportText "report.log.started" @($Mode)) -Data ([ordered]@{ ModuleId=$reportModuleId; InvocationId=$moduleInvocation.InvocationId; Mode=$Mode; Culture=$Culture; OfflineMode=[bool]$script:reportOfflineMode; Redacted=[bool]$RedactSensitive; Capabilities=$capabilityState }))
 } catch {
     Write-Host $_.Exception.Message
     exit 12
@@ -82,21 +79,21 @@ try {
 $ErrorActionPreference = "SilentlyContinue"
 $ToolName = Get-ToolText -Key "app.title" -Culture $Culture
 $ToolDescription = Get-ToolText -Key "report.description" -Culture $Culture
-$DeveloperCredit = Get-ToolText -Key "app.developer" -Culture $Culture
+$DeveloperCredit = Get-ToolText -Key "report.footer" -Culture $Culture
 $OutputDir = [Environment]::ExpandEnvironmentVariables($OutputDir)
 if (-not (Test-Path -LiteralPath $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 $started = Get-Date
 $computer = $env:COMPUTERNAME
-$reportComputer = if ($RedactSensitive) { "AN_DANH" } else { $computer }
+$reportComputer = if ($RedactSensitive) { Get-ReportText "report.file.redactedToken" } else { $computer }
 $stamp = $started.ToString("yyyyMMdd_HHmmss")
 $modeInfo = switch ($Mode) {
-    "Hardware" { @{ Suffix="CauHinh"; Title=(Get-ToolText -Key "report.title.hardware" -Culture $Culture) } }
-    "Windows"  { @{ Suffix="BanQuyenWindows"; Title=(Get-ToolText -Key "report.title.windows" -Culture $Culture) } }
-    "Office"   { @{ Suffix="BanQuyenOffice"; Title=(Get-ToolText -Key "report.title.office" -Culture $Culture) } }
-    "Software" { @{ Suffix="BanQuyenPhanMem"; Title=(Get-ToolText -Key "report.title.software" -Culture $Culture) } }
-    default    { @{ Suffix="ToanBo"; Title=(Get-ToolText -Key "report.title.all" -Culture $Culture) } }
+    "Hardware" { @{ Suffix=(Get-ReportText "report.file.hardware"); Title=(Get-ToolText -Key "report.title.hardware" -Culture $Culture) } }
+    "Windows"  { @{ Suffix=(Get-ReportText "report.file.windows"); Title=(Get-ToolText -Key "report.title.windows" -Culture $Culture) } }
+    "Office"   { @{ Suffix=(Get-ReportText "report.file.office"); Title=(Get-ToolText -Key "report.title.office" -Culture $Culture) } }
+    "Software" { @{ Suffix=(Get-ReportText "report.file.software"); Title=(Get-ToolText -Key "report.title.software" -Culture $Culture) } }
+    default    { @{ Suffix=(Get-ReportText "report.file.all"); Title=(Get-ToolText -Key "report.title.all" -Culture $Culture) } }
 }
 $wantHardware = $Mode -in @("All", "Hardware")
 $wantWindows = $Mode -in @("All", "Windows")
@@ -105,198 +102,62 @@ $wantSoftware = $Mode -in @("All", "Software")
 $crackFindings = @()
 $manualReviewFindings = @()
 $reportTitle = $modeInfo.Title
-$reportBasePath = Join-Path $OutputDir "BaoCao_$($modeInfo.Suffix)_${reportComputer}_${stamp}"
+$reportBasePath = Join-Path $OutputDir ((Get-ReportText "report.file.prefix") + "_$($modeInfo.Suffix)_${reportComputer}_${stamp}")
 $reportPath = "$reportBasePath.html"
 $pdfPath = "$reportBasePath.pdf"
 $jsonPath = "$reportBasePath.json"
 $xmlPath = "$reportBasePath.xml"
 $manifestPath = "${reportBasePath}-SHA256SUMS.txt"
 
-$script:reportEnglishTextMap = @{
-    "Tổng quan" = "Overview"
-    "Khả năng tương thích hệ thống" = "System compatibility"
-    "Tổng quan bản quyền Windows" = "Windows licensing overview"
-    "Chi tiết kích hoạt Windows" = "Windows activation details"
-    "Tổng quan bản quyền Microsoft Office" = "Microsoft Office licensing overview"
-    "Chi tiết giấy phép Microsoft Office" = "Microsoft Office license details"
-    "Bảo mật phần cứng" = "Hardware security"
-    "Đồ họa" = "Graphics"
-    "Màn hình" = "Displays"
-    "Âm thanh" = "Audio"
-    "Ổ đĩa vật lý" = "Physical disks"
-    "Phân vùng" = "Volumes"
-    "Mạng" = "Network"
-    "Card mạng" = "Network adapters"
-    "Ban cap nhat Windows gan day" = "Recent Windows updates"
-    "Phan mem da cai" = "Installed software"
-    "Danh gia so bo ban quyen phan mem" = "Preliminary software license review"
-    "Dich vu Windows" = "Windows services"
-    "Dau hieu crack / activator / KMS" = "Crack / activator / KMS indicators"
-    "Tu khoa chung can xac minh thu cong (khong ket luan crack)" = "Generic keywords requiring manual review (not a crack verdict)"
-    "Bao mat" = "Security software"
-    "May in" = "Printers"
-    "Thiet bi USB / ngoai vi" = "USB and peripheral devices"
-    "Thu muc chia se" = "Shared folders"
-    "Scheduled tasks dang bat" = "Enabled scheduled tasks"
-    "Quy tắc mở rộng bằng plugin" = "Plugin extension rules"
-    "Đánh giá và phương hướng xử lý" = "Assessment and recommended handling"
-    "Kiểm tra bổ sung phần mềm bên thứ ba" = "Additional third-party software inspection"
-    "Tổng quan phần mềm bên thứ ba" = "Third-party software overview"
-    "Danh sách phần mềm bên thứ ba" = "Third-party software inventory"
-    "Chữ ký và nguồn cài đặt" = "Signatures and installation sources"
-    "Phần mềm cần rà soát" = "Software requiring review"
-    "Phiên bản cài song song" = "Parallel installed versions"
-    "Tự khởi động của bên thứ ba" = "Third-party autoruns"
-    "Muc" = "Item"
-    "Gia tri" = "Value"
-    "Thành phần" = "Component"
-    "Trạng thái" = "Status"
-    "Phương án" = "Handling"
-    "San pham" = "Product"
-    "Kenh / thong tin" = "Channel / details"
-    "Thanh phan" = "Component"
-    "Thong tin" = "Information"
-    "Nguon" = "Source"
-    "Khe" = "Slot"
-    "Hang" = "Publisher"
-    "Dung luong" = "Capacity"
-    "Toc do" = "Speed"
-    "Ten" = "Name"
-    "Do phan giai" = "Resolution"
-    "Trang thai" = "Status"
-    "Nam SX" = "Year"
-    "Hang ID" = "Vendor ID"
-    "Loai" = "Type"
-    "Tong" = "Total"
-    "Con trong" = "Free"
-    "Mo ta" = "Description"
-    "Ngay cai" = "Install date"
-    "Nguoi cai" = "Installed by"
-    "Ten phan mem" = "Software"
-    "Phien ban" = "Version"
-    "Danh gia so bo" = "Preliminary assessment"
-    "Ly do" = "Reason"
-    "Lenh" = "Command"
-    "Vi tri" = "Location"
-    "Nguoi dung" = "User"
-    "Hien thi" = "Display name"
-    "Loai khoi dong" = "Startup type"
-    "Dau hieu" = "Indicator"
-    "Muc do" = "Severity"
-    "Duong dan" = "Path"
-    "Nhan" = "Label"
-    "O" = "Drive"
-    "Đối tượng" = "Target"
-    "Đánh giá" = "Assessment"
-    "Phương hướng xử lý" = "Recommended handling"
-    "Phiên bản" = "Version"
-    "Nhà phát hành" = "Publisher"
-    "Bật" = "Enabled"
-    "Quy tắc" = "Rules"
-    "Tin cậy" = "Trust"
-    "Mức" = "Severity"
-    "Quan sát" = "Observed"
-    "Nhận định" = "Assessment"
-    "Hướng xử lý" = "Remediation"
-    "Lỗi" = "Error"
-    "Phân loại" = "Classification"
-    "Phạm vi" = "Scope"
-    "Kiến trúc" = "Architecture"
-    "Chữ ký" = "Signature"
-    "Nhà phát hành chữ ký" = "Signature publisher"
-    "Tệp kiểm tra" = "Inspected file"
-    "Phiên bản tệp" = "File version"
-    "Có trình gỡ" = "Uninstaller"
-    "Metadata cập nhật" = "Update metadata"
-    "Lệnh gỡ" = "Uninstall command"
-    "Khóa đăng ký" = "Registry key"
-    "Mức rà soát" = "Review level"
-    "Lý do rà soát" = "Review reason"
-    "Số lượng" = "Count"
-    "Hành động" = "Action"
-    "Nhóm" = "Group"
-    "May tinh" = "Computer"
-    "Ngay kiem tra" = "Inspection time"
-    "He dieu hanh" = "Operating system"
-    "Kien truc" = "Architecture"
-    "Ngay cai Windows" = "Windows install date"
-    "Lan khoi dong cuoi" = "Last boot"
-    "Hang / Model" = "Vendor / model"
-    "Không phát hiện Click-to-Run" = "Click-to-Run was not detected"
-    "Không khả dụng" = "Unavailable"
-    "Có thể truy vấn" = "Available for query"
-    "Ẩn/ghi không hỗ trợ" = "Hidden / recorded as unsupported"
-    "Nguồn quản trị không khả dụng" = "Management source unavailable"
-    "Chưa cấp phép" = "Unlicensed"
-    "Đã cấp phép" = "Licensed"
-    "Thời gian gia hạn OOB" = "OOB grace period"
-    "Thời gian gia hạn OOT" = "OOT grace period"
-    "Gia hạn không chính hãng" = "Non-genuine grace period"
-    "Thông báo" = "Notification"
-    "Gia hạn mở rộng" = "Extended grace"
-    "Khong xac dinh" = "Unknown"
-    "Đã kích hoạt" = "Activated"
-    "Chưa kích hoạt hoặc đang ở thời gian gia hạn/thông báo" = "Not activated or in grace/notification state"
-    "Không đọc được thông tin giấy phép" = "License information could not be read"
-    "Chưa kích hoạt hoặc giấy phép cần kiểm tra" = "Not activated or the license needs review"
-    "Đã phát hiện Office, chưa xác nhận được giấy phép" = "Office detected; licensing not confirmed"
-    "Không phát hiện Microsoft Office" = "Microsoft Office was not detected"
-    "Có cmdlet nhưng không đọc được" = "The cmdlet exists but data could not be read"
-    "Không hỗ trợ trên cấu hình Windows hiện tại" = "Not supported by the current Windows configuration"
-    "Có cmdlet nhưng firmware không hỗ trợ/không đọc được" = "The cmdlet exists but firmware is unsupported or unreadable"
-    "Can doi chieu hoa don/license" = "Invoice/license reconciliation required"
-    "Co thong tin cai dat, chua xac minh duoc ban quyen that neu khong doi chieu ho so." = "Installation metadata exists; entitlement cannot be confirmed without purchase/license records."
-    "Co dau hieu nghi khong chinh hang" = "Specific suspicious indicator detected"
-    "Ten phan mem/publisher khop mau activator dac hieu; van can xac minh chu ky va nguon cai dat." = "The software/publisher name matches a specific activator pattern; verify its signature and installation source."
-    "Tu khoa chung - can xac minh thu cong" = "Generic keyword — manual review required"
-    "Tu khoa activation/patch/portable co the hop le; khong du de ket luan crack neu khong co bang chung khac." = "Activation/patch/portable keywords can be legitimate and are not sufficient for a crack verdict without other evidence."
-    "Thieu thong tin nha phat hanh" = "Publisher information missing"
-    "Can kiem tra nguon cai dat va hoa don/license." = "Review the installation source and purchase/license records."
-    "Can kiem tra ngay" = "Review promptly"
-    "Tu khoa chung - khong du ket luan" = "Generic keyword — insufficient for a verdict"
-    "Can kiem tra" = "Review required"
-    "Dau hieu theo ten file" = "Filename indicator"
-    "Đã che dữ liệu nhạy cảm" = "Sensitive data redacted"
-    "Báo cáo đầy đủ nội bộ" = "Complete internal report"
-    "[ĐÃ CHE]" = "[REDACTED]"
-    "[IP ĐÃ CHE]" = "[IP REDACTED]"
-    "[MAC ĐÃ CHE]" = "[MAC REDACTED]"
+$script:reportPresentationCache = @{}
+$script:reportLiteralHasher = [Security.Cryptography.SHA256]::Create()
+
+function Get-ReportPresentationTextForCulture {
+    param(
+        [AllowNull()][object]$Value,
+        [Parameter(Mandatory = $true)][ValidateSet("vi-VN", "en-US")][string]$TargetCulture
+    )
+
+    if ($null -eq $Value) { return "" }
+    $text = [string]$Value
+    $cacheKey = $TargetCulture + [char]0 + $text
+    if ($script:reportPresentationCache.ContainsKey($cacheKey)) { return [string]$script:reportPresentationCache[$cacheKey] }
+    $literalHash = $script:reportLiteralHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))
+    $literalKey = 'report.literal.' + (([BitConverter]::ToString($literalHash)) -replace '-', '').ToLowerInvariant()
+    $literalText = Get-ToolText -Key $literalKey -Culture $TargetCulture
+    if ($literalText -ne "[$literalKey]") {
+        $script:reportPresentationCache[$cacheKey] = $literalText
+        return $literalText
+    }
+    if ($text -notmatch '(?im)^(?:San pham|Dong san pham|Phien ban|Kenh|Doi chieu catalog|Nen tang|Trang thai|Mo ta|Partial key):|\b(?:ngay|gio|phut)\b') {
+        $script:reportPresentationCache[$cacheKey] = $text
+        return $text
+    }
+    $replacements = @(
+        @('(?m)^San pham:', 'report.prefix.product'),
+        @('(?m)^Dong san pham:', 'report.prefix.productFamily'),
+        @('(?m)^Phien ban:', 'report.prefix.version'),
+        @('(?m)^Kenh:', 'report.prefix.channel'),
+        @('(?m)^Doi chieu catalog:', 'report.prefix.catalog'),
+        @('(?m)^Nen tang:', 'report.prefix.platform'),
+        @('(?m)^Trang thai:', 'report.prefix.status'),
+        @('(?m)^Mo ta:', 'report.prefix.description'),
+        @('(?m)^Partial key:', 'report.prefix.partialKey'),
+        @('(?i)\bngay\b', 'report.duration.days'),
+        @('(?i)\bgio\b', 'report.duration.hours'),
+        @('(?i)\bphut\b', 'report.duration.minutes')
+    )
+    foreach ($replacement in $replacements) {
+        $replacementText = Get-ToolText -Key ([string]$replacement[1]) -Culture $TargetCulture
+        $text = [regex]::Replace($text, [string]$replacement[0], $replacementText)
+    }
+    $script:reportPresentationCache[$cacheKey] = $text
+    return $text
 }
 
 function Get-ReportPresentationText {
     param([AllowNull()][object]$Value)
-
-    if ($null -eq $Value) { return "" }
-    $text = [string]$Value
-    if ($Culture -ne "en-US") { return $text }
-    if ($script:reportEnglishTextMap.ContainsKey($text)) { return [string]$script:reportEnglishTextMap[$text] }
-    $replacements = @(
-        @('(?m)^San pham:', 'Product:'),
-        @('(?m)^Dong san pham:', 'Product family:'),
-        @('(?m)^Phien ban:', 'Version:'),
-        @('(?m)^Kenh:', 'Channel:'),
-        @('(?m)^Doi chieu catalog:', 'Catalog comparison:'),
-        @('(?m)^Nen tang:', 'Platform:'),
-        @('(?m)^Trang thai:', 'Status:'),
-        @('(?m)^Mo ta:', 'Description:'),
-        @('(?m)^Partial key:', 'Partial key:'),
-        @('(?i)\bngay\b', 'days'),
-        @('(?i)\bgio\b', 'hours'),
-        @('(?i)\bphut\b', 'minutes')
-    )
-    foreach ($replacement in $replacements) {
-        $text = [regex]::Replace($text, [string]$replacement[0], [string]$replacement[1])
-    }
-    return $text
-}
-
-function Select-ReportText {
-    param(
-        [Parameter(Mandatory = $true)][string]$Vietnamese,
-        [Parameter(Mandatory = $true)][string]$English
-    )
-    if ($Culture -eq "en-US") { return $English }
-    return $Vietnamese
+    return Get-ReportPresentationTextForCulture -Value $Value -TargetCulture $Culture
 }
 
 function Protect-ReportText($value) {
@@ -311,12 +172,12 @@ function Protect-ReportText($value) {
     foreach ($secret in @($env:COMPUTERNAME, $env:USERNAME)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$secret)) {
             $secretPattern = '(?<![A-Za-z0-9_.-])' + [regex]::Escape([string]$secret) + '(?![A-Za-z0-9_.-])'
-            $text = [regex]::Replace($text, $secretPattern, "[ĐÃ CHE]", [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $text = [regex]::Replace($text, $secretPattern, (Get-ReportText "report.redaction.value"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
     $ipv4Part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
-    $text = [regex]::Replace($text, "(?<![0-9.])$ipv4Part(?:\.$ipv4Part){3}(?![0-9.])", "[IP ĐÃ CHE]")
-    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', '[MAC ĐÃ CHE]')
+    $text = [regex]::Replace($text, "(?<![0-9.])$ipv4Part(?:\.$ipv4Part){3}(?![0-9.])", (Get-ReportText "report.redaction.ip"))
+    $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Get-ReportText "report.redaction.mac"))
     return $text
 }
 
@@ -350,6 +211,38 @@ function ConvertTo-ReportRedactedObject {
     return $Value
 }
 
+function ConvertTo-ReportLocalizedExportObject {
+    param(
+        [AllowNull()][object]$Value,
+        [int]$Depth = 0
+    )
+
+    if ($null -eq $Value) { return $null }
+    if ($Depth -gt 12) { return $Value }
+    if ($Value -is [string]) { return Get-ReportPresentationText $Value }
+    if ($Value -is [Collections.IDictionary]) {
+        $result = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $exportKey = Get-ReportPresentationTextForCulture -Value ([string]$key) -TargetCulture "en-US"
+            $result[$exportKey] = ConvertTo-ReportLocalizedExportObject -Value $Value[$key] -Depth ($Depth + 1)
+        }
+        return [pscustomobject]$result
+    }
+    if ($Value -isnot [string] -and $Value -is [Collections.IEnumerable]) {
+        return @($Value | ForEach-Object { ConvertTo-ReportLocalizedExportObject -Value $_ -Depth ($Depth + 1) })
+    }
+    if ($Value.PSObject -and @($Value.PSObject.Properties).Count -gt 0 -and
+        $Value -isnot [ValueType] -and $Value -isnot [DateTime]) {
+        $result = [ordered]@{}
+        foreach ($property in @($Value.PSObject.Properties)) {
+            $exportKey = Get-ReportPresentationTextForCulture -Value ([string]$property.Name) -TargetCulture "en-US"
+            $result[$exportKey] = ConvertTo-ReportLocalizedExportObject -Value $property.Value -Depth ($Depth + 1)
+        }
+        return [pscustomobject]$result
+    }
+    return $Value
+}
+
 function Protect-ReportCell($row, [string]$column, $value) {
     if (-not $RedactSensitive) { return $value }
     $rowLabel = ""
@@ -357,7 +250,7 @@ function Protect-ReportCell($row, [string]$column, $value) {
     if ($column -match '(?i)^Serial$' -or
         $column -match '(?i)^(User|Nguoi dung|Author)$' -or
         ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS)$')) {
-        return "[ĐÃ CHE]"
+        return Get-ReportText "report.redaction.value"
     }
     return Protect-ReportText $value
 }
@@ -405,21 +298,22 @@ function Add-Section {
 function Add-Table {
     param([object[]]$Rows, [string[]]$Columns)
     if (-not $Rows -or $Rows.Count -eq 0) {
-        return "<p class='muted'>$(Html (Select-ReportText -Vietnamese 'Không có dữ liệu.' -English 'No data available.'))</p>"
+        return "<p class='muted'>$(Html (Get-ReportText "report.text.001"))</p>"
     }
-    $html = "<table><thead><tr>"
-    foreach ($col in $Columns) { $html += "<th>$(Html $col)</th>" }
-    $html += "</tr></thead><tbody>"
+    $builder = New-Object Text.StringBuilder
+    [void]$builder.Append("<table><thead><tr>")
+    foreach ($col in $Columns) { [void]$builder.Append("<th>$(Html $col)</th>") }
+    [void]$builder.Append("</tr></thead><tbody>")
     foreach ($row in $Rows) {
-        $html += "<tr>"
+        [void]$builder.Append("<tr>")
         foreach ($col in $Columns) {
             $value = $row.PSObject.Properties[$col].Value
-            $html += "<td>$(Html (Protect-ReportCell $row $col $value))</td>"
+            [void]$builder.Append("<td>$(Html (Protect-ReportCell $row $col $value))</td>")
         }
-        $html += "</tr>"
+        [void]$builder.Append("</tr>")
     }
-    $html += "</tbody></table>"
-    return $html
+    [void]$builder.Append("</tbody></table>")
+    return $builder.ToString()
 }
 
 function Safe-Cim {
@@ -521,14 +415,28 @@ function Get-SoftwareSignatureLabel {
     param([AllowNull()][string]$Status)
 
     switch ([string]$Status) {
-        "Valid" { return Select-ReportText -Vietnamese "Hợp lệ" -English "Valid" }
-        "NotSigned" { return Select-ReportText -Vietnamese "Không ký" -English "Unsigned" }
-        "HashMismatch" { return Select-ReportText -Vietnamese "Sai mã băm" -English "Hash mismatch" }
-        "NotTrusted" { return Select-ReportText -Vietnamese "Không tin cậy" -English "Untrusted" }
-        "NotSupportedFileFormat" { return Select-ReportText -Vietnamese "Định dạng không hỗ trợ" -English "Unsupported format" }
-        "UnknownError" { return Select-ReportText -Vietnamese "Lỗi kiểm tra" -English "Inspection error" }
-        default { return Select-ReportText -Vietnamese "Chưa kiểm tra (không tìm thấy tệp đại diện)" -English "Not inspected (representative file not found)" }
+        "Valid" { return Get-ReportText "report.text.002" }
+        "NotSigned" { return Get-ReportText "report.text.003" }
+        "HashMismatch" { return Get-ReportText "report.text.004" }
+        "NotTrusted" { return Get-ReportText "report.text.005" }
+        "NotSupportedFileFormat" { return Get-ReportText "report.text.006" }
+        "UnknownError" { return Get-ReportText "report.text.007" }
+        default { return Get-ReportText "report.text.008" }
     }
+}
+
+function Get-ReportSoftwareAssessmentLabel {
+    param([string]$StatusCode)
+    $key = switch ($StatusCode) {
+        'FreeOrIncluded' { 'report.software.status.freeOrIncluded' }
+        'GenuineVerified' { 'report.software.status.genuineVerified' }
+        'Unactivated' { 'report.software.status.unactivated' }
+        'NonGenuine' { 'report.software.status.nonGenuine' }
+        'Suspicious' { 'report.software.status.suspicious' }
+        'TrialOrUnverified' { 'report.software.status.trialOrUnverified' }
+        default { 'report.software.status.unverified' }
+    }
+    return Get-ReportText $key
 }
 
 function Test-MicrosoftSoftwarePublisher {
@@ -558,7 +466,7 @@ function Convert-HtmlToPdf {
     param([string]$HtmlPath, [string]$OutPath)
     $browser = Find-Browser
     if (-not $browser) {
-        Write-Host "Khong tim thay Edge/Chrome de xuat PDF."
+        Write-Host (Get-ReportText "report.pdf.browserMissing")
         return $false
     }
     $htmlUri = ([System.Uri](Resolve-Path -LiteralPath $HtmlPath).Path).AbsoluteUri
@@ -576,13 +484,13 @@ function Convert-HtmlToPdf {
 
 function License-StatusText($code) {
     switch ([int]$code) {
-        0 { "Chưa cấp phép" }
-        1 { "Đã cấp phép" }
-        2 { "Thời gian gia hạn OOB" }
-        3 { "Thời gian gia hạn OOT" }
-        4 { "Gia hạn không chính hãng" }
-        5 { "Thông báo" }
-        6 { "Gia hạn mở rộng" }
+        0 { Get-ReportText "report.literal.2ef4b7e7e08830fa83d8e6f618177c845d5fd18b287b232d65e75d1816e2bd17" }
+        1 { Get-ReportText "common.licensed" }
+        2 { Get-ReportText "report.literal.ee9915f8a9441f5477ae37d0b53af5a44368d8178bcbf47a5516cba4e2f7eb90" }
+        3 { Get-ReportText "report.literal.a65075fb5cef0cfe3de837b9c7f96f6df9d9108cf482d8e869b50edff0f31cc1" }
+        4 { Get-ReportText "report.literal.d1900b3c9e587a3afa63930fd4132a377c45d6d096dd8188c996c79d792e6e02" }
+        5 { Get-ReportText "report.literal.a9b656f50b4edb647d37c4ce076024f0b369f67f38f522a5f0099a4f8fe3b09b" }
+        6 { Get-ReportText "report.literal.c9438d141f962154461744c674dad517d7e2da5a0642167708364fff3e1916a0" }
         default { "$code" }
     }
 }
@@ -624,12 +532,12 @@ $summary = @(
 Add-Section "Tổng quan" (Add-Table $summary @("Muc","Gia tri"))
 
 $capabilityRows = @(
-    [pscustomobject]@{ "Thành phần"="Hợp đồng mô-đun"; "Trạng thái"="schema $($moduleContractState.ContractSchemaVersion)"; "Phương án"="$reportModuleId / $($moduleAvailability.Descriptor.AccessMode)" },
-    [pscustomobject]@{ "Thành phần"="Windows release"; "Trạng thái"="$($capabilityState.WindowsReleaseName) build $($capabilityState.FullBuildNumber)"; "Phương án"="Catalog $($compatibilityState.ReviewedAtUtc); servicing $($capabilityState.WindowsServicingState)" },
-    [pscustomobject]@{ "Thành phần"="Office compatibility"; "Trạng thái"=$capabilityState.OfficeSummary; "Phương án"=if ($capabilityState.OfficeCompatibility -and $capabilityState.OfficeCompatibility.Detected) { "$($capabilityState.OfficeCompatibility.Version) · $($capabilityState.OfficeCompatibility.Channel) · $($capabilityState.OfficeCompatibility.Currency)" } else { "Không phát hiện Click-to-Run" } },
-    [pscustomobject]@{ "Thành phần"="Offline policy"; "Trạng thái"=if ($script:reportOfflineMode) { "Offline" } else { "Network allowed" }; "Phương án"="Không telemetry; HTML/PDF chỉ dùng tài nguyên cục bộ" },
-    [pscustomobject]@{ "Thành phần"="Mức tương thích"; "Trạng thái"=$capabilityState.CompatibilityTier; "Phương án"="Tự chọn tính năng/fallback theo hệ điều hành" },
-    [pscustomobject]@{ "Thành phần"="CIM"; "Trạng thái"=[bool]$capabilityState.CimCmdlets; "Phương án"=if ($capabilityState.CimCmdlets) { "Ưu tiên Get-CimInstance" } elseif ($capabilityState.WmiFallback) { "Dùng WMI fallback" } else { "Nguồn quản trị không khả dụng" } },
+    [pscustomobject]@{ "Thành phần"=(Get-ReportText "report.capability.moduleContract"); "Trạng thái"="schema $($moduleContractState.ContractSchemaVersion)"; "Phương án"="$reportModuleId / $($moduleAvailability.Descriptor.AccessMode)" },
+    [pscustomobject]@{ "Thành phần"="Windows release"; "Trạng thái"="$($capabilityState.WindowsReleaseName) build $($capabilityState.FullBuildNumber)"; "Phương án"=(Get-ReportText "report.capability.catalogLifecycle" @($compatibilityState.CatalogVersion, $compatibilityState.CatalogHealth, $compatibilityState.CatalogAgeDays, $compatibilityState.MaximumReviewAgeDays, $capabilityState.WindowsServicingState)) },
+    [pscustomobject]@{ "Thành phần"="Office compatibility"; "Trạng thái"=$capabilityState.OfficeSummary; "Phương án"=if ($capabilityState.OfficeCompatibility -and $capabilityState.OfficeCompatibility.Detected) { "$($capabilityState.OfficeCompatibility.Version) · $($capabilityState.OfficeCompatibility.Channel) · $($capabilityState.OfficeCompatibility.Currency)" } else { Get-ReportText "report.capability.clickToRunMissing" } },
+    [pscustomobject]@{ "Thành phần"="Offline policy"; "Trạng thái"=if ($script:reportOfflineMode) { "Offline" } else { "Network allowed" }; "Phương án"=(Get-ReportText "report.capability.offlineNote") },
+    [pscustomobject]@{ "Thành phần"=(Get-ReportText "report.capability.compatibilityLevel"); "Trạng thái"=$capabilityState.CompatibilityTier; "Phương án"=(Get-ReportText "report.capability.adaptive") },
+    [pscustomobject]@{ "Thành phần"="CIM"; "Trạng thái"=[bool]$capabilityState.CimCmdlets; "Phương án"=if ($capabilityState.CimCmdlets) { Get-ReportText "report.capability.preferCim" } elseif ($capabilityState.WmiFallback) { Get-ReportText "report.capability.wmiFallback" } else { Get-ReportText "report.capability.managementUnavailable" } },
     [pscustomobject]@{ "Thành phần"="Scheduled Tasks"; "Trạng thái"=[bool]$capabilityState.ScheduledTasksModule; "Phương án"=if ($capabilityState.ScheduledTasksModule) { "ScheduledTasks module" } elseif ($capabilityState.ScheduledTasksFallback) { "schtasks.exe fallback" } else { "Không khả dụng" } },
     [pscustomobject]@{ "Thành phần"="Microsoft Defender cmdlets"; "Trạng thái"=[bool]$capabilityState.DefenderCmdlets; "Phương án"=if ($capabilityState.DefenderCmdlets) { "Có thể truy vấn" } else { "Ẩn/ghi không hỗ trợ" } },
     [pscustomobject]@{ "Thành phần"="TPM cmdlets"; "Trạng thái"=[bool]$capabilityState.TpmCmdlets; "Phương án"=if ($capabilityState.TpmCmdlets) { "Có thể truy vấn" } else { "Ẩn/ghi không hỗ trợ" } },
@@ -724,12 +632,13 @@ foreach ($license in $officeCimLicenses) {
 }
 
 $activeWindowsLicense = $windowsLicenses | Where-Object { $_.LicenseStatus -eq 1 } | Select-Object -First 1
+$windowsActivated = [bool]($null -ne $activeWindowsLicense)
 $windowsSummaryStatus = if ($activeWindowsLicense) {
-    "Đã kích hoạt"
+    Get-ReportText "report.literal.469ed875460f4d9aac099f3638c114fd1f306336432eef0686c2d2798425b200"
 } elseif ($windowsLicenses) {
-    "Chưa kích hoạt hoặc đang ở thời gian gia hạn/thông báo"
+    Get-ReportText "report.literal.b416005dc249c9d2aed359bdd8e40760a9da0684a10a8b63c3acb1e181974481"
 } else {
-    "Không đọc được thông tin giấy phép"
+    Get-ReportText "report.literal.7328f6ec44c8cb946163ebcdea81773122962b30acc45ac7b4d0c112ad9d7f96"
 }
 $windowsSummaryChannel = if ($activeWindowsLicense) {
     if ($activeWindowsLicense.Description -match "KMSCLIENT|VOLUME_KMS") { "KMS client / Volume KMS" }
@@ -744,30 +653,25 @@ $windowsSummaryChannel = if ($activeWindowsLicense) {
 $officeStatusText = ($officeRawStatus -join "`n")
 $activeOfficeLicense = $officeCimLicenses | Where-Object { $_.LicenseStatus -eq 1 } | Select-Object -First 1
 $officeDetected = ($officeRows.Count -gt 0)
-$officeSummaryStatus = if ($activeOfficeLicense -or $officeStatusText -match "LICENSE STATUS:\s+---LICENSED---") {
-    "Đã kích hoạt"
+$officeActivated = [bool]($activeOfficeLicense -or $officeStatusText -match "LICENSE STATUS:\s+---LICENSED---")
+$officeSummaryStatus = if ($officeActivated) {
+    Get-ReportText "report.literal.469ed875460f4d9aac099f3638c114fd1f306336432eef0686c2d2798425b200"
 } elseif ($officeStatusText -match "LICENSE STATUS" -or $officeCimLicenses) {
-    "Chưa kích hoạt hoặc giấy phép cần kiểm tra"
+    Get-ReportText "report.literal.a34540e5d56b9b931d3c2d2aba6dbb8a50409473067cb68f40299bcd160db6b1"
 } elseif ($officeDetected) {
-    "Đã phát hiện Office, chưa xác nhận được giấy phép"
+    Get-ReportText "report.literal.e1570579d8c5ea326f7eb4f27c2946e8f39da617887672e85ae3121a2492d5b5"
 } else {
-    "Không phát hiện Microsoft Office"
+    Get-ReportText "report.literal.1354cb33be9c44fa682e988efee9a1b96d77d89fd4f4255fa6cf6f48dcea41ff"
 }
 
 $licenseOverviewRows = @(
     [pscustomobject]@{ "San pham"="Windows"; "Trang thai"=$windowsSummaryStatus; "Kenh / thong tin"=$windowsSummaryChannel },
     [pscustomobject]@{ "San pham"="Microsoft Office"; "Trang thai"=$officeSummaryStatus; "Kenh / thong tin"=if ($activeOfficeLicense) { $activeOfficeLicense.Description } elseif ($clickToRun) { $clickToRun.ProductReleaseIds } else { "Khong xac dinh" } }
 )
-$licenseOverviewNote = Select-ReportText `
-    "Trạng thái đã kích hoạt không tự động chứng minh bản quyền hợp lệ. Cần đối chiếu hóa đơn, hợp đồng, tài khoản Microsoft 365 hoặc hồ sơ cấp phép để kết luận." `
-    "An activated state does not by itself prove valid entitlement. Reconcile it with invoices, agreements, the licensed Microsoft 365 account, or other license records."
-$windowsOverviewNote = Select-ReportText `
-    "Trạng thái đã kích hoạt không tự động chứng minh bản quyền hợp lệ. Cần đối chiếu hóa đơn, hợp đồng hoặc hồ sơ cấp phép để kết luận." `
-    "An activated state does not by itself prove valid entitlement. Reconcile it with invoices, agreements, or other license records."
-$officeOverviewNote = Select-ReportText `
-    "Trạng thái đã kích hoạt không tự động chứng minh bản quyền hợp lệ. Cần đối chiếu hóa đơn, tài khoản Microsoft 365 hoặc hồ sơ cấp phép để kết luận." `
-    "An activated state does not by itself prove valid entitlement. Reconcile it with invoices, the licensed Microsoft 365 account, or other license records."
-$noteLabel = Select-ReportText "Lưu ý:" "Note:"
+$licenseOverviewNote = Get-ReportText "report.text.009"
+$windowsOverviewNote = Get-ReportText "report.text.010"
+$officeOverviewNote = Get-ReportText "report.text.011"
+$noteLabel = Get-ReportText "report.text.012"
 $licenseOverviewBody = (Add-Table $licenseOverviewRows @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $licenseOverviewNote)</p>"
 $windowsOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Windows" }) @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $windowsOverviewNote)</p>"
 $officeOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Microsoft Office" }) @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $officeOverviewNote)</p>"
@@ -950,75 +854,59 @@ Add-Section "Ban cap nhat Windows gan day" (Add-Table $hotfixes @("HotFix","Mo t
 }
 
 if ($wantSoftware) {
-    $apps = @()
-    $machineArchitecture = if ([Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
-    $uninstallSources = @(
-        [pscustomobject]@{
-            Path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
-            Scope = (Select-ReportText -Vietnamese "Máy" -English "Machine")
-            Architecture = $machineArchitecture
-        },
-        [pscustomobject]@{
-            Path = "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-            Scope = (Select-ReportText -Vietnamese "Máy" -English "Machine")
-            Architecture = "32-bit"
-        },
-        [pscustomobject]@{
-            Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
-            Scope = (Select-ReportText -Vietnamese "Người dùng hiện tại" -English "Current user")
-            Architecture = (Select-ReportText -Vietnamese "Không xác định" -English "Unknown")
+    Write-Host (Get-ReportText "report.progress.softwareInventory")
+    # Kiểm kê toàn máy: Registry chỉ là một nguồn. Bổ sung AppX/MSIX, shortcut
+    # Start Menu/Desktop và ứng dụng portable trong các vùng chương trình phổ
+    # biến. Desktop chỉ là nguồn phát hiện phụ, không phải phạm vi quét.
+    $completeSoftwareInventory = @(Get-ToolInstalledSoftwareInventory -IncludeAppx -IncludeShortcuts -IncludePortable -PortableMaximumResults 220)
+    $softwareCatalog = Get-ToolSoftwareLicenseCatalog -PreferCache
+    $softwareAssessments = @(Get-ToolSoftwareAssessments -Applications $completeSoftwareInventory -Catalog $softwareCatalog)
+    $discoverySourceColumn = Get-ReportText "report.software.column.discoverySource"
+    $licenseModelColumn = Get-ReportText "report.software.column.licenseModel"
+    $assessmentCodeColumn = Get-ReportText "report.software.column.assessmentCode"
+    $confidenceColumn = Get-ReportText "report.software.column.confidence"
+    $catalogSourceColumn = Get-ReportText "report.software.column.catalogSource"
+    $officialReferenceColumn = Get-ReportText "report.software.column.officialReference"
+    $evidenceColumn = Get-ReportText "report.software.column.evidence"
+    $vendorScopeColumn = Get-ReportText "report.software.column.vendorScope"
+    $technicalStatusColumn = Get-ReportText "report.software.column.technicalStatus"
+    $remediationEligibilityColumn = Get-ReportText "report.software.column.remediationEligibility"
+    $apps = @($softwareAssessments | ForEach-Object {
+        $assessment = $_
+        [pscustomobject][ordered]@{
+            "Ten phan mem" = [string]$assessment.Name
+            "Phien ban" = [string]$assessment.Version
+            "Hang" = [string]$assessment.Publisher
+            "Ngay cai" = [string]$assessment.InstallDate
+            "Phân loại" = if ([bool]$assessment.IsMicrosoft) { Get-ReportText "report.text.017" } else { Get-ReportText "report.text.018" }
+            "Phạm vi" = [string]$assessment.Scope
+            "Kiến trúc" = [string]$assessment.Architecture
+            $discoverySourceColumn = (@($assessment.DiscoverySources) -join ', ')
+            "Duong dan" = [string]$assessment.InstallLocation
+            "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$assessment.SignatureStatus)
+            "Nhà phát hành chữ ký" = [string]$assessment.SignaturePublisher
+            "Tệp kiểm tra" = [string]$assessment.RepresentativePath
+            "Phiên bản tệp" = [string]$assessment.FileVersion
+            "Có trình gỡ" = if (-not [string]::IsNullOrWhiteSpace([string]$assessment.UninstallString)) { Get-ReportText "report.text.019" } else { Get-ReportText "report.text.020" }
+            "Metadata cập nhật" = if ([string]$assessment.SourceKind -eq 'Registry') { Get-ReportText "report.text.021" } else { Get-ReportText "report.text.022" }
+            "Lệnh gỡ" = [string]$assessment.UninstallString
+            "Khóa đăng ký" = [string]$assessment.RegistryPath
+            $licenseModelColumn = [string]$assessment.LicenseModel
+            $assessmentCodeColumn = [string]$assessment.AssessmentCode
+            $confidenceColumn = [string]$assessment.Confidence
+            $catalogSourceColumn = [string]$assessment.CatalogSource
+            $officialReferenceColumn = [string]$assessment.OfficialReferenceUrl
+            $evidenceColumn = (@($assessment.Evidence | ForEach-Object { [string]$_.Code } | Select-Object -Unique) -join ', ')
+            IsMicrosoft = [bool]$assessment.IsMicrosoft
+            SignatureStatus = [string]$assessment.SignatureStatus
+            AssessmentCode = [string]$assessment.AssessmentCode
+            LicenseModel = [string]$assessment.LicenseModel
+            NeedsReview = [bool]$assessment.NeedsReview
+            RemediationSupported = [bool]$assessment.RemediationSupported
+            StrongEvidenceCount = [int]$assessment.StrongEvidenceCount
+            VendorScope = [string]$assessment.VendorScope
         }
-    )
-
-    foreach ($source in $uninstallSources) {
-        $registryItems = @(Get-ItemProperty -Path $source.Path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName })
-        foreach ($item in $registryItems) {
-            $representativeFile = Get-ExecutablePathFromMetadata -Candidates @(
-                [string]$item.DisplayIcon,
-                [string]$item.ModifyPath,
-                [string]$item.InstallLocation
-            ) -PreferredName ([string]$item.DisplayName)
-            $signature = Get-CachedSoftwareSignatureState -Path $representativeFile
-            $publisher = [string]$item.Publisher
-            $isMicrosoft = (Test-MicrosoftSoftwarePublisher -Publisher $publisher) -or
-                ([string]$item.DisplayName -match '(?i)^\s*(Microsoft|Windows)\b')
-            $hasUninstaller = -not [string]::IsNullOrWhiteSpace([string]$item.UninstallString)
-            $hasUpdateMetadata = -not [string]::IsNullOrWhiteSpace(
-                [string](@($item.URLUpdateInfo, $item.HelpLink, $item.ModifyPath, $item.InstallSource) |
-                    Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
-                    Select-Object -First 1)
-            )
-            $registryKey = [string]$item.PSPath -replace '^Microsoft\.PowerShell\.Core\\Registry::', ''
-            $apps += [pscustomobject][ordered]@{
-                "Ten phan mem" = [string]$item.DisplayName
-                "Phien ban" = [string]$item.DisplayVersion
-                "Hang" = $publisher
-                "Ngay cai" = [string]$item.InstallDate
-                "Phân loại" = if ($isMicrosoft) {
-                    Select-ReportText -Vietnamese "Microsoft / hệ điều hành" -English "Microsoft / operating system"
-                } else {
-                    Select-ReportText -Vietnamese "Bên thứ ba" -English "Third-party"
-                }
-                "Phạm vi" = [string]$source.Scope
-                "Kiến trúc" = [string]$source.Architecture
-                "Duong dan" = [string]$item.InstallLocation
-                "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$signature.Status)
-                "Nhà phát hành chữ ký" = [string]$signature.Publisher
-                "Tệp kiểm tra" = [string]$signature.Path
-                "Phiên bản tệp" = [string]$signature.FileVersion
-                "Có trình gỡ" = if ($hasUninstaller) { Select-ReportText -Vietnamese "Có" -English "Yes" } else { Select-ReportText -Vietnamese "Không" -English "No" }
-                "Metadata cập nhật" = if ($hasUpdateMetadata) { Select-ReportText -Vietnamese "Có" -English "Yes" } else { Select-ReportText -Vietnamese "Không" -English "No" }
-                "Lệnh gỡ" = [string]$item.UninstallString
-                "Khóa đăng ký" = $registryKey
-                IsMicrosoft = [bool]$isMicrosoft
-                SignatureStatus = [string]$signature.Status
-            }
-        }
-    }
-    $apps = @($apps |
-        Group-Object { "$($_.'Ten phan mem')|$($_.'Phien ban')|$($_.'Phạm vi')|$($_.'Kiến trúc')" } |
-        ForEach-Object { $_.Group | Select-Object -First 1 } |
-        Sort-Object "Ten phan mem", "Phien ban", "Phạm vi")
+    } | Sort-Object "Ten phan mem", "Phien ban", "Phạm vi")
 
     # Hợp đồng hiển thị Mục 5 của v4.3.0.3 được giữ nguyên. Dữ liệu giàu hơn
     # vẫn được thu thập trong $apps nhưng bốn cột truyền thống là nguồn cho
@@ -1027,7 +915,7 @@ if ($wantSoftware) {
         Select-Object "Ten phan mem", "Phien ban", "Hang", "Ngay cai" |
         Sort-Object "Ten phan mem", "Phien ban" -Unique)
 
-    $strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[_-]?vl(?:_all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bmicrosoft toolkit\b|\bhwidgen\b|\bmassgrave\b|\bget\.activated\.win\b|\bgenp\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
+    $strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[_-]?vl(?:_all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bmicrosoft toolkit\b|\bhwidgen\b|\bmassgrave\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
     $genericReviewPattern = "(?i)(\bactivator\b|\bactivation\b|\bpatch(?:er)?\b|\brepack\b|\bportable\b|\bbypass\b|\br2r\b|\bthuoc\b)"
     $legacySoftwareAudit = @($legacyApps | ForEach-Object {
         $name = $_."Ten phan mem"
@@ -1060,43 +948,80 @@ if ($wantSoftware) {
         $reviewRank = 0
         $reasons = New-Object System.Collections.ArrayList
 
+        switch ([string]$app.AssessmentCode) {
+            'NonGenuine' {
+                $reviewRank = 2
+                [void]$reasons.Add((Get-ReportText "report.software.reason.nonGenuineEvidence"))
+            }
+            'Suspicious' {
+                $reviewRank = [Math]::Max($reviewRank, 2)
+                [void]$reasons.Add((Get-ReportText "report.software.reason.suspiciousEvidence"))
+            }
+            'Unverified' {
+                $reviewRank = [Math]::Max($reviewRank, 1)
+                [void]$reasons.Add((Get-ReportText "report.software.reason.licenseUnverified"))
+            }
+            'TrialOrUnverified' {
+                $reviewRank = [Math]::Max($reviewRank, 1)
+                [void]$reasons.Add((Get-ReportText "report.software.reason.trialUnverified"))
+            }
+        }
+
         if (($name -match $strongCrackPattern) -or ($publisher -match $strongCrackPattern)) {
             $reviewRank = 2
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Tên hoặc nhà phát hành khớp mẫu activator/crack đặc hiệu." -English "The name or publisher matches a specific activator/crack pattern."))
+            [void]$reasons.Add((Get-ReportText "report.text.023"))
         } elseif (($name -match $genericReviewPattern) -or ($publisher -match $genericReviewPattern)) {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Có từ khóa chung như activation/patch/portable; cần xác minh, chưa đủ để kết luận." -English "A generic activation/patch/portable keyword requires verification and is not sufficient for a verdict."))
+            [void]$reasons.Add((Get-ReportText "report.text.024"))
         }
         if ([string]::IsNullOrWhiteSpace($publisher)) {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Thiếu thông tin nhà phát hành." -English "Publisher information is missing."))
+            [void]$reasons.Add((Get-ReportText "report.text.025"))
         }
         if ([string]::IsNullOrWhiteSpace([string]$app."Phien ban")) {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Thiếu thông tin phiên bản." -English "Version information is missing."))
+            [void]$reasons.Add((Get-ReportText "report.text.026"))
         }
         if ([string]$app.SignatureStatus -in @("HashMismatch", "NotTrusted", "UnknownError")) {
             $reviewRank = 2
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Chữ ký tệp đại diện không hợp lệ hoặc không tin cậy." -English "The representative file signature is invalid or untrusted."))
+            [void]$reasons.Add((Get-ReportText "report.text.027"))
         } elseif ([string]$app.SignatureStatus -eq "NotSigned") {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Tệp đại diện không có chữ ký số." -English "The representative file is unsigned."))
+            [void]$reasons.Add((Get-ReportText "report.text.028"))
         }
         if ([string]$app."Duong dan" -match '(?i)\\(temp|downloads?)(\\|$)') {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Nguồn cài đặt nằm trong thư mục tạm hoặc tải xuống." -English "The installation source is under a temporary or downloads folder."))
+            [void]$reasons.Add((Get-ReportText "report.text.029"))
         }
-        if ([string]$app."Có trình gỡ" -in @("Không", "No")) {
+        if ([string]$app."Có trình gỡ" -eq (Get-ReportText "report.text.020")) {
             $reviewRank = [Math]::Max($reviewRank, 1)
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Không có lệnh gỡ cài đặt được khai báo." -English "No uninstall command is registered."))
+            [void]$reasons.Add((Get-ReportText "report.text.030"))
         }
         if ($reasons.Count -eq 0) {
-            [void]$reasons.Add((Select-ReportText -Vietnamese "Không thấy chỉ báo kỹ thuật nổi bật; vẫn cần đối chiếu giấy phép hoặc hóa đơn khi áp dụng." -English "No prominent technical indicator was found; reconcile entitlement or purchase records where applicable."))
+            [void]$reasons.Add((Get-ReportText "report.text.031"))
         }
         $reviewLevel = switch ($reviewRank) {
-            2 { Select-ReportText -Vietnamese "Cao" -English "High" }
-            1 { Select-ReportText -Vietnamese "Cần rà soát" -English "Review" }
-            default { Select-ReportText -Vietnamese "Thông tin" -English "Information" }
+            2 { Get-ReportText "report.text.032" }
+            1 { Get-ReportText "report.text.033" }
+            default { Get-ReportText "report.text.034" }
+        }
+        $vendorScope = if (-not [string]::IsNullOrWhiteSpace([string]$app.VendorScope)) {
+            [string]$app.VendorScope
+        } elseif ((($name + ' ' + $publisher) -match '(?i)\bAdobe\b')) {
+            'Adobe'
+        } elseif ((($name + ' ' + $publisher) -match '(?i)\bAutodesk\b|\bAutoCAD\b|\bRevit\b|\b3ds Max\b|\bCivil 3D\b|\bNavisworks\b|\bInventor\b|\bFusion 360\b')) {
+            'Autodesk'
+        } else {
+            Get-ReportText "report.software.vendorOther"
+        }
+        $strongTechnicalEvidence = [bool]([int]$app.StrongEvidenceCount -gt 0 -or ($name -match $strongCrackPattern) -or ($publisher -match $strongCrackPattern))
+        $technicalStatus = Get-ReportSoftwareAssessmentLabel -StatusCode ([string]$app.AssessmentCode)
+        $remediationEligibility = if ([bool]$app.RemediationSupported) {
+            Get-ReportText "report.software.remediationSupported"
+        } elseif ($reviewRank -gt 0) {
+            Get-ReportText "report.software.remediationManualOnly"
+        } else {
+            Get-ReportText "report.software.remediationNotNeeded"
         }
         [pscustomobject][ordered]@{
             "Ten phan mem" = $name
@@ -1107,12 +1032,21 @@ if ($wantSoftware) {
             "Lý do rà soát" = ($reasons -join " ")
             "Chữ ký" = [string]$app."Chữ ký"
             "Duong dan" = [string]$app."Duong dan"
+            $licenseModelColumn = [string]$app.LicenseModel
+            $assessmentCodeColumn = [string]$app.AssessmentCode
+            $confidenceColumn = [string]$app.$confidenceColumn
+            $evidenceColumn = [string]$app.$evidenceColumn
+            $officialReferenceColumn = [string]$app.$officialReferenceColumn
+            $vendorScopeColumn = $vendorScope
+            $technicalStatusColumn = $technicalStatus
+            $remediationEligibilityColumn = $remediationEligibility
             ReviewRank = $reviewRank
+            StrongTechnicalEvidence = $strongTechnicalEvidence
         }
     })
 
     $thirdPartyApps = @($apps | Where-Object { -not [bool]$_.IsMicrosoft })
-    $thirdPartyAudit = @($softwareAudit | Where-Object { $_."Phân loại" -in @("Bên thứ ba", "Third-party") })
+    $thirdPartyAudit = @($softwareAudit | Where-Object { $_."Phân loại" -eq (Get-ReportText "report.text.018") })
     $thirdPartyReview = @($thirdPartyAudit | Where-Object { [int]$_.ReviewRank -gt 0 })
     $parallelVersions = @($thirdPartyApps |
         Group-Object "Ten phan mem" |
@@ -1127,17 +1061,25 @@ if ($wantSoftware) {
         })
 
     $softwareOverview = @(
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Tổng mục cài đặt" -English "Total installed entries"); "Gia tri"=@($apps).Count },
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Phần mềm bên thứ ba" -English "Third-party software"); "Gia tri"=@($thirdPartyApps).Count },
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Thành phần Microsoft / hệ điều hành" -English "Microsoft / operating-system components"); "Gia tri"=@($apps | Where-Object { [bool]$_.IsMicrosoft }).Count },
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Tệp đại diện có chữ ký hợp lệ" -English "Representative files with valid signatures"); "Gia tri"=@($apps | Where-Object { $_.SignatureStatus -eq "Valid" }).Count },
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Mục bên thứ ba cần rà soát" -English "Third-party entries requiring review"); "Gia tri"=@($thirdPartyReview).Count },
-        [pscustomobject]@{ "Muc"=(Select-ReportText -Vietnamese "Nhóm cài song song nhiều phiên bản" -English "Parallel-version groups"); "Gia tri"=@($parallelVersions).Count }
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.035"); "Gia tri"=@($apps).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.036"); "Gia tri"=@($thirdPartyApps).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.037"); "Gia tri"=@($apps | Where-Object { [bool]$_.IsMicrosoft }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.038"); "Gia tri"=@($apps | Where-Object { $_.SignatureStatus -eq "Valid" }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.039"); "Gia tri"=@($thirdPartyReview).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.040"); "Gia tri"=@($parallelVersions).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.nonGenuine"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -eq 'NonGenuine' }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.suspicious"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -eq 'Suspicious' }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.unverified"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.catalog"); "Gia tri"=$(if ($softwareCatalog) { "$($softwareCatalog.CatalogSource) · $($softwareCatalog.CatalogVersion) · $(@($softwareCatalog.Products).Count)" } else { Get-ReportText 'common.unknown' }) }
     )
 
     Add-Section "Phan mem da cai" (Add-Table $legacyApps @("Ten phan mem","Phien ban","Hang","Ngay cai")) "Software"
     Add-Section "Danh gia so bo ban quyen phan mem" (Add-Table $legacySoftwareAudit @("Ten phan mem","Phien ban","Hang","Danh gia so bo","Ly do")) "Software"
+    $assessmentRows = @($softwareAudit | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
+    Add-Section (Get-ReportText "report.software.assessmentSection") `
+        (Add-Table $assessmentRows @("Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)) "Software"
 
+    Write-Host (Get-ReportText "report.progress.supportingSignals")
     $startup = @(Safe-Cim Win32_StartupCommand | Sort-Object Name | ForEach-Object {
         [pscustomobject][ordered]@{
             "Ten" = [string]$_.Name
@@ -1150,18 +1092,20 @@ if ($wantSoftware) {
 
     $thirdPartyAutoruns = @($startup | ForEach-Object {
         $startupFile = Get-ExecutablePathFromMetadata -Candidates @([string]$_.Lenh) -PreferredName ([string]$_.Ten)
-        $startupSignature = Get-CachedSoftwareSignatureState -Path $startupFile
         $isWindowsPath = -not [string]::IsNullOrWhiteSpace($startupFile) -and
             $startupFile.StartsWith([Environment]::ExpandEnvironmentVariables("%WINDIR%"), [StringComparison]::OrdinalIgnoreCase)
-        $isMicrosoftSignature = Test-MicrosoftSoftwarePublisher -Publisher ([string]$startupSignature.Publisher)
-        if (-not $isWindowsPath -and -not $isMicrosoftSignature) {
-            [pscustomobject][ordered]@{
-                "Ten" = [string]$_.Ten
-                "Lenh" = [string]$_.Lenh
-                "Vi tri" = [string]$_."Vi tri"
-                "Nguoi dung" = [string]$_."Nguoi dung"
-                "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$startupSignature.Status)
-                "Tệp kiểm tra" = [string]$startupFile
+        if (-not $isWindowsPath) {
+            $startupSignature = Get-CachedSoftwareSignatureState -Path $startupFile
+            $isMicrosoftSignature = Test-MicrosoftSoftwarePublisher -Publisher ([string]$startupSignature.Publisher)
+            if (-not $isMicrosoftSignature) {
+                [pscustomobject][ordered]@{
+                    "Ten" = [string]$_.Ten
+                    "Lenh" = [string]$_.Lenh
+                    "Vi tri" = [string]$_."Vi tri"
+                    "Nguoi dung" = [string]$_."Nguoi dung"
+                    "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$startupSignature.Status)
+                    "Tệp kiểm tra" = [string]$startupFile
+                }
             }
         }
     })
@@ -1177,19 +1121,21 @@ if ($wantSoftware) {
     })
     $thirdPartyServices = @($serviceInventory | ForEach-Object {
         $serviceFile = Get-ExecutablePathFromMetadata -Candidates @([string]$_."Duong dan") -PreferredName ([string]$_.Ten)
-        $serviceSignature = Get-CachedSoftwareSignatureState -Path $serviceFile
         $isWindowsPath = -not [string]::IsNullOrWhiteSpace($serviceFile) -and
             $serviceFile.StartsWith([Environment]::ExpandEnvironmentVariables("%WINDIR%"), [StringComparison]::OrdinalIgnoreCase)
-        $isMicrosoftSignature = Test-MicrosoftSoftwarePublisher -Publisher ([string]$serviceSignature.Publisher)
-        if (-not $isWindowsPath -and -not $isMicrosoftSignature) {
-            [pscustomobject][ordered]@{
-                "Ten" = [string]$_.Ten
-                "Hien thi" = [string]$_."Hien thi"
-                "Trang thai" = [string]$_."Trang thai"
-                "Loai khoi dong" = [string]$_."Loai khoi dong"
-                "Duong dan" = [string]$_."Duong dan"
-                "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$serviceSignature.Status)
-                "Tệp kiểm tra" = [string]$serviceFile
+        if (-not $isWindowsPath) {
+            $serviceSignature = Get-CachedSoftwareSignatureState -Path $serviceFile
+            $isMicrosoftSignature = Test-MicrosoftSoftwarePublisher -Publisher ([string]$serviceSignature.Publisher)
+            if (-not $isMicrosoftSignature) {
+                [pscustomobject][ordered]@{
+                    "Ten" = [string]$_.Ten
+                    "Hien thi" = [string]$_."Hien thi"
+                    "Trang thai" = [string]$_."Trang thai"
+                    "Loai khoi dong" = [string]$_."Loai khoi dong"
+                    "Duong dan" = [string]$_."Duong dan"
+                    "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$serviceSignature.Status)
+                    "Tệp kiểm tra" = [string]$serviceFile
+                }
             }
         }
     })
@@ -1373,6 +1319,7 @@ Add-Section "Thu muc chia se" (Add-Table $shares @("Ten","Duong dan","Loai","Mo 
 }
 
 if ($wantSoftware) {
+Write-Host (Get-ReportText "report.progress.scheduledTasks")
 $tasks = @()
 $thirdPartyTasks = @()
 if ($capabilityState.ScheduledTasksModule) {
@@ -1387,47 +1334,50 @@ if ($capabilityState.ScheduledTasksModule) {
     }
     $thirdPartyTasks = @($scheduledTaskObjects | ForEach-Object {
         $taskObject = $_
-        $actionText = @($taskObject.Actions | ForEach-Object {
-            @([string]$_.Execute, [string]$_.Arguments) -join " "
-        }) -join "; "
-        $taskFile = Get-ExecutablePathFromMetadata -Candidates @($actionText) -PreferredName ([string]$taskObject.TaskName)
-        $taskSignature = Get-CachedSoftwareSignatureState -Path $taskFile
-        $isMicrosoftTask = ([string]$taskObject.TaskPath -like "\Microsoft\*") -or
-            ([string]$taskObject.Author -match '(?i)\bMicrosoft\b') -or
-            (Test-MicrosoftSoftwarePublisher -Publisher ([string]$taskSignature.Publisher)) -or
-            (-not [string]::IsNullOrWhiteSpace($taskFile) -and
-                $taskFile.StartsWith([Environment]::ExpandEnvironmentVariables("%WINDIR%"), [StringComparison]::OrdinalIgnoreCase))
-        if (-not $isMicrosoftTask) {
-            [pscustomobject][ordered]@{
-                "Task" = [string]$taskObject.TaskName
-                "Path" = [string]$taskObject.TaskPath
-                "State" = [string]$taskObject.State
-                "Author" = [string]$taskObject.Author
-                "Hành động" = $actionText.Trim()
-                "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$taskSignature.Status)
-                "Tệp kiểm tra" = [string]$taskFile
+        $isKnownMicrosoftTask = ([string]$taskObject.TaskPath -like "\Microsoft\*") -or
+            ([string]$taskObject.Author -match '(?i)\bMicrosoft\b')
+        if (-not $isKnownMicrosoftTask) {
+            $actionText = @($taskObject.Actions | ForEach-Object {
+                @([string]$_.Execute, [string]$_.Arguments) -join " "
+            }) -join "; "
+            $taskFile = Get-ExecutablePathFromMetadata -Candidates @($actionText) -PreferredName ([string]$taskObject.TaskName)
+            $isWindowsPath = -not [string]::IsNullOrWhiteSpace($taskFile) -and
+                $taskFile.StartsWith([Environment]::ExpandEnvironmentVariables("%WINDIR%"), [StringComparison]::OrdinalIgnoreCase)
+            if (-not $isWindowsPath) {
+                $taskSignature = Get-CachedSoftwareSignatureState -Path $taskFile
+                if (-not (Test-MicrosoftSoftwarePublisher -Publisher ([string]$taskSignature.Publisher))) {
+                    [pscustomobject][ordered]@{
+                        "Task" = [string]$taskObject.TaskName
+                        "Path" = [string]$taskObject.TaskPath
+                        "State" = [string]$taskObject.State
+                        "Author" = [string]$taskObject.Author
+                        "Hành động" = $actionText.Trim()
+                        "Chữ ký" = Get-SoftwareSignatureLabel -Status ([string]$taskSignature.Status)
+                        "Tệp kiểm tra" = [string]$taskFile
+                    }
+                }
             }
         }
     })
 } elseif ($capabilityState.ScheduledTasksFallback) {
     $tasks = @([pscustomobject]@{
-        "Task"="ScheduledTasks module không có"
-        "Path"="schtasks.exe fallback khả dụng"
-        "State"="Dùng trong quét chuyên sâu/cleanup"
+        "Task"=(Get-ReportText "report.capability.scheduledModuleMissing")
+        "Path"=(Get-ReportText "report.capability.schtasksAvailable")
+        "State"=(Get-ReportText "report.capability.deepUse")
         "Author"="Windows compatibility"
     })
 } else {
     $tasks = @([pscustomobject]@{
-        "Task"="Không đọc được Scheduled Tasks"
+        "Task"=(Get-ReportText "report.capability.scheduledUnreadable")
         "Path"=""
-        "State"="Không hỗ trợ"
+        "State"=(Get-ReportText "report.capability.unsupported")
         "Author"=""
     })
 }
 Add-Section "Scheduled tasks dang bat" (Add-Table $tasks @("Task","Path","State","Author")) "Software"
 }
 
-# Plugin v4.4 chỉ dùng JSON khai báo và các nguồn đọc đã giới hạn. Không dot-source
+# Plugin v4.6 chỉ dùng JSON khai báo và các nguồn đọc đã giới hạn. Không dot-source
 # hoặc thực thi mã do plugin cung cấp.
 $pluginAudit = $null
 if ($wantSoftware) {
@@ -1455,9 +1405,9 @@ if ($wantSoftware) {
             }
         })
         $pluginBody = (Add-Table $pluginRows @("Plugin","Phiên bản","Nhà phát hành","Bật","Quy tắc","Tin cậy"))
-        $pluginBody += "<h3>$(Html (Select-ReportText "Phát hiện của plugin" "Plugin findings"))</h3>"
+        $pluginBody += "<h3>$(Html (Get-ReportText "report.text.041"))</h3>"
         $pluginBody += (Add-Table $pluginFindingRows @("Mức","Plugin","Quy tắc","Quan sát","Nhận định","Hướng xử lý","Lỗi"))
-        $pluginBody += "<p class='note'>$(Html (Select-ReportText "Plugin v4.4 là JSON chỉ đọc; engine không chạy script, command hoặc tải mạng từ plugin." "v4.4 plugins are read-only JSON declarations; the engine does not run scripts, commands, or network downloads from a plugin."))</p>"
+        $pluginBody += "<p class='note'>$(Html (Get-ReportText "report.text.042"))</p>"
         Add-Section "Quy tắc mở rộng bằng plugin" $pluginBody "Software"
     } catch {
         $pluginAudit = [pscustomobject]@{
@@ -1465,7 +1415,7 @@ if ($wantSoftware) {
             TriggeredFindingCount=0; HighOrCriticalCount=0; Plugins=@(); Findings=@(); InvalidPlugins=@()
             Error=$_.Exception.Message
         }
-        $pluginLockedLabel = Select-ReportText "Plugin bị khóa an toàn" "Plugin was safely blocked"
+        $pluginLockedLabel = Get-ReportText "report.text.043"
         Add-Section "Quy tắc mở rộng bằng plugin" "<p class='license-warning'>$(Html $pluginLockedLabel): $(Html $_.Exception.Message)</p>" "Software"
     }
 }
@@ -1473,25 +1423,23 @@ if ($wantSoftware) {
 # Phần nâng cao chỉ được nối thêm sau toàn bộ bảng Mục 5 của v4.3.0.3.
 # Không đổi tên, thứ tự hoặc số cột của các bảng cũ ở phía trên.
 if ($wantSoftware) {
-    $supplementNote = Select-ReportText `
-        "Phần này bổ sung dữ liệu kỹ thuật; giao diện và các bảng Mục 5 truyền thống phía trên vẫn giữ nguyên như v4.3.0.3. Kết quả là chỉ báo cần xác minh, không tự kết luận vi phạm bản quyền." `
-        "This section adds technical data; the traditional Function 5 interface and tables above remain compatible with v4.3.0.3. Findings require verification and are not an automatic licensing verdict."
+    $supplementNote = Get-ReportText "report.text.044"
     $supplementBody = "<p class='note'>$(Html $supplementNote)</p>"
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Tổng quan phần mềm bên thứ ba' 'Third-party software overview'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.045"))</h3>"
     $supplementBody += (Add-Table $softwareOverview @("Muc","Gia tri"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Danh sách phần mềm bên thứ ba' 'Third-party software inventory'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.046"))</h3>"
     $supplementBody += (Add-Table $thirdPartyApps @("Ten phan mem","Phien ban","Hang","Ngay cai","Phạm vi","Kiến trúc","Duong dan"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Chữ ký và nguồn cài đặt' 'Signatures and installation sources'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.047"))</h3>"
     $supplementBody += (Add-Table $thirdPartyApps @("Ten phan mem","Chữ ký","Nhà phát hành chữ ký","Tệp kiểm tra","Phiên bản tệp","Có trình gỡ","Metadata cập nhật"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Phần mềm cần rà soát' 'Software requiring review'))</h3>"
-    $supplementBody += (Add-Table $thirdPartyReview @("Ten phan mem","Phien ban","Hang","Mức rà soát","Lý do rà soát","Chữ ký","Duong dan"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Phiên bản cài song song' 'Parallel installed versions'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.048"))</h3>"
+    $supplementBody += (Add-Table $thirdPartyReview @("Ten phan mem","Phien ban","Hang","Mức rà soát",$technicalStatusColumn,$remediationEligibilityColumn,"Lý do rà soát","Chữ ký","Duong dan"))
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.049"))</h3>"
     $supplementBody += (Add-Table $parallelVersions @("Ten phan mem","Số lượng","Phiên bản","Phạm vi"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Tự khởi động của bên thứ ba' 'Third-party autoruns'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.050"))</h3>"
     $supplementBody += (Add-Table $thirdPartyAutoruns @("Ten","Lenh","Vi tri","Nguoi dung","Chữ ký","Tệp kiểm tra"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Dịch vụ bên thứ ba' 'Third-party services'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.051"))</h3>"
     $supplementBody += (Add-Table $thirdPartyServices @("Ten","Hien thi","Trang thai","Loai khoi dong","Duong dan","Chữ ký","Tệp kiểm tra"))
-    $supplementBody += "<h3>$(Html (Select-ReportText 'Tác vụ bên thứ ba đang bật' 'Enabled third-party scheduled tasks'))</h3>"
+    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.052"))</h3>"
     $supplementBody += (Add-Table $thirdPartyTasks @("Task","Path","State","Author","Hành động","Chữ ký","Tệp kiểm tra"))
     Add-Section "Kiểm tra bổ sung phần mềm bên thứ ba" $supplementBody "Software"
 }
@@ -1500,67 +1448,47 @@ if ($wantSoftware) {
 $assessmentRows = @()
 if ($wantWindows) {
     $windowsDirection = if ($windowsSummaryChannel -match "KMS") {
-        Select-ReportText `
-            "Đối chiếu máy chủ KMS và hồ sơ cấp phép; nếu không được phê duyệt, dùng mục gỡ KMS/crack sau khi sao lưu." `
-            "Reconcile the KMS server and licensing records; if they are not approved, use the KMS/crack removal module after creating a backup."
-    } elseif ($windowsSummaryStatus -match "Đã kích hoạt") {
-        Select-ReportText `
-            "Giữ nguyên, nhưng cần đối chiếu hóa đơn, tài khoản hoặc giấy phép với hồ sơ nội bộ." `
-            "Keep the current state, but reconcile invoices, licensed accounts, or entitlements with internal records."
+        Get-ReportText "report.text.053"
+    } elseif ($windowsActivated) {
+        Get-ReportText "report.text.054"
     } else {
-        Select-ReportText `
-            "Cấp giấy phép Windows hợp lệ rồi kích hoạt lại; không dùng activator không rõ nguồn." `
-            "Assign a valid Windows license and activate again; do not use an activator from an unknown source."
+        Get-ReportText "report.text.055"
     }
     $assessmentRows += [pscustomobject]@{ "Đối tượng"="Windows"; "Đánh giá"=(Get-ReportPresentationText $windowsSummaryStatus); "Phương hướng xử lý"=$windowsDirection }
 }
 if ($wantOffice) {
-    $officeDirection = if ($officeSummaryStatus -match "Đã kích hoạt") {
-        Select-ReportText `
-            "Đối chiếu tài khoản Microsoft 365, Retail/Volume hoặc hồ sơ mua bản quyền." `
-            "Reconcile the Microsoft 365 account, Retail/Volume channel, or purchase records."
+    $officeDirection = if ($officeActivated) {
+        Get-ReportText "report.text.056"
     } elseif ($officeDetected) {
-        Select-ReportText `
-            "Kiểm tra kênh cấp phép; gỡ KMS/crack nếu không hợp lệ và cài lại Office chính hãng khi cần." `
-            "Inspect the licensing channel; remove unauthorized KMS/crack components and reinstall genuine Office when required."
+        Get-ReportText "report.text.057"
     } else {
-        Select-ReportText `
-            "Không phát hiện Office; kiểm tra lại nếu máy cần sử dụng bộ Office." `
-            "Microsoft Office was not detected; inspect again if this device is expected to use Office."
+        Get-ReportText "report.text.058"
     }
     $assessmentRows += [pscustomobject]@{ "Đối tượng"="Microsoft Office"; "Đánh giá"=(Get-ReportPresentationText $officeSummaryStatus); "Phương hướng xử lý"=$officeDirection }
 }
 if ($wantSoftware) {
     $softwareDirection = if (@($crackFindings).Count -gt 0) {
-        Select-ReportText `
-            "Cô lập và gỡ phần mềm/tác vụ đáng ngờ, kiểm tra lại nguồn cài đặt và giấy phép." `
-            "Isolate and remove suspicious software or tasks, then verify installation sources and licensing."
+        Get-ReportText "report.text.059"
     } elseif (@($manualReviewFindings).Count -gt 0) {
-        Select-ReportText `
-            "Có tên chứa từ khóa chung; xác minh chữ ký, nhà phát hành và nguồn cài đặt trước khi kết luận." `
-            "Generic keywords were found; verify signatures, publishers, and installation sources before reaching a conclusion."
+        Get-ReportText "report.text.060"
     } else {
-        Select-ReportText `
-            "Chưa thấy dấu hiệu theo tên; vẫn cần đối chiếu hóa đơn và nguồn cài đặt." `
-            "No name-based indicator was found; purchase records and installation sources still require reconciliation."
+        Get-ReportText "report.text.061"
     }
     $softwareAssessment = if (@($crackFindings).Count -gt 0) {
-        Select-ReportText "Có dấu hiệu đặc hiệu cần kiểm tra" "Specific indicators require inspection"
+        Get-ReportText "report.text.062"
     } elseif (@($manualReviewFindings).Count -gt 0) {
-        Select-ReportText "Có từ khóa chung, chưa đủ kết luận" "Generic keywords were found; there is insufficient evidence for a verdict"
+        Get-ReportText "report.text.063"
     } else {
-        Select-ReportText "Chưa thấy dấu hiệu theo mẫu đặc hiệu" "No specific pattern-based indicator was found"
+        Get-ReportText "report.text.064"
     }
-    $softwareTarget = Select-ReportText "Phần mềm" "Software"
+    $softwareTarget = Get-ReportText "report.text.065"
     $assessmentRows += [pscustomobject]@{ "Đối tượng"=$softwareTarget; "Đánh giá"=$softwareAssessment; "Phương hướng xử lý"=$softwareDirection }
 }
 if ($assessmentRows.Count -gt 0) {
     $sectionCounter++
     $assessmentId = "section-$sectionCounter"
-    $assessmentTitle = Select-ReportText "Đánh giá và phương hướng xử lý" "Assessment and recommended handling"
-    $assessmentNote = Select-ReportText `
-        "Đây là đánh giá kỹ thuật tự động, không thay thế việc xác minh hóa đơn, hợp đồng hoặc tài khoản cấp phép." `
-        "This automated technical assessment does not replace verification of invoices, agreements, or licensed accounts."
+    $assessmentTitle = Get-ReportText "report.text.066"
+    $assessmentNote = Get-ReportText "report.text.067"
     $tocItems += [pscustomobject]@{ Id=$assessmentId; Title=$assessmentTitle }
     $sections += "<section id='$assessmentId'><h2>$(Html $assessmentTitle)</h2>$(Add-Table $assessmentRows @("Đối tượng","Đánh giá","Phương hướng xử lý"))<p class='note'>$(Html $assessmentNote)</p></section>"
 }
@@ -1573,8 +1501,8 @@ $notScannedLabel = Get-ToolText -Key "report.notScanned" -Culture $Culture
 $windowsCardValue = if ($wantWindows) { [string]$windowsSummaryStatus } else { $notScannedLabel }
 $officeCardValue = if ($wantOffice) { [string]$officeSummaryStatus } else { $notScannedLabel }
 $pluginHighCount = if ($pluginAudit) { [int]$pluginAudit.HighOrCriticalCount } else { 0 }
-$windowsTone = if ($windowsCardValue -match "Đã kích hoạt|Đã cấp phép") { "ok" } elseif ($wantWindows) { "warning" } else { "info" }
-$officeTone = if ($officeCardValue -match "Đã kích hoạt|Đã cấp phép") { "ok" } elseif ($wantOffice) { "warning" } else { "info" }
+$windowsTone = if ($wantWindows -and $windowsActivated) { "ok" } elseif ($wantWindows) { "warning" } else { "info" }
+$officeTone = if ($wantOffice -and $officeActivated) { "ok" } elseif ($wantOffice) { "warning" } else { "info" }
 $findingTone = if (@($crackFindings).Count -gt 0) { "danger" } else { "ok" }
 $pluginTone = if ($pluginHighCount -gt 0) { "danger" } elseif ($pluginAudit -and $pluginAudit.TriggeredFindingCount -gt 0) { "warning" } else { "ok" }
 $htmlLanguage = if ($Culture -eq "en-US") { "en" } else { "vi" }
@@ -1592,9 +1520,9 @@ $summaryCardsHtml = New-Object Text.StringBuilder
 $reportModeLabel = if ($Mode -eq "Software") {
     if ($script:reportOfflineMode) { "OFFLINE" } else { "NETWORK ALLOWED" }
 } elseif ($script:reportOfflineMode) {
-    Select-ReportText "NGOẠI TUYẾN" "OFFLINE"
+    Get-ReportText "report.text.068"
 } else {
-    Select-ReportText "CHO PHÉP MẠNG" "NETWORK ALLOWED"
+    Get-ReportText "report.text.069"
 }
 $html = @"
 <!doctype html>
@@ -1655,7 +1583,7 @@ if ($timelineState.Enabled) {
         }
     } catch {
         $timelineSnapshot = [pscustomobject][ordered]@{
-            Written=$false; Changed=$false; Changes=@(); Sequence=0; Error="Timeline từ chối ghi: $($_.Exception.Message)"
+            Written=$false; Changed=$false; Changes=@(); Sequence=0; Error=(Get-ReportText "report.timeline.writeRejected" @($_.Exception.Message))
         }
         [void](Write-ToolLog -Level "WARN" -Event "Timeline.WriteRejected" -Message $timelineSnapshot.Error)
     }
@@ -1667,10 +1595,10 @@ $moduleOutputPaths = @(
     (Protect-ReportText $manifestPath)
 )
 $moduleWarningCount = [int]@($manualReviewFindings).Count
-$moduleSummaryText = Select-ReportText "Đã tạo báo cáo $Mode." "Created the $Mode report."
+$moduleSummaryText = Get-ReportText "report.text.070" @($Mode)
 $moduleResult = Complete-ToolModuleInvocation -Invocation $moduleInvocation -ExitCode 0 -Summary $moduleSummaryText -OutputPaths $moduleOutputPaths -FindingCount ([int]@($crackFindings).Count) -WarningCount $moduleWarningCount
 $moduleValidation = Test-ToolModuleResult -Result $moduleResult
-if (-not $moduleValidation.Valid) { throw "ModuleResult báo cáo không hợp lệ: $($moduleValidation.Errors -join '; ')" }
+if (-not $moduleValidation.Valid) { throw (Get-ReportText "report.moduleResultInvalid" @(($moduleValidation.Errors -join '; '))) }
 $pluginAuditForExport = ConvertTo-ReportRedactedObject $pluginAudit
 $timelineSnapshotForExport = ConvertTo-ReportRedactedObject $timelineSnapshot
 $detailedInventory = [ordered]@{
@@ -1685,6 +1613,7 @@ if ($wantSoftware) {
         ThirdPartyApplications = @($thirdPartyApps)
         ThirdPartyAssessment = @($thirdPartyAudit)
         ThirdPartyReviewItems = @($thirdPartyReview)
+        ThirdPartyRemediationCandidates = @($thirdPartyAudit | Where-Object { [bool]$_.StrongTechnicalEvidence -and [string]$_.PSObject.Properties[$vendorScopeColumn].Value -in @('Adobe','Autodesk') })
         ParallelVersions = @($parallelVersions)
         StartupEntries = @($startup)
         ThirdPartyAutoruns = @($thirdPartyAutoruns)
@@ -1694,9 +1623,16 @@ if ($wantSoftware) {
         ThirdPartyScheduledTasks = @($thirdPartyTasks)
         SpecificFindings = @($crackFindings)
         ManualReviewFindings = @($manualReviewFindings)
+        SoftwareCatalog = $(if ($softwareCatalog) { [ordered]@{
+            Source=[string]$softwareCatalog.CatalogSource
+            Version=[string]$softwareCatalog.CatalogVersion
+            RuleCount=[int]@($softwareCatalog.Products).Count
+            Sha256=[string]$softwareCatalog.CatalogSha256
+        } } else { $null })
+        InventoryMetadata = Get-ToolSoftwareInventoryMetadata -Applications $completeSoftwareInventory -Catalog $softwareCatalog
     }
 }
-$detailedInventoryForExport = ConvertTo-ReportRedactedObject $detailedInventory
+$detailedInventoryForExport = ConvertTo-ReportRedactedObject (ConvertTo-ReportLocalizedExportObject $detailedInventory)
 $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion $ToolVersion -Data ([ordered]@{
     ToolName = $ToolName
     Capabilities = $capabilityState
@@ -1721,31 +1657,31 @@ $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion
     ThirdPartyApplicationCount = $thirdPartyCount
     ThirdPartyReviewCount = $thirdPartyReviewCount
     ThirdPartyHighSeverityCount = $thirdPartyHighCount
+    SoftwareNonGenuineCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -eq 'NonGenuine' }).Count } else { 0 })
+    SoftwareSuspiciousCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -eq 'Suspicious' }).Count } else { 0 })
+    SoftwareUnverifiedCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count } else { 0 })
     PluginAudit = $pluginAuditForExport
     Timeline = $timelineSnapshotForExport
     DetailedInventory = $detailedInventoryForExport
     Redacted = [bool]$RedactSensitive
     Privacy = if ($RedactSensitive) {
-        Select-ReportText `
-            "Đã che tên máy/người dùng, serial, IP, MAC và đường dẫn hồ sơ người dùng trong nội dung chia sẻ." `
-            "Device/user names, serial numbers, IP/MAC addresses, and user-profile paths were redacted from the shareable content."
+        Get-ReportText "report.text.071"
     } else {
-        Select-ReportText `
-            "Báo cáo đầy đủ dùng nội bộ; không lưu product key đầy đủ nhưng có thể chứa thông tin nhận dạng máy." `
-            "Complete internal report; full product keys are not stored, but device-identifying information may be present."
+        Get-ReportText "report.text.072"
     }
 })
 $summaryValidation = Test-ToolReportEnvelope -Report $summary -ExpectedReportKind "InventoryAndLicense" -ExpectedToolVersion $ToolVersion
-if (-not $summaryValidation.Valid) { throw "Báo cáo JSON không đạt schema: $($summaryValidation.Errors -join '; ')" }
+if (-not $summaryValidation.Valid) { throw (Get-ReportText "report.jsonSchemaInvalid" @(($summaryValidation.Errors -join '; '))) }
+Write-Host (Get-ReportText "report.progress.export")
 $package = Export-ToolReportPackage -Report $summary -HtmlContent $html -BasePath $reportBasePath -IncludePdf:$Pdf -RedactPaths:$RedactSensitive
 Write-Host $DeveloperCredit
-Write-Host "HTML: $($package.HtmlPath)"
-if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host "PDF: $($package.PdfPath)" }
-elseif ($Pdf) { Write-Host "PDF chưa tạo được: $($package.Pdf.Error)" }
-Write-Host "JSON: $($package.JsonPath)"
-Write-Host "XML: $($package.XmlPath)"
-Write-Host "Manifest SHA-256: $($package.ManifestPath)"
-[void](Write-ToolLog -Level "INFO" -Event "Report.Complete" -Message "Đã tạo báo cáo $Mode." -DurationMs ([long][Math]::Round(((Get-Date) - $started).TotalMilliseconds)) -Data ([ordered]@{
+Write-Host (Get-ReportText "report.output.html" @($package.HtmlPath))
+if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host (Get-ReportText "report.output.pdf" @($package.PdfPath)) }
+elseif ($Pdf) { Write-Host (Get-ReportText "report.output.pdfFailed" @($package.Pdf.Error)) }
+Write-Host (Get-ReportText "report.output.json" @($package.JsonPath))
+Write-Host (Get-ReportText "report.output.xml" @($package.XmlPath))
+Write-Host (Get-ReportText "report.output.manifest" @($package.ManifestPath))
+[void](Write-ToolLog -Level "INFO" -Event "Report.Complete" -Message (Get-ReportText "report.log.completed" @($Mode)) -DurationMs ([long][Math]::Round(((Get-Date) - $started).TotalMilliseconds)) -Data ([ordered]@{
     ModuleId = $moduleResult.ModuleId
     InvocationId = $moduleResult.InvocationId
     ModuleStatus = $moduleResult.Status
@@ -1760,8 +1696,3 @@ if (-not $NoOpen) {
     $selectPath = $package.HtmlPath
     Start-Process -FilePath $selectPath
 }
-
-
-
-
-

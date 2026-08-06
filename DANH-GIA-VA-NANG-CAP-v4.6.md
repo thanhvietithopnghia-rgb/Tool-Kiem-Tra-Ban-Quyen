@@ -1,20 +1,25 @@
-# Đánh giá và nâng cấp v4.4
+# Đánh giá và nâng cấp v4.6
 
 ## Kết quả
 
-v4.4 giữ nguyên các nhóm nâng cấp trước và bổ sung:
+v4.6 giữ nguyên các nhóm nâng cấp trước và bổ sung:
 
 - sao chép toàn bộ log và mở thư mục báo cáo;
 - lưu ngôn ngữ, theme và Offline/Online mặc định;
 - cảnh báo máy ảo/Remote Desktop;
 - lịch sử phiên bản trong Tool;
 - quét nhiều Office/nhiều nguồn tệp song song có giới hạn.
+- quét sâu phổ quát từng ứng dụng bằng nhiều EXE/DLL, Authenticode, hash và dấu vết hệ thống tương quan, có phân phối ngân sách công bằng và metadata độ phủ.
+- catalog phần mềm 1.2 với 45 quy tắc, gồm 16 nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering;
+- Dry Run lập kế hoạch target/action/backup/restorability mà không thay đổi hệ thống, sau đó yêu cầu chọn và xác nhận lại nếu thực hiện thật;
+- data lifecycle schema 2.0 với vùng ghi v4.6 riêng, migration staging đã xác minh SHA-256, commit/rollback và dữ liệu cũ chỉ đọc;
+- status Enterprise công khai tối giản và consent catalog online fail-closed khi thiếu/false.
 
 Nền tảng v4.3 đã hoàn thành sáu nhóm nâng cấp:
 
 1. **UI hiện đại hơn:** Modern WinForms dashboard schema 2.0, card/tile hai dòng, Segoe UI, bo góc, hover, DPI responsive và dark mode toàn công cụ.
 2. **Tài liệu kỹ thuật:** kiến trúc, module contract, entry point, report schema, safety policy, offline/reporting, localization và compatibility matrix.
-3. **Windows/Office mới:** catalog nhận diện Windows 11 24H2/25H2/26H1, Office 2024/LTSC 2024 và Microsoft 365 channels.
+3. **Windows/Office và vòng đời catalog:** catalog 1.1 nhận diện Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1, Office 2021/2024 và Microsoft 365; có cảnh báo tuổi, nguồn Microsoft chính thức và chế độ chỉ đọc cho phiên bản tương lai.
 4. **Kiểm tra liên tục:** freshness gate 45 ngày, fixture và workflow hàng tuần dựa trên nguồn Microsoft chính thức.
 5. **Offline hoàn toàn ở cấp ứng dụng:** mặc định fail-closed, không telemetry/auto-update; Mục 8 có công tắc mạng riêng mặc định tắt và bật/tắt lại được, trong khi ba chức năng luôn sẵn có.
 6. **Báo cáo và đa ngôn ngữ:** HTML/PDF tự chứa, print A4, JSON/XML/SHA-256; `vi-VN`/`en-US` cho dashboard/report shell và English guide.
@@ -36,9 +41,14 @@ Không chuyển sang WPF/WebView2 trong v4.3. Modern WinForms được chọn đ
 | --- | --- | --- |
 | Dashboard/dark mode | Hoàn thành | `VERIFY-DASHBOARD.ps1` |
 | Compatibility logic/catalog | Hoàn thành ở mức code + fixture | `VERIFY-COMPATIBILITY.ps1` |
-| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.4.md` |
+| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.6.md` |
 | Offline policy | Hoàn thành ở cấp ứng dụng | `VERIFY-OFFLINE-I18N.ps1` |
 | HTML/PDF offline-safe | Hoàn thành | export schema 1.2, giao diện dùng chung và ngắt trang an toàn |
+| Quét sâu phần mềm phổ quát | Hoàn thành ở mức code + fixture + quét tích hợp máy thật | `VERIFY-SAFETY-REGRESSIONS.ps1` và metadata deep scan |
+| Catalog phần mềm kỹ thuật 1.2 | Hoàn thành ở mức JSON/regex/fixture | 45 quy tắc, 16 `Category` kỹ thuật |
+| Dry Run không thay đổi | Hoàn thành ở mức code + AST/plan fixture | `VERIFY-SAFETY-REGRESSIONS.ps1` |
+| Data schema/migration/rollback | Hoàn thành ở mức code + fixture idempotent/rollback | `VERIFY-DATA-LIFECYCLE.ps1` |
+| Enterprise status tối giản | Hoàn thành ở mức AST/security fixture | `VERIFY-ENTERPRISE.ps1` |
 | vi-VN/en-US shell | Hoàn thành | hai catalog JSON |
 | Dịch toàn bộ thông báo legacy | Chuyển dần | `LOCALIZATION-v1.0.md` |
 | Authenticode chính thức | Phụ thuộc chứng thư thật | `-RequireAuthenticode` |
@@ -49,12 +59,13 @@ Không chuyển sang WPF/WebView2 trong v4.3. Modern WinForms được chọn đ
 - “Fully offline” không thay firewall hệ điều hành.
 - Microsoft có thể thêm channel/ProductReleaseId mới; tool sẽ đánh dấu unknown thay vì tự suy diễn.
 - Một số dialog chẩn đoán chuyên sâu vẫn tiếng Việt trong release này.
+- Quét cục bộ không thể chứng minh quyền sở hữu tài khoản/hóa đơn cho mọi hãng; ứng dụng thiếu bằng chứng hoặc thiếu độ phủ vẫn phải là `Unverified`.
 - Chữ ký không thể được tuyên bố `Valid` khi build không có chứng thư code-signing thật.
 
 ## Hướng phát triển hợp lý
 
 - chuyển nốt chuỗi nghiệp vụ safety-critical sang catalog có review;
-- thêm VM matrix tự động cho 24H2/25H2/Office 2024/M365;
+- thêm VM matrix tự động cho Win10 22H2, Win11 23H2/24H2/25H2/26H1, Office 2021/2024/M365;
 - tăng kiểm tra TPM/Secure Boot/BitLocker;
 - đưa read-only/audit-only thành policy mặc định riêng;
 - thiết kế catalog plugin công khai có ký metadata;

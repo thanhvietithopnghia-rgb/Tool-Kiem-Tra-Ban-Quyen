@@ -84,13 +84,29 @@ try {
         throw "Số tài nguyên nhúng không khớp: $($resourceNames.Count)/$($payloadFiles.Count)."
     }
 
+    $deflateCount = 0
+    $rawCount = 0
     for ($index = 0; $index -lt $payloadFiles.Count; $index++) {
-        $resourceName = "payload.$index"
-        if ($resourceNames -notcontains $resourceName) { throw "EXE thiếu $resourceName ($($payloadFiles[$index]))." }
+        $deflateResourceName = "payload.deflate.$index"
+        $rawResourceName = "payload.raw.$index"
+        $matchingNames = @($deflateResourceName, $rawResourceName | Where-Object { $resourceNames -contains $_ })
+        if ($matchingNames.Count -ne 1) {
+            throw "EXE phải chứa đúng một tài nguyên raw/deflate cho $($payloadFiles[$index])."
+        }
+
+        $resourceName = $matchingNames[0]
         $stream = $assembly.GetManifestResourceStream($resourceName)
         if (-not $stream) { throw "Không đọc được $resourceName." }
-        try { $embeddedHash = Get-Sha256HexFromStream $stream }
-        finally { $stream.Dispose() }
+        if ($resourceName -eq $deflateResourceName) {
+            $deflateCount++
+            $decodedStream = New-Object IO.Compression.DeflateStream($stream, [IO.Compression.CompressionMode]::Decompress, $false)
+            try { $embeddedHash = Get-Sha256HexFromStream $decodedStream }
+            finally { $decodedStream.Dispose() }
+        } else {
+            $rawCount++
+            try { $embeddedHash = Get-Sha256HexFromStream $stream }
+            finally { $stream.Dispose() }
+        }
         $sourcePath = Join-Path $SourceDirectory $payloadFiles[$index]
         if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw "Thiếu payload nguồn: $($payloadFiles[$index])" }
         if ($embeddedHash -ne (Get-Sha256HexFromFile $sourcePath)) {
@@ -98,7 +114,7 @@ try {
         }
     }
 
-    Write-Host "EMBEDDED-PAYLOAD $ExpectedArchitecture`: ĐẠT ($($payloadFiles.Count)/$($payloadFiles.Count))" -ForegroundColor Green
+    Write-Host "EMBEDDED-PAYLOAD $ExpectedArchitecture`: ĐẠT ($($payloadFiles.Count)/$($payloadFiles.Count); deflate=$deflateCount; raw=$rawCount)" -ForegroundColor Green
     exit 0
 } catch {
     Write-Error $_.Exception.Message

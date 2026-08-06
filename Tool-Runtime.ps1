@@ -5,20 +5,20 @@
     $operatingSystemArchitecture = if ($is64BitOperatingSystem) { "x64" } else { "x86" }
     $expectedArchitecture = ([string]$env:TOOL_EXPECTED_PROCESS_ARCHITECTURE).Trim().ToLowerInvariant()
     $supported = $true
-    $message = "Đang chạy đúng kiến trúc native $processArchitecture."
+    $message = Get-ToolTextCurrent "foundation.runtime.architectureNative" @($processArchitecture)
 
     if ($is64BitOperatingSystem -and -not $is64BitProcess) {
         $supported = $false
-        $message = "Windows đang là 64-bit nhưng tiến trình PowerShell là 32-bit. Hãy chạy trực tiếp Tool-Kiem-Tra-v4.4.exe để bản AnyCPU tự dùng PowerShell 64-bit, tránh Registry/System32 bị WOW64 chuyển hướng."
+        $message = Get-ToolTextCurrent "foundation.runtime.architectureWow64"
     } elseif ($expectedArchitecture -eq "x64" -and -not $is64BitProcess) {
         $supported = $false
-        $message = "Bản x64 không được chạy trong tiến trình 32-bit."
+        $message = Get-ToolTextCurrent "foundation.runtime.x64In32Bit"
     } elseif ($expectedArchitecture -eq "x86" -and ($is64BitOperatingSystem -or $is64BitProcess)) {
         $supported = $false
-        $message = "Nhãn x86 chỉ hợp lệ khi cả Windows và tiến trình đều là 32-bit."
+        $message = Get-ToolTextCurrent "foundation.runtime.x86LabelInvalid"
     } elseif ($expectedArchitecture -and $expectedArchitecture -notin @("x64", "x86")) {
         $supported = $false
-        $message = "Nhãn kiến trúc từ launcher không hợp lệ: $expectedArchitecture"
+        $message = Get-ToolTextCurrent "foundation.runtime.architectureLabelInvalid" @($expectedArchitecture)
     }
 
     return [pscustomobject]@{
@@ -28,6 +28,13 @@
         ExpectedArchitecture = $expectedArchitecture
         Message = $message
     }
+}
+
+$toolRuntimeLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolRuntimeLocalizationPath -PathType Leaf)) {
+    . $toolRuntimeLocalizationPath
 }
 
 function Assert-ToolNativeArchitecture {
@@ -41,7 +48,7 @@ function Get-ToolWindowsDirectory {
     if ([string]::IsNullOrWhiteSpace($windowsDirectory)) {
         $windowsDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
     }
-    if ([string]::IsNullOrWhiteSpace($windowsDirectory)) { throw "Không xác định được thư mục Windows." }
+    if ([string]::IsNullOrWhiteSpace($windowsDirectory)) { throw (Get-ToolTextCurrent "foundation.runtime.windowsDirectoryMissing") }
     return $windowsDirectory
 }
 
@@ -49,7 +56,7 @@ function Get-ToolWindowsPath {
     param([Parameter(Mandatory = $true)][string]$RelativePath)
 
     if ([IO.Path]::IsPathRooted($RelativePath) -or $RelativePath -match '(^|[\\/])\.\.([\\/]|$)') {
-        throw "Đường dẫn thành phần Windows không an toàn: $RelativePath"
+        throw (Get-ToolTextCurrent "foundation.runtime.windowsPathUnsafe" @($RelativePath))
     }
     return (Join-Path (Get-ToolWindowsDirectory) $RelativePath)
 }
@@ -68,7 +75,7 @@ function Get-ToolNativeSystemPath {
     param([Parameter(Mandatory = $true)][string]$RelativePath)
 
     if ([IO.Path]::IsPathRooted($RelativePath) -or $RelativePath -match '(^|[\\/])\.\.([\\/]|$)') {
-        throw "Đường dẫn thành phần hệ thống không an toàn: $RelativePath"
+        throw (Get-ToolTextCurrent "foundation.runtime.systemPathUnsafe" @($RelativePath))
     }
     return (Join-Path (Get-ToolNativeSystemDirectory) $RelativePath)
 }
@@ -81,12 +88,12 @@ function Get-ToolNativePowerShellPath {
         $launcherFull = [IO.Path]::GetFullPath($launcherPath)
         $expectedFull = [IO.Path]::GetFullPath($expectedPath)
         if (-not [string]::Equals($launcherFull, $expectedFull, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Launcher truyền đường dẫn PowerShell không đúng System32 native."
+            throw (Get-ToolTextCurrent "foundation.runtime.powerShellPathMismatch")
         }
     }
 
     if (-not (Test-Path -LiteralPath $expectedPath -PathType Leaf)) {
-        throw "Không tìm thấy Windows PowerShell native: $expectedPath"
+        throw (Get-ToolTextCurrent "foundation.runtime.powerShellMissing" @($expectedPath))
     }
     return $expectedPath
 }

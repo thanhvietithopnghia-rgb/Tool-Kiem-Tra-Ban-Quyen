@@ -1,5 +1,5 @@
-$script:ToolScanOptimizationVersion = "1.0"
-$script:ToolScanOptimizationToolVersion = "4.4"
+﻿$script:ToolScanOptimizationVersion = "1.0"
+$script:ToolScanOptimizationToolVersion = "4.6"
 
 function Get-ToolOptimizedOfficeOsppPaths {
     [CmdletBinding()]
@@ -66,28 +66,64 @@ function Invoke-ToolParallelOfficeStatus {
     param(
         [Parameter(Mandatory = $true)][string]$CscriptPath,
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$OsppPaths,
-        [ValidateRange(1, 8)][int]$ThrottleLimit = 3
+        [ValidateRange(1, 8)][int]$ThrottleLimit = 3,
+        [ValidateRange(15, 180)][int]$PerCommandTimeoutSeconds = 45
     )
 
     $paths = @($OsppPaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique)
     if ($paths.Count -eq 0) { return @() }
     $pool = [RunspaceFactory]::CreateRunspacePool(1, [Math]::Min($ThrottleLimit, $paths.Count))
     $workers = New-Object System.Collections.Generic.List[object]
-    $workerScript = @'
-param($NativeCscriptPath,$OsppPath)
-$primary = @(& $NativeCscriptPath //nologo $OsppPath /dstatusall 2>$null)
-$output = ($primary -join "`n")
+$workerScript = @'
+param($NativeCscriptPath,$OsppPath,$CommandTimeoutSeconds)
+function Invoke-BoundedCscript([string]$StatusArgument) {
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $NativeCscriptPath
+    $startInfo.Arguments = '//nologo "' + $OsppPath.Replace('"','') + '" ' + $StatusArgument
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) { throw 'cscript.exe did not start.' }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $completed = $process.WaitForExit([int]($CommandTimeoutSeconds * 1000))
+        if (-not $completed) {
+            try { $process.Kill() } catch {}
+            try { [void]$process.WaitForExit(3000) } catch {}
+        }
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        return [pscustomobject]@{
+            Output = (($stdout + "`n" + $stderr).Trim())
+            TimedOut = [bool](-not $completed)
+            ExitCode = if ($completed) { [int]$process.ExitCode } else { -1 }
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
+$primary = Invoke-BoundedCscript '/dstatusall'
+$output = [string]$primary.Output
 $usedFallback = $false
-if ([string]::IsNullOrWhiteSpace($output) -or $output -notmatch '(?im)^\s*(?:SKU ID|LICENSE NAME)\s*:') {
-    $fallback = @(& $NativeCscriptPath //nologo $OsppPath /dstatus 2>$null)
-    $output = ($fallback -join "`n")
+if (-not $primary.TimedOut -and ([string]::IsNullOrWhiteSpace($output) -or $output -notmatch '(?im)^\s*(?:SKU ID|LICENSE NAME)\s*:')) {
+    $fallback = Invoke-BoundedCscript '/dstatus'
+    $output = [string]$fallback.Output
     $usedFallback = $true
+    $timedOut = [bool]$fallback.TimedOut
+} else {
+    $timedOut = [bool]$primary.TimedOut
 }
 [pscustomobject][ordered]@{
     Path = $OsppPath
     Output = $output
     UsedFallback = $usedFallback
-    Readable = [bool](-not [string]::IsNullOrWhiteSpace($output) -and $output -match '(?im)^\s*(?:SKU ID|LICENSE NAME|LICENSE STATUS)\s*:')
+    TimedOut = $timedOut
+    Readable = [bool](-not $timedOut -and -not [string]::IsNullOrWhiteSpace($output) -and $output -match '(?im)^\s*(?:SKU ID|LICENSE NAME|LICENSE STATUS)\s*:')
 }
 '@
 
@@ -96,7 +132,7 @@ if ([string]::IsNullOrWhiteSpace($output) -or $output -notmatch '(?im)^\s*(?:SKU
         foreach ($path in $paths) {
             $powerShell = [PowerShell]::Create()
             $powerShell.RunspacePool = $pool
-            [void]$powerShell.AddScript($workerScript).AddArgument($CscriptPath).AddArgument([string]$path)
+            [void]$powerShell.AddScript($workerScript).AddArgument($CscriptPath).AddArgument([string]$path).AddArgument($PerCommandTimeoutSeconds)
             $handle = $powerShell.BeginInvoke()
             [void]$workers.Add([pscustomobject]@{ PowerShell=$powerShell; Handle=$handle })
         }
@@ -126,7 +162,9 @@ function Find-ToolPatternFilesParallel {
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Roots,
         [Parameter(Mandatory = $true)][string]$Pattern,
         [ValidateRange(1, 1000)][int]$MaximumResults = 60,
-        [ValidateRange(1, 8)][int]$ThrottleLimit = 4
+        [ValidateRange(1, 8)][int]$ThrottleLimit = 4,
+        [ValidateRange(1, 8)][int]$MaximumDepth = 4,
+        [ValidateRange(3, 60)][int]$PerRootTimeoutSeconds = 12
     )
 
     $scanRoots = @($Roots | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | ForEach-Object { [IO.Path]::GetFullPath($_) } | Select-Object -Unique)
@@ -135,28 +173,34 @@ function Find-ToolPatternFilesParallel {
     $pool = [RunspaceFactory]::CreateRunspacePool(1, [Math]::Min($ThrottleLimit, $scanRoots.Count))
     $workers = New-Object System.Collections.Generic.List[object]
     $workerScript = @'
-param($Root,$RegexPattern,$MaximumPerRoot)
+param($Root,$RegexPattern,$MaximumPerRoot,$MaximumDepth,$TimeoutMilliseconds)
 $regex = New-Object Text.RegularExpressions.Regex($RegexPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase, [TimeSpan]::FromMilliseconds(500))
 $matches = New-Object System.Collections.Generic.List[string]
-$pending = New-Object "System.Collections.Generic.Stack[string]"
-$pending.Push($Root)
-while ($pending.Count -gt 0 -and $matches.Count -lt $MaximumPerRoot) {
+$pending = New-Object "System.Collections.Generic.Stack[object]"
+$pending.Push([pscustomobject]@{ Path=$Root; Depth=0 })
+$watch = [Diagnostics.Stopwatch]::StartNew()
+while ($pending.Count -gt 0 -and $matches.Count -lt $MaximumPerRoot -and $watch.ElapsedMilliseconds -lt $TimeoutMilliseconds) {
     $current = $pending.Pop()
     try {
-        $directory = New-Object IO.DirectoryInfo($current)
+        $directory = New-Object IO.DirectoryInfo([string]$current.Path)
         if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
         foreach ($file in $directory.EnumerateFiles()) {
+            if ($watch.ElapsedMilliseconds -ge $TimeoutMilliseconds) { break }
             if ($regex.IsMatch($file.Name) -or $regex.IsMatch($file.FullName)) {
                 [void]$matches.Add($file.FullName)
                 if ($matches.Count -ge $MaximumPerRoot) { break }
             }
         }
-        if ($matches.Count -ge $MaximumPerRoot) { break }
+        if ($matches.Count -ge $MaximumPerRoot -or $watch.ElapsedMilliseconds -ge $TimeoutMilliseconds -or [int]$current.Depth -ge $MaximumDepth) { continue }
         foreach ($child in $directory.EnumerateDirectories()) {
-            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { $pending.Push($child.FullName) }
+            if ($watch.ElapsedMilliseconds -ge $TimeoutMilliseconds) { break }
+            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+                $pending.Push([pscustomobject]@{ Path=$child.FullName; Depth=([int]$current.Depth + 1) })
+            }
         }
     } catch {}
 }
+$watch.Stop()
 $matches.ToArray()
 '@
 
@@ -165,7 +209,7 @@ $matches.ToArray()
         foreach ($root in $scanRoots) {
             $powerShell = [PowerShell]::Create()
             $powerShell.RunspacePool = $pool
-            [void]$powerShell.AddScript($workerScript).AddArgument([string]$root).AddArgument($Pattern).AddArgument($MaximumResults)
+            [void]$powerShell.AddScript($workerScript).AddArgument([string]$root).AddArgument($Pattern).AddArgument($MaximumResults).AddArgument($MaximumDepth).AddArgument([int]($PerRootTimeoutSeconds * 1000))
             $handle = $powerShell.BeginInvoke()
             [void]$workers.Add([pscustomobject]@{ PowerShell=$powerShell; Handle=$handle })
         }
@@ -195,7 +239,10 @@ function Get-ToolScanOptimizationMetadata {
         ToolVersion = $script:ToolScanOptimizationToolVersion
         OfficeDiscovery = "BoundedDepth"
         OfficeStatusThrottle = 3
+        OfficeCommandTimeoutSeconds = 45
         FileScanThrottle = 4
+        FileScanMaximumDepth = 4
+        FileScanPerRootTimeoutSeconds = 12
         PreservesExistingScanRoots = $true
     }
 }

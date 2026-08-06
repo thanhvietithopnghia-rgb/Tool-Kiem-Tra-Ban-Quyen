@@ -6,7 +6,7 @@ Set-StrictMode -Version 2.0
 if ([string]::IsNullOrWhiteSpace($SourceDirectory)) { $SourceDirectory = $PSScriptRoot }
 $source = [IO.Path]::GetFullPath($SourceDirectory)
 $failures = New-Object System.Collections.Generic.List[string]
-$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("Tool-Kiem-Tra-v4.4-extensions-" + [Guid]::NewGuid().ToString("N"))
+$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("Tool-Kiem-Tra-v4.6-extensions-" + [Guid]::NewGuid().ToString("N"))
 $previousSecureLaunch = [string]$env:TOOL_SECURE_LAUNCH
 $previousPluginDir = [string]$env:TOOL_PLUGIN_DIR
 $previousTimelinePath = [string]$env:TOOL_TIMELINE_PATH
@@ -102,7 +102,7 @@ try {
         Add-Failure "Plugin có Registry traversal không bị từ chối."
     }
 
-    $timelineState = Initialize-ToolLicenseTimeline -ToolVersion "4.4"
+    $timelineState = Initialize-ToolLicenseTimeline -ToolVersion "4.6"
     if (-not $timelineState.Enabled) { Add-Failure "Không khởi tạo được timeline test: $($timelineState.Error)" }
     if ($timelineState.Enabled) {
         $first = Write-ToolLicenseTimelineEvent -EventType "TestObserved" -Source "Verifier" -Data ([ordered]@{ Status="Licensed" })
@@ -120,7 +120,7 @@ try {
         if ($tamperedHistory.Valid) { Add-Failure "Timeline bị sửa vẫn được chấp nhận." }
     }
 
-    $envelope = New-ToolReportEnvelope -ReportKind "CertificateAudit" -ToolVersion "4.4" -Data ([ordered]@{
+    $envelope = New-ToolReportEnvelope -ReportKind "CertificateAudit" -ToolVersion "4.6" -Data ([ordered]@{
         CreatedAt=[DateTime]::UtcNow.ToString("o"); Overall="Pass"; ValidSignatureCount=1; InvalidSignatureCount=0
         Targets=@([pscustomobject]@{ Product="Windows"; Component="sppsvc"; ChainValid=$true })
     })
@@ -141,7 +141,7 @@ try {
     } catch { Add-Failure "XML integration không parse được: $($_.Exception.Message)" }
     try {
         $json = [IO.File]::ReadAllText($package.JsonPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
-        $validation = Test-ToolReportEnvelope -Report $json -ExpectedReportKind "CertificateAudit" -ExpectedToolVersion "4.4"
+        $validation = Test-ToolReportEnvelope -Report $json -ExpectedReportKind "CertificateAudit" -ExpectedToolVersion "4.6"
         if (-not $validation.Valid) { throw ($validation.Errors -join "; ") }
     } catch { Add-Failure "JSON integration không đạt schema: $($_.Exception.Message)" }
 
@@ -179,7 +179,7 @@ try {
         $tempFull = [IO.Path]::GetFullPath($tempRoot)
         $expectedPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char]92) + [char]92
         if ($tempFull.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase) -and
-            [IO.Path]::GetFileName($tempFull).StartsWith("Tool-Kiem-Tra-v4.4-extensions-", [StringComparison]::OrdinalIgnoreCase) -and
+            [IO.Path]::GetFileName($tempFull).StartsWith("Tool-Kiem-Tra-v4.6-extensions-", [StringComparison]::OrdinalIgnoreCase) -and
             (Test-Path -LiteralPath $tempFull -PathType Container)) {
             Remove-Item -LiteralPath $tempFull -Recurse -Force -ErrorAction SilentlyContinue
         }

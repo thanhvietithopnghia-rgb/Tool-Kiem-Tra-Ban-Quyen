@@ -1,0 +1,2 @@
+# CI workflow is tracked separately because SOURCE-SHA256SUMS.txt intentionally accepts flat file names only.
+7F33859F7B2A89466422F08087B132A762BEB445905AA5657A174E48F6E4D1C9  .github/workflows/compatibility-review.yml

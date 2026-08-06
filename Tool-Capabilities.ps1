@@ -4,6 +4,13 @@
     return [bool](Get-Command -Name $Name -ErrorAction SilentlyContinue | Select-Object -First 1)
 }
 
+$toolCapabilitiesLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
+if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
+     -not (Get-Variable -Name ToolLocalizationSupportedCultures -Scope Script -ErrorAction SilentlyContinue)) -and
+    (Test-Path -LiteralPath $toolCapabilitiesLocalizationPath -PathType Leaf)) {
+    . $toolCapabilitiesLocalizationPath
+}
+
 if (-not (Get-Command Get-ToolWindowsReleaseProfile -ErrorAction SilentlyContinue)) {
     $compatibilityHelperPath = Join-Path $PSScriptRoot "Tool-Compatibility.ps1"
     if (Test-Path -LiteralPath $compatibilityHelperPath -PathType Leaf) { . $compatibilityHelperPath }
@@ -134,7 +141,8 @@ function Get-ToolCapabilityProfile {
     } elseif ($detectedMajor -eq 6) {
         "Legacy-Windows8"
     } elseif ($windowsRelease -and $windowsRelease.Detected -and -not [string]::IsNullOrWhiteSpace([string]$windowsRelease.DisplayVersion)) {
-        "Modern-Windows11-$($windowsRelease.DisplayVersion)"
+        $catalogFamily = if ([string]::IsNullOrWhiteSpace([string]$windowsRelease.OperatingSystemFamily)) { "Windows" } else { [string]$windowsRelease.OperatingSystemFamily }
+        "Modern-$catalogFamily-$($windowsRelease.DisplayVersion)"
     } else {
         "Modern-Windows10Plus"
     }
@@ -157,7 +165,7 @@ function Get-ToolCapabilityProfile {
 
     return [pscustomobject][ordered]@{
         SchemaVersion = "1.1"
-        ToolVersion = "4.4"
+        ToolVersion = "4.6"
         CheckedAtUtc = [DateTime]::UtcNow.ToString("o")
         SupportedOperatingSystem = [bool]($compatibilityTier -ne "Unsupported")
         CompatibilityTier = $compatibilityTier
@@ -170,6 +178,8 @@ function Get-ToolCapabilityProfile {
         WindowsRelease = $windowsRelease
         WindowsReleaseName = if ($windowsRelease) { [string]$windowsRelease.Name } else { "$productName $displayVersion" }
         WindowsServicingState = if ($windowsRelease) { [string]$windowsRelease.ServicingState } else { "Unknown" }
+        WindowsCompatibilityMode = if ($windowsRelease) { [string]$windowsRelease.CompatibilityMode } else { "ReadOnlyManualReview" }
+        AutomaticVersionSensitiveActionsAllowed = [bool]($windowsRelease -and $windowsRelease.AutomaticVersionSensitiveActionsAllowed)
         CompatibilityCatalog = $compatibilityMetadata
         OfficeCompatibility = $officeCompatibility
         OfficeSummary = if ($officeCompatibility) { [string]$officeCompatibility.Family } else { "Not detected" }
@@ -208,9 +218,9 @@ function Test-ToolCapability {
 function Get-ToolCapabilitySummary {
     param([Parameter(Mandatory = $true)][object]$Profile)
 
-    $taskMode = if ($Profile.ScheduledTasksModule) { "ScheduledTasks module" } elseif ($Profile.ScheduledTasksFallback) { "schtasks fallback" } else { "không khả dụng" }
-    $managementMode = if ($Profile.CimCmdlets) { "CIM" } elseif ($Profile.WmiFallback) { "WMI fallback" } else { "không khả dụng" }
+    $taskMode = if ($Profile.ScheduledTasksModule) { "ScheduledTasks module" } elseif ($Profile.ScheduledTasksFallback) { "schtasks fallback" } else { Get-ToolTextCurrent "foundation.capabilities.unavailable" }
+    $managementMode = if ($Profile.CimCmdlets) { "CIM" } elseif ($Profile.WmiFallback) { "WMI fallback" } else { Get-ToolTextCurrent "foundation.capabilities.unavailable" }
     $windowsLabel = if (-not [string]::IsNullOrWhiteSpace([string]$Profile.WindowsReleaseName)) { [string]$Profile.WindowsReleaseName } else { [string]$Profile.ProductName }
     $officeLabel = if (-not [string]::IsNullOrWhiteSpace([string]$Profile.OfficeSummary)) { [string]$Profile.OfficeSummary } else { "Not detected" }
-    return "Tương thích: $windowsLabel build $($Profile.FullBuildNumber); Office: $officeLabel; $($Profile.OperatingSystemArchitecture)/$($Profile.ProcessArchitecture); quản trị: $managementMode; task: $taskMode."
+    return Get-ToolTextCurrent "foundation.capabilities.summary" @($windowsLabel, $Profile.FullBuildNumber, $officeLabel, $Profile.OperatingSystemArchitecture, $Profile.ProcessArchitecture, $managementMode, $taskMode)
 }

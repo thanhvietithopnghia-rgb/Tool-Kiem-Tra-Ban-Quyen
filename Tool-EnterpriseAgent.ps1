@@ -1,5 +1,5 @@
 ﻿<#
-    Tool v4.4 workstation agent.
+    Tool v4.6 workstation agent.
     It is intentionally a one-shot process so the GUI or Task Scheduler can
     invoke it without leaving an unmanaged background service behind.
 #>
@@ -18,7 +18,7 @@ try {
     . (Join-Path $baseDir "Tool-Enterprise.ps1")
     . (Join-Path $baseDir "Tool-OfflinePolicy.ps1")
     [void](Assert-ToolNativeArchitecture)
-    if (-not (Test-ToolEnterpriseNetworkActionAllowed)) { throw "ENTERPRISE_NETWORK_BLOCKED: enterprise agent không được chạy khi mạng Mục 8 đang tắt." }
+    if (-not (Test-ToolEnterpriseNetworkActionAllowed)) { throw (Get-ToolEnterpriseText "enterpriseAgent.error.networkBlocked") }
 } catch {
     [Console]::Error.WriteLine([string]$_.Exception.Message)
     exit 12
@@ -38,7 +38,7 @@ function Invoke-ToolEnterpriseAgentOnce {
     $paths = Initialize-ToolEnterpriseStorage
     $config = Get-ToolEnterpriseClientConfig
     if (-not $config -or -not [bool]$config.Enrolled) {
-        throw "Máy trạm chưa ghép nối với máy chủ. Hãy mở mục 8 để nhập IP và mã ghép nối."
+        throw (Get-ToolEnterpriseText "enterpriseAgent.error.notEnrolled")
     }
     $clientId = [string]$config.ClientId
     $summary = [ordered]@{
@@ -56,7 +56,7 @@ function Invoke-ToolEnterpriseAgentOnce {
         try {
             [void](Send-ToolEnterpriseReport -Report $report -QueueOnFailure)
             $summary.Sent++
-            Write-ToolEnterpriseAgentEvent -Event "Report.Sent" -Message "Đã gửi báo cáo license về máy chủ."
+            Write-ToolEnterpriseAgentEvent -Event "Report.Sent" -Message (Get-ToolEnterpriseText "enterpriseAgent.audit.reportSent")
         } catch {
             $summary.Queued++
             $summary.Message = ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 800
@@ -77,7 +77,7 @@ function Invoke-ToolEnterpriseAgentOnce {
                 $summary.JobStatus = [string]$result.Status
                 try {
                     [void](Send-ToolEnterpriseJobResult -Result $result)
-                    Write-ToolEnterpriseAgentEvent -Event "Job.ResultSent" -Message "Đã gửi kết quả tác vụ về máy chủ." -Data ([ordered]@{
+                    Write-ToolEnterpriseAgentEvent -Event "Job.ResultSent" -Message (Get-ToolEnterpriseText "enterpriseAgent.audit.jobResultSent") -Data ([ordered]@{
                         JobId=$result.JobId; Operation=$result.Operation; Status=$result.Status; ExitCode=$result.ExitCode; ProductKeyLast5=$result.ProductKeyLast5
                     })
                 } catch {
@@ -101,15 +101,15 @@ function Invoke-ToolEnterpriseAgentOnce {
 }
 
 $created = $false
-$mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.4.EnterpriseAgent", [ref]$created)
+$mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.6.EnterpriseAgent", [ref]$created)
 if (-not $created) {
     $mutex.Dispose()
-    [Console]::Error.WriteLine("Agent máy trạm đã đang chạy.")
+    [Console]::Error.WriteLine((Get-ToolEnterpriseText "enterpriseAgent.error.alreadyRunning"))
     exit 11
 }
 try {
     $result = Invoke-ToolEnterpriseAgentOnce
-    Write-ToolEnterpriseAgentEvent -Event "Agent.Completed" -Message "Agent máy trạm đã hoàn tất." -Data ([ordered]@{
+    Write-ToolEnterpriseAgentEvent -Event "Agent.Completed" -Message (Get-ToolEnterpriseText "enterpriseAgent.audit.completed") -Data ([ordered]@{
         Sent=$result.Sent; Queued=$result.Queued; JobStatus=$result.JobStatus
     })
     $result | ConvertTo-Json -Depth 8 -Compress | Write-Output

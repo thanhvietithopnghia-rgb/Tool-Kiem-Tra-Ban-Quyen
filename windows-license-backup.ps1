@@ -28,8 +28,8 @@ try {
     $nativeScPath = Get-ToolNativeSystemPath "sc.exe"
 } catch { Write-Host $_.Exception.Message; exit 12 }
 $ErrorActionPreference = "Continue"
-$releaseVersion = "4.6.0.0"
-if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path $PSScriptRoot "license-cleanup-reports" }
+$releaseVersion = "4.8.0.0"
+if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
 $strictPattern = "(?i)(kmspico|kmsauto|auto[\s_-]*kms|autokms|kms[_-]?vl|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|microsoft toolkit|hwidgen|\bmassgrave\b)"
 $includeWindows = [bool]($Scope -in @("All", "Windows"))
 $includeOffice = [bool]($Scope -in @("All", "Office"))
@@ -234,7 +234,7 @@ if (-not (Is-Admin)) {
     exit 20
 }
 
-$stamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$stamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
 $backupDir = ""
 try {
     $secureBackupRoot = Get-SecureBackupRoot
@@ -270,7 +270,7 @@ $protectedKey = [Security.Cryptography.ProtectedData]::Protect($hmacKey, $null, 
 function Save-Manifest {
     $manifest = [ordered]@{
         SchemaVersion="2.0"
-        ToolVersion="4.6"
+        ToolVersion="4.8"
         BackupMode="PreCleanup"
         BackupScope=$Scope
         ComputerName=$env:COMPUTERNAME

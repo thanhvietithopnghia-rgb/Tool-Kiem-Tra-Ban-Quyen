@@ -1,6 +1,19 @@
-# Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.6 — mã nguồn
+# Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0 — mã nguồn
 
-Release `4.6.0.0`, build `2026.08.06`. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.6.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.8.0.0`, build `2026.08.10`, là bản **nâng cấp nhảy vọt, cải tiến chuyên sâu** và được phát hành trực tiếp từ v4.6. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+
+## Điểm mới v4.8.0 — Nâng cấp nhẹ, cải tiến chuyên sâu
+
+- `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng; bộ định tuyến chuẩn hóa viết tắt/lỗi gõ, xử lý nhiều ý định và tạo lời dẫn/từ chối biến đổi theo ngữ cảnh.
+- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.1.0`, 35 nhóm nội dung và hơn 270 từ khóa/cách hỏi. Cache/Online không tương thích bị từ chối fail-closed.
+- `Tool-SoftwareInventory.ps1` gộp record trùng theo định danh sản phẩm/hãng/dòng phiên bản, gồm cả bản vá cùng dòng và x86/x64; giữ mọi DiscoverySource, vị trí, kiến trúc, phân loại thành phần hệ thống và dùng `IntegrityCompromised` cho HashMismatch không kèm bằng chứng giấy phép trực tiếp.
+- Nút thắt gộp inventory được đổi sang descriptor tính một lần; Authenticode nhanh chạy theo lô tối đa bốn worker. Đối chứng cùng dữ liệu đạt 0 khác biệt, bước gộp 664→480 record giảm 118,33 giây xuống 11,05 giây và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
+- `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.3.0.0` với 73 quy tắc sản phẩm duy nhất.
+- `kiem-tra-cau-hinh-ban-quyen.ps1` tách ứng dụng chính và phụ lục hệ thống, chia bảng đánh giá 11 cột thành hai bảng 6 cột, thêm liên kết nội bộ và xuất toàn bộ tệp trực tiếp vào một thư mục báo cáo chung với timestamp mili-giây.
+- `Tool-ReportExport.ps1` mở đầy đủ `<details>` khi in, lặp header, cân line-height/padding, tránh cắt hàng và tạo liên kết tương đối HTML → PDF.
+- `Tool-Enterprise.ps1` nhận `IP:cổng`, chẩn đoán Endpoint/TCP/Service/Protocol/Version, quét Neighbor/ARP + ICMP + TCP, dò đúng protocol/tool version và giữ outbox DPAPI để gửi lại.
+- `enterprise-license-manager.ps1` tự dò khi ô địa chỉ trống, phân biệt LAN với Internet, cấu hình URLACL/Firewall qua UAC và không lặp exception kỹ thuật trên status/popup.
+- `VERIFY-ASSISTANT.ps1`, `VERIFY-SAFETY-REGRESSIONS.ps1`, `VERIFY-REPORT-SCHEMA.ps1` và `VERIFY-ENTERPRISE.ps1` có fixture hồi quy cho các yêu cầu v4.8; Enterprise còn khởi chạy listener loopback thật để chẩn đoán, ghép nối và gửi báo cáo đầu-cuối.
 
 ## Điểm mới v4.6
 
@@ -10,11 +23,11 @@ Release `4.6.0.0`, build `2026.08.06`. Người dùng cuối chạy một tệp 
 - Nút **Kết nối online** xin phép trước khi tải danh mục HTTPS cố định để đối chiếu tên/phiên bản/nhà phát hành; không tải lên inventory, đường dẫn, khóa hay token và không thay đổi chế độ Offline mặc định.
 - Chức năng **Khắc phục KMS/Activator** tách Quét toàn bộ, Windows & Office và Phần mềm khác; mọi mục NonGenuine/Suspicious đều chọn thủ công được. Tự động chỉ dùng kế hoạch đã khóa phạm vi (adapter Adobe/Autodesk, artifact/hosts chính xác hoặc Repair MSI hợp lệ); gỡ/cài lại chính thức luôn yêu cầu chọn thủ công, xác nhận và backup HMAC trước thay đổi.
 - Quét Office/SFC/CIM có timeout, tiến trình dài có heartbeat/cảnh báo, và báo cáo HTML/PDF chỉ được dựng theo yêu cầu để tránh khóa giao diện.
-- Offline toàn ứng dụng mặc định; Trung tâm quản lý giấy phép có công tắc mạng riêng fail-closed, bật/tắt lại được mà không ẩn chức năng hoặc xóa cấu hình; không telemetry, không auto-update.
+- Offline toàn ứng dụng mặc định; Trung tâm quản lý giấy phép có công tắc mạng riêng fail-closed, bật/tắt lại được mà không ẩn chức năng hoặc xóa cấu hình; không telemetry và không kiểm tra/cập nhật khi Offline.
 - Đa ngôn ngữ `vi-VN`/`en-US` cho dashboard, menu, trung tâm doanh nghiệp, trình quản lý cục bộ Windows/Office và report shell; có English user guide.
 - Catalog Lifecycle 1.1 cho Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1, Office 2021/2024 và Microsoft 365 channels; có cảnh báo tuổi 30/45 ngày và chế độ chỉ đọc cho phiên bản tương lai chưa xác minh.
 - Catalog freshness gate 45 ngày và GitHub Actions kiểm tra hàng tuần.
-- Catalog phần mềm `1.2.0.0`: 45 quy tắc, gồm 16 nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering.
+- Catalogue phần mềm hiện tại `1.3.0.0`: 73 quy tắc, gồm các nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering và nhiều ứng dụng phổ biến khác.
 - Dry Run cho khắc phục lập danh sách mục tiêu/hành động/backup/restorability mà không gọi lệnh thay đổi; thực hiện thật luôn chọn và xác nhận lại.
 - Data lifecycle schema 2.0 tách vùng ghi v4.6, migrate một lần qua staging đã kiểm tra SHA-256, commit có rollback và giữ v4.4/v4.5 nguyên vẹn.
 - HTML/PDF hiện đại, CSS tự chứa, CSP, offline safety validation và stylesheet A4.
@@ -24,20 +37,22 @@ v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thíc
 
 ## Thành phần nền
 
-- `Tool-Kiem-Tra-v4.6-OneFile.cs` / `.manifest`: launcher nhúng payload phát hành.
+- `Tool-Kiem-Tra-v4.8-OneFile.cs` / `.manifest`: launcher nhúng payload phát hành.
 - `Tool-ScanOptimization.ps1`: quét Office/tệp song song có giới hạn và giữ nguyên nguồn quét.
 - `Giao-Dien.ps1`: dashboard và trung tâm hành động.
 - `Tool-UiTheme.ps1`: palette Light/Dark dùng chung.
 - `Tool-Localization.ps1`, `Tool-Strings.*.json`: localization schema 1.0.
 - `Tool-OfflinePolicy.ps1`: Offline fail-closed schema 1.0.
+- `Tool-Assistant.ps1`, `tool-assistant-knowledge-v1.1.json`: Trợ lý chuyên biệt cục bộ và kho tri thức tương thích phiên bản, cập nhật download-only.
 - `Tool-SoftwareInventory.ps1`, `software-license-catalog-v1.0.json`: inventory schema 1.0, catalog 1.2 và bộ quét sâu/chấm điểm bằng chứng dùng chung cho mọi hãng.
 - `Tool-DataLifecycle.ps1`: DataSchema 2.0, `ProducerVersion`, staging/verify/commit/rollback và chính sách chỉ đọc dữ liệu log/backup cũ.
 - `Tool-Compatibility.ps1`, `compatibility-catalog-v1.0.json`: module compatibility schema 1.0, catalog schema 1.1 điều khiển bằng dữ liệu.
 - `VERIFY-MICROSOFT-CATALOG-SOURCES.ps1`: đối chiếu nguồn Microsoft chính thức và tạo báo cáo CI máy đọc, không tự sửa catalog.
 - `Tool-Capabilities.ps1`: capability schema 1.1.
-- `Tool-ModuleContract.ps1`: 26 descriptor/23 entry point, gồm trình cập nhật danh mục online chỉ chạy sau khi người dùng đồng ý.
+- `Tool-ModuleContract.ps1`: 27 descriptor/24 entry point, gồm cập nhật catalog online và kiểm tra phiên bản ứng dụng theo quyền Online.
+- `Tool-UpdateManager.ps1`: manifest schema 1.0, allowlist GitHub HTTPS, tải/xác minh EXE, backup/swap/restart/rollback.
 - `Tool-ReportSchema.ps1`: report schema 1.5.
-- `Tool-ReportExport.ps1`: export schema 1.2 và HTML/PDF/JSON/XML; giao diện báo cáo dùng chung, ngắt trang an toàn và mở HTML mặc định.
+- `Tool-ReportExport.ps1`: export schema 1.4 và HTML/PDF/JSON/XML; HTML tổng quan, PDF chi tiết, cell thích ứng, ngắt trang A4 an toàn và chỉ mở HTML mặc định.
 - `Tool-SafetyPolicy.ps1`: safety policy schema 1.0.
 - `Tool-PluginEngine.ps1`: plugin JSON khai báo chỉ đọc.
 - `Tool-LicenseTimeline.ps1`: timeline DPAPI/HMAC/hash chain.
@@ -65,7 +80,7 @@ Set-Location '<thu-muc-ma-nguon>'
 .\BUILD.ps1 -OutputDirectory .\dist
 ```
 
-Build tạo một EXE AnyCPU, tài liệu sidecar, `RELEASE-MANIFEST.json`, thông tin phát hành và `RELEASE-SHA256SUMS.txt`. Mỗi payload được chọn tự động giữa Deflate và raw theo kích thước thực tế; verifier giải nén rồi đối chiếu byte/SHA-256 trên cả CLR x64/x86.
+Build tạo một EXE AnyCPU, tài liệu sidecar, `RELEASE-MANIFEST.json`, `update-manifest-v1.json`, thông tin phát hành và `RELEASE-SHA256SUMS.txt`. Mỗi payload được chọn tự động giữa Deflate và raw theo kích thước thực tế; verifier giải nén rồi đối chiếu byte/SHA-256 trên cả CLR x64/x86.
 
 ## Build đã ký
 
@@ -111,13 +126,15 @@ Build đã ký:
 
 ```powershell
 .\VERIFY-AUTHENTICODE.ps1 `
-  -FilePath .\dist-signed\Tool-Kiem-Tra-v4.6.exe `
+  -FilePath .\dist-signed\Tool-Kiem-Tra-v4.8.exe `
   -RequireTimestamp
 ```
 
 ## Dữ liệu cục bộ
 
-- log: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\logs`
+- dashboard runtime/log: `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6`
+- report package: `%USERPROFILE%\Desktop\BaoCao-Tool-Kiem-Tra\<loại>_<thời-gian>`
+- log của mode nâng quyền: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\logs`
 - backup: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\backups`
 - plugin: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\plugins`
 - timeline: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\timeline`
@@ -126,7 +143,7 @@ Build đã ký:
 - PDF profile tạm: `%LOCALAPPDATA%\Temp\ThanhViet-Tool-Kiem-Tra\pdf`
 - user preferences: `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra`
 
-ProgramData root từ chối reparse point và chỉ Administrators/SYSTEM có quyền ghi. `data-state.json` ghi DataSchema/ProducerVersion và kết quả migration; lỗi migration rollback, không tạo trạng thái hoàn tất một phần. PDF/user preference dùng vùng user hiện tại.
+ProgramData root từ chối reparse point và chỉ Administrators/SYSTEM có quyền ghi. LocalAppData runtime cấp quyền cho đúng user hiện tại cùng Administrators/SYSTEM. `data-state.json` ghi DataSchema/ProducerVersion và kết quả migration; lỗi migration rollback, không tạo trạng thái hoàn tất một phần. PDF/user preference và report dùng vùng user hiện tại.
 
 ## Phạm vi tương thích
 

@@ -59,8 +59,8 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "Continue"
-$releaseVersion = "4.6.0.0"
-if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path $PSScriptRoot "license-cleanup-reports" }
+$releaseVersion = "4.8.0.0"
+if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 $script:StrictActivatorPattern = "(?i)(kmspico|kmsauto|auto[\s_-]*kms|autokms|kms[_-]?vl|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|microsoft toolkit|hwidgen|\bmassgrave\b)"
 $script:ThirdPartyAdobeActivatorPattern = "(?i)(\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\badobe.{0,24}\b(?:patcher|activator|crack)\b|\b(?:patcher|activator|crack).{0,24}\badobe\b)"
@@ -809,6 +809,7 @@ function Get-ThirdPartyAssessmentStatusLabel {
         'GenuineVerified' { 'cleanupReport.thirdParty.status.genuineVerified' }
         'Unactivated' { 'cleanupReport.thirdParty.status.unactivated' }
         'NonGenuine' { 'cleanupReport.thirdParty.status.nonGenuine' }
+        'IntegrityCompromised' { 'cleanupReport.thirdParty.status.integrityCompromised' }
         'Suspicious' { 'cleanupReport.thirdParty.status.suspicious' }
         'TrialOrUnverified' { 'cleanupReport.thirdParty.status.trialOrUnverified' }
         default { 'cleanupReport.thirdParty.status.unverified' }
@@ -2068,7 +2069,7 @@ function Invoke-ScanSourceRepair {
         catch { $serviceStateAfter.Add([pscustomobject]@{ Name=[string]$servicePolicy.Name; DisplayName=[string]$servicePolicy.DisplayName; Status=(Get-CleanupText "common.unknown"); StartMode=(Get-CleanupText "common.unknown"); Error=$_.Exception.Message }) }
     }
 
-    return (New-ToolReportEnvelope -ReportKind "ScanSourceRepair" -ToolVersion "4.6" -Data ([ordered]@{
+    return (New-ToolReportEnvelope -ReportKind "ScanSourceRepair" -ToolVersion "4.8" -Data ([ordered]@{
         RepairAttempted = $true
         RecheckPassed = $recheckPassed
         StartupTypeChanged = $false
@@ -2409,7 +2410,7 @@ function Invoke-DeepCleanupV35 {
     }
     $selected = @($expanded.ToArray() | Group-Object Id | ForEach-Object { $_.Group[0] })
 
-    $deepStamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $deepStamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
     $quarantine = ""
     try {
         $secureBackupRoot = Get-SecureBackupRoot
@@ -2442,7 +2443,7 @@ function Invoke-DeepCleanupV35 {
     function Save-RestoreManifest {
         $manifest = [ordered]@{
             SchemaVersion = "2.0"
-            ToolVersion = "4.6"
+        ToolVersion = "4.8"
             BackupMode = "DeepCleanup"
             RemediationScope = $ScanScope
             ComputerName = $env:COMPUTERNAME
@@ -2900,7 +2901,7 @@ function Invoke-DeepCleanupV35 {
 
 if ($RepairScanSources) {
     Ensure-Dir $OutputDir
-    $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $stamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
     $reportComputer = if ($RedactSensitive) { Get-CleanupText "report.file.redactedToken" } else { $env:COMPUTERNAME }
     $repairReportPath = Join-Path $OutputDir ((Get-CleanupText "cleanupReport.file.repairPrefix") + "_${reportComputer}_$stamp.txt")
     $repair = Invoke-ScanSourceRepair
@@ -2939,7 +2940,7 @@ if ($RepairScanSources) {
 Import-ApprovedKmsServers
 $approvedKmsConfig = Get-ApprovedKmsConfiguration
 Ensure-Dir $OutputDir
-$stamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$stamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
 $reportComputer = if ($RedactSensitive) { Get-CleanupText "report.file.redactedToken" } else { $env:COMPUTERNAME }
 $reportPath = Join-Path $OutputDir ((Get-CleanupText "cleanupReport.file.cleanupPrefix") + "_${reportComputer}_$stamp.txt")
 
@@ -3109,7 +3110,7 @@ $cleanupWindowsKmsConfiguration = [bool]($unapprovedWindowsKms -or $unapprovedWi
 $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history -Scope $ScanScope
 $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications
 $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
-$decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.6" -Data ([ordered]@{
+$decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
     ScanScope = $ScanScope
     CrackDetected = $crackDetected
     ProtectedLicense = [bool]$protectedLicense.Protected
@@ -3291,7 +3292,7 @@ if ($Remediate) {
     $postConfirmedThirdPartyCount = [int]@($thirdPartyApplications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count
     $postCrackDetected = [bool]([int]$verification.ActiveActivatorFindingCount -gt 0 -or [int]$verification.UnapprovedWindowsKmsCount -gt 0 -or [int]$verification.UnapprovedOfficeKmsCount -gt 0 -or $postConfirmedThirdPartyCount -gt 0 -or @($thirdPartyCandidates).Count -gt 0)
     if (-not $DryRun) { $actions.Add((Get-CleanupText "cleanupReport.action.postCheck" @($verification.Conclusion))) }
-    $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.6" -Data ([ordered]@{
+    $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
         ScanScope = $ScanScope
         CrackDetected = $postCrackDetected
         ProtectedLicense = [bool]$postProtectedLicense.Protected
@@ -3379,7 +3380,7 @@ Write-Report -Path $reportPath -Products $products -Findings $findings -Decision
 # thay đổi luồng xử lý v3.0. Không ghi product key đầy đủ vào JSON.
 $jsonReportPath = [IO.Path]::ChangeExtension($reportPath, ".json")
 $hashReportPath = [IO.Path]::ChangeExtension($reportPath, ".sha256")
-$cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.6" -Data ([ordered]@{
+$cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
     ScanScope = $ScanScope
     ComputerName = $reportComputer
     CreatedAt = (Get-Date).ToString("o")
@@ -3449,7 +3450,7 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ScopeNote = Protect-CleanupReportText ([string]$verification.ScopeNote)
     Actions = @($actions | ForEach-Object { Protect-CleanupReportText $_ })
 })
-$cleanupSummaryValidation = Test-ToolReportEnvelope -Report $cleanupSummary -ExpectedReportKind "CleanupCompliance" -ExpectedToolVersion "4.6"
+$cleanupSummaryValidation = Test-ToolReportEnvelope -Report $cleanupSummary -ExpectedReportKind "CleanupCompliance" -ExpectedToolVersion "4.8"
 if (-not $cleanupSummaryValidation.Valid) { throw (Get-CleanupText "cleanupReport.output.schemaInvalid" @($cleanupSummaryValidation.Errors -join '; ')) }
 $cleanupJson = $cleanupSummary | ConvertTo-Json -Depth 8
 Protect-CleanupReportText $cleanupJson | Set-Content -LiteralPath $jsonReportPath -Encoding UTF8

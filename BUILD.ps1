@@ -13,10 +13,10 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-$productVersion = '4.6'
-$releaseVersion = '4.6.0.0'
-$releaseBuildDate = '2026.08.06'
-$releaseLabel = "$releaseVersion-engineering-catalog-dry-run-data-lifecycle-20260806"
+$productVersion = '4.8'
+$releaseVersion = '4.8.0.0'
+$releaseBuildDate = '2026.08.10'
+$releaseLabel = "$releaseVersion-assistant-performance-catalog-report-enterprise-20260810"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -55,9 +55,12 @@ $payloadFiles = @(
     'Tool-Strings.vi-VN.json',
     'Tool-Strings.en-US.json',
     'Tool-OfflinePolicy.ps1',
+    'Tool-Assistant.ps1',
+    'tool-assistant-knowledge-v1.1.json',
     'Tool-SoftwareInventory.ps1',
     'software-license-catalog-v1.0.json',
     'software-license-online-update.ps1',
+    'Tool-UpdateManager.ps1',
     'Tool-ReportSchema.ps1',
     'Tool-ReportExport.ps1',
     'Tool-PluginEngine.ps1',
@@ -102,9 +105,12 @@ $integrityFiles = @(
     'Tool-Strings.vi-VN.json',
     'Tool-Strings.en-US.json',
     'Tool-OfflinePolicy.ps1',
+    'Tool-Assistant.ps1',
+    'tool-assistant-knowledge-v1.1.json',
     'Tool-SoftwareInventory.ps1',
     'software-license-catalog-v1.0.json',
     'software-license-online-update.ps1',
+    'Tool-UpdateManager.ps1',
     'Tool-ReportSchema.ps1',
     'Tool-ReportExport.ps1',
     'Tool-PluginEngine.ps1',
@@ -158,6 +164,8 @@ $sourceFiles = @(
     'VERIFY-LOCALIZATION-COVERAGE.ps1'
     'VERIFY-PERFORMANCE.ps1'
     'VERIFY-DATA-LIFECYCLE.ps1'
+    'VERIFY-APPLICATION-UPDATE.ps1'
+    'VERIFY-ASSISTANT.ps1'
     'SIGN-RELEASE.ps1'
     'VERIFY-AUTHENTICODE.ps1'
     $peHardeningName
@@ -255,6 +263,8 @@ $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }
     'VERIFY-LOCALIZATION-COVERAGE.ps1',
     'VERIFY-PERFORMANCE.ps1',
     'VERIFY-DATA-LIFECYCLE.ps1',
+    'VERIFY-APPLICATION-UPDATE.ps1',
+    'VERIFY-ASSISTANT.ps1',
     'SIGN-RELEASE.ps1',
     'VERIFY-AUTHENTICODE.ps1',
     $peHardeningName,
@@ -273,6 +283,7 @@ foreach ($name in ($requiredFiles | Select-Object -Unique)) {
 . (Join-Path $sourceDirectory 'Tool-Compatibility.ps1')
 . (Join-Path $sourceDirectory 'Tool-Localization.ps1')
 . (Join-Path $sourceDirectory 'Tool-OfflinePolicy.ps1')
+. (Join-Path $sourceDirectory 'Tool-Assistant.ps1')
 $moduleContractMetadata = Get-ToolModuleContractMetadata
 $reportSchemaMetadata = Get-ToolReportSchemaMetadata
 $reportExportMetadata = Get-ToolReportExportMetadata
@@ -280,13 +291,14 @@ $safetyPolicyMetadata = Get-ToolSafetyPolicyMetadata
 $compatibilityMetadata = Get-ToolCompatibilityMetadata
 $localizationMetadata = Get-ToolLocalizationMetadata
 $offlinePolicyMetadata = Get-ToolOfflinePolicyMetadata
+$assistantMetadata = Get-ToolAssistantMetadata
 $softwareCatalogMetadata = Get-Content -LiteralPath (Join-Path $sourceDirectory 'software-license-catalog-v1.0.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $engineeringCatalogRules = @($softwareCatalogMetadata.Products | Where-Object {
     $_.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Category)
 })
-if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.2.0.0' -or
-    @($softwareCatalogMetadata.Products).Count -lt 45 -or $engineeringCatalogRules.Count -lt 16) {
-    throw 'Catalog phần mềm v4.6 chưa đạt phiên bản 1.2.0.0 / 45 quy tắc / 16 quy tắc kỹ thuật.'
+if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.0.0' -or
+    @($softwareCatalogMetadata.Products).Count -lt 73 -or $engineeringCatalogRules.Count -lt 16) {
+    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.0.0 / 73 quy tắc / 16 quy tắc kỹ thuật.'
 }
 
 Write-Host '[1/8] Tạo TOOL-SHA256SUMS.txt...'
@@ -389,7 +401,7 @@ try {
         '/target:winexe',
         "/platform:$($target.Platform)",
         '/deterministic+',
-        "/pathmap:$sourceDirectory=C:\_src\Tool-Kiem-Tra-v4.6",
+        "/pathmap:$sourceDirectory=C:\_src\Tool-Kiem-Tra-v4.8",
         '/langversion:5',
         '/debug-',
         '/optimize+',
@@ -477,7 +489,7 @@ foreach ($sidecar in @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
     'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json'
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json'
 )) {
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $sidecar) -Destination (Join-Path $OutputDirectory $sidecar) -Force
 }
@@ -538,15 +550,28 @@ $releaseManifest = [ordered]@{
     LogSchemaVersion = '1.0-jsonl'
     DashboardSchemaVersion = '2.0'
     DashboardMode = 'Modern adaptive WinForms dashboard'
+    StartupExecutionLevel = 'asInvoker'
+    ElevationPolicy = 'On demand for system changes, application update and enterprise administration'
+    DefaultDataRoot = '%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6'
+    ElevatedDataRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6'
     StartupTheme = 'Light'
     DarkMode = 'Optional per-session / WCAG-aware palette'
     QuickActionNumberLabels = $false
     DirectReportActionCount = 7
     OfflinePolicySchemaVersion = [string]$offlinePolicyMetadata.SchemaVersion
     OfflineDefault = [string]$offlinePolicyMetadata.DefaultMode
+    OfflineResetOnEveryLaunch = $true
     OfflineBlockedScopes = @($offlinePolicyMetadata.BlockedScopes)
     RuntimeTelemetry = [string]$offlinePolicyMetadata.Telemetry
     AutomaticUpdateCheck = [bool]$offlinePolicyMetadata.AutomaticUpdateCheck
+    AutomaticUpdateCheckTrigger = [string]$offlinePolicyMetadata.AutomaticUpdateCheckTrigger
+    BackgroundUpdateService = [bool]$offlinePolicyMetadata.BackgroundUpdateService
+    SilentUpdate = [bool]$offlinePolicyMetadata.SilentUpdate
+    ApplicationUpdateSchemaVersion = '1.0'
+    ApplicationUpdateManifestUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json'
+    ApplicationUpdateChoices = @('UpdateNow','Later','DismissForSession')
+    ApplicationUpdateDeferral = 'After next completed task or 2 hours; next launch rechecks only when Online is allowed'
+    ApplicationUpdateVerification = 'Fixed GitHub HTTPS allowlist + declared size + SHA-256 + optional pinned Authenticode signer + rollback'
     LocalizationSchemaVersion = [string]$localizationMetadata.SchemaVersion
     DefaultCulture = [string]$localizationMetadata.DefaultCulture
     SupportedCultures = @($localizationMetadata.SupportedCultures)
@@ -572,6 +597,9 @@ $releaseManifest = [ordered]@{
     SoftwareLicenseCatalogProductRules = [int]@($softwareCatalogMetadata.Products).Count
     EngineeringSoftwareCatalogRules = [int]$engineeringCatalogRules.Count
     EngineeringSoftwareCategories = @($engineeringCatalogRules | ForEach-Object { [string]$_.Category } | Sort-Object -Unique)
+    SoftwareInventoryDeduplication = 'Compatible name/version/publisher/location records are merged while retaining all discovery sources'
+    SystemSoftwarePresentation = 'Hidden from main application tables; available through HTML internal link and a full PDF/JSON appendix'
+    FileIntegrityAssessment = 'HashMismatch maps to IntegrityCompromised and does not alone prove non-genuine entitlement'
     DeepSoftwareScanEvidence = @('Multiple EXE/DLL Authenticode','Trusted known-bad SHA-256','Activator/artifact identity','IFEO','Firewall','Disabled licensing service','Autorun','Task/service/process/folder correlation','Blocked licensing domains')
     DeepSoftwareScanScoring = 'NonGenuine requires decisive evidence or two independent strong groups; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
     DeepSoftwareScanBudgetPolicy = 'Bounded time/depth/files/signatures/hashes; weighted budgeting prioritizes paid/trial/evidence-bearing software while reserving coverage for unknown/free applications'
@@ -598,15 +626,46 @@ $releaseManifest = [ordered]@{
     EnterpriseDefaultPort = 49420
     EnterpriseTransport = 'HTTP with AES-256-CBC + HMAC-SHA256 application envelopes'
     EnterpriseRoles = @('Server','Client')
+    EnterpriseEndpointDiagnostics = @('InvalidEndpoint','TcpUnavailable','ServiceUnavailable','ServiceRejected','ProtocolMismatch','VersionMismatch','Connected')
+    EnterpriseDiscovery = 'Neighbor/ARP + ICMP + TCP probes; blank workstation address invokes local server discovery'
+    EnterpriseReportRetry = 'DPAPI-protected local outbox retried by the workstation agent'
     OfficeLicenseEnumeration = 'OSPP /dstatusall per SKU'
     OfficeScanExecution = 'Parallel runspace pool with bounded throttle'
     FileScanExecution = 'Parallel per-root enumeration with bounded depth and reparse-point exclusion'
-    UserPreferencePersistence = @('Culture','OfflineDefault')
+    UserPreferencePersistence = @('Culture')
     EnvironmentWarnings = @('VirtualMachine','RemoteDesktop')
     ProgressUtilities = @('CopyAllLog','OpenReportFolder')
     VersionHistoryPresentation = 'InToolModal'
     ReportFormats = @('HTML','PDF','JSON','XML')
+    ReportOutputRoot = '%USERPROFILE%\Desktop\BaoCao-Tool-Kiem-Tra'
+    ReportPackageLayout = 'One shared Desktop report folder; unique timestamped files stay together without per-scan subfolders'
+    ReportAutoOpenPolicy = 'Open HTML only after a completed export'
+    LicenseConclusionPolicy = 'Activation is separated from entitlement; KMS and intervention conclusions require direct evidence'
+    LicenseUndeterminedPolicy = 'Unreadable licensing data is reported as Undetermined and does not prove valid or invalid entitlement'
+    ToolAssistant = [ordered]@{
+        SchemaVersion = [string]$assistantMetadata.SchemaVersion
+        Scope = [string]$assistantMetadata.Scope
+        Engine = [string]$assistantMetadata.Engine
+        PaidApiRequired = [bool]$assistantMetadata.PaidApiRequired
+        CodexRequired = [bool]$assistantMetadata.CodexRequired
+        OnlineTransfer = [string]$assistantMetadata.OnlineTransfer
+        ReportUpload = [bool]$assistantMetadata.ReportUpload
+        AutomaticRemediation = [bool]$assistantMetadata.AutomaticRemediation
+        PortableEveryMachine = [bool]$assistantMetadata.PortableEveryMachine
+        CentralServerRequired = [bool]$assistantMetadata.CentralServerRequired
+        KnowledgeStorage = [string]$assistantMetadata.KnowledgeStorage
+        ReportContextSource = [string]$assistantMetadata.ReportContextSource
+        KnowledgeCompatibilityEnforced = [bool]$assistantMetadata.KnowledgeCompatibilityEnforced
+        KnowledgeFileName = [string]$assistantMetadata.KnowledgeFileName
+        ImmediateResponseRender = $true
+    }
     ReportExportSchemaVersion = [string]$reportExportMetadata.SchemaVersion
+    ReportHtmlPresentation = [string]$reportExportMetadata.HtmlPresentation
+    ReportPdfPresentation = [string]$reportExportMetadata.PdfPresentation
+    ReportContentSplit = 'HTML summary for quick review; PDF contains the complete technical report'
+    ReportSummaryWideCardCount = 5
+    ReportConclusionPanels = @('VerificationLevel','RecommendedAction')
+    PdfFooterLineCount = 2
     DefaultReportOpenFormat = 'HTML'
     DesktopHtmlPdfExport = $true
     UnifiedProfessionalReportUi = $true
@@ -638,7 +697,7 @@ $releaseManifest = [ordered]@{
     DataMigrationPolicy = 'Verified staging copy + transactional commit + rollback'
     DataConcurrencyPolicy = 'Separate v4.6 write root; launcher blocks detected v4.4/v4.5 mutexes before migration'
     LegacyReadOnlyRoots = @('%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\logs','%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.4\backups')
-    PersistentLogRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\logs'
+    PersistentLogRoot = '%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6\logs (standard UI); %ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\logs (elevated modes)'
     PersistentPluginRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\plugins'
     PersistentTimelineRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\timeline'
     PersistentEnterpriseRoot = '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\enterprise'
@@ -654,8 +713,43 @@ $releaseManifest = [ordered]@{
 }
 [IO.File]::WriteAllText($releaseManifestPath, ($releaseManifest | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($false)))
 
-$infoName = 'THONG-TIN-PHAT-HANH-v4.6.txt'
 $primaryArtifact = @($artifactResults.ToArray())[0]
+$primaryArtifactPath = Join-Path $OutputDirectory $primaryArtifact.FileName
+$updateSignerThumbprints = @()
+$updateAuthenticodeRequired = [bool]($primaryArtifact.AuthenticodeStatus -eq 'Valid' -and -not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint))
+if ($updateAuthenticodeRequired) { $updateSignerThumbprints = @(([string]$primaryArtifact.AuthenticodeThumbprint).Replace(' ', '').ToUpperInvariant()) }
+$applicationUpdateManifest = [ordered]@{
+    SchemaVersion = '1.0'
+    Channel = 'stable'
+    LatestVersion = $releaseVersion
+    MinimumUpdaterVersion = '4.6.1.0'
+    PublishedAtUtc = '2026-08-10T00:00:00Z'
+    Title = [ordered]@{
+        'vi-VN' = 'v4.8.0 - Nâng cấp nhảy vọt, cải tiến chuyên sâu'
+        'en-US' = 'v4.8.0 - A leap-forward upgrade with in-depth improvements'
+    }
+    Changes = [ordered]@{
+        'vi-VN' = @(
+            'v4.8 là bản nâng cấp nhảy vọt, cải tiến chuyên sâu, phát hành trực tiếp từ v4.6.',
+            'Hướng dẫn sử dụng chỉ trình bày cách dùng tính năng, cách đọc kết quả và nguyên tắc an toàn.',
+            'Xem đầy đủ nội dung cải tiến, sửa lỗi và đối chứng hiệu năng trong LICH-SU-PHIEN-BAN.txt.'
+        )
+        'en-US' = @(
+            'v4.8 is a leap-forward upgrade with in-depth improvements, released directly from v4.6.',
+            'The user guide now covers feature use, result interpretation, and safe operating practices only.',
+            'See VERSION-HISTORY-en-US.md for the complete improvements, fixes, and performance validation.'
+        )
+    }
+    ReleasePageUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v$releaseVersion"
+    DownloadUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v$releaseVersion/$($primaryArtifact.FileName)"
+    DownloadSha256 = [string]$primaryArtifact.Sha256
+    DownloadSize = [int64](Get-Item -LiteralPath $primaryArtifactPath).Length
+    AuthenticodeRequired = $updateAuthenticodeRequired
+    SignerThumbprints = @($updateSignerThumbprints)
+}
+[IO.File]::WriteAllText((Join-Path $OutputDirectory 'update-manifest-v1.json'), ($applicationUpdateManifest | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($false)))
+
+$infoName = 'THONG-TIN-PHAT-HANH-v4.8.txt'
 $infoLines = @(
     "PHAN MEM KIEM TRA BAN QUYEN v$releaseVersion - HO TRO CA NHAN VA DOANH NGHIEP",
     "Release version: $releaseVersion",
@@ -666,23 +760,28 @@ $infoLines = @(
     'AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.',
     'Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.',
     'PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.',
+    'Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.',
     "Payload nhung duoc toi uu $($payloadCompressionStats.Scheme): $($payloadCompressionStats.DeflateCount) Deflate, $($payloadCompressionStats.RawCount) raw; giam $($payloadCompressionStats.SavingsPercent)% ma van doi chieu SHA-256 sau giai nen.",
     'Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.',
-    'Dashboard schema 2.0: WinForms hien dai, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.',
-    'Typography dong bo Segoe UI/GDI+; dashboard fit WorkingArea sau DPI, mo rong vung chu de khong cat noi dung.',
+    'Dashboard schema 2.0: WinForms hien dai, bang mau trung tinh, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.',
+    'Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.',
     'Da ngon ngu: vi-VN va en-US dung catalog JSON dong bo cho dashboard, log trang thai, bao cao, trung tam doanh nghiep va trinh quan ly Windows/Office cuc bo; lua chon duoc ghi nho theo tai khoan.',
-    'Ghi nho ngon ngu va che do Offline/Online; moi lan mo luon bat dau bang giao dien sang.',
+    'Ghi nho ngon ngu; moi lan mo luon bat dau bang giao dien sang va che do Offline, khong khoi phuc Online tu phien truoc.',
     'Canh bao khi phat hien may ao hoac Remote Desktop; khong khoa cac chuc nang hien co.',
     'Them nut Sao chep toan bo log va Mo thu muc bao cao; lich su phien ban hien thi ngay trong Tool.',
     'Bo nhan danh so cu tren cua so chuc nang; toan bo nut WinForms dung mau va icon vector hanh dong chung o Light/Dark.',
     'Quet Office va tep chi bao duoc song song co gioi han, bo qua reparse point va giu nguyen pham vi quet cu.',
     'Quet sau pho quat moi phan mem phat hien duoc: nhieu EXE/DLL, Authenticode, hash xau da biet, artifact va dau vet he thong tuong quan; ngan sach chu ky duoc chia deu va do phu duoc ghi trong JSON/report.',
+    'Toi uu hieu nang v4.8: descriptor inventory tinh mot lan, chi muc nhom ten/bang chung ngoai, dung property bag thay Add-Member lap lai, tai su dung snapshot Scheduled Tasks, bang dich nguoc cho report va Authenticode theo lo toi da 4 worker; doi chung cung du lieu cho 0 khac biet, giu nguyen nguon, do sau, artifact va dau vet he thong.',
     'Chi ket luan NonGenuine khi co bang chung quyet dinh hoac hai nhom bang chung manh doc lap; dau hieu chung giu Suspicious, thieu do phu giu Unverified.',
     'Bao cao phan mem va dau hieu can thiep giu nguyen hop dong v4.3.0.3; kiem ke ung dung va trang thai ky thuat ben thu ba duoc noi them o cuoi bao cao va DetailedInventory JSON.',
     'Khac phuc ben thu ba: moi phan mem NonGenuine/Suspicious deu co the chon thu cong; tu dong chi dung ke hoach da khoa pham vi (adapter hang, artifact/hosts chinh xac hoac Repair MSI hop le). Go/cai lai luon la thu cong.',
     'Backup HMAC luu kiem ke va cach ly truoc thay doi; activator va token cap phep da loai bo khong duoc khoi phuc.',
     'Offline toan ung dung mac dinh; trung tam doanh nghiep co cong tac mang rieng mac dinh tat, co the bat/tat lai ma khong an chuc nang hoac xoa cau hinh.',
     'Ket noi online chi chay sau khi nguoi dung xac nhan, tai catalog JSON HTTPS tu host allowlist; khong gui inventory, duong dan, khoa hoac token va khong doi preference Offline.',
+    'Tu dong kiem tra phien ban moi chi khi Online da duoc cho phep; khong co service nen, telemetry hay cap nhat im lang.',
+    'Khi co ban moi, Tool hoi 3 lua chon: Cap nhat ngay, De sau, Bo qua lan nay. De sau hoi lai sau tac vu ke tiep hoac 2 gio.',
+    'Cap nhat ngay chi tai EXE tu GitHub HTTPS co dinh, doi chieu dung luong/SHA-256/chu ky neu bat buoc, backup ban cu va rollback neu ban moi loi.',
     "Compatibility catalog $($compatibilityMetadata.CatalogVersion), schema $($compatibilityMetadata.CatalogSchemaVersion), ra soat $($compatibilityMetadata.ReviewedAtUtc); canh bao $($compatibilityMetadata.ReviewWarningAgeDays) ngay va het han $($compatibilityMetadata.MaximumReviewAgeDays) ngay.",
     "Nhan dien theo catalog: $(@($compatibilityMetadata.WindowsReleaseNames) -join ', '); build moi/chua biet chuyen sang ReadOnlyManualReview.",
     "Nhan dien Office theo catalog: $(@($compatibilityMetadata.OfficeFamilyNames) -join ', '); Product ID/kenh moi chua biet khong duoc tu suy dien tuong thich.",
@@ -691,7 +790,7 @@ $infoLines = @(
     'Enterprise IP auto: may chu tu chon IPv4 LAN uu tien theo card co gateway; may tram tu do server duy nhat khi de trong dia chi.',
     'Enterprise server reset: nut Xoa cau hinh may chu bat buoc ma quan tri va xac nhan cuoi; giu bao cao, ket qua va audit.',
     'Enterprise UI refresh: bo muc Tren may nay; doi thanh Chon chuc nang; them mau theo chuc nang, nut Tro ve phien truoc va nut Dong trung tam doanh nghiep.',
-    'Enterprise network toggle: nut Online doi thanh Offline sau khi bat; ba chuc nang luon hien thi.',
+    'Enterprise network toggle: nut hien trang thai Online/Offline hien tai; tooltip noi ro thao tac chuyen che do va ba chuc nang luon hien thi.',
     'Enterprise UI close hotfix: ve tab dung RectangleF de tranh loi overload DrawString va dam bao nut Dong trung tam doanh nghiep hoat dong.',
     'Enterprise local manager restore: khoi phuc quan ly license cuc bo duoi ten chuc nang moi, khong dung lai ten tab Tren may nay.',
     'Enterprise quick scan hotfix: sua loi hien thi ket qua khi IP phan hoi va them kiem thu hoi quy PowerShell 5.1.',
@@ -699,8 +798,21 @@ $infoLines = @(
     'May tram tu dong gui bao cao hoac xep hang DPAPI khi mat route; thay doi license tu xa mac dinh tat va phai duoc may tram cho phep.',
     'Cleanup Action Center co vung cuon/nut xu ly tiep; Office KMS dung OSPP /dstatusall va rang buoc lua chon theo tung SKU/Last5.',
     "Report schema $($reportSchemaMetadata.SchemaVersion): $(@($reportSchemaMetadata.ReportKinds).Count) loai bao cao; safety policy schema $($safetyPolicyMetadata.SchemaVersion); quick repair khong doi StartupType.",
-    'Bao cao xuat HTML/PDF/JSON/XML voi giao dien chuyen nghiep dong bo, responsive va print A4; ngat trang PDF an toan de khong mat noi dung.',
-    'HTML/PDF nguoi dung duoc luu truc tiep tren Desktop; sau khi xong Tool mo HTML bang trinh duyet mac dinh, khong mo PDF hay Notepad.',
+    'Bao cao HTML la ban tong quan gon, khong con bang dai; chi giu cau hinh chinh, ket luan, canh bao va nut mo PDF day du.',
+    'PDF la ban chi tiet A4 gom toan bo bang cau hinh, phan mem, bang chung va du lieu ky thuat; moi lan xuat van gom HTML/PDF/JSON/XML/checksum trong mot thu muc va chi tu mo HTML.',
+    'Ket luan ban quyen tach ro trang thai kich hoat voi quyen su dung; du lieu cap phep khong doc duoc ghi CHUA XAC DINH va khong tu chung minh hop le/khong hop le.',
+    'Tro ly Tool chuyen biet dung tri thuc cuc bo, khong tu khac phuc va khong tai bao cao len mang; Online chi tai JSON tri thuc tu host co dinh.',
+    'Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.',
+    'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
+    'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
+    'Tro ly schema 1.1 co hon 270 tu khoa/cach hoi, chuan hoa viet tat/loi go, xu ly nhieu y dinh va rang buoc knowledge 1.1.0 theo Tool 4.8.',
+    'Catalogue phan mem 1.3.0.0 co 73 quy tac; gop Registry/Appx/shortcut trung nhau va giu moi nguon phat hien.',
+    'HashMismatch duoc tach thanh IntegrityCompromised: tep bi sua/hong nhung khong tu ket luan quyen su dung khong chinh hang.',
+    'Phan mem he thong/mac dinh an khoi bang chinh, co link mo phu luc trong HTML va hien day du trong PDF/JSON chi tiet.',
+    'Moi bao cao nam truc tiep trong Desktop\BaoCao-Tool-Kiem-Tra, khong tao thu muc con; ten tep co mili-giay va HTML link dung PDF.',
+    'PDF tach bang rong thanh tong quan/bang chung, mo chi tiet khi in, lap header va tranh cat dong/hang qua trang.',
+    'Enterprise nhan IP:port, tu do khi de trong, chan doan endpoint/TCP/service/protocol/version va quet Neighbor-ARP/ICMP/TCP.',
+    'Enterprise server cau hinh URLACL/Firewall qua UAC; may tram xep hang bao cao DPAPI va gui lai khi co ket noi.',
     'Muc Bao cao hien thi truc tiep du bay chuc nang con; huong dan vi-VN/en-US duoc nhung trong EXE va mo bang HTML/PDF A4.',
     'HTML/PDF chi dung asset cuc bo, CSP default-src none; browser PDF tat background networking va map DNS ve 0.0.0.0.',
     'Profile Edge/Chrome tam nam trong %LOCALAPPDATA%\Temp, ACL chi cho nguoi dung hien tai va SYSTEM; profile duoc don sau moi lan xuat.',
@@ -708,10 +820,11 @@ $infoLines = @(
     'Timeline dung DPAPI LocalMachine, HMAC-SHA256 va hash chain; neu chuoi hong tool tu choi noi them.',
     'Certificate audit kiem tra Authenticode va chuoi tin cay offline cua tep Windows/Office quan trong.',
     "Module contract schema $($moduleContractMetadata.ContractSchemaVersion): $($moduleContractMetadata.EntryPointCount) entry point / $($moduleContractMetadata.ModuleCount) module; co capability gate va ModuleResult thong nhat.",
-    'Log JSON Lines nam trong ProgramData co ACL Administrators/SYSTEM; khong ghi product key day du.',
+    'Log JSON Lines cua dashboard nam trong LocalAppData theo tai khoan; che do nang quyen va doanh nghiep dung ProgramData co ACL Administrators/SYSTEM; khong ghi product key day du.',
     'PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.',
     'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.6.md.',
     'Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; catalog hien tai theo doi Windows 10 22H2 va Windows 11 23H2/24H2/25H2/26H1.',
+    'Tep phat hanh khong ky so co the bi SmartScreen/antivirus danh gia theo heuristic; khong khuyen nghi tat bao ve, chi tai tu GitHub chinh thuc va doi chieu SHA-256.',
     'Khong the vuot AppLocker, WDAC, SmartScreen, antivirus hoac chinh sach doanh nghiep.'
 )
 [IO.File]::WriteAllLines((Join-Path $OutputDirectory $infoName), $infoLines, (New-Object Text.UTF8Encoding($false)))
@@ -721,7 +834,7 @@ $releaseHashFiles = @($targets.OutputName) + @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
     'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'RELEASE-MANIFEST.json', $infoName
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
 )
 $releaseHashLines = @("# SHA-256 goi phat hanh Tool-Kiem-Tra v$productVersion.")
 foreach ($name in $releaseHashFiles) {
@@ -749,6 +862,10 @@ if (-not $SkipVerification) {
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-ENTERPRISE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     & (Join-Path $sourceDirectory 'VERIFY-PERFORMANCE.ps1') -SourceDirectory $sourceDirectory
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-PERFORMANCE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
+    & (Join-Path $sourceDirectory 'VERIFY-APPLICATION-UPDATE.ps1') -SourceDirectory $sourceDirectory
+    if ($LASTEXITCODE -ne 0) { throw "VERIFY-APPLICATION-UPDATE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
+    & (Join-Path $sourceDirectory 'VERIFY-ASSISTANT.ps1') -SourceDirectory $sourceDirectory
+    if ($LASTEXITCODE -ne 0) { throw "VERIFY-ASSISTANT.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     Write-Host '[7/8] Kiểm tra phát hành tổng thể...'
     & (Join-Path $sourceDirectory 'VERIFY-RELEASE.ps1') -SourceDirectory $sourceDirectory -DistributionDirectory $OutputDirectory
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-RELEASE.ps1 thất bại, mã thoát: $LASTEXITCODE" }

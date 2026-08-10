@@ -165,7 +165,7 @@ function Get-ToolCapabilityProfile {
 
     return [pscustomobject][ordered]@{
         SchemaVersion = "1.1"
-        ToolVersion = "4.6"
+        ToolVersion = "4.8"
         CheckedAtUtc = [DateTime]::UtcNow.ToString("o")
         SupportedOperatingSystem = [bool]($compatibilityTier -ne "Unsupported")
         CompatibilityTier = $compatibilityTier

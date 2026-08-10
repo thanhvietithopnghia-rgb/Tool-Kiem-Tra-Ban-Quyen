@@ -1,9 +1,26 @@
 # Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
 
-Tài liệu này tóm tắt các phiên bản chính từ v1.0 đến v4.6. Các bản cập nhật lẻ dạng `x.y.z` được gộp vào phiên bản `x.y` tương ứng và không tạo mục riêng.
+Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.8.0. v4.8.0 là bản nâng cấp trực tiếp từ v4.6; các thay đổi trung gian đã được kiểm định được hợp nhất vào v4.8 và không tách thành một phiên bản công khai riêng.
 
-Phiên bản hiện tại: **v4.6**  
-FileVersion: **4.6.0.0** · Build **2026.08.06**
+Phiên bản hiện tại: **v4.8.0**  
+FileVersion: **4.8.0.0** · Build **2026.08.10**
+
+## v4.8.0 — 10/08/2026
+
+Trọng tâm: **nâng cấp nhảy vọt, cải tiến chuyên sâu** từ v4.6; tạo ra thay đổi rõ rệt về trải nghiệm, hiệu năng và chất lượng cốt lõi mà không làm Tool nặng nề hoặc thay đổi định hướng Offline–an toàn.
+
+- **Giao diện:** tinh chỉnh màu sắc, tiêu đề và bố cục; đồng bộ Trung tâm báo cáo, cân bảy ô chức năng và cải thiện hiển thị theo DPI.
+- **Trợ lý Tool:** bổ sung hỏi–đáp trong phạm vi Tool; hiển thị câu trả lời ngay, tự cuộn và khóa gửi trùng. Dòng trạng thái Offline/tri thức được căn cách mép, khung nhập có viền–nền rõ và trạng thái focus, còn câu hỏi/câu trả lời dùng bong bóng màu riêng có viền mềm để dễ theo dõi.
+- **Hiểu ngôn ngữ tự nhiên:** mở rộng nhận dạng câu không dấu, viết tắt, lỗi gõ và câu nhiều ý; giảm trả lời chéo chủ đề, lặp mẫu hoặc lặp câu lệnh, đồng thời từ chối ngoài phạm vi theo ngữ cảnh.
+- **Hiệu năng và mã nguồn:** lập chỉ mục nhóm tên khi gộp kiểm kê, lập chỉ mục bằng chứng ngoài, dựng kết quả bằng bảng thuộc tính thay cho hàng nghìn lượt `Add-Member`, tái sử dụng một ảnh chụp Scheduled Tasks và dùng bảng dịch ngược thay cho băm từng chuỗi báo cáo; vẫn giữ nguyên nguồn, độ phủ và thứ tự kết luận. Trên cùng máy kiểm thử với 480 ứng dụng, lõi kiểm kê–đánh giá giảm từ khoảng 42,5 giây xuống 26,4 giây (xấp xỉ 38%); lượt quét–xử lý báo cáo thực tế cuối giảm từ 76,9 giây xuống 60,4 giây, với SHA-256 kết quả, 480 ứng dụng và phân bố trạng thái giống hệt trước tối ưu.
+- **Catalogue phần mềm:** mở rộng lên `1.3.0.0` với 73 quy tắc; gộp Registry/Appx/shortcut, bản vá cùng dòng và x86/x64 của cùng sản phẩm nhưng vẫn giữ nguồn, vị trí và kiến trúc để xem chi tiết.
+- **Kết luận thận trọng:** tách `HashMismatch` thành `IntegrityCompromised`; lỗi toàn vẹn tệp không tự đồng nghĩa `NonGenuine` và không tự mở khắc phục giấy phép.
+- **Báo cáo:** sửa PDF khuyết dòng/cắt chữ/khoảng cách hàng; tách bảng rộng, đưa phần mềm hệ thống vào phụ lục, dùng một thư mục báo cáo chung và liên kết HTML tới đúng PDF.
+- **Máy chủ/Máy trạm:** hỗ trợ `IP:cổng`, tự dò khi để trống, chẩn đoán địa chỉ/TCP/dịch vụ/giao thức/phiên bản, quét LAN bằng Neighbor/ARP–ICMP–TCP và xếp hàng gửi lại báo cáo khi mất kết nối.
+- **An toàn và quyền quản trị:** dashboard chạy bằng quyền thường, UAC chỉ xuất hiện khi cần; sửa chặn nhầm vùng dữ liệu quản trị nhưng vẫn fail-closed nếu ACL hiện tại thực sự không an toàn.
+- **Cập nhật và riêng tư:** tiếp tục mặc định Offline; chỉ kiểm tra/tải bản mới sau khi người dùng cho phép, xác minh kích thước/SHA-256 và không có telemetry hay cập nhật im lặng.
+- **Tài liệu:** viết lại HDSD Việt–Anh thành tài liệu thuần cách sử dụng, không trộn ghi chú phát hành; toàn bộ nội dung thay đổi của v4.8 trực tiếp từ v4.6 chỉ nằm trong lịch sử phiên bản.
+- **Đồng bộ phát hành:** nâng FileVersion lên `4.8.0.0`, build `2026.08.10`; đồng bộ lịch sử Việt–Anh, README, manifest và bộ kiểm thử x64/x86.
 
 ## v4.6 — 06/08/2026
 
@@ -11,6 +28,7 @@ Trọng tâm: mô phỏng khắc phục không thay đổi hệ thống, mở r�
 Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell 3+/WinForms; JSON catalog 1.2; DataSchema 2.0; SHA-256/HMAC/DPAPI; HTTP LAN với phong bì AES-256-CBC + HMAC-SHA256.
 
 - Mở rộng catalog phần mềm lên `1.2.0.0`, gồm 45 quy tắc sản phẩm và 16 nhóm CAD/CAM/CAE, BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering; vẫn dùng engine quét sâu phổ quát cho phần mềm chưa có quy tắc riêng.
+- Hotfix hiệu năng quét sâu: dùng bộ đệm thư mục con, liệt kê tệp .NET nhẹ hơn, tái sử dụng nhóm luồng Authenticode và phân bổ chữ ký thích ứng 6/3/1 theo mức rủi ro. Phạm vi nguồn, độ sâu, quét artifact và dấu vết hệ thống giữ nguyên; giới hạn/độ phủ tiếp tục được ghi trong báo cáo.
 - Thêm **Chạy thử (Dry Run)** cho Khắc phục KMS/Activator: liệt kê đúng tệp, Registry, service, task, product key/KMS, Repair MSI hoặc gỡ cài đặt dự kiến; nêu backup và khả năng hoàn tác nhưng không tạo restore point, không backup, không dừng/xóa/sửa gì. Muốn thực hiện thật phải mở lại bước chọn mục và xác nhận lần nữa.
 - Sửa consent catalog online theo fail-closed: không truyền consent hoặc truyền `false` trả mã `2` trước mọi thao tác mạng; launcher không còn ghi đè lựa chọn thành `true`.
 - Thu gọn endpoint Enterprise `GET /tool/v1/status` không xác thực xuống đúng ba trường `Accepted`, `ProtocolVersion`, `ToolVersion`; không trả Server ID/tên máy, IP, bind address, CIDR hoặc số client; giữ rate limit và envelope xác thực cho các endpoint nghiệp vụ.

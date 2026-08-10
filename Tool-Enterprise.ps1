@@ -32,7 +32,7 @@ function Get-ToolEnterpriseText {
 
 $script:ToolEnterpriseSchemaVersion = "1.0"
 $script:ToolEnterpriseProtocolVersion = "1.0"
-$script:ToolEnterpriseToolVersion = "4.6.0.0"
+$script:ToolEnterpriseToolVersion = "4.8.0.0"
 $script:ToolEnterpriseDefaultPort = 49420
 $script:ToolEnterpriseMaximumRequestBytes = 1048576
 $script:ToolEnterpriseMaximumScanHosts = 1024
@@ -688,6 +688,43 @@ function Test-ToolEnterpriseHostName {
     return [bool]($Value -match '^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$')
 }
 
+function Resolve-ToolEnterpriseServerEndpoint {
+    param(
+        [Parameter(Mandatory = $true)][string]$ServerAddress,
+        [ValidateRange(1024,65535)][int]$Port = $script:ToolEnterpriseDefaultPort
+    )
+    $value = $ServerAddress.Trim()
+    if ([string]::IsNullOrWhiteSpace($value)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressRequired") }
+    if ($value -match '^([^:\s]+):(\d{2,5})$') {
+        $value = [string]$matches[1]
+        $parsedPort = [int]$matches[2]
+        if ($parsedPort -lt 1024 -or $parsedPort -gt 65535) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverPortInvalid") }
+        $Port = $parsedPort
+    }
+    if (-not (Test-ToolEnterpriseHostName -Value $value)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressInvalid") }
+    return [pscustomobject][ordered]@{ Address=$value; Port=[int]$Port; DisplayAddress=("{0}:{1}" -f $value,$Port) }
+}
+
+function Test-ToolEnterpriseTcpEndpoint {
+    param(
+        [Parameter(Mandatory = $true)][string]$ServerAddress,
+        [ValidateRange(1024,65535)][int]$Port,
+        [ValidateRange(100,10000)][int]$TimeoutMs = 1200
+    )
+    $client = New-Object Net.Sockets.TcpClient
+    $handle = $null
+    try {
+        $handle = $client.BeginConnect($ServerAddress, $Port, $null, $null)
+        if (-not $handle.AsyncWaitHandle.WaitOne($TimeoutMs, $false)) { return $false }
+        $client.EndConnect($handle)
+        return [bool]$client.Connected
+    } catch { return $false }
+    finally {
+        if ($handle -and $handle.AsyncWaitHandle) { try { $handle.AsyncWaitHandle.Close() } catch {} }
+        $client.Close()
+    }
+}
+
 function Get-ToolEnterpriseServerConfig {
     $paths = Initialize-ToolEnterpriseStorage
     return (Read-ToolEnterpriseJson -Path $paths.ServerConfig)
@@ -957,7 +994,9 @@ function Set-ToolEnterpriseClientConfiguration {
         [bool]$AutoSend = $true
     )
 
-    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressInvalid") }
+    $endpoint = Resolve-ToolEnterpriseServerEndpoint -ServerAddress $ServerAddress -Port $Port
+    $ServerAddress = [string]$endpoint.Address
+    $Port = [int]$endpoint.Port
     $paths = Initialize-ToolEnterpriseStorage
     $existing = Get-ToolEnterpriseClientConfig
     # Keep the GUID parsing compatible with Windows PowerShell 3/5.1.  An
@@ -1108,8 +1147,8 @@ function Get-ToolEnterpriseLicenseSnapshot {
 
 function Get-ToolEnterpriseBaseUri {
     param([Parameter(Mandatory = $true)][string]$ServerAddress, [ValidateRange(1024,65535)][int]$Port)
-    if (-not (Test-ToolEnterpriseHostName -Value $ServerAddress)) { throw (Get-ToolEnterpriseText "enterpriseCore.error.serverAddressInvalid") }
-    return "http://$ServerAddress`:$Port/tool/v1"
+    $endpoint = Resolve-ToolEnterpriseServerEndpoint -ServerAddress $ServerAddress -Port $Port
+    return "http://$($endpoint.Address)`:$($endpoint.Port)/tool/v1"
 }
 
 function Invoke-ToolEnterpriseHttpRequest {
@@ -1130,31 +1169,64 @@ function Invoke-ToolEnterpriseHttpRequest {
     $request.Proxy = $null
     $request.UserAgent = "ThanhViet-Tool-Kiem-Tra/$($script:ToolEnterpriseToolVersion)"
     foreach ($name in $Headers.Keys) { $request.Headers[[string]$name] = [string]$Headers[$name] }
-    if ($Method -eq "POST") {
-        $json = if ($null -eq $Body) { "{}" } else { $Body | ConvertTo-Json -Depth 14 -Compress }
-        $bytes = [Text.Encoding]::UTF8.GetBytes($json)
-        if ($bytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.requestTooLarge") }
-        $request.ContentType = "application/json; charset=utf-8"
-        $request.ContentLength = $bytes.Length
-        $stream = $request.GetRequestStream()
-        try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
-    }
+    $response = $null
     try {
-        $response = [Net.HttpWebResponse]$request.GetResponse()
-    } catch [Net.WebException] {
-        if ($_.Exception.Response) {
-            $response = [Net.HttpWebResponse]$_.Exception.Response
-        } else { throw }
-    }
-    try {
-        $reader = New-Object IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
-        try { $responseText = $reader.ReadToEnd() } finally { $reader.Dispose() }
-        if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 300) {
-            throw (Get-ToolEnterpriseText "enterpriseCore.error.httpResponse" @([int]$response.StatusCode, (ConvertTo-ToolEnterpriseSafeText $responseText 500)))
+        if ($Method -eq "POST") {
+            $json = if ($null -eq $Body) { "{}" } else { $Body | ConvertTo-Json -Depth 14 -Compress }
+            $bytes = [Text.Encoding]::UTF8.GetBytes($json)
+            if ($bytes.Length -gt $script:ToolEnterpriseMaximumRequestBytes) { throw (Get-ToolEnterpriseText "enterpriseCore.error.requestTooLarge") }
+            $request.ContentType = "application/json; charset=utf-8"
+            $request.ContentLength = $bytes.Length
+            $stream = $request.GetRequestStream()
+            try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
         }
-        if ([string]::IsNullOrWhiteSpace($responseText)) { return $null }
-        return ($responseText | ConvertFrom-Json)
-    } finally { $response.Close() }
+        try {
+            $response = [Net.HttpWebResponse]$request.GetResponse()
+        } catch [Net.WebException] {
+            if ($_.Exception.Response) { $response = [Net.HttpWebResponse]$_.Exception.Response }
+            else { throw }
+        }
+        try {
+            $reader = New-Object IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
+            try { $responseText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 300) {
+                throw (Get-ToolEnterpriseText "enterpriseCore.error.httpResponse" @([int]$response.StatusCode, (ConvertTo-ToolEnterpriseSafeText $responseText 500)))
+            }
+            if ([string]::IsNullOrWhiteSpace($responseText)) { return $null }
+            return ($responseText | ConvertFrom-Json)
+        } finally { if ($response) { $response.Close(); $response=$null } }
+    } catch [Net.WebException] {
+        $messageKey = if ($_.Exception.Status -eq [Net.WebExceptionStatus]::Timeout) { 'enterpriseCore.error.networkTimeout' } else { 'enterpriseCore.error.networkUnavailable' }
+        throw (Get-ToolEnterpriseText $messageKey)
+    } finally { if ($response) { try { $response.Close() } catch {} } }
+}
+
+function Get-ToolEnterpriseConnectionDiagnostic {
+    param(
+        [Parameter(Mandatory = $true)][string]$ServerAddress,
+        [ValidateRange(1024,65535)][int]$Port = $script:ToolEnterpriseDefaultPort,
+        [ValidateRange(200,10000)][int]$TimeoutMs = 1500
+    )
+    try { $endpoint = Resolve-ToolEnterpriseServerEndpoint -ServerAddress $ServerAddress -Port $Port }
+    catch { return [pscustomobject][ordered]@{ Success=$false; Code='InvalidEndpoint'; Message=[string]$_.Exception.Message; Address=''; Port=$Port; Status=$null } }
+    if (-not (Test-ToolEnterpriseTcpEndpoint -ServerAddress $endpoint.Address -Port $endpoint.Port -TimeoutMs $TimeoutMs)) {
+        return [pscustomobject][ordered]@{ Success=$false; Code='TcpUnavailable'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.tcpUnavailable' @($endpoint.DisplayAddress)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$null }
+    }
+    try {
+        $status = Invoke-ToolEnterpriseHttpRequest -Method GET -Uri "$(Get-ToolEnterpriseBaseUri -ServerAddress $endpoint.Address -Port $endpoint.Port)/status" -TimeoutMs $TimeoutMs
+    } catch {
+        return [pscustomobject][ordered]@{ Success=$false; Code='ServiceUnavailable'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.serviceUnavailable' @($endpoint.DisplayAddress)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$null }
+    }
+    if (-not $status -or -not [bool]$status.Accepted) {
+        return [pscustomobject][ordered]@{ Success=$false; Code='ServiceRejected'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.serviceRejected' @($endpoint.DisplayAddress)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$status }
+    }
+    if ([string]$status.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion) {
+        return [pscustomobject][ordered]@{ Success=$false; Code='ProtocolMismatch'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.protocolMismatch' @([string]$status.ProtocolVersion,$script:ToolEnterpriseProtocolVersion)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$status }
+    }
+    if ([string]$status.ToolVersion -ne $script:ToolEnterpriseToolVersion) {
+        return [pscustomobject][ordered]@{ Success=$false; Code='VersionMismatch'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.versionMismatch' @([string]$status.ToolVersion,$script:ToolEnterpriseToolVersion)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$status }
+    }
+    return [pscustomobject][ordered]@{ Success=$true; Code='Connected'; Message=(Get-ToolEnterpriseText 'enterpriseCore.connection.connected' @($endpoint.DisplayAddress,$status.ProtocolVersion)); Address=$endpoint.Address; Port=$endpoint.Port; Status=$status }
 }
 
 function Test-ToolEnterpriseServerConnection {
@@ -1163,14 +1235,9 @@ function Test-ToolEnterpriseServerConnection {
         [ValidateRange(1024,65535)][int]$Port = $script:ToolEnterpriseDefaultPort,
         [int]$TimeoutMs = 1200
     )
-    try {
-        $baseUri = Get-ToolEnterpriseBaseUri -ServerAddress $ServerAddress -Port $Port
-        $status = Invoke-ToolEnterpriseHttpRequest -Method GET -Uri "$baseUri/status" -TimeoutMs $TimeoutMs
-        if (-not [bool]$status.Accepted -or
-            [string]$status.ProtocolVersion -ne $script:ToolEnterpriseProtocolVersion -or
-            [string]$status.ToolVersion -ne $script:ToolEnterpriseToolVersion) { return $null }
-        return $status
-    } catch { return $null }
+    $diagnostic = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress $ServerAddress -Port $Port -TimeoutMs $TimeoutMs
+    if (-not $diagnostic.Success) { return $null }
+    return $diagnostic.Status
 }
 
 function Register-ToolEnterpriseClient {
@@ -1634,7 +1701,7 @@ function Export-ToolEnterpriseFleetReport {
     $fullDestination = [IO.Path]::GetFullPath($DestinationDirectory)
     if (-not (Test-Path -LiteralPath $fullDestination -PathType Container)) { New-Item -ItemType Directory -Path $fullDestination -Force | Out-Null }
     $clients = @(Get-ToolEnterpriseServerClients)
-    $stamp = [DateTime]::Now.ToString("yyyyMMdd-HHmmss")
+    $stamp = [DateTime]::Now.ToString("yyyyMMdd-HHmmss-fff")
     $baseName = Get-ToolEnterpriseText "enterpriseReport.fileBase" @($stamp)
     $jsonPath = Join-Path $fullDestination ($baseName + ".json")
     $csvPath = Join-Path $fullDestination ($baseName + ".csv")
@@ -1712,7 +1779,15 @@ function Export-ToolEnterpriseFleetReport {
         -Sections @(
             [pscustomobject]@{
                 Title=(Get-ToolEnterpriseText "enterpriseReport.section.clientList")
-                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @($columnComputer,$columnIp,$columnLastSeen,$columnWindows,$columnWindowsChannel,$columnWindowsLast5,$columnOffice,$columnOfficeChannel,$columnOfficeLast5,$columnRemoteChanges))
+                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @($columnComputer,$columnIp,$columnLastSeen,$columnWindows,$columnOffice))
+            },
+            [pscustomobject]@{
+                Title=(Get-ToolEnterpriseText "enterpriseReport.section.windowsDetails")
+                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @($columnComputer,$columnWindows,$columnWindowsChannel,$columnWindowsLast5))
+            },
+            [pscustomobject]@{
+                Title=(Get-ToolEnterpriseText "enterpriseReport.section.officeDetails")
+                BodyHtml=(ConvertTo-ToolHtmlTable -Rows $fleetRows -Columns @($columnComputer,$columnOffice,$columnOfficeChannel,$columnOfficeLast5,$columnRemoteChanges))
             },
             [pscustomobject]@{
                 Title=(Get-ToolEnterpriseText "enterpriseReport.section.limitations")
@@ -1724,6 +1799,11 @@ function Export-ToolEnterpriseFleetReport {
     if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) { throw (Get-ToolEnterpriseText "enterpriseReport.error.htmlUnsafe") }
     $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error=(Get-ToolEnterpriseText "enterpriseReport.pdf.notRequested") }
     if ($IncludePdf) { $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath }
+    if ($pdfResult.Success) {
+        $pdfGuide = New-ToolReportPdfGuideHtml -PdfRequested $true -PdfCreated $true -PdfFileName ([IO.Path]::GetFileName($pdfPath)) -Culture $reportCulture
+        $html = $html.Replace('</main>', ($pdfGuide + '</main>'))
+        [IO.File]::WriteAllText($htmlPath, $html, (New-Object Text.UTF8Encoding($false)))
+    }
     $manifestLines = @((Get-ToolEnterpriseText "enterpriseReport.manifestHeader" @($script:ToolEnterpriseToolVersion)))
     foreach ($path in @($jsonPath,$csvPath,$htmlPath,$pdfPath)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) { $manifestLines += "$(Get-ToolEnterpriseSha256Hex -Path $path)  $([IO.Path]::GetFileName($path))" }
@@ -1744,34 +1824,73 @@ function Find-ToolEnterpriseNetworkDevices {
     param(
         [Parameter(Mandatory = $true)][string]$Cidr,
         [ValidateRange(50, 3000)][int]$TimeoutMs = 350,
-        [ValidateRange(1, 128)][int]$ThrottleLimit = 48
+        [ValidateRange(1, 128)][int]$ThrottleLimit = 48,
+        [int[]]$ProbePorts = @($script:ToolEnterpriseDefaultPort,445,3389)
     )
 
     $addresses = @(Get-ToolEnterpriseCidrAddresses -Cidr $Cidr)
+    $knownNeighbors = @{}
+    try {
+        if (Get-Command Get-NetNeighbor -ErrorAction SilentlyContinue) {
+            foreach ($neighbor in @(Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { [string]$_.State -notin @('Unreachable','Incomplete') })) {
+                if ([string]$neighbor.IPAddress -match '^\d{1,3}(?:\.\d{1,3}){3}$') { $knownNeighbors[[string]$neighbor.IPAddress] = $true }
+            }
+        }
+    } catch {}
+    try {
+        foreach ($line in @(& (Join-Path $env:SystemRoot 'System32\arp.exe') -a 2>$null)) {
+            if ([string]$line -match '(?<![0-9.])(\d{1,3}(?:\.\d{1,3}){3})(?![0-9.])\s+[0-9a-f-]{17}\s+(?:dynamic|static)') {
+                $knownNeighbors[[string]$matches[1]] = $true
+            }
+        }
+    } catch {}
     $pool = [RunspaceFactory]::CreateRunspacePool(1, $ThrottleLimit)
     $pool.Open()
     $workers = New-Object System.Collections.Generic.List[object]
     $scriptText = @'
-param($Address,$TimeoutMs)
-$reachable = $false
+param($Address,$TimeoutMs,$KnownNeighbor,$ProbePorts)
+$reachable = [bool]$KnownNeighbor
 $latency = -1
 $hostName = ""
+$methods = New-Object System.Collections.Generic.List[string]
+$openPorts = New-Object System.Collections.Generic.List[int]
+if ($KnownNeighbor) { [void]$methods.Add('NeighborCache') }
 $ping = New-Object Net.NetworkInformation.Ping
 try {
     $reply = $ping.Send($Address, $TimeoutMs)
     if ($reply -and $reply.Status -eq [Net.NetworkInformation.IPStatus]::Success) {
         $reachable = $true
         $latency = [long]$reply.RoundtripTime
-        try { $hostName = [Net.Dns]::GetHostEntry($Address).HostName } catch {}
+        [void]$methods.Add('ICMP')
     }
 } catch {} finally { $ping.Dispose() }
-[pscustomobject]@{ Address=$Address; Reachable=$reachable; LatencyMs=$latency; HostName=$hostName }
+foreach ($probePort in @($ProbePorts | Select-Object -Unique)) {
+    if ([int]$probePort -lt 1 -or [int]$probePort -gt 65535) { continue }
+    $client = New-Object Net.Sockets.TcpClient
+    $handle = $null
+    try {
+        $handle = $client.BeginConnect($Address, [int]$probePort, $null, $null)
+        if ($handle.AsyncWaitHandle.WaitOne([Math]::Max(80,$TimeoutMs), $false)) {
+            $client.EndConnect($handle)
+            if ($client.Connected) {
+                $reachable = $true
+                [void]$openPorts.Add([int]$probePort)
+                [void]$methods.Add("TCP:$probePort")
+            }
+        }
+    } catch {} finally {
+        if ($handle -and $handle.AsyncWaitHandle) { try { $handle.AsyncWaitHandle.Close() } catch {} }
+        $client.Close()
+    }
+}
+if ($reachable) { try { $hostName = [Net.Dns]::GetHostEntry($Address).HostName } catch {} }
+[pscustomobject]@{ Address=$Address; Reachable=$reachable; LatencyMs=$latency; HostName=$hostName; DiscoveryMethod=(@($methods|Select-Object -Unique)-join ','); OpenPorts=@($openPorts|Select-Object -Unique) }
 '@
     try {
         foreach ($address in $addresses) {
             $powerShell = [PowerShell]::Create()
             $powerShell.RunspacePool = $pool
-            [void]$powerShell.AddScript($scriptText).AddArgument($address).AddArgument($TimeoutMs)
+            [void]$powerShell.AddScript($scriptText).AddArgument($address).AddArgument($TimeoutMs).AddArgument([bool]$knownNeighbors.ContainsKey($address)).AddArgument(@($ProbePorts))
             $handle = $powerShell.BeginInvoke()
             [void]$workers.Add([pscustomobject]@{ PowerShell=$powerShell; Handle=$handle })
         }
@@ -1799,8 +1918,8 @@ function Find-ToolEnterpriseServers {
     $pool = [RunspaceFactory]::CreateRunspacePool(1, $ThrottleLimit)
     $pool.Open()
     $workers = New-Object System.Collections.Generic.List[object]
-    $scriptText = @'
-param($Address,$Port,$TimeoutMs)
+$scriptText = @'
+param($Address,$Port,$TimeoutMs,$ExpectedProtocolVersion,$ExpectedToolVersion)
 $response = $null
 try {
     $uri = "http://$Address`:$Port/tool/v1/status"
@@ -1815,8 +1934,8 @@ try {
         $reader = New-Object IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
         try { $status = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
         if ([bool]$status.Accepted -and
-            [string]$status.ProtocolVersion -eq "1.0" -and
-            [string]$status.ToolVersion -eq "4.6.0.0") {
+            [string]$status.ProtocolVersion -eq [string]$ExpectedProtocolVersion -and
+            [string]$status.ToolVersion -eq [string]$ExpectedToolVersion) {
             [pscustomobject]@{
                 Address=$Address
                 Port=$Port
@@ -1833,7 +1952,7 @@ try {
         foreach ($address in $addresses) {
             $powerShell = [PowerShell]::Create()
             $powerShell.RunspacePool = $pool
-            [void]$powerShell.AddScript($scriptText).AddArgument($address).AddArgument($Port).AddArgument($TimeoutMs)
+            [void]$powerShell.AddScript($scriptText).AddArgument($address).AddArgument($Port).AddArgument($TimeoutMs).AddArgument($script:ToolEnterpriseProtocolVersion).AddArgument($script:ToolEnterpriseToolVersion)
             $handle = $powerShell.BeginInvoke()
             [void]$workers.Add([pscustomobject]@{ PowerShell=$powerShell; Handle=$handle })
         }

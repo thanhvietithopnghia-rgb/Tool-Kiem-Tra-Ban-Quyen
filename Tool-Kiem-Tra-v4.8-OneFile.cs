@@ -18,9 +18,9 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Thanh Việt")]
 [assembly: AssemblyProduct("Công cụ kiểm tra cấu hình máy và bản quyền phần mềm")]
 [assembly: AssemblyCopyright("Copyright © Thanh Việt 2026")]
-[assembly: AssemblyVersion("4.6.0.0")]
-[assembly: AssemblyFileVersion("4.6.0.0")]
-[assembly: AssemblyInformationalVersion("4.6.0.0")]
+[assembly: AssemblyVersion("4.8.0.0")]
+[assembly: AssemblyFileVersion("4.8.0.0")]
+[assembly: AssemblyInformationalVersion("4.8.0.0")]
 
 namespace ThanhViet.ToolKiemTra
 {
@@ -60,9 +60,12 @@ namespace ThanhViet.ToolKiemTra
             "Tool-Strings.vi-VN.json",
             "Tool-Strings.en-US.json",
             "Tool-OfflinePolicy.ps1",
+            "Tool-Assistant.ps1",
+            "tool-assistant-knowledge-v1.1.json",
             "Tool-SoftwareInventory.ps1",
             "software-license-catalog-v1.0.json",
             "software-license-online-update.ps1",
+            "Tool-UpdateManager.ps1",
             "Tool-ReportSchema.ps1",
             "Tool-ReportExport.ps1",
             "Tool-PluginEngine.ps1",
@@ -108,9 +111,12 @@ namespace ThanhViet.ToolKiemTra
             "Tool-Strings.vi-VN.json",
             "Tool-Strings.en-US.json",
             "Tool-OfflinePolicy.ps1",
+            "Tool-Assistant.ps1",
+            "tool-assistant-knowledge-v1.1.json",
             "Tool-SoftwareInventory.ps1",
             "software-license-catalog-v1.0.json",
             "software-license-online-update.ps1",
+            "Tool-UpdateManager.ps1",
             "Tool-ReportSchema.ps1",
             "Tool-ReportExport.ps1",
             "Tool-PluginEngine.ps1",
@@ -151,6 +157,21 @@ namespace ThanhViet.ToolKiemTra
                 MessageBox.Show(ex.Message, GetProductCaption(), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return 64;
             }
+
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            {
+                ShowMessage(mode, L("launcher.windowsOnly"), MessageBoxIcon.Warning);
+                return 10;
+            }
+            if (Environment.OSVersion.Version < new Version(6, 1))
+            {
+                ShowMessage(mode, L("launcher.windowsVersionRequired"), MessageBoxIcon.Warning);
+                return 10;
+            }
+            if (!IsArchitectureSupported())
+                return 12;
+            if (RequiresAdministrator(mode) && !IsAdministrator())
+                return RelaunchElevated(mode);
 
             bool createdNew;
             using (Mutex singleInstance = new Mutex(true, GetMutexName(mode), out createdNew))
@@ -210,6 +231,71 @@ namespace ThanhViet.ToolKiemTra
             if (String.Equals(args[0], "--local-license-manager", StringComparison.OrdinalIgnoreCase))
                 return LaunchMode.LocalLicenseManager;
             throw new ArgumentException(L("launcher.unsupportedArgument", args[0]));
+        }
+
+        private static bool RequiresAdministrator(LaunchMode mode)
+        {
+            return mode != LaunchMode.Gui;
+        }
+
+        private static bool IsAdministrator()
+        {
+            try
+            {
+                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+                {
+                    WindowsPrincipal principal = new WindowsPrincipal(identity);
+                    return principal.IsInRole(WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch { return false; }
+        }
+
+        private static string GetLaunchArgument(LaunchMode mode)
+        {
+            switch (mode)
+            {
+                case LaunchMode.EnterpriseUi: return "--enterprise-ui";
+                case LaunchMode.EnterpriseServer: return "--enterprise-server";
+                case LaunchMode.EnterpriseAgent: return "--enterprise-agent";
+                case LaunchMode.EnterpriseAgentForce: return "--enterprise-agent-force";
+                case LaunchMode.LocalLicenseManager: return "--local-license-manager";
+                default: return "--gui";
+            }
+        }
+
+        private static int RelaunchElevated(LaunchMode mode)
+        {
+            try
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.FileName = Assembly.GetExecutingAssembly().Location;
+                startInfo.Arguments = GetLaunchArgument(mode);
+                startInfo.UseShellExecute = true;
+                startInfo.Verb = "runas";
+                using (Process process = Process.Start(startInfo))
+                {
+                    if (process == null)
+                        throw new InvalidOperationException(L("launcher.elevationFailed", "Process.Start returned null."));
+                    process.WaitForExit();
+                    return process.ExitCode;
+                }
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                if (ex.NativeErrorCode == 1223)
+                {
+                    ShowMessage(mode, L("launcher.elevationCancelled"), MessageBoxIcon.Information);
+                    return 1223;
+                }
+                ShowMessage(mode, L("launcher.elevationFailed", ex.Message), MessageBoxIcon.Error);
+                return 5;
+            }
+            catch (Exception ex)
+            {
+                ShowMessage(mode, L("launcher.elevationFailed", ex.Message), MessageBoxIcon.Error);
+                return 5;
+            }
         }
 
         private static string GetMutexName(LaunchMode mode)
@@ -299,30 +385,8 @@ namespace ThanhViet.ToolKiemTra
             string inherited = Environment.GetEnvironmentVariable("TOOL_OFFLINE_MODE");
             if (String.Equals(inherited, "1", StringComparison.Ordinal)) return "1";
             if (String.Equals(inherited, "0", StringComparison.Ordinal)) return "0";
-
-            try
-            {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                if (!String.IsNullOrWhiteSpace(localAppData))
-                {
-                    string settingsPath = Path.Combine(localAppData, "ThanhViet-Tool-Kiem-Tra", "offline-settings.json");
-                    if (File.Exists(settingsPath))
-                    {
-                        FileInfo info = new FileInfo(settingsPath);
-                        if ((info.Attributes & FileAttributes.ReparsePoint) == 0 && info.Length > 2 && info.Length <= 65536)
-                        {
-                            string json = File.ReadAllText(settingsPath);
-                            Match match = Regex.Match(json, "\"OfflineMode\"\\s*:\\s*(true|false)", RegexOptions.IgnoreCase);
-                            if (match.Success)
-                                return String.Equals(match.Groups[1].Value, "false", StringComparison.OrdinalIgnoreCase) ? "0" : "1";
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // Fail closed: unreadable or malformed settings keep the tool offline.
-            }
+            // Every fresh launch fails closed. Online is explicitly enabled only
+            // inside the current dashboard session and is never restored silently.
             return "1";
         }
 
@@ -522,8 +586,13 @@ namespace ThanhViet.ToolKiemTra
 
         private static int RunPayload(LaunchMode mode, string powershellPath)
         {
-            string commonData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            string productRoot = Path.Combine(commonData, "ThanhViet-Tool-Kiem-Tra");
+            bool machineScope = mode != LaunchMode.Gui;
+            string dataBase = Environment.GetFolderPath(machineScope
+                ? Environment.SpecialFolder.CommonApplicationData
+                : Environment.SpecialFolder.LocalApplicationData);
+            if (String.IsNullOrWhiteSpace(dataBase))
+                dataBase = Path.GetTempPath();
+            string productRoot = Path.Combine(dataBase, "ThanhViet-Tool-Kiem-Tra");
             string protectedRoot = Path.Combine(productRoot, "v4.6");
             string legacyRoot = Path.Combine(productRoot, "v4.4");
             string approvedKmsPath = Path.Combine(protectedRoot, "approved-kms-servers.txt");
@@ -549,17 +618,17 @@ namespace ThanhViet.ToolKiemTra
 
             try
             {
-                CreateProtectedDirectory(productRoot);
-                CreateProtectedDirectory(protectedRoot);
-                CreateProtectedDirectory(logsDirectory);
-                CreateProtectedDirectory(pluginsDirectory);
-                CreateProtectedDirectory(timelineDirectory);
-                CreateProtectedDirectory(tempDirectory);
+                CreateProtectedDirectory(productRoot, machineScope);
+                CreateProtectedDirectory(protectedRoot, machineScope);
+                CreateProtectedDirectory(logsDirectory, machineScope);
+                CreateProtectedDirectory(pluginsDirectory, machineScope);
+                CreateProtectedDirectory(timelineDirectory, machineScope);
+                CreateProtectedDirectory(tempDirectory, machineScope);
                 Dictionary<string, string> extractedHashes = ExtractPayload(tempDirectory);
                 VerifyExtractedPayload(tempDirectory, extractedHashes);
                 InitializeProtectedApprovedKmsList(tempDirectory, approvedKmsPath);
                 InitializeProtectedBuiltInPlugin(tempDirectory, pluginsDirectory);
-                CreateProtectedDirectory(Path.Combine(tempDirectory, "runtime"));
+                CreateProtectedDirectory(Path.Combine(tempDirectory, "runtime"), machineScope);
 
                 string scriptPath = Path.Combine(tempDirectory, GetScriptName(mode));
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -575,6 +644,7 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_APPROVED_KMS_FILE"] = approvedKmsPath;
                 startInfo.EnvironmentVariables["TOOL_DATA_ROOT"] = protectedRoot;
                 startInfo.EnvironmentVariables["TOOL_LEGACY_DATA_ROOT"] = legacyRoot;
+                startInfo.EnvironmentVariables["TOOL_DATA_SCOPE"] = machineScope ? "Machine" : "User";
                 startInfo.EnvironmentVariables["TOOL_DATA_SCHEMA_VERSION"] = "2.0";
                 startInfo.EnvironmentVariables["TOOL_SECURE_RUNTIME_DIR"] = Path.Combine(tempDirectory, "runtime");
                 startInfo.EnvironmentVariables["TOOL_SECURE_LAUNCH"] = "1";
@@ -587,9 +657,10 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_TIMELINE_KEY_PATH"] = timelineKeyPath;
                 startInfo.EnvironmentVariables["TOOL_ENTERPRISE_ROOT"] = enterpriseDirectory;
                 startInfo.EnvironmentVariables["TOOL_LAUNCHER_PATH"] = Assembly.GetExecutingAssembly().Location;
+                startInfo.EnvironmentVariables["TOOL_LAUNCHER_PID"] = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
                 startInfo.EnvironmentVariables["TOOL_LAUNCH_MODE"] = mode.ToString();
                 startInfo.EnvironmentVariables["TOOL_AGENT_FORCE"] = mode == LaunchMode.EnterpriseAgentForce ? "1" : "0";
-                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.6.0.0";
+                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.8.0.0";
                 startInfo.EnvironmentVariables["TOOL_UI_CULTURE"] = GetUiCulture();
                 startInfo.EnvironmentVariables["TOOL_CORRELATION_ID"] = correlationId;
                 startInfo.EnvironmentVariables["TOOL_CAPABILITY_SCHEMA"] = "1.1";
@@ -725,7 +796,7 @@ namespace ThanhViet.ToolKiemTra
             File.Copy(source, destination, false);
         }
 
-        private static void CreateProtectedDirectory(string directory)
+        private static void CreateProtectedDirectory(string directory, bool machineScope)
         {
             if (Directory.Exists(directory) &&
                 (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
@@ -738,12 +809,15 @@ namespace ThanhViet.ToolKiemTra
 
             SecurityIdentifier administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
             SecurityIdentifier system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            SecurityIdentifier currentUser = WindowsIdentity.GetCurrent().User;
             DirectorySecurity security = new DirectorySecurity();
             security.SetAccessRuleProtection(true, false);
-            security.SetOwner(administrators);
+            security.SetOwner(machineScope ? administrators : currentUser);
             InheritanceFlags inheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
             security.AddAccessRule(new FileSystemAccessRule(administrators, FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
             security.AddAccessRule(new FileSystemAccessRule(system, FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
+            if (!machineScope && currentUser != null)
+                security.AddAccessRule(new FileSystemAccessRule(currentUser, FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
             Directory.SetAccessControl(directory, security);
         }
 

@@ -1,5 +1,5 @@
-﻿$script:ToolReportExportToolVersion = "4.6"
-$script:ToolReportExportSchemaVersion = "1.2"
+﻿$script:ToolReportExportToolVersion = "4.8"
+$script:ToolReportExportSchemaVersion = "1.4"
 
 $toolReportExportLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
@@ -31,6 +31,8 @@ function Get-ToolReportExportMetadata {
         OfflineSafe = $true
         ExternalAssets = $false
         HtmlCultures = @("vi-VN", "en-US")
+        HtmlPresentation = "Summary"
+        PdfPresentation = "Detailed"
         PrintProfile = "A4 / safe page breaks / local assets only / network disabled"
     }
 }
@@ -51,8 +53,8 @@ function Get-ToolProfessionalReportCss {
 :root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#d8e0ea;--paper:#fff;--canvas:#edf2f8;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#a35b00;--bad:#b42318;--info:#175cd3;--shadow:0 8px 26px rgba(16,24,40,.08)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#e7eef7 0,var(--canvas) 360px);color:var(--ink);font-feature-settings:"tnum" 1;margin:0;line-height:1.5}
-.page{max-width:1180px;margin:0 auto;padding:30px 24px 48px}
+body{font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#e7eef7 0,var(--canvas) 360px);color:var(--ink);font-feature-settings:"tnum" 1;margin:0;line-height:1.42}
+.page{max-width:1440px;margin:0 auto;padding:30px 24px 48px}
 .hero{background:linear-gradient(135deg,#0d2e5c 0,var(--brand) 46%,var(--brand2) 100%);border:1px solid rgba(255,255,255,.16);border-radius:20px;color:#fff;overflow:hidden;padding:30px 32px;position:relative;box-shadow:0 18px 44px rgba(18,59,116,.22)}
 .hero:after{background:radial-gradient(circle,rgba(255,255,255,.17) 0,rgba(255,255,255,0) 66%);content:"";height:320px;pointer-events:none;position:absolute;right:-100px;top:-170px;width:320px}
 .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.86;text-transform:uppercase}
@@ -62,12 +64,14 @@ h1{font-size:31px;letter-spacing:-.025em;line-height:1.2;margin:8px 0 9px}
 .report-mode:before{background:#65d99b;border-radius:50%;content:"";height:7px;margin-right:7px;width:7px}
 .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 20px;margin-top:22px;padding-top:17px;border-top:1px solid rgba(255,255,255,.28);font-size:12px}
 .meta-item b{display:block;font-size:11px;letter-spacing:.05em;opacity:.75;text-transform:uppercase}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin:20px 0}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;min-height:82px;padding:16px 17px;position:relative;box-shadow:var(--shadow)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:16px 0}
+.cards-summary{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cards-count-1{grid-template-columns:repeat(1,minmax(0,1fr))}.cards-count-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cards-count-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cards-count-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cards-count-5{grid-template-columns:repeat(5,minmax(0,1fr))}.cards-count-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:13px;min-height:72px;padding:13px 14px;position:relative;box-shadow:var(--shadow)}
 .card:before{background:var(--info);border-radius:5px;content:"";height:4px;left:16px;position:absolute;top:0;width:42px}
 .tone-ok:before{background:var(--ok)}.tone-warning:before{background:var(--warn)}.tone-danger:before{background:var(--bad)}
 .card-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.card-value{font-size:18px;font-weight:700;letter-spacing:-.015em;margin-top:7px;overflow-wrap:anywhere}
+.card-value{font-size:15.5px;font-weight:700;letter-spacing:-.01em;line-height:1.3;margin-top:5px;overflow-wrap:break-word;white-space:pre-line;word-break:normal}
 .tone-ok .card-value,.status-ok{color:var(--ok)}
 .tone-warning .card-value,.status-warning{color:var(--warn)}
 .tone-danger .card-value,.status-danger{color:var(--bad)}
@@ -76,26 +80,128 @@ h1{font-size:31px;letter-spacing:-.025em;line-height:1.2;margin:8px 0 9px}
 .toc strong{color:var(--brand)}
 .toc ol{columns:2;column-gap:32px;margin:8px 0 0;padding-left:22px}
 .toc a{color:var(--brand2);text-decoration:none}
-section{background:var(--paper);border:1px solid var(--line);border-radius:15px;margin:0 0 16px;padding:20px 21px;box-shadow:var(--shadow);break-inside:avoid-page}
-section h2{border-bottom:1px solid #e8edf3;color:var(--brand);font-size:19px;margin:0 0 13px;padding:0 0 9px}
-.table-wrap{max-width:100%;overflow-x:auto}
-table{border-collapse:collapse;font-size:12.5px;width:100%}
-th,td{border:1px solid #dfe6ee;padding:8px 9px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+section{background:var(--paper);border:1px solid var(--line);border-radius:14px;margin:0 0 13px;padding:16px 17px;box-shadow:var(--shadow);break-inside:avoid-page}
+section h2{border-bottom:1px solid #e8edf3;color:var(--brand);font-size:18px;margin:0 0 10px;padding:0 0 7px}
+.table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.table-split-part+.table-split-part{margin-top:12px}.table-split-label{color:var(--muted);font-size:11px;font-weight:700;margin:0 0 5px;text-align:right}
+table{border-collapse:collapse;font-size:12px;width:100%}
+table.table-wide{min-width:980px}
+table.table-profile-software{min-width:760px;table-layout:fixed}
+table.table-profile-software col.col-name{width:31%}
+table.table-profile-software col.col-version{width:16%}
+table.table-profile-software col.col-publisher{width:37%}
+table.table-profile-software col.col-date{width:16%}
+th,td{border:1px solid #dfe6ee;line-height:1.42;padding:7px 8px;text-align:left;vertical-align:top;overflow-wrap:normal;word-break:normal}
+th.cell-version,td.cell-version,th.cell-date,td.cell-date{min-width:104px;white-space:nowrap}
+th.cell-name,td.cell-name{min-width:210px}
+th.cell-publisher,td.cell-publisher{min-width:250px}
+th.cell-path,td.cell-path,th.cell-evidence,td.cell-evidence{min-width:230px}
+.cell-clip{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-details{margin:0;max-width:100%}.cell-details summary{color:var(--brand2);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cell-details .detail-content{margin-top:6px;overflow-wrap:break-word;white-space:pre-wrap;word-break:normal}
 th{background:#eaf2fb;color:#183b66;font-weight:700}
 tr:nth-child(even) td{background:#fafcff}
 .muted{color:var(--muted)}
 .note{background:#f5f8fc;border:1px solid #dde5ef;border-left:4px solid #8292a8;border-radius:7px;color:#475467;font-size:12.5px;margin:12px 0 0;padding:10px 12px}
+.summary-intro{background:#f7fbff;border-color:#c9dcef}.summary-intro p{margin:0;color:#344054}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.summary-result{background:#f8fafc;border:1px solid #dde5ef;border-radius:10px;display:flex;flex-direction:column;height:100%;padding:12px 13px}
+.summary-result h3{color:var(--brand);font-size:14px;margin:0 0 7px}.summary-result p{font-size:12.5px;margin:5px 0}.summary-label{color:var(--muted);display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em;margin-bottom:3px;text-transform:uppercase}
+.summary-verdict{flex:1;line-height:1.42;margin:4px 0 9px!important}.summary-detail-grid{display:grid;gap:7px;margin-top:auto}.summary-detail-box{background:#fff;border:1px solid #d6e0ec;border-radius:8px;padding:8px 9px}.summary-detail-verification{min-height:54px}.summary-detail-direction{min-height:82px}.summary-detail-value{font-size:12.3px;line-height:1.4;overflow-wrap:break-word}
+.summary-alert{border-left:4px solid var(--info);margin-top:11px}.summary-alert-warning{border-left-color:var(--warn)}.summary-alert-danger{border-left-color:var(--bad)}
+.pdf-guide{background:#f4f8fd;border:1px solid #b9cee7;border-left:5px solid var(--brand2)}.pdf-guide p{margin:7px 0}.pdf-link{align-items:center;background:var(--brand2);border-radius:8px;color:#fff;display:inline-flex;font-size:13px;font-weight:700;gap:8px;margin:7px 0 3px;padding:9px 13px;text-decoration:none}.pdf-link:hover{background:var(--brand)}.pdf-file{font-size:11px;font-weight:500;opacity:.86}.pdf-contents{color:var(--muted);font-size:12px}.pdf-guide-unavailable{border-left-color:var(--warn)}
+.system-app-link a,.back-link a{color:var(--brand2);font-weight:700;text-decoration:underline;text-underline-offset:2px}.system-software-appendix{break-before:page;page-break-before:always}.back-link{margin-top:12px}
+.system-summary-details>summary{background:#f4f8fd;border:1px solid #b9cee7;border-radius:8px;color:var(--brand2);cursor:pointer;font-weight:700;list-style-position:inside;padding:10px 12px}.system-summary-details[open]>summary{margin-bottom:10px}.system-summary-details .table-wrap{max-height:520px}
 .license-warning{background:#fff7e8;border:1px solid #f4d7a7;border-left:4px solid #f0a000;border-radius:7px;color:#6b4300;margin:12px 0 0;padding:10px 12px}
-.text-report{font-family:"Segoe UI",Arial,sans-serif;font-size:12.5px;line-height:1.55;margin:0;overflow-wrap:anywhere;white-space:pre-wrap;word-break:break-word}
+.text-report{font-family:"Segoe UI",Arial,sans-serif;font-size:12.5px;line-height:1.45;margin:0;overflow-wrap:break-word;white-space:pre-wrap;word-break:normal}
 .badge{border-radius:999px;display:inline-block;font-size:11px;font-weight:700;padding:3px 8px}
 .badge-ok{background:#eaf8f0;color:var(--ok)}
 .badge-warning{background:#fff3df;color:var(--warn)}
 .badge-danger{background:#feeceb;color:var(--bad)}
-.footer{color:var(--muted);font-size:11.5px;margin-top:22px;text-align:center}
-@media(prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#e6ebf2;--muted:#a9b4c5;--line:#3b4658;--paper:#202733;--canvas:#141923;--brand:#8bb8ff;--brand2:#a8caff;--ok:#71d6a1;--warn:#ffc36e;--bad:#ff8a82;--info:#8eb9ff;--shadow:0 8px 26px rgba(0,0,0,.25)}body{background:linear-gradient(180deg,#101722,var(--canvas) 360px)}.hero{background:linear-gradient(135deg,#17345f,#234d85)}.toc,.note{background:#1c2634;border-color:#3b4d64;color:#cbd4e2}section h2{border-bottom-color:#3b4658}.license-warning{background:#3a2d1a;border-color:#6b512b;color:#ffd494}th{background:#293d58;color:#dceaff}tr:nth-child(even) td{background:#1b222d}}
-@media(max-width:720px){.page{padding:14px 10px 28px}.hero{border-radius:13px;padding:22px 18px}.report-mode{position:static;margin-bottom:12px}.toc ol{columns:1}h1{font-size:24px}section{padding:15px 12px;overflow-x:auto}.cards{grid-template-columns:1fr 1fr}}
-@media print{@page{size:A4;margin:12mm}:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#b9c3cf;--paper:#fff;--canvas:#fff;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#7a4700;--bad:#9e2018;--info:#175cd3}html,body{height:auto!important;overflow:visible!important}body{background:#fff!important;color:#000}.page{max-width:none;padding:0}.hero{background:#fff!important;border:2px solid #123b74;border-radius:0;color:#123b74;box-shadow:none;break-inside:avoid-page;padding:14px 16px}.hero:after{display:none}.report-mode{border-color:#7591b3;color:#123b74;right:12px;top:10px}.report-mode:before{background:#147a4b}.meta-grid{border-top-color:#b8c8db}.cards{grid-template-columns:repeat(4,1fr);gap:6px}.card,section,.toc{background:#fff!important;border-color:#b9c3cf;border-radius:0;box-shadow:none}.card{break-inside:avoid-page;min-height:68px;padding:11px 12px}.toc{display:none}section{break-inside:auto!important;page-break-inside:auto!important;orphans:3;widows:3}section h2{break-after:avoid-page;page-break-after:avoid}.table-wrap{max-width:none;overflow:visible!important}table{font-size:9.5pt;page-break-inside:auto;table-layout:auto}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid-page;page-break-inside:avoid}th,td{overflow-wrap:anywhere;word-break:break-word}a{color:#000;text-decoration:none}th{background:#e8edf3!important;color:#183b66!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.text-report{font-size:9.5pt;overflow:visible}.footer{position:running(report-footer)}}
+.footer{break-inside:avoid;color:var(--muted);font-size:11.5px;line-height:1.35;margin-top:22px;page-break-inside:avoid;text-align:center}.footer-line+.footer-line{margin-top:3px}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#e6ebf2;--muted:#a9b4c5;--line:#3b4658;--paper:#202733;--canvas:#141923;--brand:#8bb8ff;--brand2:#a8caff;--ok:#71d6a1;--warn:#ffc36e;--bad:#ff8a82;--info:#8eb9ff;--shadow:0 8px 26px rgba(0,0,0,.25)}body{background:linear-gradient(180deg,#101722,var(--canvas) 360px)}.hero{background:linear-gradient(135deg,#17345f,#234d85)}.toc,.note,.summary-intro,.summary-result,.pdf-guide{background:#1c2634;border-color:#3b4d64;color:#cbd4e2}.summary-detail-box{background:#202c3b;border-color:#43536a}.summary-intro p{color:#cbd4e2}section h2{border-bottom-color:#3b4658}.license-warning{background:#3a2d1a;border-color:#6b512b;color:#ffd494}th{background:#293d58;color:#dceaff}tr:nth-child(even) td{background:#1b222d}}
+@media(max-width:1100px){.cards-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.page{padding:14px 10px 28px}.hero{border-radius:13px;padding:22px 18px}.report-mode{position:static;margin-bottom:12px}.toc ol{columns:1}h1{font-size:24px}section{padding:13px 10px}.cards{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}.cards-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.cards,.cards-summary{grid-template-columns:1fr}}
+@media print{.cell-clip{display:block;overflow:visible;text-overflow:clip;white-space:normal}.cell-details summary{display:none!important}.cell-details .detail-content{display:block!important;margin:0;white-space:pre-wrap}}
+@media print{@page{size:A4 portrait;margin:12mm}:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#b9c3cf;--paper:#fff;--canvas:#fff;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#7a4700;--bad:#9e2018;--info:#175cd3}html,body{height:auto!important;overflow:visible!important}body{background:#fff!important;color:#000}.page{max-width:none;padding:0}.hero{background:#fff!important;border:2px solid #123b74;border-radius:0;color:#123b74;box-shadow:none;break-inside:avoid-page;padding:14px 16px}.hero:after{display:none}.report-mode{border-color:#7591b3;color:#123b74;right:12px;top:10px}.report-mode:before{background:#147a4b}.meta-grid{border-top-color:#b8c8db}.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.cards.cards-count-1{grid-template-columns:repeat(1,minmax(0,1fr))}.cards.cards-count-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cards.cards-count-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cards.cards-count-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cards.cards-count-5{grid-template-columns:repeat(5,minmax(0,1fr))}.cards.cards-count-6{grid-template-columns:repeat(6,minmax(0,1fr))}.card,section,.toc{background:#fff!important;border-color:#b9c3cf;border-radius:0;box-shadow:none}.card{break-inside:avoid-page;min-height:62px;padding:9px 8px}.card-label{font-size:7.7pt;letter-spacing:.035em}.card-value{font-size:9pt;line-height:1.26}.toc{display:none}section{break-inside:auto!important;page-break-inside:auto!important;orphans:3;widows:3}section h2,section h3{break-after:avoid-page;page-break-after:avoid}.table-wrap{max-width:none;overflow:visible!important}table,table.table-wide,table.table-profile-software{font-size:8.15pt;min-width:0!important;width:100%!important;page-break-inside:auto;table-layout:fixed}table.table-cols-6,table.table-cols-7{font-size:7.35pt}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid-page;page-break-inside:avoid}th,td{min-width:0!important;line-height:1.34;padding:5px 6px;overflow-wrap:break-word;white-space:normal!important;word-break:normal}th.cell-path,td.cell-path,th.cell-evidence,td.cell-evidence{overflow-wrap:anywhere;word-break:break-word}table col.col-name{width:23%}table col.col-version{width:12%}table col.col-date{width:12%}table col.col-publisher{width:23%}table col.col-path,table col.col-evidence{width:28%}a{color:#000}.system-app-link a,.back-link a{text-decoration:underline}.system-software-appendix{break-before:page!important;page-break-before:always!important}th{background:#e8edf3!important;color:#183b66!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.text-report{font-size:9.5pt;line-height:1.42;overflow:visible}.footer{position:running(report-footer)}}
+@media print{table col.col-name,table col.col-version,table col.col-date,table col.col-publisher,table col.col-path,table col.col-evidence{width:auto!important}table.table-profile-software col.col-name{width:31%!important}table.table-profile-software col.col-version{width:16%!important}table.table-profile-software col.col-date{width:16%!important}table.table-profile-software col.col-publisher{width:37%!important}table.table-cols-6{font-size:7.65pt}.table-split-part{break-inside:auto;page-break-inside:auto}.table-split-label{font-size:7.2pt;margin-bottom:3px}}
 '@
+}
+
+function ConvertTo-ToolHtmlSearchKey {
+    param([AllowNull()][string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+    $decomposed = $Value.Normalize([Text.NormalizationForm]::FormD)
+    $builder = New-Object Text.StringBuilder
+    foreach ($character in $decomposed.ToCharArray()) {
+        if ([Globalization.CharUnicodeInfo]::GetUnicodeCategory($character) -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+            [void]$builder.Append($character)
+        }
+    }
+    return $builder.ToString().Replace([char]0x0111, 'd').Replace([char]0x0110, 'D').ToLowerInvariant()
+}
+
+function Get-ToolHtmlColumnClass {
+    param([AllowNull()][string]$Column)
+
+    $name = ConvertTo-ToolHtmlSearchKey -Value ([string]$Column).Trim()
+    if ($name -match 'ngay cai|install date|install time|nam sx') { return 'date' }
+    if ($name -match '^(phien ban|version|file version|phien ban tep)$') { return 'version' }
+    if ($name -match 'ten phan mem|^name$|^ten$|^san pham$') { return 'name' }
+    if ($name -match '^hang$|publisher|nha phat hanh') { return 'publisher' }
+    if ($name -match 'duong dan|tep kiem tra|^path$|nguon|source') { return 'path' }
+    if ($name -match 'bang chung|evidence|quan sat|huong xu ly|nhan dinh') { return 'evidence' }
+    return 'text'
+}
+
+function Get-ToolHtmlTableProfile {
+    param([Parameter(Mandatory = $true)][string[]]$Columns)
+
+    $classes = @($Columns | ForEach-Object { Get-ToolHtmlColumnClass -Column $_ })
+    $isSoftwareInventory = $Columns.Count -eq 4 -and
+        $classes -contains 'name' -and $classes -contains 'version' -and
+        $classes -contains 'publisher' -and $classes -contains 'date'
+    return [pscustomobject]@{
+        Classes = $classes
+        TableClass = (@('report-table', "table-cols-$($Columns.Count)") +
+            $(if ($Columns.Count -ge 6) { 'table-wide' }) +
+            $(if ($isSoftwareInventory) { 'table-profile-software' })) -join ' '
+    }
+}
+
+function ConvertTo-ToolHtmlCompactPublisher {
+    param([AllowNull()][object]$Value)
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) { return "" }
+    $match = [regex]::Match($text, '(?i)(?:^|,\s*)CN\s*=\s*("(?:[^"]|"")*"|[^,]+)')
+    if ($match.Success) { return $match.Groups[1].Value.Trim().Trim('"') }
+    return $text.Trim()
+}
+
+function ConvertTo-ToolHtmlTableCell {
+    param(
+        [AllowNull()][object]$Value,
+        [ValidateSet('date','version','name','publisher','path','evidence','text')][string]$ColumnClass = 'text'
+    )
+
+    $text = if ($null -eq $Value) { "" } else { [string]$Value }
+    if ($ColumnClass -eq 'publisher') { $text = ConvertTo-ToolHtmlCompactPublisher -Value $text }
+    $encoded = ConvertTo-ToolHtmlText $text
+    if ($ColumnClass -eq 'path') {
+        $display = $text
+        if ($display.Length -gt 110) { $display = $display.Substring(0, 52) + " ... " + $display.Substring($display.Length - 52) }
+        return "<span class='cell-clip' title='$encoded'>$(ConvertTo-ToolHtmlText $display)</span>"
+    }
+    if ($ColumnClass -eq 'evidence' -and $text.Length -gt 220) {
+        $summary = $text.Substring(0, [Math]::Min(118, $text.Length)).TrimEnd() + "..."
+        return "<details class='cell-details'><summary title='$encoded'>$(ConvertTo-ToolHtmlText $summary)</summary><div class='detail-content'>$encoded</div></details>"
+    }
+    if ($text.Length -gt 140 -and $ColumnClass -in @('publisher','name','version')) {
+        return "<span class='cell-clip' title='$encoded'>$encoded</span>"
+    }
+    return $encoded
 }
 
 function ConvertTo-ToolHtmlTable {
@@ -107,18 +213,39 @@ function ConvertTo-ToolHtmlTable {
     if (-not $Rows -or @($Rows).Count -eq 0) {
         return "<p class='muted'>$(ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.noData"))</p>"
     }
+    if ($Columns.Count -gt 6) {
+        $remainingColumnCount = $Columns.Count - 1
+        $partCount = [int][Math]::Ceiling($remainingColumnCount / 5.0)
+        $groupSize = [int][Math]::Ceiling($remainingColumnCount / [double]$partCount)
+        $splitBuilder = New-Object Text.StringBuilder
+        $partNumber = 0
+        for ($offset = 1; $offset -lt $Columns.Count; $offset += $groupSize) {
+            $partNumber++
+            $lastIndex = [Math]::Min($Columns.Count - 1, $offset + $groupSize - 1)
+            $partColumns = @($Columns[0]) + @($Columns[$offset..$lastIndex])
+            [void]$splitBuilder.Append("<div class='table-split-part'><div class='table-split-label'>$partNumber / $partCount</div>")
+            [void]$splitBuilder.Append((ConvertTo-ToolHtmlTable -Rows $Rows -Columns $partColumns))
+            [void]$splitBuilder.Append('</div>')
+        }
+        return $splitBuilder.ToString()
+    }
+    $profile = Get-ToolHtmlTableProfile -Columns $Columns
     $builder = New-Object Text.StringBuilder
-    [void]$builder.Append("<div class='table-wrap'><table><thead><tr>")
-    foreach ($column in $Columns) {
-        [void]$builder.Append("<th>$(ConvertTo-ToolHtmlText $column)</th>")
+    [void]$builder.Append("<div class='table-wrap'><table class='$($profile.TableClass)'><colgroup>")
+    foreach ($columnClass in $profile.Classes) { [void]$builder.Append("<col class='col-$columnClass'>") }
+    [void]$builder.Append("</colgroup><thead><tr>")
+    for ($columnIndex = 0; $columnIndex -lt $Columns.Count; $columnIndex++) {
+        $column = $Columns[$columnIndex]
+        [void]$builder.Append("<th class='cell-$($profile.Classes[$columnIndex])'>$(ConvertTo-ToolHtmlText $column)</th>")
     }
     [void]$builder.Append("</tr></thead><tbody>")
     foreach ($row in @($Rows)) {
         [void]$builder.Append("<tr>")
-        foreach ($column in $Columns) {
+        for ($columnIndex = 0; $columnIndex -lt $Columns.Count; $columnIndex++) {
+            $column = $Columns[$columnIndex]
             $property = if ($row) { $row.PSObject.Properties[$column] } else { $null }
             $value = if ($property) { $property.Value } else { "" }
-            [void]$builder.Append("<td>$(ConvertTo-ToolHtmlText $value)</td>")
+            [void]$builder.Append("<td class='cell-$($profile.Classes[$columnIndex])'>$(ConvertTo-ToolHtmlTableCell -Value $value -ColumnClass $profile.Classes[$columnIndex])</td>")
         }
         [void]$builder.Append("</tr>")
     }
@@ -169,7 +296,8 @@ function New-ToolProfessionalHtmlDocument {
     }
     $htmlLanguage = if ($Culture -eq "en-US") { "en" } else { "vi" }
     $tocBlock = if ($index -gt 1) { "<nav class='toc'><strong>$tocLabel</strong><ol>$($tocHtml.ToString())</ol></nav>" } else { "" }
-    $cardsBlock = if (@($Cards).Count -gt 0) { "<div class='cards'>$($cardsHtml.ToString())</div>" } else { "" }
+    $cardCount = [Math]::Max(1, [Math]::Min(6, @($Cards).Count))
+    $cardsBlock = if (@($Cards).Count -gt 0) { "<div class='cards cards-count-$cardCount'>$($cardsHtml.ToString())</div>" } else { "" }
     $css = Get-ToolProfessionalReportCss
     return @"
 <!doctype html>
@@ -416,9 +544,9 @@ function Export-ToolReportXml {
 function Get-ToolSha256Hex {
     param([Parameter(Mandatory = $true)][string]$Path)
 
-    if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
-        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
-    }
+    # Use the .NET stream directly. Invoking Get-FileHash repeatedly adds
+    # command-discovery and pipeline overhead for every report artefact, while
+    # both paths calculate the same SHA-256 bytes.
     $stream = [IO.File]::OpenRead($Path)
     try {
         $sha = [Security.Cryptography.SHA256]::Create()
@@ -448,6 +576,32 @@ function Test-ToolHtmlOfflineSafe {
     } catch {
         return $false
     }
+}
+
+function New-ToolReportPdfGuideHtml {
+    param(
+        [bool]$PdfRequested,
+        [bool]$PdfCreated,
+        [string]$PdfFileName = "",
+        [ValidateSet("vi-VN", "en-US")][string]$Culture = "vi-VN"
+    )
+
+    $title = ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.summaryPdfTitle" -Culture $Culture)
+    if ($PdfCreated -and -not [string]::IsNullOrWhiteSpace($PdfFileName)) {
+        $safeFileName = ConvertTo-ToolHtmlText $PdfFileName
+        $ready = ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.summaryPdfReady" -Culture $Culture)
+        $linkText = ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.summaryPdfLink" -Culture $Culture)
+        $contents = ConvertTo-ToolHtmlText (Get-ToolReportExportText "foundation.reportExport.summaryPdfContents" -Culture $Culture)
+        return "<section class='pdf-guide'><h2>$title</h2><p>$ready</p><a class='pdf-link' href='$safeFileName'>$linkText <span class='pdf-file'>$safeFileName</span></a><p class='pdf-contents'>$contents</p></section>"
+    }
+
+    $messageKey = if ($PdfRequested) {
+        "foundation.reportExport.summaryPdfUnavailable"
+    } else {
+        "foundation.reportExport.summaryPdfNotRequested"
+    }
+    $message = ConvertTo-ToolHtmlText (Get-ToolReportExportText $messageKey -Culture $Culture)
+    return "<section class='pdf-guide pdf-guide-unavailable'><h2>$title</h2><p>$message</p></section>"
 }
 
 function Get-ToolPdfBrowser {
@@ -701,6 +855,7 @@ function Export-ToolReportPackage {
     param(
         [Parameter(Mandatory = $true)][object]$Report,
         [Parameter(Mandatory = $true)][string]$HtmlContent,
+        [string]$PdfHtmlContent = "",
         [Parameter(Mandatory = $true)][string]$BasePath,
         [switch]$IncludePdf,
         [switch]$RedactPaths
@@ -721,12 +876,42 @@ function Export-ToolReportPackage {
             Remove-Item -LiteralPath $stalePath -Force -ErrorAction Stop
         }
     }
-    [IO.File]::WriteAllText($htmlPath, $HtmlContent, (New-Object Text.UTF8Encoding($false)))
-
     $pdfResult = [pscustomobject][ordered]@{ Success=$false; Engine=""; Path=""; Error=(Get-ToolReportExportText "foundation.reportExport.pdfNotRequested") }
     if ($IncludePdf) {
-        $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath
+        $pdfSourceContent = if ([string]::IsNullOrWhiteSpace($PdfHtmlContent)) {
+            $HtmlContent.Replace("{{TOOL_REPORT_PDF_GUIDE}}", "")
+        } else {
+            $PdfHtmlContent
+        }
+        [IO.File]::WriteAllText($htmlPath, $pdfSourceContent, (New-Object Text.UTF8Encoding($false)))
+        if (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath) {
+            $pdfResult = Convert-ToolHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath
+        } else {
+            $pdfResult = [pscustomobject][ordered]@{
+                Success = $false
+                Engine = ""
+                Path = ""
+                Error = Get-ToolReportExportText "foundation.reportExport.htmlOfflineUnsafe"
+            }
+        }
     }
+    $reportCulture = if ($Report.PSObject.Properties["Culture"] -and [string]$Report.Culture -in @("vi-VN", "en-US")) {
+        [string]$Report.Culture
+    } else {
+        Get-ToolCulture
+    }
+    $pdfGuideHtml = New-ToolReportPdfGuideHtml `
+        -PdfRequested ([bool]$IncludePdf) `
+        -PdfCreated ([bool]$pdfResult.Success) `
+        -PdfFileName ([IO.Path]::GetFileName($pdfPath)) `
+        -Culture $reportCulture
+    $finalHtmlContent = $HtmlContent.Replace("{{TOOL_REPORT_PDF_GUIDE}}", $pdfGuideHtml)
+    [IO.File]::WriteAllText($htmlPath, $finalHtmlContent, (New-Object Text.UTF8Encoding($false)))
+    if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $htmlPath)) {
+        throw (Get-ToolReportExportText "foundation.reportExport.presentationUnsafe" -Culture $reportCulture)
+    }
+    $htmlIsSummary = $finalHtmlContent -match 'data-report-view=["'']summary["'']'
+    $hasDedicatedPdfPresentation = -not [string]::IsNullOrWhiteSpace($PdfHtmlContent)
     $displayHtmlPath = if ($RedactPaths) { [IO.Path]::GetFileName($htmlPath) } else { $htmlPath }
     $displayPdfPath = if ($RedactPaths) { [IO.Path]::GetFileName($pdfPath) } else { $pdfPath }
     $displayJsonPath = if ($RedactPaths) { [IO.Path]::GetFileName($jsonPath) } else { $jsonPath }
@@ -764,6 +949,8 @@ function Export-ToolReportPackage {
         PdfStatus = if ($pdfResult.Success) { "Created" } elseif ($IncludePdf) { "Unavailable" } else { "NotRequested" }
         PdfEngine = [string]$pdfResult.Engine
         PdfError = $displayPdfError
+        HtmlPresentation = if ($htmlIsSummary) { "Summary" } else { "Complete" }
+        PdfPresentation = if (-not $pdfResult.Success) { "" } elseif ($hasDedicatedPdfPresentation) { "Detailed" } else { "SameAsHtml" }
     }
     if ($Report.PSObject.Properties["Export"]) { $Report.Export = $exportData }
     else { $Report | Add-Member -NotePropertyName Export -NotePropertyValue $exportData }

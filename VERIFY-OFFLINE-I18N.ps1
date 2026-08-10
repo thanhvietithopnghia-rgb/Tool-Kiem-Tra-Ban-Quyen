@@ -10,7 +10,7 @@ function Fail([string]$Message) { [void]$failures.Add($Message) }
 $offlinePath = Join-Path $root "Tool-OfflinePolicy.ps1"
 $localizationPath = Join-Path $root "Tool-Localization.ps1"
 $reportExportPath = Join-Path $root "Tool-ReportExport.ps1"
-foreach ($name in @("Tool-OfflinePolicy.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-ReportExport.ps1", "Giao-Dien.ps1", "enterprise-license-manager.ps1", "windows-office-license-manager.ps1", "Tool-Kiem-Tra-v4.6-OneFile.cs")) {
+foreach ($name in @("Tool-OfflinePolicy.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-ReportExport.ps1", "Giao-Dien.ps1", "enterprise-license-manager.ps1", "windows-office-license-manager.ps1", "Tool-Kiem-Tra-v4.8-OneFile.cs")) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)) { Fail "Thiếu $name." }
 }
 
@@ -34,9 +34,17 @@ if ($failures.Count -eq 0) {
         . $localizationPath
 
         if (-not (Get-ToolOfflineMode)) { Fail "Offline không phải mặc định." }
+        $offlineMetadata = Get-ToolOfflinePolicyMetadata
+        if (-not [bool]$offlineMetadata.AutomaticUpdateCheck -or [string]$offlineMetadata.AutomaticUpdateCheckTrigger -ne "UserEnabledOnline" -or
+            [bool]$offlineMetadata.BackgroundUpdateService -or [bool]$offlineMetadata.SilentUpdate) {
+            Fail "Chính sách cập nhật không khóa đúng vào Online do người dùng cho phép."
+        }
         if (Test-ToolNetworkActionAllowed -Scope Internet) { Fail "Offline vẫn cho phép Internet." }
         if (Test-ToolNetworkActionAllowed -Scope Lan) { Fail "Offline vẫn cho phép LAN." }
         if (-not (Set-ToolOfflineModePreference -OfflineMode $false) -or (Get-ToolOfflineMode)) { Fail "Không lưu được lựa chọn cho phép mạng." }
+        Remove-Item Env:TOOL_OFFLINE_MODE -ErrorAction SilentlyContinue
+        if (-not (Get-ToolOfflineMode)) { Fail "Phiên mới không tự trở về Offline." }
+        $env:TOOL_OFFLINE_MODE = "0"
         if (-not (Set-ToolOfflineModePreference -OfflineMode $true) -or -not (Get-ToolOfflineMode)) { Fail "Không bật lại được Offline." }
         if (Get-ToolEnterpriseNetworkAllowed) { Fail "Mạng Mục 8 không bị chặn theo mặc định." }
         if (-not (Set-ToolEnterpriseNetworkAllowedPreference -Allowed $true) -or -not (Test-ToolEnterpriseNetworkActionAllowed)) {
@@ -61,7 +69,7 @@ if ($failures.Count -eq 0) {
         foreach ($catalogName in @("Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json")) {
             $catalog = Get-Content -LiteralPath (Join-Path $root $catalogName) -Raw -Encoding UTF8 | ConvertFrom-Json
             $catalogKeys[$catalogName] = @($catalog.PSObject.Properties.Name | Sort-Object)
-            foreach ($key in @("app.title", "app.offline.enabled", "menu.1.title", "menu.10.title", "report.toc", "enterprise.network.allow", "enterprise.network.disable", "enterprise.client.tab", "localLicense.title")) {
+            foreach ($key in @("app.title", "app.offline.enabled", "menu.1.title", "menu.10.title", "report.toc", "report.summary.quickViewBody", "report.summary.mainConclusions", "foundation.reportExport.summaryPdfReady", "foundation.reportExport.summaryPdfLink", "enterprise.network.allow", "enterprise.network.disable", "enterprise.client.tab", "localLicense.title", "update.choice.updateNow", "update.choice.remindLater", "update.choice.dismissSession")) {
                 if (-not $catalog.PSObject.Properties[$key]) { Fail "$catalogName thiếu key $key." }
             }
         }
@@ -84,7 +92,7 @@ if ($failures.Count -eq 0) {
         if ($enterpriseUiText -match 'Mục 8 vẫn giữ nguyên đủ 3 chức năng.+v4\.2\.0\.8') {
             Fail "Enterprise UI vẫn còn câu cảnh báo Mục 8 mà người dùng yêu cầu bỏ."
         }
-        $launcherText = Get-Content -LiteralPath (Join-Path $root "Tool-Kiem-Tra-v4.6-OneFile.cs") -Raw -Encoding UTF8
+        $launcherText = Get-Content -LiteralPath (Join-Path $root "Tool-Kiem-Tra-v4.8-OneFile.cs") -Raw -Encoding UTF8
         if ($launcherText -match 'mode\s*==\s*LaunchMode\.EnterpriseUi\s*\|\|\s*mode\s*==\s*LaunchMode\.EnterpriseServer' -or
             $launcherText -notmatch 'ResolveEnterpriseNetworkAllowed' -or
             $launcherText -notmatch 'TOOL_ENTERPRISE_NETWORK_ALLOWED') {

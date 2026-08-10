@@ -98,11 +98,12 @@ try {
 {"SchemaVersion":"1.0","PluginId":"test.bad.registry","Name":"Bad Registry","Version":"1.0.0","Publisher":"Test","Rules":[{"RuleId":"bad.registry.path","Type":"RegistryValue","Condition":"Exists","Hive":"HKLM","Path":"SOFTWARE\\..\\SYSTEM","ValueName":"Test","Severity":"Info","Message":"bad"}]}
 '@, (New-Object Text.UTF8Encoding($false)))
     $traversal = Read-ToolPluginPackage -Path $traversalPath -AllowOutsideProtectedDirectory
-    if ($traversal.Valid -or ($traversal.Errors -join " ") -notmatch "không an toàn") {
-        Add-Failure "Plugin có Registry traversal không bị từ chối."
+    $traversalErrorText = ($traversal.Errors -join " ")
+    if ($traversal.Valid -or $traversalErrorText -notmatch "(?i)(không an toàn|unsafe)") {
+        Add-Failure "Plugin có Registry traversal không bị từ chối đúng quy tắc an toàn (Valid=$($traversal.Valid); Errors=$traversalErrorText)."
     }
 
-    $timelineState = Initialize-ToolLicenseTimeline -ToolVersion "4.6"
+$timelineState = Initialize-ToolLicenseTimeline -ToolVersion "4.8"
     if (-not $timelineState.Enabled) { Add-Failure "Không khởi tạo được timeline test: $($timelineState.Error)" }
     if ($timelineState.Enabled) {
         $first = Write-ToolLicenseTimelineEvent -EventType "TestObserved" -Source "Verifier" -Data ([ordered]@{ Status="Licensed" })
@@ -120,15 +121,22 @@ try {
         if ($tamperedHistory.Valid) { Add-Failure "Timeline bị sửa vẫn được chấp nhận." }
     }
 
-    $envelope = New-ToolReportEnvelope -ReportKind "CertificateAudit" -ToolVersion "4.6" -Data ([ordered]@{
+$envelope = New-ToolReportEnvelope -ReportKind "CertificateAudit" -ToolVersion "4.8" -Data ([ordered]@{
         CreatedAt=[DateTime]::UtcNow.ToString("o"); Overall="Pass"; ValidSignatureCount=1; InvalidSignatureCount=0
         Targets=@([pscustomobject]@{ Product="Windows"; Component="sppsvc"; ChainValid=$true })
     })
-    $html = New-ToolProfessionalHtmlDocument -Title "Fixture" -Cards @([pscustomobject]@{Label="Status";Value="Pass";Tone="ok"}) `
+    $detailedHtml = New-ToolProfessionalHtmlDocument -Title "Fixture detail only" -Cards @([pscustomobject]@{Label="Status";Value="Pass";Tone="ok"}) `
         -Sections @([pscustomobject]@{Title="Data";BodyHtml=(ConvertTo-ToolHtmlTable -Rows $envelope.Targets -Columns @("Product","Component","ChainValid"))})
-    $package = Export-ToolReportPackage -Report $envelope -HtmlContent $html -BasePath (Join-Path $reportDir "fixture")
+    $html = '<!doctype html><html lang="vi" data-report-view="summary"><head><meta http-equiv="Content-Security-Policy" content="default-src ''none''; style-src ''unsafe-inline''"><meta charset="utf-8"><style>body{font-family:Segoe UI}</style></head><body><h1>Fixture summary only</h1>{{TOOL_REPORT_PDF_GUIDE}}</body></html>'
+    $package = Export-ToolReportPackage -Report $envelope -HtmlContent $html -PdfHtmlContent $detailedHtml -BasePath (Join-Path $reportDir "fixture")
     foreach ($path in @($package.HtmlPath,$package.JsonPath,$package.XmlPath,$package.ManifestPath)) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Add-Failure "Thiếu output report: $path" }
+    }
+    $summaryFixture = [IO.File]::ReadAllText($package.HtmlPath, [Text.Encoding]::UTF8)
+    if ($summaryFixture -match '<table\b|Fixture detail only|TOOL_REPORT_PDF_GUIDE' -or
+        $summaryFixture -notmatch 'data-report-view="summary"' -or
+        $summaryFixture -notmatch 'pdf-guide') {
+        Add-Failure "HTML tổng quan còn lẫn nội dung chi tiết hoặc thiếu hướng dẫn PDF."
     }
     try {
         [xml]$xml = [IO.File]::ReadAllText($package.XmlPath, [Text.Encoding]::UTF8)
@@ -141,8 +149,11 @@ try {
     } catch { Add-Failure "XML integration không parse được: $($_.Exception.Message)" }
     try {
         $json = [IO.File]::ReadAllText($package.JsonPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
-        $validation = Test-ToolReportEnvelope -Report $json -ExpectedReportKind "CertificateAudit" -ExpectedToolVersion "4.6"
+$validation = Test-ToolReportEnvelope -Report $json -ExpectedReportKind "CertificateAudit" -ExpectedToolVersion "4.8"
         if (-not $validation.Valid) { throw ($validation.Errors -join "; ") }
+        if ([string]$json.Export.SchemaVersion -ne '1.4' -or [string]$json.Export.HtmlPresentation -ne 'Summary') {
+            throw "Metadata tách HTML tổng quan/PDF chi tiết không đúng."
+        }
     } catch { Add-Failure "JSON integration không đạt schema: $($_.Exception.Message)" }
 
     $pluginEngineText = Get-Content -LiteralPath (Join-Path $source "Tool-PluginEngine.ps1") -Raw -Encoding UTF8

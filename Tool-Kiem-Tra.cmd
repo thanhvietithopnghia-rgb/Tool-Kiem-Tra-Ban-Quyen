@@ -2,8 +2,8 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-if exist "%~dp0Tool-Kiem-Tra-v4.6.exe" goto RUN_ROOT
-if exist "%~dp0dist\Tool-Kiem-Tra-v4.6.exe" goto RUN_DIST
+if exist "%~dp0Tool-Kiem-Tra-v4.8.exe" goto RUN_ROOT
+if exist "%~dp0dist\Tool-Kiem-Tra-v4.8.exe" goto RUN_DIST
 goto SOURCE_MODE
 
 :SOURCE_MODE
@@ -16,11 +16,11 @@ echo Chuc nang quan tri va enterprise se bi khoa cho den khi build va chay ban E
 exit /b %ERRORLEVEL%
 
 :RUN_ROOT
-start "" /wait "%~dp0Tool-Kiem-Tra-v4.6.exe"
+start "" /wait "%~dp0Tool-Kiem-Tra-v4.8.exe"
 exit /b %ERRORLEVEL%
 
 :RUN_DIST
-start "" /wait "%~dp0dist\Tool-Kiem-Tra-v4.6.exe"
+start "" /wait "%~dp0dist\Tool-Kiem-Tra-v4.8.exe"
 exit /b %ERRORLEVEL%
 
 :MISSING

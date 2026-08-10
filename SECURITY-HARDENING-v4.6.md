@@ -1,25 +1,25 @@
-# Security hardening baseline — Tool-Kiem-Tra v4.6
+# Security hardening baseline — Tool-Kiem-Tra v4.8
 
 ## Artefact và build
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| EXE | `Tool-Kiem-Tra-v4.6.exe` |
+| EXE | `Tool-Kiem-Tra-v4.8.exe` |
 | Runtime | .NET Framework 4 / CLR v4 |
 | Kiến trúc | AnyCPU, không Prefer 32-bit |
 | PowerShell | native x64/x86, `RemoteSigned` |
-| UAC | `requireAdministrator` |
+| UAC | `asInvoker`; elevation on demand for privileged modes/actions |
 | PE | HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, TerminalServerAware |
 | CFG | không tuyên bố cho managed IL |
 
 ## Secure launch
 
 - Launcher lấy PowerShell từ System32 native, không dùng PATH.
-- Payload nhúng và dữ liệu ghi nằm trong vùng ProgramData v4.6 riêng; log/backup v4.4/v4.5 không còn dùng chung để ghi.
+- Payload dashboard và log chỉ đọc/kiểm tra nằm trong vùng LocalAppData v4.6 của user hiện tại; mode nâng quyền, backup hệ thống và Enterprise dùng ProgramData v4.6. Log/backup v4.4/v4.5 không còn dùng chung để ghi.
 - Payload được nén Deflate riêng từng tệp khi có lợi; tệp không giảm được dung lượng giữ nguyên raw. Đây chỉ là tối ưu đóng gói, không bỏ mô-đun hay giảm phạm vi quét.
 - Mỗi payload được đối chiếu SHA-256.
 - Root/session từ chối reparse point.
-- ACL chỉ Administrators/SYSTEM.
+- LocalAppData runtime chỉ cấp quyền user hiện tại/Administrators/SYSTEM; ProgramData nâng quyền chỉ Administrators/SYSTEM.
 - Schema version được truyền và đối chiếu fail-closed.
 - Tiến trình 32-bit trên Windows 64-bit bị chặn để tránh WOW64 redirection.
 
@@ -28,19 +28,26 @@
 Offline toàn ứng dụng mặc định khi preference thiếu/lỗi. Launcher luôn cho phép mở Enterprise UI để Mục 8 giữ đủ ba chức năng. Server/agent dùng preference mạng riêng của Mục 8, mặc định tắt và độc lập với Offline toàn ứng dụng; UI gate từng thao tác LAN, còn launcher cùng script host/agent kiểm tra lại theo defense in depth. Người dùng có thể tắt lại công tắc mà không xóa cấu hình.
 
 - không telemetry;
-- không auto-update;
-- không tải script/binary; chỉ tải catalog đối chiếu JSON sau khi người dùng bấm **Kết nối online** và xác nhận;
+- không kiểm tra phiên bản hoặc tải cập nhật khi Offline; không service nền/silent update;
+- chỉ tải catalog sau xác nhận riêng hoặc tải EXE khi người dùng chọn **Cập nhật ngay**;
 - HTML/PDF không dùng remote asset;
 - plugin không có URL hoặc command;
 - network opt-in được audit.
 
 Catalog phần mềm dùng HTTPS GET, host allowlist, không redirect, timeout và giới hạn 2 MiB; schema được xác minh trước khi ghi cache. Luồng này không có POST/PUT/PATCH và không gửi inventory, đường dẫn, product key, token hoặc bằng chứng cục bộ. Không truyền consent hoặc truyền `false` trả mã `2` trước khi nạp updater hay gọi mạng; wrapper chuyển đúng giá trị caller thay vì gán `true`.
 
+Trình cập nhật ứng dụng chỉ đọc manifest từ URL GitHub HTTPS cố định sau khi Online đã được cho phép. URL release/download phải thuộc đúng repository/tag; redirect asset chỉ tới host GitHub allowlist. EXE bị giới hạn 100 MiB và phải khớp kích thước/SHA-256, PE `MZ`, cùng signer Authenticode đã ghim nếu manifest yêu cầu. Apply xác minh launcher path/PID/hash, backup bản cũ, thay thế cùng thư mục và rollback nếu bản mới thoát sớm. Manifest không chứa lệnh hoặc script và không có cơ chế chạy nền.
+
 Quy tắc tải online chỉ được dùng để mở rộng nhận diện và tạo bằng chứng không quyết định. Hash/tên activator từ cache online chỉ có thể tự tạo kết luận `NonGenuine` khi SHA-256 của toàn catalog giống byte-for-byte catalog tích hợp đã phát hành; catalog khác biệt phải được review, đưa vào bản dựng và đi qua verifier trước. Quét sâu cũng loại root hệ thống quá rộng, reparse point và phần mở rộng tài liệu khỏi bằng chứng artifact quyết định.
 
 ## Dữ liệu
 
-ProgramData v4.6 (vùng ghi hiện hành):
+LocalAppData v4.6 (dashboard không nâng quyền):
+
+- payload runtime đã xác minh;
+- log và preference theo user.
+
+ProgramData v4.6 (mode nâng quyền/máy):
 
 - log JSONL;
 - backup hash/HMAC/DPAPI;
@@ -106,6 +113,9 @@ HTTP transport không tự cung cấp TLS; bảo mật nội dung dựa trên en
 - PDF browser flags tắt background networking/DNS;
 - profile browser nằm ở LocalAppData, ACL user/SYSTEM và được dọn;
 - SHA-256 manifest cho package.
+- mọi package dùng chung `Desktop\BaoCao-Tool-Kiem-Tra`, tên tệp có timestamp mili-giây chống ghi đè và chỉ HTML được tự mở;
+- HTML chỉ dùng liên kết tương đối tới PDF cùng tên; phần mềm hệ thống nằm trong phụ lục, không bị loại khỏi JSON/PDF chi tiết;
+- bảng rộng dùng overflow ngang trên màn hình, profile cột theo ngữ nghĩa và quy tắc co riêng khi in, tránh ép mất dữ liệu.
 
 ## Authenticode
 
@@ -117,21 +127,21 @@ Build hỗ trợ chứng thư store hoặc PFX và timestamp. Khi dùng `-Requir
 4. release verifier kiểm tra;
 5. `VERIFY-AUTHENTICODE.ps1 -RequireTimestamp` xác minh timestamp.
 
-Build phát triển chưa ký vẫn có thể tạo để test, nhưng không được mô tả là release đã ký.
+Build phát triển chưa ký vẫn có thể tạo để test, nhưng không được mô tả là release đã ký. Một EXE tự giải nén payload PowerShell, chứa từ khóa KMS/activator và trình cập nhật có thể bị engine heuristic cảnh báo. Không coi cảnh báo là false positive chỉ dựa vào tên detection; phải xác minh nguồn GitHub chính thức, SHA-256, Authenticode, kết quả Defender và hành vi thực tế trước khi gửi mẫu cho hãng antivirus. Không hướng dẫn tắt Defender/SmartScreen hoặc thêm exclusion rộng.
 
 ## Lệnh kiểm tra
 
 ```powershell
 .\BUILD.ps1 -OutputDirectory .\dist
 .\VERIFY-RELEASE.ps1 -SourceDirectory . -DistributionDirectory .\dist
-Get-FileHash .\dist\Tool-Kiem-Tra-v4.6.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.6.exe
+Get-FileHash .\dist\Tool-Kiem-Tra-v4.8.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.8.exe
 ```
 
 ## Giới hạn
 
 - Application Offline policy không thay firewall.
 - Managed IL không có CFG/load-config native từ CSC; không gắn GUARD_CF giả.
-- UAC/ACL/hash không vượt AppLocker, WDAC, SmartScreen hoặc antivirus.
+- UAC theo nhu cầu/ACL/hash không vượt AppLocker, WDAC, SmartScreen hoặc antivirus.
 - Chứng chỉ audit offline không bảo đảm trạng thái thu hồi trực tuyến.
 - Kết luận license kỹ thuật không thay chứng từ pháp lý.

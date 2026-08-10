@@ -1,0 +1,31 @@
+{
+    "SchemaVersion":  "1.0",
+    "Channel":  "stable",
+    "LatestVersion":  "4.8.0.0",
+    "MinimumUpdaterVersion":  "4.6.1.0",
+    "PublishedAtUtc":  "2026-08-10T00:00:00Z",
+    "Title":  {
+                  "vi-VN":  "v4.8.0 - Nâng cấp nhảy vọt, cải tiến chuyên sâu",
+                  "en-US":  "v4.8.0 - A leap-forward upgrade with in-depth improvements"
+              },
+    "Changes":  {
+                    "vi-VN":  [
+                                  "v4.8 là bản nâng cấp nhảy vọt, cải tiến chuyên sâu, phát hành trực tiếp từ v4.6.",
+                                  "Hướng dẫn sử dụng chỉ trình bày cách dùng tính năng, cách đọc kết quả và nguyên tắc an toàn.",
+                                  "Xem đầy đủ nội dung cải tiến, sửa lỗi và đối chứng hiệu năng trong LICH-SU-PHIEN-BAN.txt."
+                              ],
+                    "en-US":  [
+                                  "v4.8 is a leap-forward upgrade with in-depth improvements, released directly from v4.6.",
+                                  "The user guide now covers feature use, result interpretation, and safe operating practices only.",
+                                  "See VERSION-HISTORY-en-US.md for the complete improvements, fixes, and performance validation."
+                              ]
+                },
+    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
+    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe",
+    "DownloadSha256":  "5D895A777997656AC20CAE75D2DD03078B5EC81A2495EBD2FC081670D3301526",
+    "DownloadSize":  822784,
+    "AuthenticodeRequired":  false,
+    "SignerThumbprints":  [
+
+                          ]
+}

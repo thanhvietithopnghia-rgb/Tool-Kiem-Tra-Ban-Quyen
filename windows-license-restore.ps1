@@ -33,7 +33,7 @@ try {
     $nativeScPath = Get-ToolNativeSystemPath "sc.exe"
 } catch { Write-Host $_.Exception.Message; exit 12 }
 $ErrorActionPreference = "Continue"
-$releaseVersion = "4.6.0.0"
+$releaseVersion = "4.8.0.0"
 
 function Is-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -221,7 +221,7 @@ try {
 } catch { Fail-Restore 24 (Get-RestoreText "restoreReport.manifestAuthFailed" @($_.Exception.Message)) }
 
 try { $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json } catch { Fail-Restore 22 (Get-RestoreText "restoreReport.manifestInvalid" @($_.Exception.Message)) }
-if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -ne "4.6") { Fail-Restore 25 (Get-RestoreText "restoreReport.manifestVersionUnsupported") }
+if ([string]$manifest.SchemaVersion -ne "2.0" -or [string]$manifest.ToolVersion -notin @("4.6", "4.7", "4.8")) { Fail-Restore 25 (Get-RestoreText "restoreReport.manifestVersionUnsupported") }
 if ([string]$manifest.ComputerName -ne $env:COMPUTERNAME -or [string]$manifest.MachineBinding -ne (Get-MachineBinding)) { Fail-Restore 26 (Get-RestoreText "restoreReport.wrongDevice") }
 $allManifestItems = @($manifest.Items)
 if ($allManifestItems.Count -eq 0 -or $allManifestItems.Count -gt 5000) { Fail-Restore 27 (Get-RestoreText "restoreReport.itemCountInvalid") }
@@ -282,7 +282,7 @@ $actions = New-Object System.Collections.Generic.List[string]
 $errors = New-Object System.Collections.Generic.List[string]
 $restored = 0
 $skipped = 0
-$reportPath = Join-Path $script:backupRoot ("restore_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".txt")
+$reportPath = Join-Path $script:backupRoot ("restore_" + (Get-Date -Format "yyyyMMdd_HHmmss_fff") + ".txt")
 $registryValueRestorePolicy = @(Get-ToolRegistryValueRestorePolicy)
 
 foreach ($item in $manifestItems) {

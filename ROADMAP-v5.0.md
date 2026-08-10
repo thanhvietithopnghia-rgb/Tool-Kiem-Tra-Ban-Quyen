@@ -2,7 +2,7 @@
 
 Nguyên tắc cố định: một sản phẩm, một EXE AnyCPU tự nhận diện, tương thích Windows 7 SP1–Windows 11. Mỗi mốc phải build, kiểm thử, đóng gói và có checksum độc lập.
 
-Trạng thái 06/08/2026: v4.6 đã hoàn thành catalog phần mềm 1.2 cho nhóm kỹ thuật, Dry Run không thay đổi hệ thống, consent online fail-closed, Enterprise status tối giản và DataSchema 2.0 với migration/rollback sang vùng ghi riêng. Catalog Lifecycle 1.1 cho Microsoft vẫn có cảnh báo tuổi 30/45 ngày, phân loại Office điều khiển bằng dữ liệu, build tương lai chỉ đọc, đối chiếu nguồn chính thức hàng tuần và báo cáo CI máy đọc. Ưu tiên v5.0 là mở rộng QA máy thật/VM, quản trị catalog có ký metadata và hoàn thiện pipeline phát hành; chưa được tuyên bố Authenticode tin cậy khi chưa có chứng thư code-signing thật.
+Trạng thái 10/08/2026: v4.8 là bản công khai nâng trực tiếp từ dòng v4.6, hợp nhất Trợ lý Tool, catalogue 1.3, báo cáo HTML/PDF, Máy chủ/Máy trạm LAN và tối ưu quét giữ nguyên kết quả. Catalog Lifecycle 1.1 cho Microsoft vẫn có cảnh báo tuổi 30/45 ngày, phân loại Office điều khiển bằng dữ liệu, build tương lai chỉ đọc, đối chiếu nguồn chính thức hàng tuần và báo cáo CI máy đọc. Ưu tiên v5.0 là mở rộng QA máy thật/VM, quản trị catalog có ký metadata và hoàn thiện pipeline phát hành; chưa được tuyên bố Authenticode tin cậy khi chưa có chứng thư code-signing thật.
 
 ## Các mốc
 
@@ -18,8 +18,7 @@ Trạng thái 06/08/2026: v4.6 đã hoàn thành catalog phần mềm 1.2 cho nh
 - **v4.4 — Detection/forensics mở rộng:** chữ ký activator có mức tin cậy, nguồn bằng chứng và hợp nhất timeline với Windows Event Log.
 - **v4.5 — Backup/restore + hardware assurance:** coverage matrix, TPM/Secure Boot/BitLocker recommendation và rollback lab.
 - **v4.6 — Health score/plugin catalog:** điểm minh bạch, rule có giải thích và marketplace có ký metadata.
-- **v4.7 — Enterprise/Release engineering:** Intune/SCCM/RMM, reproducible build, attestations và vòng đời chứng thư.
-- **v4.8 — Pilot:** ma trận VM/máy thật Windows 7 SP1, Windows 10 22H2, Windows 11 release hiện hành và Office 2021/2024/Microsoft 365.
+- **v4.8 — Hoàn thành phần mềm:** hợp nhất Enterprise/Release engineering, Trợ lý, catalogue, báo cáo và pilot ma trận VM/máy thật; là mốc công khai kế tiếp v4.6.
 - **v5.0 — Ổn định:** hợp nhất các mốc, audit cuối, tài liệu và gói phát hành công khai.
 
 Không chuyển toàn bộ sang modern .NET/WinUI nếu làm mất Windows 7. Tính năng không có trên hệ điều hành cũ phải dùng capability/fallback hoặc báo “không hỗ trợ”, không làm toàn bộ tool khởi động thất bại.

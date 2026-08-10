@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$script:enterpriseReleaseVersion = "4.6.0.0"
+$script:enterpriseReleaseVersion = "4.8.0.0"
 $script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion)"
 . (Join-Path $baseDir "Tool-ReportSchema.ps1")
 . (Join-Path $baseDir "Tool-Enterprise.ps1")
@@ -47,9 +47,9 @@ $script:enterpriseDark = [bool]($script:enterpriseTheme -eq "Dark")
 $script:enterprisePalette = @{
     Form             = $script:baseUiPalette.Background
     Surface          = $script:baseUiPalette.Surface
-    LocalSurface     = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(48, 40, 28) } else { [Drawing.Color]::FromArgb(255, 251, 235) }
-    ServerSurface    = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(28, 39, 58) } else { [Drawing.Color]::FromArgb(239, 246, 255) }
-    ClientSurface    = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(26, 47, 45) } else { [Drawing.Color]::FromArgb(240, 253, 250) }
+    LocalSurface     = $script:baseUiPalette.Surface
+    ServerSurface    = $script:baseUiPalette.Surface
+    ClientSurface    = $script:baseUiPalette.Surface
     Header           = $script:baseUiPalette.Primary
     Text             = $script:baseUiPalette.Text
     Muted            = $script:baseUiPalette.Muted
@@ -58,12 +58,12 @@ $script:enterprisePalette = @{
     DangerText       = $script:baseUiPalette.Danger
     Button           = $script:baseUiPalette.Button
     ButtonHover      = $script:baseUiPalette.ButtonHover
-    LocalButton      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(180, 83, 9) } else { [Drawing.Color]::FromArgb(217, 119, 6) }
-    LocalHover       = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(146, 64, 14) } else { [Drawing.Color]::FromArgb(180, 83, 9) }
-    ServerButton     = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(29, 78, 216) } else { [Drawing.Color]::FromArgb(37, 99, 235) }
-    ServerHover      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(30, 64, 175) } else { [Drawing.Color]::FromArgb(29, 78, 216) }
-    ClientButton     = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(15, 118, 110) } else { [Drawing.Color]::FromArgb(13, 148, 136) }
-    ClientHover      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(17, 94, 89) } else { [Drawing.Color]::FromArgb(15, 118, 110) }
+    LocalButton      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(38, 80, 145) } else { [Drawing.Color]::FromArgb(18, 59, 116) }
+    LocalHover       = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(48, 96, 168) } else { [Drawing.Color]::FromArgb(27, 78, 145) }
+    ServerButton     = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(38, 80, 145) } else { [Drawing.Color]::FromArgb(18, 59, 116) }
+    ServerHover      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(48, 96, 168) } else { [Drawing.Color]::FromArgb(27, 78, 145) }
+    ClientButton     = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(38, 80, 145) } else { [Drawing.Color]::FromArgb(18, 59, 116) }
+    ClientHover      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(48, 96, 168) } else { [Drawing.Color]::FromArgb(27, 78, 145) }
     Navigation      = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(51, 65, 85) } else { [Drawing.Color]::FromArgb(71, 85, 105) }
     NavigationHover = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(39, 49, 65) } else { [Drawing.Color]::FromArgb(51, 65, 85) }
     Danger          = if ($script:enterpriseDark) { [Drawing.Color]::FromArgb(153, 27, 27) } else { [Drawing.Color]::FromArgb(185, 28, 28) }
@@ -78,6 +78,9 @@ $script:agentProcess = $null
 $script:config = $null
 $script:serverAddressLabel = $null
 $script:enterpriseNetworkButton = $null
+$script:enterpriseToolTip = New-Object Windows.Forms.ToolTip
+$script:enterpriseToolTip.AutoPopDelay = 12000
+$script:enterpriseToolTip.InitialDelay = 300
 $script:previousTabIndex = 0
 
 function Get-EnterpriseText {
@@ -99,7 +102,8 @@ function Set-EnterpriseStatus {
 
 function Show-EnterpriseError {
     param([string]$Message)
-    Set-EnterpriseStatus -Message $Message -Success:$false
+    # Tránh lặp nguyên văn cùng một lỗi ở cả thanh trạng thái và hộp thoại.
+    Set-EnterpriseStatus -Message (Get-EnterpriseText "enterprise.error.statusShort") -Success:$false
     [Windows.Forms.MessageBox]::Show(
         $Message,
         (Get-EnterpriseText "enterprise.error.title" @($script:enterpriseReleaseDisplayName)),
@@ -122,14 +126,16 @@ function Update-EnterpriseNetworkStateUi {
 
     if (-not $script:enterpriseNetworkButton) { return }
     if (-not $script:enterpriseNetworkAllowed) {
-        $script:enterpriseNetworkButton.Text = Get-EnterpriseText "enterprise.network.allow"
-        Set-EnterpriseButtonStyle $script:enterpriseNetworkButton $script:enterprisePalette.Warning ([Drawing.Color]::White) $script:enterprisePalette.LocalHover
+        $script:enterpriseNetworkButton.Text = Get-EnterpriseText "enterprise.network.stateOffline"
+        $script:enterpriseToolTip.SetToolTip($script:enterpriseNetworkButton, (Get-EnterpriseText "enterprise.network.tooltipOffline"))
+        Set-EnterpriseButtonStyle $script:enterpriseNetworkButton $script:enterprisePalette.Navigation ([Drawing.Color]::White) $script:enterprisePalette.NavigationHover
         if ($UpdateStatus) {
             Set-EnterpriseStatus (Get-EnterpriseText "enterprise.network.blockedStatus") $true
         }
     } else {
-        $script:enterpriseNetworkButton.Text = Get-EnterpriseText "enterprise.network.disable"
-        Set-EnterpriseButtonStyle $script:enterpriseNetworkButton $script:enterprisePalette.Danger ([Drawing.Color]::White) $script:enterprisePalette.DangerHover
+        $script:enterpriseNetworkButton.Text = Get-EnterpriseText "enterprise.network.stateOnline"
+        $script:enterpriseToolTip.SetToolTip($script:enterpriseNetworkButton, (Get-EnterpriseText "enterprise.network.tooltipOnline"))
+        Set-EnterpriseButtonStyle $script:enterpriseNetworkButton $script:enterprisePalette.ServerButton ([Drawing.Color]::White) $script:enterprisePalette.ServerHover
         if ($UpdateStatus) {
             Set-EnterpriseStatus (Get-EnterpriseText "enterprise.network.allowedStatus") $true
         }
@@ -230,7 +236,9 @@ function Start-EnterpriseChild {
     $ps = if (Get-Command powershell.exe -ErrorAction SilentlyContinue) { (Get-Command powershell.exe).Source } else { "powershell.exe" }
     $fallbackArgs = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$hostScript`""
     if ($Role -eq "Agent" -and $Force) { $fallbackArgs += " -Force" }
-    return (Start-Process -FilePath $ps -ArgumentList $fallbackArgs -WorkingDirectory $baseDir -PassThru)
+    $fallbackParameters = @{ FilePath=$ps; ArgumentList=$fallbackArgs; WorkingDirectory=$baseDir; PassThru=$true }
+    if ($Role -eq 'Server') { $fallbackParameters.Verb = 'RunAs' }
+    return (Start-Process @fallbackParameters)
 }
 
 function Stop-EnterpriseServer {
@@ -272,7 +280,12 @@ function Find-EnterpriseClientServers {
 function Resolve-EnterpriseClientServerAddress {
     param([switch]$ForceDiscovery)
     $currentAddress = $script:clientAddressBox.Text.Trim()
-    if (-not $ForceDiscovery -and -not [string]::IsNullOrWhiteSpace($currentAddress)) { return $currentAddress }
+    if (-not $ForceDiscovery -and -not [string]::IsNullOrWhiteSpace($currentAddress)) {
+        $endpoint = Resolve-ToolEnterpriseServerEndpoint -ServerAddress $currentAddress -Port ([int]$script:clientPortBox.Text)
+        $script:clientAddressBox.Text = [string]$endpoint.Address
+        $script:clientPortBox.Text = [string]$endpoint.Port
+        return [string]$endpoint.Address
+    }
 
     $port = [int]$script:clientPortBox.Text
     $servers = @(Find-EnterpriseClientServers -Port $port)
@@ -361,6 +374,37 @@ function Invoke-ServerPairingCode {
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 900) }
 }
 
+function Enable-EnterpriseServerListenerAccess {
+    param([Parameter(Mandatory = $true)][object]$Configuration)
+
+    $netsh = Join-Path $env:SystemRoot "System32\netsh.exe"
+    if (-not (Test-Path -LiteralPath $netsh -PathType Leaf)) { throw (Get-EnterpriseText "enterprise.error.netshMissing") }
+    $port = [int]$Configuration.Port
+    $url = "http://+:$port/tool/v1/"
+    $show = & $netsh http show urlacl 2>$null | Out-String
+    if ($show -notmatch [regex]::Escape($url)) {
+        $aclArgs = "http add urlacl url=$url user=Administrators"
+        $aclProcess = Start-Process -FilePath $netsh -ArgumentList $aclArgs -Verb RunAs -Wait -PassThru -WindowStyle Hidden
+        if ($aclProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($aclProcess.ExitCode)) }
+    }
+
+    $firewallName = "ThanhViet Tool v4.8 Enterprise Server"
+    $firewallReady = $false
+    if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) {
+        try {
+            $firewallReady = [bool](@(Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
+                Where-Object { [string]$_.Enabled -eq 'True' } |
+                Get-NetFirewallPortFilter -ErrorAction SilentlyContinue |
+                Where-Object { [string]$_.Protocol -eq 'TCP' -and @([string]$_.LocalPort -split ',') -contains [string]$port }).Count -gt 0)
+        } catch {}
+    }
+    if (-not $firewallReady) {
+        $firewallArguments = 'advfirewall firewall add rule name="' + $firewallName + '" dir=in action=allow protocol=TCP localport=' + $port + ' profile=domain,private'
+        $firewallProcess = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Verb RunAs -Wait -PassThru -WindowStyle Hidden
+        if ($firewallProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($firewallProcess.ExitCode)) }
+    }
+}
+
 function Remove-EnterpriseServerNetworkAccess {
     param([ValidateRange(1024, 65535)][int]$Port)
 
@@ -383,9 +427,11 @@ function Remove-EnterpriseServerNetworkAccess {
     }
 
     try {
-        $firewallArguments = 'advfirewall firewall delete rule name="ThanhViet Tool v4.6 Enterprise Server" protocol=TCP localport=' + $Port
-        $process = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Wait -PassThru -WindowStyle Hidden
-        if ($process.ExitCode -ne 0) { [void]$warnings.Add((Get-EnterpriseText "enterprise.server.revokeFirewallExit" @($Port, $process.ExitCode))) }
+        foreach ($firewallName in @('ThanhViet Tool v4.8 Enterprise Server','ThanhViet Tool v4.6 Enterprise Server')) {
+            $firewallArguments = 'advfirewall firewall delete rule name="' + $firewallName + '" protocol=TCP localport=' + $Port
+            $process = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Wait -PassThru -WindowStyle Hidden
+            if ($process.ExitCode -ne 0) { [void]$warnings.Add((Get-EnterpriseText "enterprise.server.revokeFirewallExit" @($Port, $process.ExitCode))) }
+        }
     } catch {
         [void]$warnings.Add((Get-EnterpriseText "enterprise.server.revokeFirewallFailed" @($Port)))
     }
@@ -456,6 +502,7 @@ function Invoke-ServerStart {
             throw (Get-EnterpriseText "enterprise.error.duplicateServer" @($duplicate.ServerName, $duplicate.Address))
         }
         if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.server.startPrompt" @($cfg.Port)))) { return }
+        Enable-EnterpriseServerListenerAccess -Configuration $cfg
         $script:serverProcess = Start-EnterpriseChild -Role Server
         $detectedAddress = Update-EnterpriseDetectedServerAddress
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.started" @($detectedAddress, $cfg.Port, $script:serverProcess.Id)) $true
@@ -491,22 +538,25 @@ function Invoke-ServerScan {
         $info = Get-ToolEnterpriseCidrInfo -Cidr $cidr
         if ([uint64]$info.HostCount -gt 1024) { throw (Get-EnterpriseText "enterprise.error.scanTooLarge") }
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.scanning" @($info.Cidr)) $true
-        $found = @(Find-ToolEnterpriseNetworkDevices -Cidr $cidr -TimeoutMs 250 -ThrottleLimit 64)
+        $probePort = if ($cfg) { [int]$cfg.Port } else { [int]$script:ToolEnterpriseDefaultPort }
+        $found = @(Find-ToolEnterpriseNetworkDevices -Cidr $cidr -TimeoutMs 250 -ThrottleLimit 64 -ProbePorts @($probePort,445,3389))
         $script:scanResultBox.Clear()
         foreach ($device in $found) {
             $hostLabel = if ($device.HostName) { [string]$device.HostName } else { Get-EnterpriseText "enterprise.server.scanHostUnknown" }
-            $line = Get-EnterpriseText "enterprise.server.scanResultLine" @($device.Address, $device.LatencyMs, $hostLabel)
+            $method = if ([string]::IsNullOrWhiteSpace([string]$device.DiscoveryMethod)) { Get-EnterpriseText 'common.unknown' } else { [string]$device.DiscoveryMethod }
+            $line = Get-EnterpriseText "enterprise.server.scanResultLine" @($device.Address, $device.LatencyMs, $hostLabel, $method)
             [void]$script:scanResultBox.AppendText($line + [Environment]::NewLine)
         }
-        if ($found.Count -eq 0) { [void]$script:scanResultBox.AppendText((Get-EnterpriseText "enterprise.server.noPing")) }
+        if ($found.Count -eq 0) { [void]$script:scanResultBox.AppendText((Get-EnterpriseText "enterprise.server.noDevice")) }
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.scanDone" @($found.Count)) $true
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1000) }
 }
 
 function Invoke-ServerExport {
     try {
-        $desktopPath = [Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)
-        $result = Export-ToolEnterpriseFleetReport -DestinationDirectory $desktopPath -IncludePdf
+        $reportDirectory = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)) 'BaoCao-Tool-Kiem-Tra'
+        if (-not (Test-Path -LiteralPath $reportDirectory -PathType Container)) { New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null }
+        $result = Export-ToolEnterpriseFleetReport -DestinationDirectory $reportDirectory -IncludePdf
         Start-Process -FilePath $result.HtmlPath | Out-Null
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.exported" @($result.ClientCount, $result.JsonPath)) $true
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1000) }
@@ -532,23 +582,7 @@ function Invoke-ServerNetworkAccess {
         $cfg = Get-EnterpriseServerConfigurationSafe
         if (-not $cfg) { throw (Get-EnterpriseText "enterprise.error.noServerConfiguration") }
         if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.server.firewallPrompt" @($cfg.Port)))) { return }
-        $netsh = Join-Path $env:SystemRoot "System32\netsh.exe"
-        if (-not (Test-Path -LiteralPath $netsh -PathType Leaf)) { throw (Get-EnterpriseText "enterprise.error.netshMissing") }
-        $show = & $netsh http show urlacl 2>$null | Out-String
-        $url = "http://+:$([int]$cfg.Port)/tool/v1/"
-        if ($show -notmatch [regex]::Escape($url)) {
-            $aclArgs = "http add urlacl url=$url user=Administrators"
-            $aclProcess = Start-Process -FilePath $netsh -ArgumentList $aclArgs -Wait -PassThru -WindowStyle Hidden
-            if ($aclProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($aclProcess.ExitCode)) }
-        }
-        if (Get-Command New-NetFirewallRule -ErrorAction SilentlyContinue) {
-            try {
-                New-NetFirewallRule -DisplayName "ThanhViet Tool v4.6 Enterprise Server" -Direction Inbound -Action Allow -Protocol TCP -LocalPort ([int]$cfg.Port) -Profile Domain,Private -ErrorAction Stop | Out-Null
-            } catch {
-                # A pre-existing rule is harmless; the URL ACL is the
-                # essential listener permission.
-            }
-        }
+        Enable-EnterpriseServerListenerAccess -Configuration $cfg
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.firewallReady" @($cfg.Port)) $true
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1100) }
 }
@@ -560,6 +594,8 @@ function Invoke-ClientEnroll {
         $port = [int]$script:clientPortBox.Text
         $code = $script:clientPairingBox.Text.Trim()
         if ([string]::IsNullOrWhiteSpace($code)) { throw (Get-EnterpriseText "enterprise.error.pairingCodeRequired") }
+        $diagnostic = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress $address -Port $port -TimeoutMs 1800
+        if (-not $diagnostic.Success) { throw [string]$diagnostic.Message }
         $cfg = Register-ToolEnterpriseClient -ServerAddress $address -Port $port -PairingCode $code -AllowRemoteLicenseChanges ([bool]$script:clientRemoteChanges.Checked) -AutoSend ([bool]$script:clientAutoSend.Checked)
         $script:clientPairingBox.Clear()
         Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.enrolled" @($cfg.ClientId, $address, $port)) $true
@@ -570,9 +606,9 @@ function Invoke-ClientTest {
     try {
         if (-not (Confirm-EnterpriseNetworkAccess -ActionKey "enterprise.action.testConnection")) { return }
         $address = Resolve-EnterpriseClientServerAddress
-        $status = Test-ToolEnterpriseServerConnection -ServerAddress $address -Port ([int]$script:clientPortBox.Text) -TimeoutMs 1500
-        if (-not $status) { throw (Get-EnterpriseText "enterprise.error.connectionFailed") }
-        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.connected" @($address, $status.ProtocolVersion)) $true
+        $diagnostic = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress $address -Port ([int]$script:clientPortBox.Text) -TimeoutMs 1800
+        if (-not $diagnostic.Success) { throw [string]$diagnostic.Message }
+        Set-EnterpriseStatus ([string]$diagnostic.Message) $true
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 900) }
 }
 
@@ -590,7 +626,7 @@ function Invoke-ClientSchedule {
         if ($Enable -and -not (Confirm-EnterpriseNetworkAccess -ActionKey "enterprise.action.scheduleAgent")) { return }
         $launcher = Get-EnterpriseLauncherPath
         if (-not $launcher) { throw (Get-EnterpriseText "enterprise.error.oneFileRequired") }
-        $taskName = "ThanhViet Tool v4.6 Enterprise Agent"
+        $taskName = "ThanhViet Tool v4.8 Enterprise Agent"
         if ($Enable) {
             if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.client.enableSchedulePrompt"))) { return }
             $taskRun = "`"$launcher`" --enterprise-agent"
@@ -600,9 +636,13 @@ function Invoke-ClientSchedule {
             Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.scheduleEnabled") $true
         } else {
             if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.client.disableSchedulePrompt"))) { return }
-            $arguments = "/Delete /TN `"$taskName`" /F"
-            $p = Start-Process -FilePath (Join-Path $env:SystemRoot "System32\schtasks.exe") -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
-            Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.scheduleDisabled" @($p.ExitCode)) $true
+            $exitCode = 0
+            foreach ($scheduledTaskName in @($taskName,"ThanhViet Tool v4.6 Enterprise Agent")) {
+                $arguments = "/Delete /TN `"$scheduledTaskName`" /F"
+                $p = Start-Process -FilePath (Join-Path $env:SystemRoot "System32\schtasks.exe") -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
+                if ($scheduledTaskName -eq $taskName) { $exitCode = $p.ExitCode }
+            }
+            Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.scheduleDisabled" @($exitCode)) $true
         }
     } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1100) }
 }
@@ -795,6 +835,8 @@ function Update-EnterpriseLayout {
         Set-EnterpriseBounds $script:enterpriseStatus 18 41 ([Math]::Max(300, $formWidth - 294)) 26
         Set-EnterpriseBounds $script:enterpriseNetworkButton ([Math]::Max(382, $formWidth - 258)) 38 240 30
         Set-EnterpriseBounds $tabs 10 72 ($formWidth - 20) ([Math]::Max(330, $formHeight - 124))
+        $tabItemWidth = [Math]::Max(180, [Math]::Floor(($tabs.ClientSize.Width - 6) / 3))
+        $tabs.ItemSize = New-Object Drawing.Size($tabItemWidth, 32)
         $tabs.PerformLayout()
 
         if ($localManagerTab) {
@@ -990,7 +1032,7 @@ $title.ForeColor = $script:enterprisePalette.Header
 $form.Controls.Add($title)
 $script:enterpriseStatus = New-EnterpriseLabel (Get-EnterpriseText "enterprise.status.choose") 18 41 840 26
 $form.Controls.Add($script:enterpriseStatus)
-$script:enterpriseNetworkButton = New-EnterpriseButton (Get-EnterpriseText "enterprise.network.allow") 780 38 240 30 {
+$script:enterpriseNetworkButton = New-EnterpriseButton (Get-EnterpriseText $(if ($script:enterpriseNetworkAllowed) { "enterprise.network.stateOnline" } else { "enterprise.network.stateOffline" })) 780 38 240 30 {
     [void](Toggle-EnterpriseNetworkAccess -SkipConfirmation:$SmokeTest)
 }
 $form.Controls.Add($script:enterpriseNetworkButton)
@@ -1001,7 +1043,7 @@ $tabs.Size = New-Object Drawing.Size(995, 560)
 $tabs.Anchor = "Top,Bottom,Left,Right"
 $tabs.DrawMode = [Windows.Forms.TabDrawMode]::OwnerDrawFixed
 $tabs.SizeMode = [Windows.Forms.TabSizeMode]::Fixed
-$tabs.ItemSize = New-Object Drawing.Size(245, 32)
+$tabs.ItemSize = New-Object Drawing.Size(320, 32)
 $tabs.Padding = New-Object Drawing.Point(12, 4)
 $form.Controls.Add($tabs)
 
@@ -1159,13 +1201,7 @@ $tabs.Add_DrawItem({
     param($sender, $e)
     $page = $sender.TabPages[$e.Index]
     $selected = ($sender.SelectedIndex -eq $e.Index)
-    $tabColor = if ($e.Index -eq 0) {
-        $script:enterprisePalette.LocalButton
-    } elseif ($e.Index -eq 1) {
-        $script:enterprisePalette.ServerButton
-    } else {
-        $script:enterprisePalette.ClientButton
-    }
+    $tabColor = $script:enterprisePalette.ServerButton
     $backColor = if ($selected) { $tabColor } else { $script:enterprisePalette.Button }
     $foreColor = if ($selected) { [Drawing.Color]::White } else { $script:enterprisePalette.Text }
     $brush = New-Object Drawing.SolidBrush($backColor)
@@ -1250,6 +1286,7 @@ $tabs.Add_SelectedIndexChanged({
 $form.Add_Activated({ [void](Update-EnterpriseDetectedServerAddress) })
 $form.Add_FormClosed({
     foreach ($font in @($script:enterpriseFont,$script:enterpriseSmallFont,$script:enterpriseTitleFont)) { try { $font.Dispose() } catch {} }
+    try { $script:enterpriseToolTip.Dispose() } catch {}
 })
 if ($SmokeTest) {
     if ($tabs.TabPages.Count -ne 3) { throw (Get-EnterpriseText "enterpriseSmoke.tabCount") }

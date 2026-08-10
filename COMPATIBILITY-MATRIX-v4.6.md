@@ -2,7 +2,7 @@
 
 Mốc rà soát: **2026-08-05 UTC**. Nguồn máy đọc: `compatibility-catalog-v1.0.json`, schema catalog `1.1`, phiên bản `1.1.0.0`.
 
-Catalog Microsoft này tách biệt với `software-license-catalog-v1.0.json` phiên bản `1.2.0.0`. Catalog phần mềm có 45 quy tắc sản phẩm; 16 quy tắc mang `Category` cho CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering. Các quy tắc đó bổ sung nhận diện signer/domain/tệp lõi/artifact nhưng không hạ ngưỡng kết luận fail-closed của engine quét sâu.
+Catalog Microsoft này tách biệt với `software-license-catalog-v1.0.json` phiên bản `1.3.0.0`. Catalogue phần mềm có 73 quy tắc sản phẩm duy nhất, gồm các nhóm CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering và nhiều ứng dụng phổ biến. Các quy tắc bổ sung nhận diện signer/domain/tệp lõi/artifact nhưng không hạ ngưỡng kết luận fail-closed của engine quét sâu; `HashMismatch` đơn lẻ chỉ tạo `IntegrityCompromised`.
 
 - Từ 30 ngày: Dashboard hiện **Catalog Age Warning**.
 - Quá 45 ngày: catalog chuyển `Stale`, tác vụ phụ thuộc phiên bản chuyển sang chỉ đọc và build phát hành thất bại.

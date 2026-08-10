@@ -1,5 +1,5 @@
 ﻿$script:ToolOfflinePolicySchemaVersion = "1.0"
-$script:ToolOfflinePolicyToolVersion = "4.6"
+$script:ToolOfflinePolicyToolVersion = "4.8"
 
 $toolOfflineLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 if ((-not (Get-Command Get-ToolTextCurrent -ErrorAction SilentlyContinue) -or
@@ -35,14 +35,8 @@ function Get-ToolEnterpriseNetworkSettingsPath {
 function Get-ToolOfflineMode {
     if ([string]$env:TOOL_OFFLINE_MODE -eq "1") { return $true }
     if ([string]$env:TOOL_OFFLINE_MODE -eq "0") { return $false }
-
-    $settingsPath = Get-ToolOfflineSettingsPath
-    if (-not [string]::IsNullOrWhiteSpace($settingsPath) -and (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
-        try {
-            $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($null -ne $settings.OfflineMode) { return [bool]$settings.OfflineMode }
-        } catch {}
-    }
+    # Fail closed on every fresh process. Online is an explicit, session-only
+    # choice and is never restored silently from an older settings file.
     return $true
 }
 
@@ -60,6 +54,8 @@ function Set-ToolOfflineModePreference {
         $settings = [ordered]@{
             SchemaVersion = $script:ToolOfflinePolicySchemaVersion
             OfflineMode = [bool]$OfflineMode
+            AppliesToCurrentSession = $true
+            NextLaunchMode = "Offline"
             ModifiedAtUtc = [DateTime]::UtcNow.ToString("o")
         }
         [IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding($false)))
@@ -149,6 +145,9 @@ function Get-ToolOfflinePolicyMetadata {
         EnterpriseNetworkDefault = "Blocked"
         CurrentEnterpriseNetworkAllowed = [bool](Get-ToolEnterpriseNetworkAllowed)
         Telemetry = "Disabled"
-        AutomaticUpdateCheck = $false
+        AutomaticUpdateCheck = $true
+        AutomaticUpdateCheckTrigger = "UserEnabledOnline"
+        BackgroundUpdateService = $false
+        SilentUpdate = $false
     }
 }

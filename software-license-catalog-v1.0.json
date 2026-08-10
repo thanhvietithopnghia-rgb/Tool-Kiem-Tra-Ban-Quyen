@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.2.0.0",
-  "GeneratedAtUtc": "2026-08-06T04:00:00Z",
+  "CatalogVersion": "1.3.0.0",
+  "GeneratedAtUtc": "2026-08-10T12:00:00Z",
   "CatalogScope": ["General", "Design", "CAD", "CAM", "CAE", "BIM", "GIS", "Simulation", "Engineering"],
   "UpdateUrl": "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json",
   "Privacy": {
@@ -447,6 +447,132 @@
       "OfficialUrl": "https://www.esri.com/en-us/arcgis/products/index", "LicenseDomains": ["(?:^|\\.)esri\\.com$", "(?:^|\\.)arcgis\\.com$"],
       "UnauthorizedNamePatterns": ["\\bArcGIS[._ -]*(?:crack|patch|keygen)\\b", "\\bArcGIS[._ -]*license[._ -]*(?:bypass|server)\\b"],
       "CriticalFilePatterns": ["(?:^|\\\\)(?:ArcGISPro|ArcMap|ArcGISAdmin)\\.exe$"], "LicenseProcessPatterns": ["^(?:ArcGIS License Manager|ArcGIS Licensing Service)$"]
+    },
+    {
+      "Id": "microsoft-powerbi-desktop", "Category": "Business Intelligence", "Vendor": "Microsoft",
+      "NamePatterns": ["\\bMicrosoft Power BI Desktop\\b", "^Power BI Desktop$"], "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Free", "OfficialUrl": "https://powerbi.microsoft.com/desktop/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)powerbi\\.com$"], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "microsoft-visual-studio", "Category": "Development", "Vendor": "Microsoft",
+      "NamePatterns": ["\\bMicrosoft Visual Studio (?:Community|Professional|Enterprise)\\b"], "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Mixed", "OfficialUrl": "https://visualstudio.microsoft.com/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)visualstudio\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bVisual Studio[._ -]*(?:crack|patch|keygen)\\b"]
+    },
+    {
+      "Id": "jetbrains-ides", "Category": "Development", "Vendor": "JetBrains",
+      "NamePatterns": ["\\b(?:IntelliJ IDEA|PyCharm|WebStorm|PhpStorm|Rider|CLion|DataGrip|RubyMine|GoLand)\\b"], "PublisherPatterns": ["\\bJetBrains\\b"],
+      "LicenseModel": "Subscription", "OfficialUrl": "https://www.jetbrains.com/products/", "LicenseDomains": ["(?:^|\\.)jetbrains\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bJetBrains[._ -]*(?:crack|patch|keygen|license server)\\b"]
+    },
+    {
+      "Id": "git", "Category": "Development", "Vendor": "Git Project",
+      "NamePatterns": ["^Git version ", "^Git$"], "PublisherPatterns": ["\\bGit\\b"], "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://git-scm.com/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "github-desktop", "Category": "Development", "Vendor": "GitHub",
+      "NamePatterns": ["^GitHub Desktop$"], "PublisherPatterns": ["\\bGitHub\\b"], "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://desktop.github.com/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "notepad-plus-plus", "Category": "Utilities", "Vendor": "Notepad++",
+      "NamePatterns": ["^Notepad\\+\\+$"], "PublisherPatterns": ["\\bNotepad\\+\\+ Team\\b"], "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://notepad-plus-plus.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "libreoffice", "Category": "Office", "Vendor": "The Document Foundation",
+      "NamePatterns": ["^LibreOffice"], "PublisherPatterns": ["\\bDocument Foundation\\b"], "LicenseModel": "OpenSource",
+      "OfficialUrl": "https://www.libreoffice.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "sumatrapdf", "Category": "PDF", "Vendor": "SumatraPDF",
+      "NamePatterns": ["^SumatraPDF$"], "PublisherPatterns": [], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.sumatrapdfreader.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "obs-studio", "Category": "Media", "Vendor": "OBS Project",
+      "NamePatterns": ["^OBS Studio$"], "PublisherPatterns": ["\\bOBS Project\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://obsproject.com/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "gimp", "Category": "Graphics", "Vendor": "GIMP Team",
+      "NamePatterns": ["^GIMP(?: |$)"], "PublisherPatterns": ["\\bGIMP Team\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.gimp.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "inkscape", "Category": "Graphics", "Vendor": "Inkscape",
+      "NamePatterns": ["^Inkscape(?: |$)"], "PublisherPatterns": ["\\bInkscape\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://inkscape.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "blender", "Category": "3D/Rendering", "Vendor": "Blender Foundation",
+      "NamePatterns": ["^Blender(?: |$)"], "PublisherPatterns": ["\\bBlender Foundation\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.blender.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "audacity", "Category": "Audio", "Vendor": "Audacity Team",
+      "NamePatterns": ["^Audacity(?: |$)"], "PublisherPatterns": ["\\bAudacity\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.audacityteam.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "qbittorrent", "Category": "Network", "Vendor": "qBittorrent Project",
+      "NamePatterns": ["^qBittorrent$"], "PublisherPatterns": [], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.qbittorrent.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "winscp", "Category": "Network", "Vendor": "WinSCP",
+      "NamePatterns": ["^WinSCP"], "PublisherPatterns": ["\\bMartin Prikryl\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://winscp.net/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "putty", "Category": "Network", "Vendor": "PuTTY",
+      "NamePatterns": ["^PuTTY(?: release)?"], "PublisherPatterns": ["\\bSimon Tatham\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.chiark.greenend.org.uk/~sgtatham/putty/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "filezilla", "Category": "Network", "Vendor": "FileZilla Project",
+      "NamePatterns": ["^FileZilla Client$"], "PublisherPatterns": ["\\bFileZilla Project\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://filezilla-project.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "oracle-virtualbox", "Category": "Virtualization", "Vendor": "Oracle",
+      "NamePatterns": ["\\bOracle VM VirtualBox\\b", "^VirtualBox$"], "PublisherPatterns": ["\\bOracle\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://www.virtualbox.org/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "docker-desktop", "Category": "Development/Virtualization", "Vendor": "Docker",
+      "NamePatterns": ["^Docker Desktop$"], "PublisherPatterns": ["\\bDocker\\b"], "LicenseModel": "Freemium", "OfficialUrl": "https://www.docker.com/products/docker-desktop/", "LicenseDomains": ["(?:^|\\.)docker\\.com$"], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "database-open-source", "Category": "Database", "Vendor": "Open source database vendors",
+      "NamePatterns": ["\\bPostgreSQL\\b", "\\bMySQL (?:Server|Workbench)\\b", "^MariaDB"], "PublisherPatterns": [], "LicenseModel": "OpenSource", "OfficialUrl": "", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "dbeaver-community", "Category": "Database", "Vendor": "DBeaver",
+      "NamePatterns": ["^DBeaver Community$"], "PublisherPatterns": ["\\bDBeaver\\b"], "LicenseModel": "OpenSource", "OfficialUrl": "https://dbeaver.io/", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "navicat-commercial", "Category": "Database", "Vendor": "PremiumSoft",
+      "NamePatterns": ["\\bNavicat\\b"], "PublisherPatterns": ["\\bPremiumSoft\\b"], "LicenseModel": "Subscription", "OfficialUrl": "https://www.navicat.com/", "LicenseDomains": ["(?:^|\\.)navicat\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bNavicat[._ -]*(?:crack|patch|keygen)\\b"]
+    },
+    {
+      "Id": "remote-access-freemium", "Category": "Remote Access", "Vendor": "Remote access vendors",
+      "NamePatterns": ["^AnyDesk$", "^TeamViewer(?: Host)?$", "^RustDesk$"], "PublisherPatterns": [], "LicenseModel": "Freemium", "OfficialUrl": "", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "communication-freemium", "Category": "Communication", "Vendor": "Communication vendors",
+      "NamePatterns": ["^Zoom Workplace$", "^Slack$", "^Discord$", "^Cisco Webex"], "PublisherPatterns": [], "LicenseModel": "Freemium", "OfficialUrl": "", "LicenseDomains": [], "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "wondershare-filmora", "Category": "Video Editing", "Vendor": "Wondershare",
+      "NamePatterns": ["\\bWondershare Filmora\\b", "^Filmora"], "PublisherPatterns": ["\\bWondershare\\b"], "LicenseModel": "Subscription", "OfficialUrl": "https://filmora.wondershare.com/", "LicenseDomains": ["(?:^|\\.)wondershare\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bFilmora[._ -]*(?:crack|patch|keygen)\\b"]
+    },
+    {
+      "Id": "corel-commercial", "Category": "Graphics", "Vendor": "Corel",
+      "NamePatterns": ["\\bCorelDRAW\\b", "\\bCorel PaintShop Pro\\b", "\\bWinZip\\b"], "PublisherPatterns": ["\\bCorel\\b", "\\bAlludo\\b", "\\bWinZip Computing\\b"], "LicenseModel": "Commercial", "OfficialUrl": "https://www.corel.com/", "LicenseDomains": ["(?:^|\\.)corel\\.com$"],
+      "UnauthorizedNamePatterns": ["\\b(?:CorelDRAW|PaintShop|WinZip)[._ -]*(?:crack|patch|keygen)\\b"]
+    },
+    {
+      "Id": "internet-download-manager", "Category": "Utilities", "Vendor": "Tonec",
+      "NamePatterns": ["\\bInternet Download Manager\\b"], "PublisherPatterns": ["\\bTonec\\b"], "LicenseModel": "Trialware", "OfficialUrl": "https://www.internetdownloadmanager.com/", "LicenseDomains": [],
+      "UnauthorizedNamePatterns": ["\\bIDM[._ -]*(?:crack|patch|keygen|reset)\\b"]
+    },
+    {
+      "Id": "security-freemium", "Category": "Security", "Vendor": "Security vendors",
+      "NamePatterns": ["\\bMalwarebytes\\b", "\\bESET (?:Security|NOD32)\\b", "\\bKaspersky\\b", "\\bBitdefender\\b", "\\bAvast\\b"], "PublisherPatterns": [],
+      "LicenseModel": "Freemium", "OfficialUrl": "", "LicenseDomains": [], "UnauthorizedNamePatterns": []
     }
   ]
 }

@@ -1,24 +1,8 @@
-# User guide for Machine Configuration and Software Licensing Tool v4.6
+# User guide for Machine Configuration and Software Licensing Tool
 
-Developed by Thanh Viet  
-Applies to version 4.6.0.0 · Build 2026.08.06
+Developed by Thanh Viet
 
-This guide is for people running the tool on a Windows computer. It explains what changed in v4.6, how to start the executable, how to use every function, and how to interpret the results.
-
-## What is new in v4.6
-
-- Broader software inventory from installed-program records, Store applications, shortcuts, and common installation locations.
-- A universal deep scan for every detected application rather than a small list of vendors. The scan examines multiple EXE/DLL files, digital signatures, activator traces, hosts entries, services, tasks, and correlated evidence.
-- More conservative conclusions. Non-genuine or modified is used only for conclusive evidence or multiple independent strong evidence groups. Insufficient data remains Suspicious or Unverified.
-- Remediation now covers Windows, Office, and other software with selectable scan scopes and individual item selection.
-- Backup and restore scopes for All, Windows, Office, or Other software, with backup verification before a change is allowed.
-- An optional, consent-based Online catalog update. The tool does not upload software inventory, paths, product keys, tokens, or reports.
-- Improved Light/Dark interface, Vietnamese/English localization, DPI layout, Stop, Copy all log, and Open report folder controls.
-- Improved HTML/PDF reports, scan-coverage warnings, time limits, and progress feedback.
-- A smaller single executable while retaining the complete scan, remediation, and reporting feature set.
-- Catalog `1.2.0.0` with 45 product rules, including 16 engineering groups covering CAD/CAE/BIM, simulation, structural tools, GIS, EDA, measurement, and rendering.
-- A **Dry Run — no system changes** action that lists exact targets, actions, backup expectations, and restorability without creating a restore point or changing anything.
-- A v4.6 writable-data root with schema 2.0. First launch can migrate legacy configuration, plugins, timeline, and Enterprise data through a SHA-256-verified staging copy; legacy data is retained and a failed migration rolls back.
+This guide explains how to use the Tool's features on a Windows computer. Release-specific changes are documented separately in **Version History**; this guide focuses only on actions, result interpretation, and safe operating practices.
 
 ## Scope and operating principles
 
@@ -32,25 +16,25 @@ This guide is for people running the tool on a Windows computer. It explains wha
 ## Before you run the tool
 
 1. If the tool arrived in a ZIP file, extract it first. Do not run it from inside the archive.
-2. Place Tool-Kiem-Tra-v4.6.exe in a normal folder on a local drive.
+2. Place the Tool executable in a normal folder on a local drive.
 3. Close Word, Excel, Outlook, and any application that may be remediated.
 4. Prepare a valid account or product key if you expect to change licensing.
-5. Ensure the system drive and Desktop have enough free space for backups and reports.
+5. Ensure the system drive and Desktop have enough free space for backups and report packages.
 6. Keep Offline enabled unless you intentionally need a catalog update or authorized LAN management.
 
-If Windows SmartScreen or security software displays a warning, continue only when the file came from a source you trust. On a managed computer, contact the administrator if AppLocker, WDAC, or another policy blocks the tool.
+An unsigned single-file EXE may receive a SmartScreen or antivirus heuristic warning because it extracts PowerShell payloads, inspects KMS/activator traces, and contains an updater. That warning does not by itself prove malware, but it must not be ignored. Download only from the official GitHub repository `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, compare SHA-256 with `TOOL-SHA256SUMS.txt`, inspect `Get-AuthenticodeSignature`, scan with Microsoft Defender, and submit the sample to the antivirus vendor when a false positive is suspected. Do not disable Defender or SmartScreen to run the tool. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
 
-## How to run Tool-Kiem-Tra-v4.6.exe
+## How to run the Tool
 
-1. Double-click Tool-Kiem-Tra-v4.6.exe.
-2. Select Yes at the User Account Control prompt so the tool can read Registry, services, tasks, file signatures, and licensing state completely.
-3. Wait for Control Center to appear. The first launch can take slightly longer while the protected runtime is prepared.
+1. Double-click the Tool executable in the release folder.
+2. The dashboard opens with the current user's rights and does not request UAC merely to view or scan. If you choose remediation, update, or enterprise administration, verify the named operation and approve UAC only when appropriate.
+3. Wait for Control Center to appear. The first launch can take slightly longer while the protected per-user runtime is prepared.
 4. Select English or Vietnamese and Light or Dark mode in Settings if needed.
 5. Keep the network switch set to Offline for local-only checks.
 6. For the first review, select Check everything.
 7. When asked about privacy, choose a redacted report if it will be shared outside the administration team.
 8. Wait until the status says the task is complete. Do not close the tool while Activity shows a running task.
-9. The HTML report opens in the default browser. Use Open report folder to locate it later.
+9. The summary HTML opens in the default browser. Review the main results, then select **Open detailed PDF** inside the HTML for the complete report. Use Open report folder to locate the package later.
 
 You do not need to open source files, configuration files, or technical documentation to use the executable.
 
@@ -63,7 +47,21 @@ You do not need to open source files, configuration files, or technical document
 - Copy all log copies diagnostics for support.
 - Open report folder opens the latest report location.
 - Stop should be used only when a task is taking abnormally long. If remediation is interrupted, preserve the backup and rescan before continuing.
-- Offline/Online only controls network permission. Switching Online does not upload data or automatically start a scan.
+- Offline/Online controls network permission for the current session only. Switching Online does not upload data or automatically start a scan; restarting always returns to Offline.
+- **Tool Assistant** sits left of **About**. Enter a question and click **Send** or press **Enter**; use `Shift+Enter` for a new line. Input and Send are temporarily locked while an answer is processed. The **Connect Online** button has a hover explanation and grants network access only for the current session; knowledge synchronization is enabled afterward.
+
+## Tool Assistant
+
+Tool Assistant answers questions within the Tool's scope, including feature use, Windows/Office/software status, technical evidence, error codes, reports, the catalog, and Server/Workstation connectivity.
+
+1. Select **Tool Assistant**.
+2. Enter a question in the clearly outlined composer; select **Send** or press `Enter`. Use `Shift+Enter` for a new line.
+3. Read questions and answers in separate colored message frames. New content scrolls into view and the answer appears in the current submission turn.
+4. For a specific error or result, include the related error code, status, or evidence line.
+
+The Assistant handles multiple natural phrasings, accent-free text, some abbreviations, and common typing errors. If a question is outside the Tool's scope or lacks enough evidence, it gives a context-appropriate boundary response or asks for the missing data instead of guessing.
+
+The Assistant remains available Offline. Online only permits compatible knowledge synchronization after explicit network consent.
 
 ## Recommended workflow
 
@@ -113,6 +111,9 @@ Use this function to check activation, edition, OEM/Retail/MAK/KMS channel, and 
 - OEM_DM may indicate a firmware key, but the installed edition must match.
 - Retail or MAK still requires confirmation of the key source and usage rights.
 - Volume_KMS is legitimate only for a device covered by an approved organization KMS environment.
+- **Activated — entitlement not verified** means the technical activation state is active, but the tool has no account, invoice, or agreement evidence proving usage rights.
+- **Unapproved KMS** means direct KMS configuration was found and the server is absent from the organization-provided approved list.
+- **Unable to verify licensing** means a licensing source failed, evidence conflicts, or data is insufficient. It is neither genuine approval nor an automatic crack conclusion.
 
 ## Microsoft Office licensing
 
@@ -128,7 +129,7 @@ A computer can contain multiple Office SKUs. Read every row rather than relying 
 
 ## Software & tampering indicators
 
-This function uses the new v4.6 universal deep scan for all detected software.
+This function uses the universal deep scan for all detected software.
 
 1. Close the applications being reviewed.
 2. Select Software and modification indicators.
@@ -138,7 +139,7 @@ This function uses the new v4.6 universal deep scan for all detected software.
 6. Review correlated system traces such as hosts, firewall, service, task, autorun, IFEO, or artifacts.
 7. Compare the technical result with the vendor account, invoice, and installation source.
 
-v4.6 can inspect multiple important EXE/DLL files, Authenticode and HashMismatch results, known bad hashes, services, scheduled tasks, autoruns, hosts/firewall indicators, and bounded system locations.
+The Tool can inspect multiple important EXE/DLL files, Authenticode and HashMismatch results, known bad hashes, services, scheduled tasks, autoruns, hosts/firewall indicators, and bounded system locations.
 
 Important interpretation rules:
 
@@ -260,7 +261,7 @@ The center contains seven actions:
 3. Verify and export the licensing-change timeline.
 4. Install a read-only JSON plugin from a file.
 5. Open the protected plugin folder.
-6. Open this v4.6 guide as HTML/PDF.
+6. Open the user guide as HTML/PDF.
 7. Open Version and updates.
 
 A valid file signature does not by itself prove a valid license. Install plugins only from trusted sources. The timeline covers records created by this tool on this computer; it is not a replacement for purchase records or a SIEM.
@@ -293,8 +294,10 @@ This action downloads recognition rules only. It does not upload software invent
 
 ## Reports and saved files
 
-- Reader-friendly HTML and PDF reports are saved on the Desktop.
-- The tool opens HTML in the default browser after completion.
+- The only output directory is `Desktop\BaoCao-Tool-Kiem-Tra`; exports do not create per-scan subfolders.
+- Related HTML, PDF, JSON/XML, and SHA-256 files share one base name with a millisecond timestamp and sit next to each other.
+- The summary HTML, detailed PDF, JSON/XML, and SHA-256 files stay together in that shared folder.
+- Only the summary HTML opens after completion. Select **Open detailed PDF** in the HTML to review all tables and evidence; PDF/JSON/XML do not open automatically.
 - JSON, XML, and CSV are intended for integration, audit, and structured analysis.
 - Use a redacted report for external sharing; keep a full report inside the administration team.
 - A full report can contain computer name, user name, IP addresses, paths, and a KMS host, but not a complete product key.
@@ -311,7 +314,7 @@ Use Stop only when necessary. If remediation was already running, some actions m
 The EXE does not start:
 
 - Extract it from the ZIP and run it from a local drive.
-- Allow SmartScreen or antivirus only when the file source is known.
+- Download again from `releases/latest`, verify SHA-256, and scan it with Defender. Do not add an exclusion or disable protection merely to force execution.
 - Contact the administrator if a managed-device policy blocks it.
 
 An application is missing:

@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$productVersion = '4.6'
+$productVersion = '4.8'
 if ([string]::IsNullOrWhiteSpace($SourceDirectory)) { $SourceDirectory = $PSScriptRoot }
 if ([string]::IsNullOrWhiteSpace($DistributionDirectory)) { $DistributionDirectory = Join-Path $SourceDirectory 'dist' }
 $failures = New-Object System.Collections.Generic.List[string]
@@ -74,6 +74,8 @@ $offlineI18nVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-OFFLINE-I18N.p
 $localizationVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-LOCALIZATION-COVERAGE.ps1'
 $performanceVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-PERFORMANCE.ps1'
 $dataLifecycleVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-DATA-LIFECYCLE.ps1'
+$applicationUpdateVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-APPLICATION-UPDATE.ps1'
+$assistantVerifierPath = Join-Path $sourceDirectoryFull 'VERIFY-ASSISTANT.ps1'
 if (-not (Test-Path -LiteralPath $peHelperPath -PathType Leaf)) { $failures.Add('Thiếu PE-HARDENING.ps1.') }
 else { . $peHelperPath }
 if (-not (Test-Path -LiteralPath $embeddedVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-EMBEDDED-PAYLOAD.ps1.') }
@@ -89,6 +91,8 @@ if (-not (Test-Path -LiteralPath $offlineI18nVerifierPath -PathType Leaf)) { $fa
 if (-not (Test-Path -LiteralPath $localizationVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-LOCALIZATION-COVERAGE.ps1.') }
 if (-not (Test-Path -LiteralPath $performanceVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-PERFORMANCE.ps1.') }
 if (-not (Test-Path -LiteralPath $dataLifecycleVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-DATA-LIFECYCLE.ps1.') }
+if (-not (Test-Path -LiteralPath $applicationUpdateVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-APPLICATION-UPDATE.ps1.') }
+if (-not (Test-Path -LiteralPath $assistantVerifierPath -PathType Leaf)) { $failures.Add('Thiếu VERIFY-ASSISTANT.ps1.') }
 
 foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.ps1' -File) {
     $tokens = $null
@@ -97,28 +101,29 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
     foreach ($parseError in @($parseErrors)) { $failures.Add("Lỗi cú pháp $($script.Name): $($parseError.Message)") }
 }
 
-Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 43
-Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 80
-Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 21
+Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 46
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 85
+Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 23
 
-$manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.6-OneFile.manifest'
+$manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.manifest'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-    $failures.Add('Thiếu application manifest v4.6.')
+    $failures.Add('Thiếu application manifest v4.8.')
 } else {
     $manifestText = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
-    if ($manifestText -notmatch 'requestedExecutionLevel\s+level="requireAdministrator"') { $failures.Add('Application manifest chưa yêu cầu requireAdministrator.') }
-    if ($manifestText -notmatch 'version="4\.6\.0\.0"') { $failures.Add('Application manifest sai phiên bản 4.6.0.0.') }
+    if ($manifestText -notmatch 'requestedExecutionLevel\s+level="asInvoker"') { $failures.Add('Application manifest chưa dùng asInvoker cho dashboard least-privilege.') }
+    if ($manifestText -match 'requestedExecutionLevel\s+level="requireAdministrator"') { $failures.Add('Application manifest vẫn buộc quyền quản trị ngay khi mở.') }
+    if ($manifestText -notmatch 'version="4\.8\.0\.0"') { $failures.Add('Application manifest sai phiên bản 4.8.0.0.') }
 }
 
 $versionChecks = @(
-    @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.6"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.6\.0\.0"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.06"' },
-    @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.6"' },
-    @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.6"' },
-    @{ File='Tool-Kiem-Tra-v4.6-OneFile.cs'; Pattern='AssemblyVersion\("4\.6\.0\.0"\)' },
-    @{ File='Tool-Kiem-Tra-v4.6-OneFile.cs'; Pattern='AssemblyFileVersion\("4\.6\.0\.0"\)' },
-    @{ File='Tool-Kiem-Tra-v4.6-OneFile.cs'; Pattern='AssemblyInformationalVersion\("4\.6\.0\.0"\)' }
+    @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8\.0"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.8\.0\.0"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.10"' },
+    @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.8"' },
+    @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8"' },
+    @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyVersion\("4\.8\.0\.0"\)' },
+    @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyFileVersion\("4\.8\.0\.0"\)' },
+    @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyInformationalVersion\("4\.8\.0\.0"\)' }
 )
 foreach ($check in $versionChecks) {
     $path = Join-Path $sourceDirectoryFull $check.File
@@ -132,7 +137,7 @@ $cleanupText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows
 $backupText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows-license-backup.ps1') -Raw -Encoding UTF8
 $restoreText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows-license-restore.ps1') -Raw -Encoding UTF8
 $reportText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'kiem-tra-cau-hinh-ban-quyen.ps1') -Raw -Encoding UTF8
-$launcherText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.6-OneFile.cs') -Raw -Encoding UTF8
+$launcherText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.cs') -Raw -Encoding UTF8
 $buildText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'BUILD.ps1') -Raw -Encoding UTF8
 $runtimeText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Runtime.ps1') -Raw -Encoding UTF8
 $capabilityText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Capabilities.ps1') -Raw -Encoding UTF8
@@ -152,6 +157,7 @@ $enterpriseUiText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'en
 $compatibilityText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Compatibility.ps1') -Raw -Encoding UTF8
 $localizationText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Localization.ps1') -Raw -Encoding UTF8
 $offlinePolicyText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-OfflinePolicy.ps1') -Raw -Encoding UTF8
+$assistantText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-Assistant.ps1') -Raw -Encoding UTF8
 
 if ($guiText -notmatch '\$dashboardSchemaVersion\s*=\s*"2\.0"' -or
     $guiText -notmatch 'WindowsReleaseName' -or $guiText -notmatch 'OfficeSummary') {
@@ -165,9 +171,37 @@ if ($guiText -notmatch 'function\s+Show-ProductIntroduction' -or
     $guiText -notmatch '\$sidebarPanel' -or
     $guiText -notmatch '\$activityPanel' -or
     $guiText -notmatch 'function\s+Show-DashboardPreferences') {
-    $failures.Add('Dashboard v4.6.0.0 thiếu overview/nút giới thiệu, shell hiện đại, bo góc hoặc chế độ gọn.')
+    $failures.Add('Dashboard v4.8.0.0 thiếu overview/nút giới thiệu, shell hiện đại, bo góc hoặc chế độ gọn.')
+}
+if ($guiText -notmatch 'introAssistantButton' -or $guiText -notmatch 'Show-ToolAssistantWindow' -or
+    $guiText -notmatch 'TitleLabel' -or $guiText -notmatch 'DescriptionLabel' -or
+    $guiText -notmatch 'Color\]::FromArgb\(0,\s*98,\s*218\)') {
+    $failures.Add('Dashboard v4.8 thiếu nút Trợ lý Tool hoặc tiêu đề xanh thích ứng cho 10 chức năng.')
 }
 if ($guiText -notmatch 'TOOL_SECURE_LAUNCH' -or $guiText -notmatch 'Test-ProtectedToolDirectoryAcl') { $failures.Add('Giao diện thiếu khóa secure-launch/ACL.') }
+if ($launcherText -notmatch 'RequiresAdministrator' -or $launcherText -notmatch 'RelaunchElevated' -or
+    $launcherText -notmatch 'SpecialFolder\.LocalApplicationData' -or $launcherText -notmatch 'TOOL_DATA_SCOPE') {
+    $failures.Add('Launcher thiếu dashboard user-scope hoặc nâng quyền theo nhu cầu.')
+}
+if ($guiText -notmatch 'Verb\s*=\s*"RunAs"' -or $guiText -notmatch 'ArgumentList\s+"--enterprise-ui"\s+-Verb\s+RunAs') {
+    $failures.Add('Cập nhật/Mục 8 chưa yêu cầu quyền quản trị theo từng thao tác.')
+}
+if ($guiText -notmatch 'function\s+New-ToolReportRunDirectory' -or $guiText -notmatch 'function\s+Open-ToolHtmlReport' -or
+    $reportText -notmatch 'WindowsConclusionCode' -or $reportText -notmatch 'KmsUnapprovedHost') {
+    $failures.Add('Thiếu thư mục xuất riêng, giới hạn mở HTML hoặc kết luận bản quyền chặt chẽ v4.8.')
+}
+if ($assistantText -notmatch 'function\s+Show-ToolAssistantWindow' -or
+    $assistantText -notmatch 'function\s+Get-ToolAssistantAnswer' -or
+    $assistantText -notmatch 'DownloadOnlyKnowledgeJson' -or
+    $assistantText -notmatch 'PaidApiRequired\s*=\s*\$false' -or
+    $assistantText -notmatch 'CodexRequired\s*=\s*\$false' -or
+    $assistantText -notmatch 'ReportUpload\s*=\s*\$false' -or
+    $assistantText -notmatch 'PortableEveryMachine\s*=\s*\$true' -or
+    $assistantText -notmatch 'CentralServerRequired\s*=\s*\$false' -or
+    $assistantText -notmatch 'Windows\.Forms\.FlowLayoutPanel' -or
+    $assistantText -notmatch 'IsSubmitting') {
+    $failures.Add('Trợ lý Tool v4.8 thiếu máy trả lời cục bộ hoặc ranh giới không API/Codex/upload.')
+}
 if ($guiText -notmatch 'enterprise-license-manager\.ps1' -or
     $guiText -notmatch 'status\.enterprise\.opening' -or
     $guiText -notmatch 'ArgumentList\s+"--enterprise-ui"') {
@@ -205,12 +239,13 @@ if ($launcherText -notmatch 'Environment\.Is64BitOperatingSystem' -or
     $launcherText -notmatch 'TOOL_OFFLINE_POLICY_SCHEMA' -or
     $launcherText -notmatch 'TOOL_OFFLINE_MODE' -or
     $launcherText -notmatch 'TOOL_ENTERPRISE_ROOT' -or
+    $launcherText -notmatch 'TOOL_LAUNCHER_PID' -or
     $launcherText -notmatch 'TOOL_ENTERPRISE_SCHEMA' -or
     $launcherText -notmatch '--enterprise-server' -or
     $launcherText -notmatch '--enterprise-agent' -or
-    $launcherText -notmatch 'CreateProtectedDirectory\(logsDirectory\)' -or
-    $launcherText -notmatch 'CreateProtectedDirectory\(pluginsDirectory\)' -or
-    $launcherText -notmatch 'CreateProtectedDirectory\(timelineDirectory\)') {
+    $launcherText -notmatch 'CreateProtectedDirectory\(logsDirectory,\s*machineScope\)' -or
+    $launcherText -notmatch 'CreateProtectedDirectory\(pluginsDirectory,\s*machineScope\)' -or
+    $launcherText -notmatch 'CreateProtectedDirectory\(timelineDirectory,\s*machineScope\)') {
     $failures.Add('Launcher AnyCPU thiếu tự nhận diện, chặn x86-on-x64, PowerShell native hoặc module schema.')
 }
 if ($launcherText -match 'powershellPath\s*=\s*"powershell\.exe"') { $failures.Add('Launcher còn fallback sang powershell.exe từ PATH.') }
@@ -218,7 +253,7 @@ if ($runtimeText -notmatch 'Is64BitOperatingSystem\s*-and\s*-not\s*\[Environment
     $runtimeText -notmatch 'Get-ToolNativeSystemPath' -or $runtimeText -notmatch 'Sysnative') {
     $failures.Add('Tool-Runtime.ps1 thiếu chặn WOW64 hoặc đường dẫn System32 native.')
 }
-if ($capabilityText -notmatch 'ToolVersion\s*=\s*"4\.6"' -or
+if ($capabilityText -notmatch 'ToolVersion\s*=\s*"4\.8"' -or
     $capabilityText -notmatch 'SchemaVersion\s*=\s*"1\.1"' -or
     $capabilityText -notmatch 'Get-ToolWindowsReleaseProfile' -or
     $capabilityText -notmatch 'Get-ToolOfficeCompatibilityProfile' -or
@@ -242,7 +277,8 @@ if ($moduleContractText -notmatch 'ToolModuleContractSchemaVersion\s*=\s*"1\.0"'
     $moduleContractText -notmatch 'Test-ToolModuleAvailability' -or
     $moduleContractText -notmatch 'Complete-ToolModuleInvocation' -or
     $moduleContractText -notmatch 'assurance\.certificates' -or $moduleContractText -notmatch 'assurance\.plugins' -or $moduleContractText -notmatch 'assurance\.timeline' -or
-    $moduleContractText -notmatch 'inventory\.registry' -or $moduleContractText -notmatch 'inventory\.service' -or $moduleContractText -notmatch 'inventory\.task') {
+    $moduleContractText -notmatch 'inventory\.registry' -or $moduleContractText -notmatch 'inventory\.service' -or $moduleContractText -notmatch 'inventory\.task' -or
+    $moduleContractText -notmatch 'application\.update\.check') {
     $failures.Add('Tool-ModuleContract.ps1 thiếu schema, capability gate, ModuleResult hoặc nhóm logical bắt buộc.')
 }
 if ($guiText -notmatch 'Start-ToolModuleProcess' -or $guiText -notmatch 'Module\.Complete' -or
@@ -268,7 +304,9 @@ if ($offlinePolicyText -notmatch 'ToolOfflinePolicySchemaVersion\s*=\s*"1\.0"' -
     $offlinePolicyText -notmatch 'return\s+\$true' -or
     $offlinePolicyText -notmatch 'Assert-ToolNetworkActionAllowed' -or
     $offlinePolicyText -notmatch 'Internet.+LAN.+Loopback' -or
-    $offlinePolicyText -notmatch 'Telemetry\s*=\s*"Disabled"') {
+    $offlinePolicyText -notmatch 'Telemetry\s*=\s*"Disabled"' -or
+    $offlinePolicyText -notmatch 'AutomaticUpdateCheckTrigger\s*=\s*"UserEnabledOnline"' -or
+    $offlinePolicyText -notmatch 'SilentUpdate\s*=\s*\$false') {
     $failures.Add('Offline policy thiếu mặc định fail-closed, network gate hoặc telemetry disabled.')
 }
 if ($buildText -notmatch '/platform:\$\(\$target\.Platform\)' -or
@@ -304,7 +342,7 @@ foreach ($name in $operationalScripts) {
 }
 
 if ($cleanupText -notmatch '\[bool\]\$DefaultSelected\s*=\s*\$false') { $failures.Add('Danh sách cleanup chưa mặc định bỏ chọn.') }
-if ($cleanupText -notmatch 'ToolVersion\s*=\s*"4\.6"' -or $cleanupText -notmatch 'LicenseNotice') { $failures.Add('Cleanup manifest v4.6 chưa đầy đủ.') }
+if ($cleanupText -notmatch 'ToolVersion\s*=\s*"4\.8"' -or $cleanupText -notmatch 'LicenseNotice') { $failures.Add('Cleanup manifest v4.8 chưa đầy đủ.') }
 if ($dataLifecycleText -notmatch 'ToolDataSchemaVersion\s*=\s*"2\.0"' -or
     $dataLifecycleText -notmatch 'ProducerVersion' -or
     $dataLifecycleText -notmatch 'Assert-ToolDataMigrationCopy' -or
@@ -343,14 +381,20 @@ if ($reportExportText -notmatch 'Export-ToolReportXml' -or $reportExportText -no
     $reportText -notmatch 'Export-ToolReportPackage') {
     $failures.Add('Bộ xuất báo cáo chưa đủ HTML/PDF/JSON/XML hoặc chưa được tích hợp.')
 }
-if ($reportExportText -notmatch 'ToolReportExportSchemaVersion\s*=\s*"1\.2"' -or
+if ($reportExportText -notmatch 'ToolReportExportSchemaVersion\s*=\s*"1\.4"' -or
     $reportExportText -notmatch 'Test-ToolHtmlOfflineSafe' -or
     $reportExportText -notmatch "default-src 'none'" -or
     $reportExportText -notmatch 'no-pdf-header-footer' -or
     $reportExportText -notmatch 'print-to-pdf-no-header' -or
     $reportExportText -notmatch '@media\s+print' -or
     $reportExportText -notmatch 'section\{break-inside:auto!important' -or
-    $reportExportText -notmatch '@page') {
+    $reportExportText -notmatch '@page' -or
+    $reportExportText -notmatch 'ConvertTo-ToolHtmlTableCell' -or
+    $reportExportText -notmatch 'ConvertTo-ToolHtmlCompactPublisher' -or
+    $reportExportText -notmatch 'PdfHtmlContent' -or
+    $reportExportText -notmatch 'TOOL_REPORT_PDF_GUIDE' -or
+    $reportText -notmatch 'data-report-view="summary"' -or
+    $reportText -notmatch 'data-report-view="detailed"') {
     $failures.Add('HTML/PDF v4.3 thiếu offline safety gate, CSP hoặc bố cục in A4 hiện đại.')
 }
 if ($reportExportText -match 'TOOL_SECURE_RUNTIME_DIR' -or
@@ -424,8 +468,8 @@ $payloadFiles = @(
     'Tool-Runtime.ps1','Tool-DataLifecycle.ps1','Tool-Compatibility.ps1','compatibility-catalog-v1.0.json','Tool-Capabilities.ps1',
     'Tool-ScanOptimization.ps1',
     'Tool-Logging.ps1','Tool-ModuleContract.ps1','Tool-UiTheme.ps1','Tool-Localization.ps1',
-    'Tool-Strings.vi-VN.json','Tool-Strings.en-US.json','Tool-OfflinePolicy.ps1',
-    'Tool-SoftwareInventory.ps1','software-license-catalog-v1.0.json','software-license-online-update.ps1',
+    'Tool-Strings.vi-VN.json','Tool-Strings.en-US.json','Tool-OfflinePolicy.ps1','Tool-Assistant.ps1','tool-assistant-knowledge-v1.1.json',
+    'Tool-SoftwareInventory.ps1','software-license-catalog-v1.0.json','software-license-online-update.ps1','Tool-UpdateManager.ps1',
     'Tool-ReportSchema.ps1','Tool-ReportExport.ps1','Tool-PluginEngine.ps1','Tool-LicenseTimeline.ps1',
     'Tool-SafetyPolicy.ps1','Tool-Enterprise.ps1','Tool-EnterpriseHost.ps1','Tool-EnterpriseAgent.ps1',
     'enterprise-license-manager.ps1','TOOL-SHA256SUMS.txt','windows-license-backup.ps1',
@@ -434,7 +478,7 @@ $payloadFiles = @(
     'windows-license-assurance.ps1','builtin-windows-office-trust.plugin.json'
 )
 $payloadListArgument = $payloadFiles -join '|'
-$targetFileName = 'Tool-Kiem-Tra-v4.6.exe'
+$targetFileName = 'Tool-Kiem-Tra-v4.8.exe'
 $exePath = Join-Path $distributionDirectoryFull $targetFileName
 $profile = $null
 if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
@@ -491,7 +535,7 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
 } else {
     try {
         $releaseManifest = Get-Content -LiteralPath $releaseManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ([string]$releaseManifest.SchemaVersion -ne '2.0' -or [string]$releaseManifest.ToolVersion -ne '4.6') { throw 'Sai schema/tool version.' }
+        if ([string]$releaseManifest.SchemaVersion -ne '2.0' -or [string]$releaseManifest.ToolVersion -ne '4.8') { throw 'Sai schema/tool version.' }
         if (@($releaseManifest.Artifacts).Count -ne 1) { throw 'Release manifest phải có đúng một artefact AnyCPU.' }
         if ([string]$releaseManifest.PrimaryFileName -ne $targetFileName) { throw 'Sai PrimaryFileName.' }
         $entry = @($releaseManifest.Artifacts)[0]
@@ -501,14 +545,14 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.6.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.06') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.6.0.0 / Build 2026.08.06.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.10') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.10.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.6.0.0-engineering-catalog-dry-run-data-lifecycle-20260806') { throw 'Sai release label v4.6.0.0.' }
-        if ([int]$releaseManifest.PayloadCount -ne 45 -or [int]$releaseManifest.IntegrityFileCount -ne 43) { throw 'Sai số lượng payload/integrity.' }
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-assistant-performance-catalog-report-enterprise-20260810') { throw 'Sai release label v4.8.0.0.' }
+        if ([int]$releaseManifest.PayloadCount -ne 48 -or [int]$releaseManifest.IntegrityFileCount -ne 46) { throw 'Sai số lượng payload/integrity.' }
         $payloadCompression = $releaseManifest.PayloadCompression
         if ([string]$payloadCompression.Scheme -ne 'PerResourceDeflateOrRaw-v1' -or
-            ([int]$payloadCompression.DeflateCount + [int]$payloadCompression.RawCount) -ne 45 -or
+            ([int]$payloadCompression.DeflateCount + [int]$payloadCompression.RawCount) -ne 48 -or
             [int64]$payloadCompression.SourceBytes -le [int64]$payloadCompression.EmbeddedBytes -or
             [int64]$payloadCompression.SavedBytes -ne ([int64]$payloadCompression.SourceBytes - [int64]$payloadCompression.EmbeddedBytes) -or
             [double]$payloadCompression.SavingsPercent -lt 50.0 -or [double]$payloadCompression.SavingsPercent -ge 100.0) {
@@ -520,7 +564,7 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             -not [bool]$releaseManifest.CleanupActionCenter -or -not [bool]$releaseManifest.AssuranceCenter -or
             [string]$releaseManifest.OfficeLicenseEnumeration -ne 'OSPP /dstatusall per SKU' -or
             [string]$releaseManifest.VersionHistoryPresentation -ne 'InToolModal' -or
-            @($releaseManifest.UserPreferencePersistence).Count -ne 2 -or
+            @($releaseManifest.UserPreferencePersistence).Count -ne 1 -or
             @($releaseManifest.EnvironmentWarnings).Count -ne 2 -or
             @($releaseManifest.ProgressUtilities).Count -ne 2) { throw 'Thiếu metadata cải tiến giao diện v4.6.' }
         if (@($releaseManifest.ThirdPartyLicenseRemediationAdapters).Count -ne 3 -or
@@ -536,8 +580,8 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'byte-identical') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
-        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.2.0.0' -or
-            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 45 -or
+        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.3.0.0' -or
+            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 73 -or
             [int]$releaseManifest.EngineeringSoftwareCatalogRules -lt 16 -or
             @($releaseManifest.EngineeringSoftwareCategories).Count -lt 8) {
             throw 'Thiếu metadata mở rộng catalog phần mềm kỹ thuật v4.6.'
@@ -551,7 +595,12 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.OfflineDefault -ne 'Offline' -or
             @($releaseManifest.OfflineBlockedScopes).Count -ne 3 -or
             [string]$releaseManifest.RuntimeTelemetry -ne 'Disabled' -or
-            [bool]$releaseManifest.AutomaticUpdateCheck) { throw 'Thiếu metadata Offline mặc định/fail-closed.' }
+            -not [bool]$releaseManifest.AutomaticUpdateCheck -or
+            [string]$releaseManifest.AutomaticUpdateCheckTrigger -ne 'UserEnabledOnline' -or
+            [bool]$releaseManifest.BackgroundUpdateService -or [bool]$releaseManifest.SilentUpdate -or
+            [string]$releaseManifest.ApplicationUpdateSchemaVersion -ne '1.0' -or
+            -not [bool]$releaseManifest.OfflineResetOnEveryLaunch -or
+            @($releaseManifest.ApplicationUpdateChoices).Count -ne 3) { throw 'Thiếu metadata Offline mặc định/cập nhật theo quyền Online.' }
         if ([string]$releaseManifest.EnterpriseNetworkDefault -ne 'Blocked' -or
             -not [bool]$releaseManifest.EnterpriseNetworkToggle -or
             -not [bool]$releaseManifest.EnterpriseNetworkIndependentFromGlobalOffline) {
@@ -561,9 +610,13 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DataStorageGeneration -ne 'v4.6' -or
             [string]$releaseManifest.LegacyDataStorageGeneration -ne 'v4.4' -or
             [string]$releaseManifest.DataMigrationPolicy -ne 'Verified staging copy + transactional commit + rollback' -or
-            [string]$releaseManifest.PersistentLogRoot -notmatch '\\v4\.6\\logs$' -or
+            [string]$releaseManifest.StartupExecutionLevel -ne 'asInvoker' -or
+            [string]$releaseManifest.ElevationPolicy -notmatch '^On demand' -or
+            [string]$releaseManifest.DefaultDataRoot -ne '%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6' -or
+            [string]$releaseManifest.ElevatedDataRoot -ne '%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6' -or
+            [string]$releaseManifest.PersistentLogRoot -notmatch '^%LOCALAPPDATA%.*standard UI.*%ProgramData%.*elevated modes' -or
             [string]$releaseManifest.PersistentEnterpriseRoot -notmatch '\\v4\.6\\enterprise$') {
-            throw 'Thiếu metadata data lifecycle/migration riêng của v4.6.'
+            throw 'Thiếu metadata data lifecycle/migration hoặc least-privilege riêng của v4.8.'
         }
         if ([string]$releaseManifest.LocalizationSchemaVersion -ne '1.0' -or
             [string]$releaseManifest.DefaultCulture -ne 'vi-VN' -or
@@ -584,8 +637,16 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             @($releaseManifest.ReportFormats).Count -ne 4 -or [string]$releaseManifest.PluginSchemaVersion -ne '1.0' -or
             [string]$releaseManifest.TimelineSchemaVersion -ne '1.0' -or [string]$releaseManifest.SafetyPolicySchemaVersion -ne '1.0' -or
             [bool]$releaseManifest.ScanRepairChangesStartupType -or
-            [string]$releaseManifest.ReportExportSchemaVersion -ne '1.2' -or
+            [string]$releaseManifest.ReportExportSchemaVersion -ne '1.4' -or
+            [string]$releaseManifest.ReportHtmlPresentation -ne 'Summary' -or
+            [string]$releaseManifest.ReportPdfPresentation -ne 'Detailed' -or
+            [string]$releaseManifest.ReportContentSplit -notmatch '^HTML summary' -or
             [string]$releaseManifest.DefaultReportOpenFormat -ne 'HTML' -or
+            [string]$releaseManifest.ReportOutputRoot -ne '%USERPROFILE%\Desktop\BaoCao-Tool-Kiem-Tra' -or
+            [string]$releaseManifest.ReportPackageLayout -notmatch '^One shared Desktop report folder' -or
+            [string]$releaseManifest.ReportAutoOpenPolicy -ne 'Open HTML only after a completed export' -or
+            [string]$releaseManifest.LicenseConclusionPolicy -notmatch '^Activation is separated from entitlement' -or
+            [string]$releaseManifest.LicenseUndeterminedPolicy -notmatch '^Unreadable licensing data is reported as Undetermined' -or
             [string]$releaseManifest.DocumentationCache -ne 'Stable version/culture filename + source SHA-256' -or
             [string]$releaseManifest.DocumentationRendererRevision -ne '2' -or
             [string]$releaseManifest.DefaultDocumentationOpenFormat -ne 'HTMLBeforePdf' -or
@@ -596,13 +657,59 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             -not [bool]$releaseManifest.PdfSafePageBreaks -or
             [string]$releaseManifest.PdfHeaderFooter -ne 'Disabled' -or
             -not [bool]$releaseManifest.CapabilityFunctionMapping) { throw 'Thiếu metadata report/plugin/timeline/safety schema v4.3.' }
+        $assistantManifest = $releaseManifest.ToolAssistant
+        if ([string]$assistantManifest.SchemaVersion -ne '1.1' -or
+            [string]$assistantManifest.Scope -ne 'Tool-Kiem-Tra' -or
+            [string]$assistantManifest.Engine -ne 'LocalKnowledge' -or
+            [bool]$assistantManifest.PaidApiRequired -or
+            [bool]$assistantManifest.CodexRequired -or
+            [string]$assistantManifest.OnlineTransfer -ne 'DownloadOnlyKnowledgeJson' -or
+            [bool]$assistantManifest.ReportUpload -or
+            [bool]$assistantManifest.AutomaticRemediation -or
+            -not [bool]$assistantManifest.PortableEveryMachine -or
+            [bool]$assistantManifest.CentralServerRequired -or
+            [string]$assistantManifest.KnowledgeStorage -ne 'BundledAndPerUserLocalCache' -or
+            [string]$assistantManifest.ReportContextSource -ne 'CurrentDeviceLocalReportOnly' -or
+            -not [bool]$assistantManifest.KnowledgeCompatibilityEnforced -or
+            [string]$assistantManifest.KnowledgeFileName -ne 'tool-assistant-knowledge-v1.1.json' -or
+            -not [bool]$assistantManifest.ImmediateResponseRender) {
+            throw 'Thiếu metadata ranh giới an toàn của Trợ lý Tool v4.8.'
+        }
         if ([string]$releaseManifest.PdfProfileRoot -ne '%LOCALAPPDATA%\Temp\ThanhViet-Tool-Kiem-Tra\pdf' -or
             [string]$releaseManifest.PdfProfileAcl -ne 'Current user + SYSTEM' -or
             [string]$releaseManifest.PdfProfileCleanup -notmatch 'Bounded retry') {
             throw 'Thiếu metadata profile PDF v4.3.'
         }
-        if ([string]$releaseManifest.ModuleContractSchemaVersion -ne '1.0' -or [string]$releaseManifest.ModuleResultSchemaVersion -ne '1.0' -or [int]$releaseManifest.ModuleCount -ne 26 -or [int]$releaseManifest.ModuleEntryPointCount -ne 23) { throw 'Thiếu metadata module contract v4.6.' }
+        if ([string]$releaseManifest.ModuleContractSchemaVersion -ne '1.0' -or [string]$releaseManifest.ModuleResultSchemaVersion -ne '1.0' -or [int]$releaseManifest.ModuleCount -ne 27 -or [int]$releaseManifest.ModuleEntryPointCount -ne 24) { throw 'Thiếu metadata module contract v4.8.' }
     } catch { $failures.Add("RELEASE-MANIFEST.json không hợp lệ: $($_.Exception.Message)") }
+}
+
+$applicationUpdateManifestPath = Join-Path $distributionDirectoryFull 'update-manifest-v1.json'
+if (-not (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf)) {
+    $failures.Add('Thiếu update-manifest-v1.json.')
+} elseif (Test-Path -LiteralPath $exePath -PathType Leaf) {
+    try {
+        $applicationUpdateManifest = Get-Content -LiteralPath $applicationUpdateManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([string]$applicationUpdateManifest.SchemaVersion -ne '1.0' -or [string]$applicationUpdateManifest.Channel -ne 'stable' -or
+            [string]$applicationUpdateManifest.LatestVersion -ne '4.8.0.0' -or [string]$applicationUpdateManifest.MinimumUpdaterVersion -ne '4.6.1.0') {
+            throw 'Sai schema/channel/version cập nhật.'
+        }
+        if ([string]$applicationUpdateManifest.ReleasePageUrl -ne 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0' -or
+            [string]$applicationUpdateManifest.DownloadUrl -ne 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe') {
+            throw 'URL phát hành/cập nhật không đúng allowlist ổn định.'
+        }
+        if ([string]$applicationUpdateManifest.DownloadSha256 -ne (Get-Sha256Hex $exePath) -or
+            [int64]$applicationUpdateManifest.DownloadSize -ne [int64](Get-Item -LiteralPath $exePath).Length) {
+            throw 'Hash hoặc kích thước EXE trong manifest cập nhật không khớp.'
+        }
+        if ($null -eq $applicationUpdateManifest.Title.'vi-VN' -or $null -eq $applicationUpdateManifest.Title.'en-US' -or
+            @($applicationUpdateManifest.Changes.'vi-VN').Count -lt 3 -or @($applicationUpdateManifest.Changes.'en-US').Count -lt 3) {
+            throw 'Manifest cập nhật thiếu nội dung vi-VN/en-US.'
+        }
+        if ([bool]$applicationUpdateManifest.AuthenticodeRequired -and @($applicationUpdateManifest.SignerThumbprints).Count -eq 0) {
+            throw 'Manifest yêu cầu Authenticode nhưng thiếu signer thumbprint.'
+        }
+    } catch { $failures.Add("update-manifest-v1.json không hợp lệ: $($_.Exception.Message)") }
 }
 
 $analyzer = Get-Module -ListAvailable -Name PSScriptAnalyzer | Select-Object -First 1
@@ -660,6 +767,14 @@ if (Test-Path -LiteralPath $performanceVerifierPath -PathType Leaf) {
 if (Test-Path -LiteralPath $dataLifecycleVerifierPath -PathType Leaf) {
     & $dataLifecycleVerifierPath -SourceDirectory $sourceDirectoryFull
     if ($LASTEXITCODE -ne 0) { $failures.Add('Kiểm tra data lifecycle/migration v4.6 thất bại.') }
+}
+if (Test-Path -LiteralPath $applicationUpdateVerifierPath -PathType Leaf) {
+    & $applicationUpdateVerifierPath -SourceDirectory $sourceDirectoryFull
+    if ($LASTEXITCODE -ne 0) { $failures.Add('Kiểm tra cập nhật ứng dụng theo quyền Online thất bại.') }
+}
+if (Test-Path -LiteralPath $assistantVerifierPath -PathType Leaf) {
+    & $assistantVerifierPath -SourceDirectory $sourceDirectoryFull
+    if ($LASTEXITCODE -ne 0) { $failures.Add('Kiểm tra Trợ lý Tool cục bộ v4.8 thất bại.') }
 }
 foreach ($warning in $warnings) { Write-Warning $warning }
 if ($failures.Count -gt 0) {

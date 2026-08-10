@@ -37,7 +37,7 @@ if (Get-Command Get-ToolSafetyPolicyMetadata -ErrorAction SilentlyContinue) {
     }
 
     $metadata = Get-ToolSafetyPolicyMetadata
-    if ([string]$metadata.SchemaVersion -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.6') { Fail 'Metadata safety policy sai phiên bản.' }
+if ([string]$metadata.SchemaVersion -ne '1.0' -or [string]$metadata.ToolVersion -ne '4.8') { Fail 'Metadata safety policy sai phiên bản.' }
     if ([bool]$metadata.StartupTypeChangesAllowedByQuickRepair) { Fail 'Quick repair không được phép đổi StartupType.' }
     $services = @(Get-ToolScanSourceServicePolicy)
     if ($services.Count -ne 3 -or @($services | Where-Object { $_.AllowStartupTypeChange }).Count -ne 0) { Fail 'Service policy không khóa toàn bộ thay đổi StartupType.' }
@@ -210,7 +210,7 @@ ERROR CODE: 0xC004F014
             [string]$node.GetCommandName() -in @('Remove-Item','Move-Item','Copy-Item','Set-Item','Set-ItemProperty','New-ItemProperty','Remove-ItemProperty','Stop-Process','Stop-Service','Set-Service','Start-Process','Checkpoint-Computer','Invoke-WebRequest','Invoke-RestMethod')
         }, $true))
         if ($mutatingCommands.Count -ne 0) { Fail 'Bộ lập kế hoạch Dry Run chứa lệnh thay đổi hệ thống hoặc mạng.' }
-        $script:releaseVersion = '4.6.0.0'
+        $script:releaseVersion = '4.6.2.0'
         $dryRunCandidate = New-CleanupItem -Type 'File' -Kind 'HookFile' -Name 'fixture.dll' -Location 'C:\Fixture\fixture.dll' -Detail 'fixture'
         $dryRunPlan = @(Get-DryRunRemediationPlan -Candidates @($dryRunCandidate) -SelectedIds @([string]$dryRunCandidate.Id))
         if ($dryRunPlan.Count -ne 3 -or
@@ -225,6 +225,33 @@ ERROR CODE: 0xC004F014
 }
 
 if ($gui) {
+    $integrityGuardAst = $gui.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-IntegrityForElevatedAction' }, $true)
+    if (-not $integrityGuardAst) {
+        Fail 'Không tìm thấy bộ khóa toàn vẹn cho thao tác quản trị.'
+    } else {
+        $previousSecureLaunch = [string]$env:TOOL_SECURE_LAUNCH
+        $previousRuntimeFailed = [string]$env:TOOL_SECURE_RUNTIME_FAILED
+        try {
+            Invoke-Expression ("function script:Confirm-IntegrityForElevatedAction " + $integrityGuardAst.Body.Extent.Text)
+            function script:Test-ProtectedToolDirectoryAcl { param([string]$path); return $true }
+            function script:Test-ToolIntegrity { return [pscustomobject]@{ Valid=$true; Message='fixture-valid' } }
+            $script:baseDir = 'fixture-base'
+            $script:runtimeDir = 'fixture-runtime'
+            $env:TOOL_SECURE_LAUNCH = '1'
+            $env:TOOL_SECURE_RUNTIME_FAILED = '1'
+            if (-not (Confirm-IntegrityForElevatedAction 'fixture-action')) {
+                Fail 'Cờ lỗi ACL lịch sử vẫn chặn thao tác dù ACL hiện tại đã được xác thực an toàn.'
+            }
+            if ([string]$env:TOOL_SECURE_RUNTIME_FAILED -ne '0') {
+                Fail 'Cờ lỗi ACL lịch sử không được xóa sau khi xác thực lại ACL hiện tại.'
+            }
+        } catch {
+            Fail "Không chạy được fixture chống chặn nhầm ACL runtime: $($_.Exception.Message)"
+        } finally {
+            $env:TOOL_SECURE_LAUNCH = $previousSecureLaunch
+            $env:TOOL_SECURE_RUNTIME_FAILED = $previousRuntimeFailed
+        }
+    }
     $autoSafeAst = $gui.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-AutomaticSafeCleanupItems' }, $true)
     if (-not $autoSafeAst) {
         Fail 'Không tìm thấy bộ lọc tự động làm sạch an toàn.'
@@ -268,7 +295,7 @@ if ($gui) {
 }
 
 if ($softwareInventory) {
-    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','KnownBadFileHash','DeepSignatureHashMismatch','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt 2097152','UploadedInventory=$false','SentLicenseKeys=$false')) {
+    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','Merge-ToolSoftwareInventoryRecords','Test-ToolSoftwareLikelySystemComponent','IsSystemComponent','KnownBadFileHash','DeepSignatureHashMismatch','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt 2097152','UploadedInventory=$false','SentLicenseKeys=$false')) {
         if ($softwareInventory.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Mô-đun kiểm kê/danh mục online thiếu ràng buộc an toàn: $requiredToken" }
     }
     if ($softwareInventory.Text -match '(?i)\b(method\s*=\s*["''](?:POST|PUT|PATCH)|uploadfile|invoke-restmethod\b.+-(?:method\s+)?(?:post|put|patch))') {
@@ -388,7 +415,7 @@ if ($softwareInventory) {
         }
         $dependencyAssessment = @(Get-ToolSoftwareAssessments -Applications @($dependencyApp) -Catalog $deepCatalog -DeepScan `
             -DeepScanMaximumDurationSeconds 45 -DeepScanMaximumSignatureChecks 20 -DeepScanMaximumHashChecks 20)[0]
-        if ([string]$dependencyAssessment.AssessmentCode -ne 'Suspicious' -or [int]$dependencyAssessment.DecisiveEvidenceCount -ne 0 -or
+        if ([string]$dependencyAssessment.AssessmentCode -ne 'IntegrityCompromised' -or [int]$dependencyAssessment.DecisiveEvidenceCount -ne 0 -or
             @($dependencyAssessment.Evidence | Where-Object { $_.Code -eq 'DeepSignatureHashMismatch' -and $_.Strength -eq 'Strong' -and -not [bool]$_.Decisive }).Count -ne 1) {
             Fail 'HashMismatch của DLL phụ thuộc chung vẫn bị dùng để tự kết luận NonGenuine.'
         }
@@ -413,6 +440,66 @@ if ($softwareInventory) {
             ([IO.Path]::GetFileName($deepFixtureRoot) -match '^Tool-Software-DeepScan-Fixture-[0-9a-f]{32}$')) {
             Remove-Item -LiteralPath $deepFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
+    }
+
+    try {
+        $catalog = Get-Content -LiteralPath (Join-Path $root 'software-license-catalog-v1.0.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $catalogIds = @($catalog.Products | ForEach-Object { [string]$_.Id })
+        if ([string]$catalog.CatalogVersion -ne '1.3.0.0' -or $catalogIds.Count -lt 73 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
+            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.3.0.0 / 73 quy tắc duy nhất.'
+        }
+
+        $recordA = New-ToolSoftwareInventoryRecord -Name 'Example Professional x64' -Version '2.0' -Publisher 'Example Corp' -InstallLocation 'C:\Program Files\Example' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
+        $recordB = New-ToolSoftwareInventoryRecord -Name 'Example Professional' -Version '2.0' -Publisher 'Example Corp' -InstallLocation 'C:\Program Files\Example' -SourceKind 'Shortcut' -SourceDetail 'Start Menu' -SkipSignature -SkipExecutableDiscovery
+        $mergedFixture = @(Merge-ToolSoftwareInventoryRecords -Records @($recordA,$recordB))
+        if ($mergedFixture.Count -ne 1 -or [int]$mergedFixture[0].MergedRecordCount -ne 2 -or @($mergedFixture[0].DiscoverySources).Count -lt 2) {
+            Fail 'Kiểm kê chưa gộp hai nguồn phát hiện của cùng một phần mềm.'
+        }
+        $abbyyRecordA = New-ToolSoftwareInventoryRecord -Name 'ABBYY FineReader' -Version '16.0.14.7295' -Publisher 'ABBYY Development, Inc.' -InstallLocation 'C:\Program Files\ABBYY FineReader 16' -SourceKind 'Shortcut' -SourceDetail 'Start Menu' -SkipSignature -SkipExecutableDiscovery
+        $abbyyRecordB = New-ToolSoftwareInventoryRecord -Name 'ABBYY FineReader PDF by sandyd' -Version '16.0.14.7295' -Publisher 'ABBYY Development, Inc.' -InstallLocation 'C:\Program Files\ABBYY FineReader 16\' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
+        $abbyyMergedFixture = @(Merge-ToolSoftwareInventoryRecords -Records @($abbyyRecordA,$abbyyRecordB))
+        if ($abbyyMergedFixture.Count -ne 1 -or [int]$abbyyMergedFixture[0].MergedRecordCount -ne 2 -or [string]$abbyyMergedFixture[0].Name -notmatch 'by sandyd') {
+            Fail 'Hai nguồn ABBYY cùng version/publisher/thư mục chưa được gộp hoặc làm mất dấu vết nhận diện.'
+        }
+        $adobeRecordA = New-ToolSoftwareInventoryRecord -Name 'Adobe Photoshop 2025' -Version '26.0' -Publisher 'Adobe Inc.' -InstallLocation 'C:\Program Files\Adobe\Photoshop 2025' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
+        $adobeRecordB = New-ToolSoftwareInventoryRecord -Name 'Adobe Photoshop 2025' -Version '26.0.0' -Publisher 'Adobe' -InstallLocation 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Adobe' -SourceKind 'Shortcut' -SourceDetail 'Start Menu' -SkipSignature -SkipExecutableDiscovery
+        $adobeMergedFixture = @(Merge-ToolSoftwareInventoryRecords -Records @($adobeRecordA,$adobeRecordB))
+        if ($adobeMergedFixture.Count -ne 1 -or [int]$adobeMergedFixture[0].MergedRecordCount -ne 2 -or @($adobeMergedFixture[0].InstallLocations).Count -ne 2) {
+            Fail 'Registry/Shortcut cùng sản phẩm với version rút gọn và hậu tố hãng chưa được gộp an toàn.'
+        }
+        $officeRecordA = New-ToolSoftwareInventoryRecord -Name 'Microsoft Office' -Version '16.0.20228.20110' -Publisher 'Microsoft Corporation' -InstallLocation 'C:\Program Files\Microsoft Office 15\ClientX64' -SourceKind 'PortableDiscovery' -SourceDetail 'Executable' -SkipSignature -SkipExecutableDiscovery
+        $officeRecordB = New-ToolSoftwareInventoryRecord -Name 'Microsoft Office' -Version '16.0.20228.20158' -Publisher 'Microsoft Corporation' -InstallLocation 'C:\Program Files\Microsoft Office\root\Office16' -SourceKind 'Shortcut' -SourceDetail 'Start Menu' -SkipSignature -SkipExecutableDiscovery
+        $officeMergedFixture = @(Merge-ToolSoftwareInventoryRecords -Records @($officeRecordA,$officeRecordB))
+        if ($officeMergedFixture.Count -ne 1 -or [int]$officeMergedFixture[0].MergedRecordCount -ne 2 -or @($officeMergedFixture[0].InstallLocations).Count -ne 2) {
+            Fail 'Cùng sản phẩm/hãng/dòng phiên bản nhưng khác nguồn và thư mục chưa được gộp kèm đủ vị trí.'
+        }
+        $halRecordA = New-ToolSoftwareInventoryRecord -Name 'ASUS Ambient HAL' -Version '7.4.0.0' -Publisher 'ASUSTeK COMPUTER INC.' -InstallLocation 'C:\Program Files\ASUS\HAL64' -Architecture '64-bit' -SourceKind 'Registry' -SourceDetail 'HKLM64' -SkipSignature -SkipExecutableDiscovery
+        $halRecordB = New-ToolSoftwareInventoryRecord -Name 'ASUS Ambient HAL' -Version '7.4.0.0' -Publisher 'ASUSTeK COMPUTER INC.' -InstallLocation 'C:\Program Files (x86)\ASUS\HAL32' -Architecture '32-bit' -SourceKind 'Registry' -SourceDetail 'HKLM32' -SkipSignature -SkipExecutableDiscovery
+        $halMergedFixture = @(Merge-ToolSoftwareInventoryRecords -Records @($halRecordA,$halRecordB))
+        if ($halMergedFixture.Count -ne 1 -or @($halMergedFixture[0].Architectures).Count -ne 2 -or -not [bool]$halMergedFixture[0].IsSystemComponent) {
+            Fail 'Hai kiến trúc của cùng thành phần hệ thống chưa được gộp kèm dấu vết kiến trúc.'
+        }
+        $parallelRecord = New-ToolSoftwareInventoryRecord -Name 'Adobe Photoshop 2025' -Version '25.0' -Publisher 'Adobe Inc.' -InstallLocation 'C:\Program Files\Adobe\Photoshop 2024' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
+        if (@(Merge-ToolSoftwareInventoryRecords -Records @($adobeRecordA,$parallelRecord)).Count -ne 2) {
+            Fail 'Hai phiên bản chính khác nhau bị gộp nhầm.'
+        }
+        if (-not (Test-ToolSoftwareLikelySystemComponent -Name 'Microsoft Visual C++ 2015-2022 Redistributable (x64)' -Publisher 'Microsoft Corporation' -SourceKind 'Registry' -InstallLocation 'C:\Program Files\Microsoft')) {
+            Fail 'Bộ lọc chưa nhận diện runtime hệ thống để đưa vào phụ lục chi tiết.'
+        }
+        if (-not (Test-ToolSoftwareLikelySystemComponent -Name 'Microsoft.WidgetsPlatformRuntime' -Publisher 'CN=Microsoft Corporation, O=Microsoft Corporation' -SourceKind 'Appx' -InstallLocation '')) {
+            Fail 'Bộ lọc chưa đưa ứng dụng mặc định/AppX Microsoft vào phụ lục.'
+        }
+        $integrityCatalog = [pscustomobject]@{ CatalogSource='Fixture'; CatalogVersion='1.3.0.0'; Products=@([pscustomobject]@{
+            Id='integrity-fixture'; Vendor='Example'; NamePatterns=@('^Integrity Fixture$'); PublisherPatterns=@('^Example Corp$')
+            LicenseModel='Paid'; OfficialUrl='https://example.invalid/'; LicenseDomains=@(); UnauthorizedNamePatterns=@()
+        }) }
+        $integrityApp = [pscustomobject]@{ Id='integrity-fixture'; Name='Integrity Fixture'; Version='1'; Publisher='Example Corp'; InstallLocation=''; RepresentativePath=''; SourceKind='Registry'; SignatureStatus='HashMismatch'; IsMicrosoft=$false }
+        $integrityAssessment = @(Get-ToolSoftwareAssessments -Applications @($integrityApp) -Catalog $integrityCatalog)[0]
+        if ([string]$integrityAssessment.AssessmentCode -ne 'IntegrityCompromised' -or [int]$integrityAssessment.DecisiveEvidenceCount -ne 0 -or [bool]$integrityAssessment.ManualEligible) {
+            Fail 'HashMismatch đơn lẻ vẫn bị kết luận sai là giấy phép không chính hãng hoặc mở khắc phục bản quyền.'
+        }
+    } catch {
+        Fail "Không chạy được fixture catalogue/gộp trùng/phần mềm hệ thống: $($_.Exception.Message)"
     }
 }
 

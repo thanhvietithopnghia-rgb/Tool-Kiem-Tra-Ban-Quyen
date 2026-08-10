@@ -8,6 +8,7 @@ $script:ToolSoftwareFileHashCache = @{}
 $script:ToolSoftwareLocationEvidenceCache = @{}
 $script:ToolSoftwareHostsEvidenceCache = @{}
 $script:ToolSoftwareDeepFileCache = @{}
+$script:ToolSoftwareDeepDirectoryCache = @{}
 $script:ToolSoftwareDeepSystemSnapshotCache = $null
 $script:ToolSoftwareLastDeepScanMetadata = $null
 $script:ToolSoftwareCatalogTrustCache = @{}
@@ -22,6 +23,7 @@ function Reset-ToolSoftwareInventoryCaches {
     $script:ToolSoftwareLocationEvidenceCache = @{}
     $script:ToolSoftwareHostsEvidenceCache = @{}
     $script:ToolSoftwareDeepFileCache = @{}
+    $script:ToolSoftwareDeepDirectoryCache = @{}
     $script:ToolSoftwareDeepSystemSnapshotCache = $null
     $script:ToolSoftwareLastDeepScanMetadata = $null
     $script:ToolSoftwareCatalogTrustCache = @{}
@@ -201,7 +203,7 @@ function Invoke-ToolSoftwareCatalogHttpGet {
     $request.Timeout = $TimeoutMilliseconds
     $request.ReadWriteTimeout = $TimeoutMilliseconds
     $request.AllowAutoRedirect = $false
-    $request.UserAgent = 'ThanhViet-Tool-Kiem-Tra/4.6 software-catalog'
+    $request.UserAgent = 'ThanhViet-Tool-Kiem-Tra/4.8 software-catalog'
     $response = $null
     $stream = $null
     $reader = $null
@@ -336,12 +338,359 @@ function Get-ToolSoftwareSignatureState {
     return $result
 }
 
+function Get-ToolSoftwareSignatureStatesParallel {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Paths,
+        [ValidateRange(1, 6)][int]$ThrottleLimit = 4,
+        [AllowNull()][object]$RunspacePool
+    )
+    $results = @{}
+    $pending = New-Object System.Collections.Generic.List[object]
+    foreach ($path in @($Paths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)) {
+        $pathKey = ([string]$path).ToLowerInvariant()
+        try {
+            $file = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+            $fullPath = [IO.Path]::GetFullPath([string]$file.FullName)
+            $pathKey = $fullPath.ToLowerInvariant()
+            $cacheKey = ($pathKey + '|' + [string]$file.Length + '|' + [string]$file.LastWriteTimeUtc.Ticks)
+            if ($script:ToolSoftwareSignatureCache.ContainsKey($cacheKey)) {
+                $results[$pathKey] = $script:ToolSoftwareSignatureCache[$cacheKey]
+            } else {
+                $pending.Add([pscustomobject][ordered]@{ Path=$fullPath; PathKey=$pathKey; CacheKey=$cacheKey })
+            }
+        } catch {
+            $results[$pathKey] = [pscustomobject][ordered]@{
+                Status='UnknownError'; Publisher=''; FileVersion=''; ProductName=''; CompanyName=''; Path=[string]$path
+            }
+        }
+    }
+    if ($pending.Count -eq 0) { return $results }
+    if ($pending.Count -eq 1) {
+        $item = $pending[0]
+        $result = Get-ToolSoftwareSignatureState -Path ([string]$item.Path)
+        $results[[string]$item.PathKey] = $result
+        return $results
+    }
+
+    $ownsPool = [bool]($null -eq $RunspacePool)
+    $pool = $RunspacePool
+    if ($ownsPool) {
+        $pool = [RunspaceFactory]::CreateRunspacePool(1, [Math]::Min($ThrottleLimit, $pending.Count))
+        $pool.Open()
+    }
+    $workers = New-Object System.Collections.Generic.List[object]
+    $workerScript = @'
+param($SignaturePath,$SignatureCacheKey,$SignaturePathKey)
+try {
+    $file = Get-Item -LiteralPath $SignaturePath -Force -ErrorAction Stop
+    $signature = Get-AuthenticodeSignature -FilePath $SignaturePath -ErrorAction Stop
+    [pscustomobject][ordered]@{
+        CacheKey=$SignatureCacheKey; PathKey=$SignaturePathKey; Status=[string]$signature.Status
+        Publisher=$(if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { '' })
+        FileVersion=[string]$file.VersionInfo.FileVersion; ProductName=[string]$file.VersionInfo.ProductName
+        CompanyName=[string]$file.VersionInfo.CompanyName; Path=[string]$file.FullName
+    }
+} catch {
+    [pscustomobject][ordered]@{
+        CacheKey=$SignatureCacheKey; PathKey=$SignaturePathKey; Status='UnknownError'; Publisher=''
+        FileVersion=''; ProductName=''; CompanyName=''; Path=$SignaturePath
+    }
+}
+'@
+    try {
+        foreach ($item in $pending) {
+            $powerShell = [PowerShell]::Create()
+            $powerShell.RunspacePool = $pool
+            [void]$powerShell.AddScript($workerScript).AddArgument([string]$item.Path).AddArgument([string]$item.CacheKey).AddArgument([string]$item.PathKey)
+            $workers.Add([pscustomobject][ordered]@{ PowerShell=$powerShell; Handle=$powerShell.BeginInvoke(); Item=$item })
+        }
+        foreach ($worker in $workers) {
+            $output = @()
+            try { $output = @($worker.PowerShell.EndInvoke($worker.Handle)) }
+            finally { $worker.PowerShell.Dispose() }
+            $value = @($output | Select-Object -First 1)
+            if ($value.Count -eq 0) {
+                $fallback = Get-ToolSoftwareSignatureState -Path ([string]$worker.Item.Path)
+                $results[[string]$worker.Item.PathKey] = $fallback
+                continue
+            }
+            $raw = $value[0]
+            $result = [pscustomobject][ordered]@{
+                Status=[string]$raw.Status; Publisher=[string]$raw.Publisher; FileVersion=[string]$raw.FileVersion
+                ProductName=[string]$raw.ProductName; CompanyName=[string]$raw.CompanyName; Path=[string]$raw.Path
+            }
+            $script:ToolSoftwareSignatureCache[[string]$raw.CacheKey] = $result
+            $results[[string]$raw.PathKey] = $result
+        }
+    } finally {
+        foreach ($worker in $workers) { try { $worker.PowerShell.Dispose() } catch {} }
+        if ($ownsPool) {
+            try { $pool.Close() } catch {}
+            $pool.Dispose()
+        }
+    }
+    return $results
+}
+
+function ConvertTo-ToolSoftwareIdentityToken {
+    param([AllowNull()][string]$Value, [switch]$Name)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+    $token = $Value.Trim().ToLowerInvariant()
+    if ($Name) {
+        $token = [regex]::Replace($token, '(?i)\s*(?:\(|\[)?(?:x64|x86|64-bit|32-bit|amd64|arm64)(?:\)|\])?\s*$', '')
+        $token = [regex]::Replace($token, '(?i)\s+version\s+[0-9][0-9a-z._-]*\s*$', '')
+    }
+    return ([regex]::Replace($token, '[^\p{L}\p{Nd}]+', ' ')).Trim()
+}
+
+function Get-ToolSoftwareNormalizedLocation {
+    param([AllowNull()][object]$Record)
+    foreach ($candidate in @([string]$Record.InstallLocation, $(if ($Record.RepresentativePath) { Split-Path -Parent ([string]$Record.RepresentativePath) }))) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        try { return ([IO.Path]::GetFullPath($candidate)).TrimEnd('\').ToLowerInvariant() } catch {}
+    }
+    return ''
+}
+
+function Test-ToolSoftwareLikelySystemComponent {
+    param(
+        [string]$Name, [string]$Publisher, [string]$SourceKind, [string]$InstallLocation,
+        [bool]$DeclaredSystemComponent = $false, [string]$ReleaseType = '', [bool]$NonRemovable = $false
+    )
+    if ($DeclaredSystemComponent -or $NonRemovable) { return $true }
+    if ($ReleaseType -match '(?i)^(?:update|security update|hotfix|driver|language pack)$') { return $true }
+    if ($Name -match '(?i)^(?:Update for |Security Update for |Hotfix for |Windows Driver Package|Microsoft Windows Desktop Runtime|Microsoft ASP\.NET Core|Microsoft \.NET Framework|Microsoft Visual C\+\+.*Redistributable|Microsoft Edge(?: Update| WebView2 Runtime)?$|Microsoft OneDrive$|Internet Explorer$|Windows SDK|Windows Software Development Kit|Windows App Certification Kit|Windows PC Health Check|Microsoft(?:®|\s+\(R\))? Windows(?:®|\s+\(R\))? Operating System)') { return $true }
+    if ($Publisher -match '(?i)\bMicrosoft(?: Corporation)?\b' -and $Name -match '(?i)\b(?:Setup Support Files|Native Client|System CLR Types|Transact-SQL (?:Compiler Service|ScriptDom)|VSS Writer|Prerequisites|Multi-Targeting Pack|Policies|Meeting Add-in|Help Viewer|Update Health Tools)\b') { return $true }
+    if ($Name -match '(?i)^(?:uninstall(?:er)?\b|.*\(remove only\)$)|\b(?:driver|runtime|redistributable|language pack|support component|service components|update service|framework|sdk|hal)\b' -and
+        $Publisher -match '(?i)\b(?:Microsoft|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom|ASUS|ASUSTeK|Canon|Toshiba)\b') { return $true }
+    if ($Publisher -match '(?i)\b(?:ASUS|ASUSTeK|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom)\b' -and
+        $Name -match '(?i)(?:HAL|Framework|SDK|Service|Driver)(?:32|64)?$') { return $true }
+    if ($Name -match '(?i)\b(?:driver|chipset|runtime|redistributable|language pack|support component|update service)\b' -and
+        $Publisher -match '(?i)\b(?:Microsoft|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom)\b') { return $true }
+    # AppX do Microsoft phát hành phần lớn là thành phần/hộp thư mặc định của
+    # Windows. Giữ Teams và Visual Studio Code trong luồng ứng dụng chính;
+    # phần còn lại vẫn có đủ dữ liệu trong phụ lục/JSON nhưng không làm dài
+    # bảng tổng quan và PDF.
+    if ($SourceKind -eq 'Appx' -and $Publisher -match '(?i)(?:Microsoft|CN=Microsoft)' -and
+        $Name -notmatch '(?i)^(?:MSTeams|Microsoft\.VisualStudioCode)$') { return $true }
+    if ($SourceKind -eq 'Appx' -and $Name -match '(?i)(?:CoreApp|ShellExtension|ImageExtension|VideoExtension|MediaExtension|Runtime|Framework|Utility|Service)$') { return $true }
+    if ($InstallLocation -and $InstallLocation -match '(?i)\\Windows\\(?:System32|SysWOW64|WinSxS|SystemApps)(?:\\|$)') { return $true }
+    return $false
+}
+
+function ConvertTo-ToolSoftwarePublisherToken {
+    param([AllowNull()][string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+    $publisher = $Value.Trim()
+    $cn = [regex]::Match($publisher, '(?i)(?:^|,\s*)CN\s*=\s*("(?:[^"]|"")*"|[^,]+)')
+    if ($cn.Success) { $publisher = $cn.Groups[1].Value.Trim().Trim('"') }
+    $publisher = ConvertTo-ToolSoftwareIdentityToken -Value $publisher
+    $publisher = [regex]::Replace($publisher, '(?i)\b(?:incorporated|inc|corporation|corp|company|co|limited|ltd|llc|pte|plc)\b', ' ')
+    return ([regex]::Replace($publisher, '\s+', ' ')).Trim()
+}
+
+function Test-ToolSoftwareVersionCompatible {
+    param([AllowNull()][string]$Left, [AllowNull()][string]$Right)
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) { return $true }
+    $leftToken = (ConvertTo-ToolSoftwareIdentityToken -Value $Left)
+    $rightToken = (ConvertTo-ToolSoftwareIdentityToken -Value $Right)
+    if ($leftToken -eq $rightToken) { return $true }
+    $leftVersion = [regex]::Replace([regex]::Match($Left, '\d+(?:\.\d+){0,5}').Value, '(?:\.0)+$', '')
+    $rightVersion = [regex]::Replace([regex]::Match($Right, '\d+(?:\.\d+){0,5}').Value, '(?:\.0)+$', '')
+    if (-not $leftVersion -or -not $rightVersion) { return $false }
+    return [bool]($leftVersion -eq $rightVersion -or
+        $leftVersion.StartsWith($rightVersion + '.', [StringComparison]::OrdinalIgnoreCase) -or
+        $rightVersion.StartsWith($leftVersion + '.', [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Get-ToolSoftwareComparableVersion {
+    param([AllowNull()][string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+    $match = [regex]::Match($Value, '\d+(?:\.\d+){0,5}')
+    if (-not $match.Success) { return '' }
+    return [regex]::Replace($match.Value, '(?:\.0)+$', '')
+}
+
+function New-ToolSoftwareMergeDescriptor {
+    param([Parameter(Mandatory = $true)]$Record, [int]$OriginalIndex)
+    $versionText = [string]$Record.Version
+    $versionParts = @([regex]::Matches($versionText, '\d+') | ForEach-Object { $_.Value })
+    $sourceKind = [string]$Record.SourceKind
+    $nameKey = ConvertTo-ToolSoftwareIdentityToken -Value ([string]$Record.Name) -Name
+    $nameSeparator = $nameKey.IndexOf(' ')
+    return [pscustomobject][ordered]@{
+        Record = $Record
+        OriginalIndex = $OriginalIndex
+        NameKey = $nameKey
+        NameBucket = $(if ($nameSeparator -gt 0) { $nameKey.Substring(0, $nameSeparator) } else { $nameKey })
+        VersionText = $versionText
+        VersionKey = ConvertTo-ToolSoftwareIdentityToken -Value $versionText
+        ComparableVersion = Get-ToolSoftwareComparableVersion -Value $versionText
+        VersionFamily = $(if ($versionParts.Count -ge 3) { $versionParts[0..2] -join '.' } else { '' })
+        PublisherKey = ConvertTo-ToolSoftwarePublisherToken -Value ([string]$Record.Publisher)
+        LocationKey = Get-ToolSoftwareNormalizedLocation -Record $Record
+        SourceKind = $sourceKind
+        SourceRank = $(switch ($sourceKind) { 'Registry' {0}; 'Appx' {1}; 'Shortcut' {2}; default {3} })
+    }
+}
+
+function Test-ToolSoftwareMergeVersionCompatible {
+    param([Parameter(Mandatory = $true)]$Left, [Parameter(Mandatory = $true)]$Right)
+    if ([string]::IsNullOrWhiteSpace([string]$Left.VersionText) -or [string]::IsNullOrWhiteSpace([string]$Right.VersionText)) { return $true }
+    if ([string]$Left.VersionKey -eq [string]$Right.VersionKey) { return $true }
+    $leftVersion = [string]$Left.ComparableVersion
+    $rightVersion = [string]$Right.ComparableVersion
+    if (-not $leftVersion -or -not $rightVersion) { return $false }
+    return [bool]($leftVersion -eq $rightVersion -or
+        $leftVersion.StartsWith($rightVersion + '.', [StringComparison]::OrdinalIgnoreCase) -or
+        $rightVersion.StartsWith($leftVersion + '.', [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Merge-ToolSoftwareInventoryRecords {
+    param([object[]]$Records)
+
+    # Precompute normalized identity fields once. The previous implementation
+    # recalculated several regex/path transforms for every record/cluster pair;
+    # on a 400+ application machine that dominated the entire scan time while
+    # producing the same merge decision.
+    $descriptors = New-Object System.Collections.Generic.List[object]
+    $sortedRecords = @($Records | Where-Object { $null -ne $_ } | Sort-Object Name,Version,Publisher)
+    for ($recordIndex = 0; $recordIndex -lt $sortedRecords.Count; $recordIndex++) {
+        $descriptors.Add((New-ToolSoftwareMergeDescriptor -Record $sortedRecords[$recordIndex] -OriginalIndex $recordIndex))
+    }
+
+    $clusters = New-Object System.Collections.Generic.List[object]
+    $clustersByNameBucket = @{}
+    foreach ($descriptor in $descriptors) {
+        $record = $descriptor.Record
+        $nameKey = [string]$descriptor.NameKey
+        $publisherKey = [string]$descriptor.PublisherKey
+        $locationKey = [string]$descriptor.LocationKey
+        $matchedCluster = $null
+        # A merge requires equal normalized names or a prefix alias. Both cases
+        # necessarily share the first normalized name token. Restricting the
+        # candidate list to that token preserves the exact decision order while
+        # avoiding an O(n^2) walk across unrelated products.
+        $nameBucket = [string]$descriptor.NameBucket
+        $candidateClusters = if ($nameBucket -and $clustersByNameBucket.ContainsKey($nameBucket)) {
+            $clustersByNameBucket[$nameBucket]
+        } elseif ($nameBucket) {
+            @()
+        } else {
+            $clusters
+        }
+        foreach ($cluster in $candidateClusters) {
+            $headDescriptor = $cluster.Head
+            $head = $headDescriptor.Record
+            $headName = [string]$headDescriptor.NameKey
+            $headPublisher = [string]$headDescriptor.PublisherKey
+            $headLocation = [string]$headDescriptor.LocationKey
+            $versionCompatible = Test-ToolSoftwareMergeVersionCompatible -Left $descriptor -Right $headDescriptor
+            $publisherCompatible = [bool](-not $publisherKey -or -not $headPublisher -or $publisherKey -eq $headPublisher -or
+                ($publisherKey.Length -ge 4 -and $headPublisher.Length -ge 4 -and
+                    ($publisherKey.StartsWith($headPublisher + ' ', [StringComparison]::OrdinalIgnoreCase) -or
+                     $headPublisher.StartsWith($publisherKey + ' ', [StringComparison]::OrdinalIgnoreCase))))
+            $locationCompatible = [bool](-not $locationKey -or -not $headLocation -or $locationKey -eq $headLocation -or
+                $locationKey.StartsWith($headLocation + '\', [StringComparison]::OrdinalIgnoreCase) -or
+                $headLocation.StartsWith($locationKey + '\', [StringComparison]::OrdinalIgnoreCase))
+            $sameLocation = [bool]($locationKey -and $headLocation -and $locationKey -eq $headLocation)
+            $recordSource = [string]$descriptor.SourceKind
+            $headSource = [string]$headDescriptor.SourceKind
+            $complementarySources = [bool](
+                ($recordSource -eq 'Registry' -and $headSource -in @('Shortcut','PortableDiscovery','Appx')) -or
+                ($headSource -eq 'Registry' -and $recordSource -in @('Shortcut','PortableDiscovery','Appx'))
+            )
+            $sameVersionFamily = [bool]($descriptor.VersionFamily -and $headDescriptor.VersionFamily -and
+                [string]$descriptor.VersionFamily -eq [string]$headDescriptor.VersionFamily)
+            $nameCompatible = [bool]($nameKey -eq $headName)
+            $exactProductIdentity = [bool]($nameKey -eq $headName -and $publisherKey -and $headPublisher -and
+                $publisherCompatible -and ($versionCompatible -or $sameVersionFamily))
+            # Registry/shortcut/Appx đôi khi thêm hậu tố edition hoặc dấu vết
+            # nhận diện vào cùng sản phẩm (ví dụ "FineReader PDF by ..."). Chỉ
+            # cho phép alias chứa nhau khi version, publisher và thư mục cài
+            # trùng chính xác để không gộp nhầm hai sản phẩm cùng hãng.
+            if (-not $nameCompatible -and ($sameLocation -or $complementarySources) -and $versionCompatible -and $publisherCompatible -and
+                $nameKey.Length -ge 5 -and $headName.Length -ge 5) {
+                $nameCompatible = [bool]($nameKey.StartsWith($headName + ' ', [StringComparison]::OrdinalIgnoreCase) -or
+                    $headName.StartsWith($nameKey + ' ', [StringComparison]::OrdinalIgnoreCase))
+            }
+            if (-not $nameCompatible) { continue }
+            $architectureConflict = [bool]([string]$record.Architecture -match '32' -and [string]$head.Architecture -match '64' -or
+                [string]$record.Architecture -match '64' -and [string]$head.Architecture -match '32')
+            $versionCompatibleForMerge = [bool]($versionCompatible -or
+                $exactProductIdentity -or
+                ($nameCompatible -and $publisherCompatible -and $complementarySources -and ($sameLocation -or $sameVersionFamily)))
+            if ($versionCompatibleForMerge -and $publisherCompatible -and ($locationCompatible -or $complementarySources -or $exactProductIdentity) -and
+                (-not $architectureConflict -or $locationKey -eq $headLocation -or $exactProductIdentity)) {
+                $matchedCluster = $cluster
+                break
+            }
+        }
+        if ($null -eq $matchedCluster) {
+            $matchedCluster = [pscustomobject][ordered]@{
+                Head = $descriptor
+                Items = New-Object System.Collections.Generic.List[object]
+            }
+            $clusters.Add($matchedCluster)
+            if ($nameBucket) {
+                if (-not $clustersByNameBucket.ContainsKey($nameBucket)) {
+                    $clustersByNameBucket[$nameBucket] = New-Object System.Collections.Generic.List[object]
+                }
+                $clustersByNameBucket[$nameBucket].Add($matchedCluster)
+            }
+        }
+        $matchedCluster.Items.Add($descriptor)
+    }
+
+    $merged = New-Object System.Collections.Generic.List[object]
+    foreach ($cluster in $clusters) {
+        # PowerShell 5.1 can throw "Argument types do not match" when a generic
+        # List[object] is wrapped directly in @(). Enumerating it explicitly keeps
+        # this path compatible with the runtime used by the packaged EXE.
+        $clusterDescriptors = @($cluster.Items | ForEach-Object { $_ })
+        $clusterRecords = @($clusterDescriptors | ForEach-Object { $_.Record })
+        # Keep the exact legacy tie-breaking behavior for records discovered from
+        # the same source rank, so optimization cannot change the displayed name,
+        # scope or representative path of an existing merged product.
+        $preferred = @($clusterRecords | Sort-Object @{Expression={ switch ([string]$_.SourceKind) { 'Registry' {0}; 'Appx' {1}; 'Shortcut' {2}; default {3} } }})[0]
+        foreach ($propertyName in @('Version','Publisher','InstallDate','InstallLocation','DisplayIcon','UninstallString','RegistryPath','Scope','Architecture','RepresentativePath','SignaturePublisher','FileVersion')) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$preferred.$propertyName)) { continue }
+            $value = @($clusterRecords | ForEach-Object { $_.$propertyName } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 1)
+            if ($value.Count -gt 0) { $preferred | Add-Member -NotePropertyName $propertyName -NotePropertyValue $value[0] -Force }
+        }
+        $sources = @($clusterRecords | ForEach-Object {
+            if ($_.PSObject.Properties['DiscoverySources']) { @($_.DiscoverySources) }
+            if ($_.PSObject.Properties['SourceKind']) { [string]$_.SourceKind }
+        } | Where-Object { $_ } | Select-Object -Unique)
+        $details = @($clusterRecords | ForEach-Object { [string]$_.SourceDetail } | Where-Object { $_ } | Select-Object -Unique)
+        $registryPaths = @($clusterRecords | ForEach-Object { [string]$_.RegistryPath } | Where-Object { $_ } | Select-Object -Unique)
+        $installLocations = @($clusterDescriptors | ForEach-Object { [string]$_.LocationKey } | Where-Object { $_ } | Select-Object -Unique)
+        $architectures = @($clusterRecords | ForEach-Object { [string]$_.Architecture } | Where-Object { $_ } | Select-Object -Unique)
+        $systemComponent = [bool](@($clusterRecords | Where-Object { $_.PSObject.Properties['IsSystemComponent'] -and [bool]$_.IsSystemComponent }).Count -gt 0)
+        $systemReasons = @($clusterRecords | ForEach-Object { [string]$_.SystemComponentReason } | Where-Object { $_ } | Select-Object -Unique)
+        $preferred | Add-Member -NotePropertyName DiscoverySources -NotePropertyValue $sources -Force
+        $preferred | Add-Member -NotePropertyName DiscoveryDetails -NotePropertyValue $details -Force
+        $preferred | Add-Member -NotePropertyName RegistryPaths -NotePropertyValue $registryPaths -Force
+        $preferred | Add-Member -NotePropertyName InstallLocations -NotePropertyValue $installLocations -Force
+        $preferred | Add-Member -NotePropertyName Architectures -NotePropertyValue $architectures -Force
+        if ($architectures.Count -gt 1) { $preferred | Add-Member -NotePropertyName Architecture -NotePropertyValue ($architectures -join ', ') -Force }
+        $preferred | Add-Member -NotePropertyName MergedRecordCount -NotePropertyValue ([int]$clusterRecords.Count) -Force
+        $preferred | Add-Member -NotePropertyName IsSystemComponent -NotePropertyValue $systemComponent -Force
+        $preferred | Add-Member -NotePropertyName SystemComponentReason -NotePropertyValue ($systemReasons -join '; ') -Force
+        $stableIdentity = (@((ConvertTo-ToolSoftwareIdentityToken -Value ([string]$preferred.Name) -Name),([string]$preferred.Version),(Get-ToolSoftwareNormalizedLocation -Record $preferred)) -join '|').ToLowerInvariant()
+        $preferred | Add-Member -NotePropertyName Id -NotePropertyValue (Get-ToolSoftwareStableId -Value $stableIdentity) -Force
+        $merged.Add($preferred)
+    }
+    return @($merged.ToArray() | Sort-Object Name,Version,Publisher)
+}
+
 function New-ToolSoftwareInventoryRecord {
     param(
         [string]$Name, [string]$Version, [string]$Publisher, [string]$InstallDate,
         [string]$InstallLocation, [string]$DisplayIcon, [string]$UninstallString,
         [string]$RegistryPath, [string]$Scope, [string]$Architecture,
         [string]$SourceKind, [string]$RepresentativePath, [string]$SourceDetail = '',
+        [bool]$IsSystemComponent = $false, [string]$SystemComponentReason = '', [string]$ReleaseType = '', [bool]$NonRemovable = $false,
         [switch]$SkipSignature, [switch]$SkipExecutableDiscovery
     )
     if ([string]::IsNullOrWhiteSpace($Name)) { return $null }
@@ -355,12 +704,16 @@ function New-ToolSoftwareInventoryRecord {
     if ([string]::IsNullOrWhiteSpace($Version) -and $signature.FileVersion) { $Version = [string]$signature.FileVersion }
     if ([string]::IsNullOrWhiteSpace($InstallLocation) -and $RepresentativePath) { $InstallLocation = Split-Path -Parent $RepresentativePath }
     $identity = (@($Name,$Version,$Publisher,$InstallLocation,$RepresentativePath,$SourceKind) -join '|').ToLowerInvariant()
+    $classifiedAsSystem = Test-ToolSoftwareLikelySystemComponent -Name $Name -Publisher $Publisher -SourceKind $SourceKind `
+        -InstallLocation $InstallLocation -DeclaredSystemComponent:$IsSystemComponent -ReleaseType $ReleaseType -NonRemovable:$NonRemovable
+    if ($classifiedAsSystem -and [string]::IsNullOrWhiteSpace($SystemComponentReason)) { $SystemComponentReason = 'HeuristicOrPlatformMetadata' }
     return [pscustomobject][ordered]@{
         Id=Get-ToolSoftwareStableId -Value $identity; Name=$Name.Trim(); Version=$Version; Publisher=$Publisher
         InstallDate=$InstallDate; InstallLocation=$InstallLocation; DisplayIcon=$DisplayIcon; UninstallString=$UninstallString
         RegistryPath=$RegistryPath; Scope=$Scope; Architecture=$Architecture; SourceKind=$SourceKind; SourceDetail=$SourceDetail
         RepresentativePath=$RepresentativePath; SignatureStatus=[string]$signature.Status; SignaturePublisher=[string]$signature.Publisher
         FileVersion=[string]$signature.FileVersion; IsMicrosoft=[bool]($Publisher -match '(?i)\bMicrosoft\b' -or $Name -match '(?i)^\s*(Microsoft|Windows)\b')
+        IsSystemComponent=[bool]$classifiedAsSystem; SystemComponentReason=$SystemComponentReason
     }
 }
 
@@ -386,7 +739,10 @@ function Get-ToolRegistrySoftwareInventory {
                         -Publisher ([string]$entry.Publisher) -InstallDate ([string]$entry.InstallDate) -InstallLocation ([string]$entry.InstallLocation) `
                         -DisplayIcon ([string]$entry.DisplayIcon) -UninstallString ([string]$entry.UninstallString) `
                         -RegistryPath (ConvertTo-ToolSoftwareRegistryPath ([string]$key.PSPath)) -Scope ([string]$source.Scope) `
-                        -Architecture ([string]$source.Architecture) -SourceKind 'Registry' -SkipSignature
+                        -Architecture ([string]$source.Architecture) -SourceKind 'Registry' `
+                        -IsSystemComponent:([bool]([int]$entry.SystemComponent -eq 1 -or -not [string]::IsNullOrWhiteSpace([string]$entry.ParentKeyName))) `
+                        -SystemComponentReason $(if ([int]$entry.SystemComponent -eq 1) {'Registry:SystemComponent'} elseif ($entry.ParentKeyName) {'Registry:ParentKeyName'} else {''}) `
+                        -ReleaseType ([string]$entry.ReleaseType) -SkipSignature
                     if ($record) { $records.Add($record) }
                 } catch {}
             }
@@ -406,7 +762,9 @@ function Get-ToolAppxSoftwareInventory {
         $name = if ($package.Name) { [string]$package.Name } else { [string]$package.PackageFamilyName }
         $record = New-ToolSoftwareInventoryRecord -Name $name -Version ([string]$package.Version) -Publisher ([string]$package.Publisher) `
             -InstallDate '' -InstallLocation ([string]$package.InstallLocation) -DisplayIcon '' -UninstallString '' -RegistryPath '' `
-            -Scope 'Appx' -Architecture ([string]$package.Architecture) -SourceKind 'Appx' -SourceDetail ([string]$package.PackageFullName) -SkipSignature -SkipExecutableDiscovery
+            -Scope 'Appx' -Architecture ([string]$package.Architecture) -SourceKind 'Appx' -SourceDetail ([string]$package.PackageFullName) `
+            -NonRemovable:([bool]$package.NonRemovable) -SystemComponentReason $(if ([bool]$package.NonRemovable) {'Appx:NonRemovable'} else {''}) `
+            -SkipSignature -SkipExecutableDiscovery
         if ($record) { $records.Add($record) }
     }
     return $records.ToArray()
@@ -571,19 +929,7 @@ function Get-ToolInstalledSoftwareInventory {
             if (-not $coveredByRegisteredApplication) { $all.Add($item) }
         }
     }
-    return @($all.ToArray() |
-        Group-Object {
-            $name = ([string]$_.Name).Trim().ToLowerInvariant()
-            $version = ([string]$_.Version).Trim().ToLowerInvariant()
-            $publisher = ([string]$_.Publisher).Trim().ToLowerInvariant()
-            if ($name -and ($version -or $publisher)) { return ($name + '|' + $version + '|' + $publisher) }
-            $path = if ($_.RepresentativePath) { [string]$_.RepresentativePath } else { [string]$_.InstallLocation }
-            return ($name + '|' + $path.Trim()).ToLowerInvariant()
-        } | ForEach-Object {
-            $preferred = @($_.Group | Sort-Object @{Expression={ switch ($_.SourceKind) { 'Registry' {0}; 'Appx' {1}; 'Shortcut' {2}; default {3} } }})[0]
-            $preferred | Add-Member -NotePropertyName DiscoverySources -NotePropertyValue @($_.Group.SourceKind | Select-Object -Unique) -Force
-            $preferred
-        } | Sort-Object Name, Version, Publisher)
+    return @(Merge-ToolSoftwareInventoryRecords -Records $all.ToArray())
 }
 
 function Find-ToolSoftwareCatalogProduct {
@@ -753,11 +1099,71 @@ function New-ToolSoftwareDeepScanState {
         MaximumTotalHashChecks=$MaximumTotalHashChecks; MaximumFilesPerRoot=$MaximumFilesPerRoot
         MaximumEntriesPerRoot=$MaximumEntriesPerRoot; MaximumDepth=$MaximumDepth; MaximumSecondsPerRoot=$MaximumSecondsPerRoot
         IsAdministrator=[bool]$isAdministrator; ApplicationsScanned=0; ApplicationsSkipped=0; UniqueRootsScanned=0
-        RootCacheHits=0; TotalEntries=0; RelevantFiles=0; SignatureChecks=0; HashChecks=0; EvidenceCount=0
+        RootCacheHits=0; UniqueDirectoriesScanned=0; DirectoryCacheHits=0
+        TotalEntries=0; RelevantFiles=0; SignatureChecks=0; HashChecks=0; EvidenceCount=0
         SignaturePaths=@{}; HashPaths=@{}
         TimeLimitReached=$false; EntryLimitReached=$false; SignatureLimitReached=$false; HashLimitReached=$false
         AccessWarningCount=0
     }
+}
+
+function Get-ToolSoftwareDeepDirectoryListing {
+    param([Parameter(Mandatory = $true)][string]$DirectoryPath)
+    $fullPath = ''
+    try { $fullPath = [IO.Path]::GetFullPath($DirectoryPath).TrimEnd('\') } catch {}
+    if ([string]::IsNullOrWhiteSpace($fullPath)) {
+        return [pscustomobject][ordered]@{
+            CacheHit=$false
+            Listing=[pscustomobject][ordered]@{ Path=$DirectoryPath; Files=@(); Directories=@(); FileCount=0; AccessWarnings=1; Success=$false }
+        }
+    }
+    $cacheKey = $fullPath.ToLowerInvariant()
+    if ($script:ToolSoftwareDeepDirectoryCache.ContainsKey($cacheKey)) {
+        return [pscustomobject][ordered]@{ CacheHit=$true; Listing=$script:ToolSoftwareDeepDirectoryCache[$cacheKey] }
+    }
+
+    $files = New-Object System.Collections.Generic.List[object]
+    $directories = New-Object System.Collections.Generic.List[string]
+    $fileCount = 0
+    $accessWarnings = 0
+    $success = $true
+    try {
+        $directory = New-Object IO.DirectoryInfo($fullPath)
+        if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            $success = $false
+        } else {
+            foreach ($entry in $directory.EnumerateFileSystemInfos()) {
+                try {
+                    if ($entry -is [IO.DirectoryInfo]) {
+                        if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+                            $directories.Add([string]$entry.FullName)
+                        }
+                        continue
+                    }
+                    if ($entry -isnot [IO.FileInfo]) { continue }
+                    $fileCount++
+                    $extension = ([string]$entry.Extension).ToLowerInvariant()
+                    $pathText = [string]$entry.FullName
+                    if ($script:ToolSoftwareDeepRelevantExtensions -contains $extension -or
+                        $pathText -match $script:ToolSoftwareKnownActivatorPattern -or $pathText -match $script:ToolSoftwareSuspiciousArtifactPattern) {
+                        $files.Add([pscustomobject][ordered]@{
+                            Path=$pathText; Name=[string]$entry.Name; Extension=$extension; Length=[long]$entry.Length
+                            LastWriteTimeUtc=$entry.LastWriteTimeUtc.ToString('o'); Ordinal=[int]$fileCount
+                        })
+                    }
+                } catch { $accessWarnings++ }
+            }
+        }
+    } catch {
+        $accessWarnings++
+        $success = $false
+    }
+    $listing = [pscustomobject][ordered]@{
+        Path=$fullPath; Files=$files.ToArray(); Directories=$directories.ToArray(); FileCount=[int]$fileCount
+        AccessWarnings=[int]$accessWarnings; Success=[bool]$success
+    }
+    $script:ToolSoftwareDeepDirectoryCache[$cacheKey] = $listing
+    return [pscustomobject][ordered]@{ CacheHit=$false; Listing=$listing }
 }
 
 function Get-ToolSoftwareDeepFileSnapshot {
@@ -795,28 +1201,36 @@ function Get-ToolSoftwareDeepFileSnapshot {
         if ($seen.ContainsKey($key)) { continue }
         $seen[$key] = $true
         try {
-            $directory = Get-Item -LiteralPath ([string]$current.Path) -Force -ErrorAction Stop
-            if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-            foreach ($file in @(Get-ChildItem -LiteralPath $directory.FullName -File -Force -ErrorAction Stop)) {
-                $entries++
-                $State.TotalEntries = [int]$State.TotalEntries + 1
-                if ([DateTime]::UtcNow -ge [DateTime]$State.DeadlineUtc -or [int]$State.TotalEntries -ge [int]$State.MaximumTotalEntries -or $entries -ge [int]$State.MaximumEntriesPerRoot) { break }
-                $extension = ([string]$file.Extension).ToLowerInvariant()
-                $pathText = [string]$file.FullName
-                if ($script:ToolSoftwareDeepRelevantExtensions -contains $extension -or
-                    $pathText -match $script:ToolSoftwareKnownActivatorPattern -or $pathText -match $script:ToolSoftwareSuspiciousArtifactPattern) {
-                    $files.Add([pscustomobject][ordered]@{
-                        Path=$pathText; Name=[string]$file.Name; Extension=$extension; Length=[long]$file.Length
-                        LastWriteTimeUtc=$file.LastWriteTimeUtc.ToString('o'); Depth=[int]$current.Depth
-                    })
-                    if ($files.Count -ge [int]$State.MaximumFilesPerRoot) { break }
-                }
+            $directoryResult = Get-ToolSoftwareDeepDirectoryListing -DirectoryPath ([string]$current.Path)
+            $listing = $directoryResult.Listing
+            if ([bool]$directoryResult.CacheHit) {
+                $State.DirectoryCacheHits = [int]$State.DirectoryCacheHits + 1
+            } else {
+                $State.UniqueDirectoriesScanned = [int]$State.UniqueDirectoriesScanned + 1
             }
-            if ([int]$current.Depth -lt [int]$State.MaximumDepth -and -not $entryLimit -and -not $timedOut) {
-                foreach ($child in @(Get-ChildItem -LiteralPath $directory.FullName -Directory -Force -ErrorAction Stop)) {
-                    if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
-                        $queue.Enqueue([pscustomobject]@{ Path=[string]$child.FullName; Depth=([int]$current.Depth + 1) })
-                    }
+            $accessWarnings += [int]$listing.AccessWarnings
+            if (-not [bool]$listing.Success) { continue }
+
+            $remainingRootEntries = [Math]::Max(0, [int]$State.MaximumEntriesPerRoot - $entries)
+            $processedFileCount = [Math]::Min([int]$listing.FileCount, $remainingRootEntries)
+            $remainingTotalEntries = [Math]::Max(0, [int]$State.MaximumTotalEntries - [int]$State.TotalEntries)
+            $processedFileCount = [Math]::Min($processedFileCount, $remainingTotalEntries)
+            $State.TotalEntries = [int]$State.TotalEntries + $processedFileCount
+            $entries += $processedFileCount
+            foreach ($file in @($listing.Files | Where-Object { [int]$_.Ordinal -le $processedFileCount })) {
+                $files.Add([pscustomobject][ordered]@{
+                    Path=[string]$file.Path; Name=[string]$file.Name; Extension=[string]$file.Extension; Length=[long]$file.Length
+                    LastWriteTimeUtc=[string]$file.LastWriteTimeUtc; Depth=[int]$current.Depth
+                })
+                if ($files.Count -ge [int]$State.MaximumFilesPerRoot) { break }
+            }
+
+            $directoryFullyProcessed = [bool]($processedFileCount -ge [int]$listing.FileCount)
+            if (-not $directoryFullyProcessed) { $entryLimit = $true }
+            if ([int]$current.Depth -lt [int]$State.MaximumDepth -and $directoryFullyProcessed -and -not $timedOut -and
+                $files.Count -lt [int]$State.MaximumFilesPerRoot) {
+                foreach ($childPath in @($listing.Directories)) {
+                    $queue.Enqueue([pscustomobject]@{ Path=[string]$childPath; Depth=([int]$current.Depth + 1) })
                 }
             }
         } catch { $accessWarnings++ }
@@ -986,20 +1400,22 @@ function Get-ToolSoftwareDeepSystemEvidence {
     return $evidence.ToArray()
 }
 
-function Get-ToolSoftwareDeepScanEvidence {
+function New-ToolSoftwareDeepScanPreparation {
     param(
         [Parameter(Mandatory = $true)]$Application,
         [AllowNull()][object]$CatalogProduct,
         [AllowNull()][object]$Catalog,
-        [Parameter(Mandatory = $true)]$State,
-        [ValidateRange(1, 200)][int]$MaximumSignatureChecksPerApplication = 18,
-        [ValidateRange(4, 500)][int]$MaximumHashChecksPerApplication = 160
+        [Parameter(Mandatory = $true)]$State
     )
     $evidence = New-Object System.Collections.Generic.List[object]
     $roots = @(Get-ToolSoftwareDeepScanRoots -Application $Application)
     if ($roots.Count -eq 0) {
         $State.ApplicationsSkipped = [int]$State.ApplicationsSkipped + 1
-        return [pscustomobject][ordered]@{ Evidence=@(); Roots=@(); FilesEnumerated=0; SignatureChecks=0; HashChecks=0; Complete=$false; Status='NoSafeRoot' }
+        return [pscustomobject][ordered]@{
+            Evidence=@(); Roots=@(); FilesEnumerated=0; Complete=$false; Status='NoSafeRoot'
+            SignatureCandidates=@(); HashCandidates=@(); KnownBadHashes=@(); ExpectedSignerPatterns=@()
+            CatalogTrustedForDecisiveEvidence=$false
+        }
     }
     $State.ApplicationsScanned = [int]$State.ApplicationsScanned + 1
     $knownPatterns = New-Object System.Collections.Generic.List[object]
@@ -1078,28 +1494,81 @@ function Get-ToolSoftwareDeepScanEvidence {
         })
         if ($knownBadHashes.Count -gt 0) { $hashFileCandidates.Add([pscustomobject][ordered]@{ Path=[string]$Application.RepresentativePath; Priority=6; Depth=0 }) }
     }
-    $signatureChecks = 0
-    $signatureCandidates = @($fileCandidates.ToArray() |
+    $preparedSignatureCandidates = @($fileCandidates.ToArray() |
         Group-Object { ([string]$_.Path).ToLowerInvariant() } | ForEach-Object { @($_.Group | Sort-Object Priority -Descending)[0] } |
         Sort-Object @{Expression='Priority';Descending=$true},@{Expression='Depth';Ascending=$true},Path)
+    $preparedHashCandidates = @($hashFileCandidates.ToArray() |
+        Group-Object { ([string]$_.Path).ToLowerInvariant() } | ForEach-Object { @($_.Group | Sort-Object Priority -Descending)[0] } |
+        Sort-Object @{Expression='Priority';Descending=$true},@{Expression='Depth';Ascending=$true},Path)
+    return [pscustomobject][ordered]@{
+        Evidence=$evidence.ToArray(); Roots=$roots; FilesEnumerated=[int]$filesEnumerated; Complete=[bool]$complete; Status='Prepared'
+        SignatureCandidates=$preparedSignatureCandidates; HashCandidates=$preparedHashCandidates
+        KnownBadHashes=$knownBadHashes.ToArray(); ExpectedSignerPatterns=$expectedSignerPatterns.ToArray()
+        CatalogTrustedForDecisiveEvidence=[bool]$catalogTrustedForDecisiveEvidence
+    }
+}
+
+function Get-ToolSoftwareDeepScanEvidence {
+    param(
+        [Parameter(Mandatory = $true)]$Application,
+        [AllowNull()][object]$CatalogProduct,
+        [AllowNull()][object]$Catalog,
+        [Parameter(Mandatory = $true)]$State,
+        [ValidateRange(1, 200)][int]$MaximumSignatureChecksPerApplication = 18,
+        [ValidateRange(4, 500)][int]$MaximumHashChecksPerApplication = 160,
+        [AllowNull()][object]$SignatureRunspacePool,
+        [AllowNull()][object]$Preparation
+    )
+    if ($null -eq $Preparation) {
+        $Preparation = New-ToolSoftwareDeepScanPreparation -Application $Application -CatalogProduct $CatalogProduct -Catalog $Catalog -State $State
+    }
+    if ([string]$Preparation.Status -eq 'NoSafeRoot') {
+        return [pscustomobject][ordered]@{
+            Evidence=@(); Roots=@(); FilesEnumerated=0; SignatureChecks=0; HashChecks=0
+            Complete=$false; Status='NoSafeRoot'; RepresentativeSignature=$null
+        }
+    }
+    $evidence = New-Object System.Collections.Generic.List[object]
+    foreach ($item in @($Preparation.Evidence)) { $evidence.Add($item) }
+    $roots = @($Preparation.Roots)
+    $filesEnumerated = [int]$Preparation.FilesEnumerated
+    $complete = [bool]$Preparation.Complete
+    $knownBadHashes = New-Object System.Collections.Generic.List[string]
+    foreach ($item in @($Preparation.KnownBadHashes)) { if ($item) { $knownBadHashes.Add([string]$item) } }
+    $expectedSignerPatterns = New-Object System.Collections.Generic.List[object]
+    foreach ($item in @($Preparation.ExpectedSignerPatterns)) { if ($item) { $expectedSignerPatterns.Add($item) } }
+    $catalogTrustedForDecisiveEvidence = [bool]$Preparation.CatalogTrustedForDecisiveEvidence
+    $signatureChecks = 0
+    $representativeSignature = $null
+    $signatureCandidates = @($Preparation.SignatureCandidates)
+    $scheduledSignatureCandidates = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in $signatureCandidates) {
         if ($signatureChecks -ge $MaximumSignatureChecksPerApplication) { break }
         if ([DateTime]::UtcNow -ge [DateTime]$State.DeadlineUtc) { $State.TimeLimitReached=$true; $complete=$false; break }
         $signaturePathKey = ([string]$candidate.Path).ToLowerInvariant()
         $alreadyChecked = $State.SignaturePaths.ContainsKey($signaturePathKey)
         if (-not $alreadyChecked -and [int]$State.SignatureChecks -ge [int]$State.MaximumTotalSignatureChecks) { $State.SignatureLimitReached=$true; $complete=$false; break }
-        $signature = Get-ToolSoftwareSignatureState -Path ([string]$candidate.Path)
         $signatureChecks++
         if (-not $alreadyChecked) {
             $State.SignaturePaths[$signaturePathKey] = $true
             $State.SignatureChecks = [int]$State.SignatureChecks + 1
         }
+        $scheduledSignatureCandidates.Add($candidate)
+    }
+    $signatureResults = Get-ToolSoftwareSignatureStatesParallel `
+        -Paths @($scheduledSignatureCandidates.ToArray() | ForEach-Object { [string]$_.Path }) `
+        -ThrottleLimit 4 -RunspacePool $SignatureRunspacePool
+    foreach ($candidate in $scheduledSignatureCandidates) {
+        $signaturePathKey = ''
+        try { $signaturePathKey = ([IO.Path]::GetFullPath([string]$candidate.Path)).ToLowerInvariant() }
+        catch { $signaturePathKey = ([string]$candidate.Path).ToLowerInvariant() }
+        $signature = if ($signatureResults.ContainsKey($signaturePathKey)) {
+            $signatureResults[$signaturePathKey]
+        } else { Get-ToolSoftwareSignatureState -Path ([string]$candidate.Path) }
+        if ([bool]$candidate.Representative) { $representativeSignature = $signature }
         if ([string]$signature.Status -eq 'HashMismatch') {
-            $hashMismatchDecisive = [bool]([bool]$candidate.Representative -or [bool]$candidate.Critical -or
-                [bool]$candidate.ExpectedSigned -or [bool]$candidate.LicenseRelevant)
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'DeepSignatureHashMismatch' `
-                -Strength $(if ($hashMismatchDecisive) {'Conclusive'} else {'Strong'}) -Source 'Authenticode' `
-                -EvidenceGroup 'FileIntegrity' -Detail ([string]$candidate.Path) -Decisive:$hashMismatchDecisive))
+                -Strength 'Strong' -Source 'Authenticode' -EvidenceGroup 'FileIntegrity' -Detail ([string]$candidate.Path)))
         } elseif ([string]$signature.Status -eq 'NotSigned' -and [bool]$candidate.ExpectedSigned) {
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'ExpectedSignedFileNotSigned' -Strength 'Strong' -Source 'Authenticode' `
                 -EvidenceGroup 'FileIntegrity' -Detail ([string]$candidate.Path)))
@@ -1116,11 +1585,10 @@ function Get-ToolSoftwareDeepScanEvidence {
                 -EvidenceGroup 'PublisherMismatch' -Detail (([string]$candidate.Path) + ' | ' + ([string]$signature.Publisher))))
         }
     }
+    if ([DateTime]::UtcNow -ge [DateTime]$State.DeadlineUtc) { $State.TimeLimitReached=$true; $complete=$false }
     $hashChecks = 0
     if ($knownBadHashes.Count -gt 0) {
-        $hashCandidates = @($hashFileCandidates.ToArray() |
-            Group-Object { ([string]$_.Path).ToLowerInvariant() } | ForEach-Object { @($_.Group | Sort-Object Priority -Descending)[0] } |
-            Sort-Object @{Expression='Priority';Descending=$true},@{Expression='Depth';Ascending=$true},Path)
+        $hashCandidates = @($Preparation.HashCandidates)
         foreach ($candidate in $hashCandidates) {
             if ($hashChecks -ge $MaximumHashChecksPerApplication) { break }
             if ([DateTime]::UtcNow -ge [DateTime]$State.DeadlineUtc) { $State.TimeLimitReached=$true; $complete=$false; break }
@@ -1148,6 +1616,7 @@ function Get-ToolSoftwareDeepScanEvidence {
         Evidence=$uniqueEvidence; Roots=$roots; FilesEnumerated=[int]$filesEnumerated; SignatureChecks=[int]$signatureChecks
         HashChecks=[int]$hashChecks; Complete=[bool]($complete -and [bool]$State.IsAdministrator -and -not $State.TimeLimitReached -and -not $State.EntryLimitReached -and -not $State.SignatureLimitReached -and -not $State.HashLimitReached)
         Status=$(if ($complete -and [bool]$State.IsAdministrator) {'Scanned'} else {'CoverageLimited'})
+        RepresentativeSignature=$representativeSignature
     }
 }
 
@@ -1155,7 +1624,8 @@ function Get-ToolSoftwareLastDeepScanMetadata {
     if ($null -ne $script:ToolSoftwareLastDeepScanMetadata) { return $script:ToolSoftwareLastDeepScanMetadata }
     return [pscustomobject][ordered]@{
         Enabled=$false; Complete=$false; IsAdministrator=$false; ApplicationsScanned=0; ApplicationsSkipped=0
-        UniqueRootsScanned=0; RootCacheHits=0; TotalEntries=0; RelevantFiles=0; SignatureChecks=0; HashChecks=0
+        UniqueRootsScanned=0; RootCacheHits=0; UniqueDirectoriesScanned=0; DirectoryCacheHits=0
+        TotalEntries=0; RelevantFiles=0; SignatureChecks=0; HashChecks=0
         EvidenceCount=0; DurationMilliseconds=0; TimeLimitReached=$false; EntryLimitReached=$false
         SignatureLimitReached=$false; HashLimitReached=$false; AccessWarningCount=0
     }
@@ -1186,6 +1656,7 @@ function Get-ToolSoftwareAssessments {
     $results = New-Object System.Collections.Generic.List[object]
     $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
     $script:ToolSoftwareDeepFileCache = @{}
+    $script:ToolSoftwareDeepDirectoryCache = @{}
     $script:ToolSoftwareDeepSystemSnapshotCache = $null
     $deepState = $null
     if ($DeepScan) {
@@ -1194,8 +1665,38 @@ function Get-ToolSoftwareAssessments {
     } else {
         $script:ToolSoftwareLastDeepScanMetadata = $null
     }
+    $signatureRunspacePool = $null
+    if ($DeepScan) {
+        try {
+            $signatureRunspacePool = [RunspaceFactory]::CreateRunspacePool(1, 4)
+            $signatureRunspacePool.Open()
+        } catch {
+            if ($signatureRunspacePool) { try { $signatureRunspacePool.Dispose() } catch {} }
+            $signatureRunspacePool = $null
+        }
+    }
+    try {
     $applicationList = @($Applications)
     $originalIndexById = @{}
+    $externalEvidenceByApplication = @{}
+    $externalEvidenceByVendor = @{}
+    foreach ($externalItem in @($ExternalEvidence)) {
+        $externalApplicationId = if ($externalItem.PSObject.Properties['ApplicationId']) { [string]$externalItem.ApplicationId } else { '' }
+        if ($externalApplicationId) {
+            if (-not $externalEvidenceByApplication.ContainsKey($externalApplicationId)) {
+                $externalEvidenceByApplication[$externalApplicationId] = New-Object System.Collections.Generic.List[object]
+            }
+            $externalEvidenceByApplication[$externalApplicationId].Add($externalItem)
+            continue
+        }
+        $externalVendor = if ($externalItem.PSObject.Properties['VendorScope']) { [string]$externalItem.VendorScope } else { '' }
+        if ($externalVendor -and $externalVendor -notin @('Other','Uncorrelated')) {
+            if (-not $externalEvidenceByVendor.ContainsKey($externalVendor)) {
+                $externalEvidenceByVendor[$externalVendor] = New-Object System.Collections.Generic.List[object]
+            }
+            $externalEvidenceByVendor[$externalVendor].Add($externalItem)
+        }
+    }
     $applicationEntries = New-Object System.Collections.Generic.List[object]
     for ($entryIndex = 0; $entryIndex -lt $applicationList.Count; $entryIndex++) {
         $entryApplication = $applicationList[$entryIndex]
@@ -1204,12 +1705,10 @@ function Get-ToolSoftwareAssessments {
         $entryLicenseModel = if ($entryCatalogProduct) { Get-ToolSoftwareOptionalPropertyString -InputObject $entryCatalogProduct -Name 'LicenseModel' -Default 'Unknown' } else { 'Unknown' }
         $entryIdentityText = (([string]$entryApplication.Name) + ' ' + ([string]$entryApplication.Publisher) + ' ' + ([string]$entryApplication.InstallLocation))
         $entryApplicationId = [string]$entryApplication.Id
-        $entryHasExternalEvidence = @($ExternalEvidence | Where-Object {
-            $targetApplicationId = if ($_.PSObject.Properties['ApplicationId']) { [string]$_.ApplicationId } else { '' }
-            if ($targetApplicationId) { return $targetApplicationId -eq $entryApplicationId }
-            $targetVendor = if ($_.PSObject.Properties['VendorScope']) { [string]$_.VendorScope } else { '' }
-            return [bool]($targetVendor -and $targetVendor -notin @('Other','Uncorrelated') -and $targetVendor -eq $entryVendorScope)
-        }).Count -gt 0
+        $entryHasExternalEvidence = [bool](
+            ($entryApplicationId -and $externalEvidenceByApplication.ContainsKey($entryApplicationId)) -or
+            ($entryVendorScope -and $externalEvidenceByVendor.ContainsKey($entryVendorScope))
+        )
         $entryPriority = 1
         if ($entryHasExternalEvidence -or $entryIdentityText -match $strictIdentityPattern -or
             $entryLicenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium')) {
@@ -1219,7 +1718,10 @@ function Get-ToolSoftwareAssessments {
         }
         if (-not [string]::IsNullOrWhiteSpace($entryApplicationId)) { $originalIndexById[$entryApplicationId] = $entryIndex }
         $signatureWeight = if ($entryPriority -eq 0) { 6 } elseif ($entryPriority -eq 1) { 2 } else { 1 }
-        $desiredSignatureLimit = if ($entryPriority -eq 0) { 18 } elseif ($entryPriority -eq 1) { 8 } else { 4 }
+        # Hồ sơ nhanh vẫn kiểm tra chữ ký cho mọi ứng dụng có tệp đại diện,
+        # nhưng tập trung nhiều lượt hơn vào phần mềm trả phí/dùng thử hoặc đã
+        # có dấu vết. Quét tên artifact, cây tệp và dấu vết hệ thống giữ nguyên.
+        $desiredSignatureLimit = if ($entryPriority -eq 0) { 6 } elseif ($entryPriority -eq 1) { 3 } else { 1 }
         $applicationEntries.Add([pscustomobject][ordered]@{
             Application=$entryApplication; CatalogProduct=$entryCatalogProduct; VendorScope=$entryVendorScope
             LicenseModel=$entryLicenseModel; IdentityText=$entryIdentityText; ScanPriority=$entryPriority; OriginalIndex=$entryIndex
@@ -1229,6 +1731,22 @@ function Get-ToolSoftwareAssessments {
     $scanEntries = if ($DeepScan) {
         @($applicationEntries.ToArray() | Sort-Object ScanPriority, OriginalIndex)
     } else { @($applicationEntries.ToArray()) }
+    $quickSignatureResults = @{}
+    if (-not $DeepScan) {
+        # Các chữ ký này độc lập với nhau. Gom đúng cùng tập đường dẫn mà vòng
+        # lặp cũ kiểm tra rồi chạy tối đa bốn worker giúp rút ngắn thời gian mà
+        # không bỏ mẫu, không đổi kết luận và vẫn dùng chung bộ nhớ đệm an toàn.
+        $quickSignaturePaths = @($scanEntries | Where-Object {
+            $candidate = $_.Application
+            [string]$candidate.SignatureStatus -eq 'NotChecked' -and
+            -not [string]::IsNullOrWhiteSpace([string]$candidate.RepresentativePath) -and
+            ([string]$_.LicenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium') -or
+                [string]$_.IdentityText -match $strictIdentityPattern)
+        } | ForEach-Object { [string]$_.Application.RepresentativePath } | Select-Object -Unique)
+        if ($quickSignaturePaths.Count -gt 0) {
+            $quickSignatureResults = Get-ToolSoftwareSignatureStatesParallel -Paths $quickSignaturePaths -ThrottleLimit 4
+        }
+    }
     $remainingSignatureWeight = [int](($scanEntries | Measure-Object -Property SignatureWeight -Sum).Sum)
     foreach ($applicationEntry in $scanEntries) {
         $application = $applicationEntry.Application
@@ -1236,12 +1754,24 @@ function Get-ToolSoftwareAssessments {
         $vendorScope = [string]$applicationEntry.VendorScope
         $licenseModel = [string]$applicationEntry.LicenseModel
         $evidence = New-Object System.Collections.Generic.List[object]
-        $deepResult = [pscustomobject][ordered]@{ Evidence=@(); Roots=@(); FilesEnumerated=0; SignatureChecks=0; HashChecks=0; Complete=$false; Status='NotRequested' }
+        $deepResult = [pscustomobject][ordered]@{
+            Evidence=@(); Roots=@(); FilesEnumerated=0; SignatureChecks=0; HashChecks=0
+            Complete=$false; Status='NotRequested'; RepresentativeSignature=$null
+        }
         $identityText = [string]$applicationEntry.IdentityText
         $signatureStatus = [string]$application.SignatureStatus
-        if ($signatureStatus -eq 'NotChecked' -and -not [string]::IsNullOrWhiteSpace([string]$application.RepresentativePath) -and
+        if (-not $DeepScan -and $signatureStatus -eq 'NotChecked' -and -not [string]::IsNullOrWhiteSpace([string]$application.RepresentativePath) -and
             ($licenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium') -or $identityText -match $strictIdentityPattern)) {
-            $signature = Get-ToolSoftwareSignatureState -Path ([string]$application.RepresentativePath)
+            $signaturePath = [string]$application.RepresentativePath
+            $signaturePathKey = $signaturePath.ToLowerInvariant()
+            try { $signaturePathKey = ([IO.Path]::GetFullPath($signaturePath)).ToLowerInvariant() } catch {}
+            $signature = if ($quickSignatureResults -and $quickSignatureResults.ContainsKey($signaturePathKey)) {
+                $quickSignatureResults[$signaturePathKey]
+            } else {
+                # Fallback bảo toàn hành vi cũ nếu worker bị gián đoạn hoặc đường
+                # dẫn đổi trạng thái giữa lúc lập lô và lúc dùng kết quả.
+                Get-ToolSoftwareSignatureState -Path $signaturePath
+            }
             $signatureStatus = [string]$signature.Status
             $application | Add-Member -NotePropertyName SignatureStatus -NotePropertyValue $signatureStatus -Force
             $application | Add-Member -NotePropertyName SignaturePublisher -NotePropertyValue ([string]$signature.Publisher) -Force
@@ -1265,16 +1795,6 @@ function Get-ToolSoftwareAssessments {
                 }
             }
         }
-        if ($signatureStatus -eq 'HashMismatch') {
-            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SignatureHashMismatch' -Strength 'Conclusive' -Source 'Authenticode' `
-                -EvidenceGroup 'FileIntegrity' -Detail ([string]$application.RepresentativePath) -Decisive))
-        } elseif ($signatureStatus -eq 'NotTrusted') {
-            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SignatureNotTrusted' -Strength 'Moderate' -Source 'Authenticode' `
-                -EvidenceGroup 'FileTrust' -Detail $signatureStatus))
-        } elseif ($signatureStatus -eq 'NotSigned' -and $licenseModel -in @('Paid','Subscription','Perpetual','Trialware')) {
-            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'PaidBinaryNotSigned' -Strength 'Moderate' -Source 'Authenticode' `
-                -EvidenceGroup 'FileIntegrity' -Detail ([string]$application.RepresentativePath)))
-        }
         if ($licenseModel -notin @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) {
             if (-not $DeepScan) {
                 foreach ($item in @(Get-ToolSoftwareLocationEvidence -Application $application)) { $evidence.Add($item) }
@@ -1292,17 +1812,41 @@ function Get-ToolSoftwareAssessments {
             $perApplicationSignatureLimit = [Math]::Min([int]$applicationEntry.DesiredSignatureLimit, $weightedSignatureLimit)
             $remainingSignatureWeight = [Math]::Max(0, $remainingSignatureWeight - $currentSignatureWeight)
             $deepResult = Get-ToolSoftwareDeepScanEvidence -Application $application -CatalogProduct $catalogProduct -Catalog $Catalog -State $deepState `
-                -MaximumSignatureChecksPerApplication $perApplicationSignatureLimit
+                -MaximumSignatureChecksPerApplication $perApplicationSignatureLimit -SignatureRunspacePool $signatureRunspacePool
             foreach ($item in @($deepResult.Evidence)) { $evidence.Add($item) }
+            if ($null -ne $deepResult.RepresentativeSignature) {
+                $signature = $deepResult.RepresentativeSignature
+                $signatureStatus = [string]$signature.Status
+                $application | Add-Member -NotePropertyName SignatureStatus -NotePropertyValue $signatureStatus -Force
+                $application | Add-Member -NotePropertyName SignaturePublisher -NotePropertyValue ([string]$signature.Publisher) -Force
+                if ([string]::IsNullOrWhiteSpace([string]$application.Publisher) -and $signature.CompanyName) {
+                    $application | Add-Member -NotePropertyName Publisher -NotePropertyValue ([string]$signature.CompanyName) -Force
+                }
+                if ([string]::IsNullOrWhiteSpace([string]$application.Version) -and $signature.FileVersion) {
+                    $application | Add-Member -NotePropertyName Version -NotePropertyValue ([string]$signature.FileVersion) -Force
+                }
+            }
+        }
+        if ($signatureStatus -eq 'HashMismatch') {
+            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SignatureHashMismatch' -Strength 'Strong' -Source 'Authenticode' `
+                -EvidenceGroup 'FileIntegrity' -Detail ([string]$application.RepresentativePath)))
+        } elseif ($signatureStatus -eq 'NotTrusted') {
+            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SignatureNotTrusted' -Strength 'Moderate' -Source 'Authenticode' `
+                -EvidenceGroup 'FileTrust' -Detail $signatureStatus))
+        } elseif ($signatureStatus -eq 'NotSigned' -and $licenseModel -in @('Paid','Subscription','Perpetual','Trialware')) {
+            $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'PaidBinaryNotSigned' -Strength 'Moderate' -Source 'Authenticode' `
+                -EvidenceGroup 'FileIntegrity' -Detail ([string]$application.RepresentativePath)))
         }
         foreach ($item in @(Get-ToolSoftwareBlockedHostEvidence -CatalogProduct $catalogProduct)) { $evidence.Add($item) }
         $applicationId = [string]$application.Id
-        foreach ($item in @($ExternalEvidence | Where-Object {
-            $targetApplicationId = if ($_.PSObject.Properties['ApplicationId']) { [string]$_.ApplicationId } else { '' }
-            if (-not [string]::IsNullOrWhiteSpace($targetApplicationId)) { return $targetApplicationId -eq $applicationId }
-            $targetVendor = if ($_.PSObject.Properties['VendorScope']) { [string]$_.VendorScope } else { '' }
-            return [bool]($targetVendor -and $targetVendor -notin @('Other','Uncorrelated') -and $targetVendor -eq $vendorScope)
-        })) {
+        $applicationExternalEvidence = New-Object System.Collections.Generic.List[object]
+        if ($applicationId -and $externalEvidenceByApplication.ContainsKey($applicationId)) {
+            foreach ($externalItem in $externalEvidenceByApplication[$applicationId]) { $applicationExternalEvidence.Add($externalItem) }
+        }
+        if ($vendorScope -and $externalEvidenceByVendor.ContainsKey($vendorScope)) {
+            foreach ($externalItem in $externalEvidenceByVendor[$vendorScope]) { $applicationExternalEvidence.Add($externalItem) }
+        }
+        foreach ($item in $applicationExternalEvidence) {
             $strength = if ([string]$item.Strength) { [string]$item.Strength } else { 'Strong' }
             if ($strength -notin @('Conclusive','Strong','Moderate','Weak')) { $strength='Strong' }
             $externalCode = if ($item.PSObject.Properties['Code'] -and $item.Code) { [string]$item.Code } else { 'External' + [string]$item.Type }
@@ -1324,9 +1868,21 @@ function Get-ToolSoftwareAssessments {
         $strongEvidenceGroupCount = @($uniqueEvidence | Where-Object { [string]$_.Strength -in @('Conclusive','Strong') } | ForEach-Object {
             if ($_.PSObject.Properties['EvidenceGroup'] -and $_.EvidenceGroup) { [string]$_.EvidenceGroup } else { [string]$_.Source }
         } | Select-Object -Unique).Count
+        $integrityEvidenceCount = @($uniqueEvidence | Where-Object {
+            [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch')
+        }).Count
+        $independentLicenseRiskCount = @($uniqueEvidence | Where-Object {
+            [string]$_.Strength -in @('Conclusive','Strong') -and
+            [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
+        }).Count
+        $licensingDecisiveCount = @($uniqueEvidence | Where-Object {
+            ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive)) -and
+            [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
+        }).Count
         $statusCode = 'Unverified'
         $confidence = 'Low'
-        if ($decisiveCount -gt 0 -or ($strongCount -ge 2 -and $strongEvidenceGroupCount -ge 2)) { $statusCode='NonGenuine'; $confidence='High' }
+        if ($licensingDecisiveCount -gt 0 -or ($independentLicenseRiskCount -gt 0 -and $strongCount -ge 2 -and $strongEvidenceGroupCount -ge 2)) { $statusCode='NonGenuine'; $confidence='High' }
+        elseif ($integrityEvidenceCount -gt 0 -and $independentLicenseRiskCount -eq 0) { $statusCode='IntegrityCompromised'; $confidence='High' }
         elseif ($strongCount -gt 0 -or $moderateCount -gt 0 -or $weakCount -ge 2) { $statusCode='Suspicious'; $confidence='Medium' }
         elseif ($licenseModel -in @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) { $statusCode='FreeOrIncluded'; $confidence=$(if ($catalogProduct) {'High'} else {'Medium'}) }
         elseif ($licenseModel -eq 'Trialware') { $statusCode='TrialOrUnverified'; $confidence='Medium' }
@@ -1364,8 +1920,19 @@ function Get-ToolSoftwareAssessments {
         } else {
             'GenericArtifactCleanupOrOfficialRepair'
         }
-        $result = [pscustomobject][ordered]@{}
-        foreach ($property in $application.PSObject.Properties) { $result | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force }
+        # Building an ordered property bag is materially faster than thousands
+        # of Add-Member calls and produces the same PSCustomObject contract.
+        $resultData = [ordered]@{}
+        foreach ($property in $application.PSObject.Properties) { $resultData[$property.Name] = $property.Value }
+        $applicationSystemComponent = $application.PSObject.Properties['IsSystemComponent']
+        $applicationSystemReason = $application.PSObject.Properties['SystemComponentReason']
+        $catalogIdentifiesUserApplication = [bool]($catalogProduct -and $licenseModel -notin @('SystemComponent','Driver','Runtime','Unknown'))
+        $isSystemComponent = [bool]((($applicationSystemComponent -and [bool]$applicationSystemComponent.Value) -and -not $catalogIdentifiesUserApplication) -or
+            $licenseModel -in @('SystemComponent','Driver','Runtime'))
+        $systemComponentReason = if ($applicationSystemReason) { [string]$applicationSystemReason.Value } else { '' }
+        if ($isSystemComponent -and [string]::IsNullOrWhiteSpace($systemComponentReason)) {
+            $systemComponentReason = if ($licenseModel -in @('SystemComponent','Driver','Runtime')) { 'Catalog:' + $licenseModel } else { 'HeuristicOrPlatformMetadata' }
+        }
         foreach ($pair in @(
             @('VendorScope',$vendorScope), @('CatalogProductId',$(Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'Id')),
             @('LicenseModel',$licenseModel), @('OfficialReferenceUrl',$referenceUrl), @('AssessmentCode',$statusCode),
@@ -1379,10 +1946,11 @@ function Get-ToolSoftwareAssessments {
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),
             @('RemediationAdapter',$remediationAdapter), @('RemediationSupported',$manualEligible), @('ManualEligible',$manualEligible),
             @('AutoEligible',$autoEligible), @('RemediationImpact',$remediationImpact),
+            @('IsSystemComponent',$isSystemComponent), @('SystemComponentReason',$systemComponentReason),
             @('CatalogSource',$(if ($Catalog) {Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource' -Default 'Unavailable'} else {'Unavailable'})),
             @('CatalogVersion',$(Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion'))
-        )) { $result | Add-Member -NotePropertyName ([string]$pair[0]) -NotePropertyValue $pair[1] -Force }
-        $results.Add($result)
+        )) { $resultData[[string]$pair[0]] = $pair[1] }
+        $results.Add([pscustomobject]$resultData)
     }
     if ($DeepScan) {
         $systemWarningCount = if ($null -ne $script:ToolSoftwareDeepSystemSnapshotCache) { [int]@($script:ToolSoftwareDeepSystemSnapshotCache.Warnings).Count } else { 0 }
@@ -1392,7 +1960,8 @@ function Get-ToolSoftwareAssessments {
             Complete=[bool]([bool]$deepState.IsAdministrator -and -not $deepState.TimeLimitReached -and -not $deepState.EntryLimitReached -and -not $deepState.SignatureLimitReached -and -not $deepState.HashLimitReached)
             IsAdministrator=[bool]$deepState.IsAdministrator; ApplicationsScanned=[int]$deepState.ApplicationsScanned
             ApplicationsSkipped=[int]$deepState.ApplicationsSkipped; UniqueRootsScanned=[int]$deepState.UniqueRootsScanned
-            RootCacheHits=[int]$deepState.RootCacheHits; TotalEntries=[int]$deepState.TotalEntries; RelevantFiles=[int]$deepState.RelevantFiles
+            RootCacheHits=[int]$deepState.RootCacheHits; UniqueDirectoriesScanned=[int]$deepState.UniqueDirectoriesScanned
+            DirectoryCacheHits=[int]$deepState.DirectoryCacheHits; TotalEntries=[int]$deepState.TotalEntries; RelevantFiles=[int]$deepState.RelevantFiles
             SignatureChecks=[int]$deepState.SignatureChecks; HashChecks=[int]$deepState.HashChecks; EvidenceCount=[int]$deepState.EvidenceCount
             DurationMilliseconds=$duration; TimeLimitReached=[bool]$deepState.TimeLimitReached; EntryLimitReached=[bool]$deepState.EntryLimitReached
             SignatureLimitReached=[bool]$deepState.SignatureLimitReached; HashLimitReached=[bool]$deepState.HashLimitReached
@@ -1404,6 +1973,12 @@ function Get-ToolSoftwareAssessments {
         if ($originalIndexById.ContainsKey($resultId)) { return [int]$originalIndexById[$resultId] }
         return [int]::MaxValue
     }})
+    } finally {
+        if ($signatureRunspacePool) {
+            try { $signatureRunspacePool.Close() } catch {}
+            $signatureRunspacePool.Dispose()
+        }
+    }
 }
 
 function Get-ToolSoftwareInventoryMetadata {

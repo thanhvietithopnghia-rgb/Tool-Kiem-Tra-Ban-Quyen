@@ -1,0 +1,291 @@
+{
+  "SchemaVersion": "1.1",
+  "KnowledgeVersion": "1.1.0",
+  "UpdatedAtUtc": "2026-08-10T08:00:00Z",
+  "ToolVersionMin": "4.8.0.0",
+  "ToolVersionMax": "4.8.65535.65535",
+  "ReleasedWithToolVersion": "4.8.0.0",
+  "Scope": "Tool-Kiem-Tra",
+  "Entries": [
+    {
+      "Id": "scope",
+      "TitleVi": "Phạm vi của Trợ lý Tool",
+      "TitleEn": "Tool Assistant scope",
+      "Keywords": ["tro ly", "chat bot", "chatbot", "hoi gi", "lam duoc gi", "pham vi", "ai", "codex", "api", "mien phi"],
+      "AnswerVi": "Trợ lý Tool chỉ giải đáp cách dùng, kết quả, mã lỗi và chức năng của Tool Kiểm Tra. Trợ lý dùng bộ tri thức cục bộ và không trả lời nội dung ngoài phạm vi công cụ.",
+      "AnswerEn": "Tool Assistant only explains Tool Kiem Tra features, results, error codes and workflows. It uses a local knowledge base and declines unrelated questions."
+    },
+    {
+      "Id": "offline-online",
+      "TitleVi": "Chế độ Offline và Online",
+      "TitleEn": "Offline and Online modes",
+      "Keywords": ["offline", "che do offline", "hoat dong offline", "online", "mang", "internet", "chuyen online", "chuyen offline", "mac dinh", "ket noi"],
+      "AnswerVi": "Mỗi lần mở, công cụ mặc định ở chế độ Offline và không tự truy cập Internet. Khi người dùng chủ động chuyển Online, công cụ mới cho phép kiểm tra cập nhật, đồng bộ danh mục và đồng bộ bộ tri thức của Trợ lý Tool. Đóng rồi mở lại ứng dụng sẽ trở về Offline.",
+      "AnswerEn": "Every launch starts Offline and does not access the Internet automatically. Online mode must be enabled explicitly for update checks, catalog sync and Tool Assistant knowledge sync. Restarting the application returns it to Offline."
+    },
+    {
+      "Id": "privacy",
+      "TitleVi": "Quyền riêng tư",
+      "TitleEn": "Privacy",
+      "Keywords": ["du lieu", "gui du lieu", "tai len", "upload", "rieng tu", "bao mat", "may chu", "server"],
+      "AnswerVi": "Dữ liệu quét và báo cáo được xử lý trên máy. Trợ lý chỉ đọc một số trường tổng quan an toàn của báo cáo hiện tại và không tải báo cáo, khóa sản phẩm hay dữ liệu máy lên Internet. Khi Online, chiều mạng của Trợ lý chỉ dùng để tải tệp tri thức JSON cố định từ kho dự án.",
+      "AnswerEn": "Scan and report data stay on the computer. The assistant reads only safe summary fields from the current report and never uploads reports, product keys or machine data. Online access is download-only for the project's fixed JSON knowledge file."
+    },
+    {
+      "Id": "scan-all",
+      "TitleVi": "Kiểm tra toàn bộ",
+      "TitleEn": "Full inspection",
+      "Keywords": ["kiem tra toan bo", "quet toan bo", "full scan", "quet tat ca", "chuc nang 1", "chuc nang so 1", "muc 1", "nut 1"],
+      "AnswerVi": "Kiểm tra toàn bộ thu thập cấu hình phần cứng, trạng thái Windows và Office, phần mềm đã cài cùng các dấu hiệu kỹ thuật liên quan. Các tệp JSON, HTML, PDF và checksum được đặt chung trong thư mục BaoCao-Tool-Kiem-Tra, với tên riêng theo máy và thời điểm quét. Đây là thao tác đọc, không tự khắc phục hệ thống.",
+      "AnswerEn": "Full inspection collects hardware, Windows and Office status, installed software, and relevant technical signals. JSON, HTML, PDF, and checksum files share the BaoCao-Tool-Kiem-Tra folder and use unique machine/time-based names. The scan is read-only and does not remediate automatically."
+    },
+    {
+      "Id": "hardware",
+      "TitleVi": "Cấu hình phần cứng",
+      "TitleEn": "Hardware configuration",
+      "Keywords": ["phan cung", "cau hinh", "cpu", "ram", "o cung", "mainboard", "bios", "may tinh", "chuc nang 2", "chuc nang so 2", "muc 2", "nut 2"],
+      "AnswerVi": "Cấu hình phần cứng đọc thông tin hệ điều hành, CPU, RAM, bo mạch chủ, BIOS, ổ đĩa và một số thiết bị để phục vụ kiểm tra kỹ thuật. Dữ liệu phản ánh trạng thái tại thời điểm quét và không phải chứng từ bản quyền.",
+      "AnswerEn": "Hardware configuration reads operating system, CPU, memory, mainboard, BIOS, storage and selected device information for technical inspection. It reflects the scan time and is not license evidence."
+    },
+    {
+      "Id": "windows-license",
+      "TitleVi": "Bản quyền Windows",
+      "TitleEn": "Windows licensing",
+      "Keywords": ["windows", "ban quyen windows", "kich hoat windows", "activation", "slmgr", "license windows", "chuc nang 3", "chuc nang so 3", "muc 3", "nut 3"],
+      "AnswerVi": "Mục Windows đọc trạng thái kích hoạt, kênh giấy phép và tín hiệu từ hệ thống cấp phép. Trạng thái 'đã kích hoạt' không tự chứng minh quyền sử dụng hợp lệ; hóa đơn, hợp đồng hoặc hồ sơ cấp phép vẫn là căn cứ pháp lý.",
+      "AnswerEn": "The Windows section reads activation state, channel and licensing-system signals. An activated state alone does not prove valid entitlement; invoices, agreements or licensing records remain the legal evidence."
+    },
+    {
+      "Id": "unverifiable",
+      "TitleVi": "Chưa xác định trạng thái cấp phép",
+      "TitleEn": "Licensing status undetermined",
+      "Keywords": ["chua xac dinh", "khong the xac minh", "khong doc duoc", "du lieu cap phep loi", "0xc004d302", "unverifiable", "loi cap phep"],
+      "AnswerVi": "'CHƯA XÁC ĐỊNH' nghĩa là công cụ không đọc được dữ liệu cấp phép Windows nên chưa thể xác định trạng thái kích hoạt. Kết quả này không chứng minh giấy phép hợp lệ hoặc không hợp lệ. Nếu có bằng chứng trực tiếp về rearm, KMS hoặc activator, cảnh báo can thiệp sẽ được hiển thị riêng.",
+      "AnswerEn": "'UNDETERMINED' means Windows licensing data could not be read, so activation status cannot be established. It proves neither valid nor invalid entitlement. Direct rearm, KMS or activator evidence is shown as a separate interference warning."
+    },
+    {
+      "Id": "office-license",
+      "TitleVi": "Bản quyền Microsoft Office",
+      "TitleEn": "Microsoft Office licensing",
+      "Keywords": ["office", "microsoft office", "ban quyen office", "kich hoat office", "ospp", "visio", "project", "chuc nang 4", "chuc nang so 4", "muc 4", "nut 4"],
+      "AnswerVi": "Mục Office kiểm tra bản cài, trạng thái kích hoạt và kênh giấy phép của Microsoft Office, Visio hoặc Project khi phát hiện được. Công cụ tách trạng thái kỹ thuật khỏi quyền sử dụng và không tự kết luận hợp lệ chỉ vì sản phẩm đang kích hoạt.",
+      "AnswerEn": "The Office section checks detected Microsoft Office, Visio or Project installations, activation state and license channel. It separates technical activation from entitlement and does not declare a license valid merely because it is activated."
+    },
+    {
+      "Id": "software",
+      "TitleVi": "Phần mềm đã cài đặt",
+      "TitleEn": "Installed software",
+      "Keywords": ["phan mem", "ung dung", "da cai", "installed", "publisher", "phien ban", "ngay cai", "chuc nang 5", "chuc nang so 5", "muc 5", "nut 5"],
+      "AnswerVi": "Mục phần mềm liệt kê tên, phiên bản, nhà phát hành và ngày cài đặt khi hệ thống cung cấp được. Trạng thái đáng ngờ là tín hiệu cần rà soát, không phải kết luận pháp lý về mọi phần mềm.",
+      "AnswerEn": "The software section lists name, version, publisher and installation date when available. A suspicious state is a review signal, not a legal conclusion about every product."
+    },
+    {
+      "Id": "kms-activator",
+      "TitleVi": "KMS và activator",
+      "TitleEn": "KMS and activators",
+      "Keywords": ["kms", "activator", "crack", "rearm", "autokms", "hwid", "can thiep", "kich hoat lau"],
+      "AnswerVi": "Công cụ chỉ khẳng định KMS/activator khi có bằng chứng kỹ thuật trực tiếp như kênh KMS, máy chủ KMS, tác vụ, dịch vụ, tệp hoặc dấu vết can thiệp phù hợp. Thiếu bằng chứng thì kết luận phải là chưa xác định hoặc cần đối chiếu, không suy đoán.",
+      "AnswerEn": "The tool identifies KMS or activator use only from direct technical evidence such as a KMS channel/host, task, service, file or matching interference trace. Without evidence it reports undetermined or review required instead of guessing."
+    },
+    {
+      "Id": "remediation",
+      "TitleVi": "Khắc phục KMS/Activator",
+      "TitleEn": "KMS/Activator remediation",
+      "Keywords": ["khac phuc", "sua loi", "go kms", "xoa crack", "cleanup", "remediation", "chuc nang 6", "chuc nang so 6", "muc 6", "nut 6", "sua crack", "xoa activator", "tu dong khac phuc", "tu dong sua crack"],
+      "AnswerVi": "Khắc phục chỉ chạy khi người dùng chủ động chọn, xem phạm vi, xác nhận và cấp quyền Administrator. Công cụ tạo bản sao lưu trước, khóa xử lý khi bằng chứng hoặc điều kiện an toàn chưa đủ và không tự gỡ/cài lại phần mềm ngoài kế hoạch đã xác nhận.",
+      "AnswerEn": "Remediation runs only after the user selects a scope, reviews it, confirms and grants Administrator rights. A backup is created first; unsafe or unsupported actions are blocked and software is not silently removed or reinstalled."
+    },
+    {
+      "Id": "backup-restore",
+      "TitleVi": "Sao lưu và khôi phục",
+      "TitleEn": "Backup and restore",
+      "Keywords": ["sao luu", "backup", "khoi phuc", "restore", "phuc hoi", "chuc nang 7", "chuc nang so 7", "muc 7", "nut 7"],
+      "AnswerVi": "Trung tâm Sao lưu/Khôi phục cho phép lưu trạng thái Windows, Office hoặc phạm vi phần mềm được hỗ trợ trước khi thay đổi. Hãy giữ nguyên thư mục sao lưu và dùng đúng bản công cụ tạo ra nó; khôi phục vẫn cần xác nhận và có thể yêu cầu Administrator.",
+      "AnswerEn": "Backup/Restore preserves supported Windows, Office or software state before changes. Keep the backup folder intact and use the compatible tool version; restore still requires confirmation and may require Administrator rights."
+    },
+    {
+      "Id": "enterprise",
+      "TitleVi": "Quản trị doanh nghiệp",
+      "TitleEn": "Enterprise management",
+      "Keywords": ["doanh nghiep", "enterprise", "lan", "agent", "may tram", "quan tri", "chuc nang 8", "chuc nang so 8", "muc 8", "nut 8"],
+      "AnswerVi": "Chế độ Doanh nghiệp phục vụ môi trường LAN đã cấu hình để quản lý và tổng hợp báo cáo. Mạng doanh nghiệp bị khóa mặc định, chỉ mở khi quản trị viên cấu hình rõ ràng; chức năng này không biến dữ liệu thành dịch vụ đám mây công cộng.",
+      "AnswerEn": "Enterprise mode supports configured LAN environments for management and report aggregation. Enterprise networking is blocked by default and must be enabled explicitly by an administrator; it is not a public cloud service."
+    },
+    {
+      "Id": "deep-scan",
+      "TitleVi": "Quét sâu",
+      "TitleEn": "Deep scan",
+      "Keywords": ["quet sau", "deep scan", "forensic", "dau vet", "quet ky", "chuc nang 9", "chuc nang so 9", "muc 9", "nut 9"],
+      "AnswerVi": "Quét sâu rà soát thêm dịch vụ, tác vụ, tệp, cấu hình và tín hiệu kỹ thuật liên quan. Quá trình có thể lâu hơn quét thường; phát hiện được phân loại theo mức bằng chứng và các mục chưa đủ chắc chắn sẽ chuyển sang kiểm tra thủ công.",
+      "AnswerEn": "Deep scan checks additional services, tasks, files, configuration and technical traces. It can take longer; findings are evidence-ranked and uncertain items are sent for manual review."
+    },
+    {
+      "Id": "report-center",
+      "TitleVi": "Báo cáo và lịch sử",
+      "TitleEn": "Reports and history",
+      "Keywords": ["bao cao", "html", "json", "xml", "pdf", "thu muc bao cao", "lich su", "chuc nang 10", "chuc nang so 10", "muc 10", "nut 10"],
+      "AnswerVi": "Tất cả báo cáo được gom vào một thư mục BaoCao-Tool-Kiem-Tra trên Desktop, không tạo thư mục con cho từng lượt. Mỗi bộ JSON/XML/HTML/PDF dùng cùng tên gốc có loại báo cáo, tên máy và thời điểm để không ghi đè. HTML mở tự động và có liên kết tới PDF chi tiết cùng bộ.",
+      "AnswerEn": "All reports share one BaoCao-Tool-Kiem-Tra folder on the Desktop; individual runs no longer create subfolders. Each JSON/XML/HTML/PDF set uses a common unique base name containing report type, computer, and time. HTML opens automatically and links to its detailed PDF."
+    },
+    {
+      "Id": "administrator",
+      "TitleVi": "Quyền Administrator và UAC",
+      "TitleEn": "Administrator rights and UAC",
+      "Keywords": ["administrator", "admin", "uac", "quyen quan tri", "run as administrator", "hoi quyen"],
+      "AnswerVi": "Giao diện và các lượt kiểm tra đọc chạy bằng quyền người dùng thông thường. UAC chỉ xuất hiện khi thực hiện thao tác thật sự cần quyền cao như khắc phục, khôi phục, cập nhật hoặc một số tác vụ quản trị doanh nghiệp.",
+      "AnswerEn": "The dashboard and read-only scans run as a standard user. UAC appears only for operations that genuinely need elevation, such as remediation, restore, update or selected enterprise administration tasks."
+    },
+    {
+      "Id": "report-evidence",
+      "TitleVi": "Cách đọc kết luận báo cáo",
+      "TitleEn": "How to read report conclusions",
+      "Keywords": ["ket luan", "muc rui ro", "bang chung", "danh gia", "hop le", "khong hop le", "doc bao cao"],
+      "AnswerVi": "Báo cáo tách ba lớp: trạng thái kỹ thuật, mức xác minh và hướng xử lý. 'Đã kích hoạt' là trạng thái kỹ thuật; 'cần đối chiếu hồ sơ' nghĩa là chưa có đủ chứng từ; 'nguy cơ cao' cần xem bằng chứng chi tiết trước khi xử lý.",
+      "AnswerEn": "Reports separate technical state, verification level and recommended action. 'Activated' is technical state; 'records required' means entitlement evidence is incomplete; 'high risk' requires reviewing detailed evidence before action."
+    },
+    {
+      "Id": "oem",
+      "TitleVi": "Khóa OEM trong BIOS",
+      "TitleEn": "OEM key in firmware",
+      "Keywords": ["oem", "oa3", "bios key", "key bios", "key nhung", "firmware", "product key"],
+      "AnswerVi": "OA3/OEM trong firmware chỉ được ghi nhận khi hệ thống đọc được khóa hoặc tín hiệu firmware tương ứng. Không có khóa OA3 thì công cụ không được tự gán máy là OEM chính hãng; vẫn cần đối chiếu phiên bản Windows và chứng từ mua máy.",
+      "AnswerEn": "OA3/OEM firmware status is reported only when the corresponding firmware key or signal can be read. Without OA3 evidence the tool does not label the machine as genuine OEM; Windows edition and purchase records still need review."
+    },
+    {
+      "Id": "error-codes",
+      "TitleVi": "Mã lỗi",
+      "TitleEn": "Error codes",
+      "Keywords": ["ma loi", "error code", "0x", "loi quet", "khong chay", "that bai", "treo"],
+      "AnswerVi": "Hãy gửi nguyên mã lỗi, tên chức năng và dòng mô tả đi kèm. Trợ lý sẽ giải thích mã đã có trong bộ tri thức; nếu chưa đủ dữ liệu, trợ lý sẽ yêu cầu mở phần Nhật ký/Báo cáo thay vì đoán nguyên nhân.",
+      "AnswerEn": "Provide the exact error code, feature name and accompanying message. The assistant explains known codes; when evidence is insufficient it asks for the Log/Report instead of guessing."
+    },
+    {
+      "Id": "update",
+      "TitleVi": "Cập nhật công cụ",
+      "TitleEn": "Tool updates",
+      "Keywords": ["cap nhat", "update", "phien ban moi", "github", "tai ban moi", "latest"],
+      "AnswerVi": "Kiểm tra cập nhật chỉ hoạt động khi người dùng chuyển Online. Công cụ xác minh manifest, SHA-256 và chính sách chữ ký trước khi cho phép dùng gói mới; mặc định không có dịch vụ cập nhật nền và không tự cài im lặng.",
+      "AnswerEn": "Update checks work only after Online mode is enabled. The tool validates the manifest, SHA-256 and signing policy before accepting a package; there is no background updater or silent installation by default."
+    },
+    {
+      "Id": "signature-warning",
+      "TitleVi": "Cảnh báo SmartScreen/antivirus",
+      "TitleEn": "SmartScreen or antivirus warning",
+      "Keywords": ["virus", "antivirus", "defender", "smartscreen", "unknown publisher", "chu ky so", "ky so", "signpath"],
+      "AnswerVi": "Bản chưa ký số có thể bị SmartScreen hoặc antivirus cảnh báo vì nhà phát hành chưa được xác minh và tệp chưa có uy tín tải xuống. Không nên tắt Defender. Hướng xử lý đúng là phát hành từ nguồn chính thức, công bố SHA-256 và dùng chữ ký Authenticode đáng tin cậy khi có.",
+      "AnswerEn": "An unsigned build may trigger SmartScreen or antivirus because the publisher is unverified and the file lacks download reputation. Do not disable Defender. Use the official source, published SHA-256 and a trusted Authenticode signature when available."
+    },
+    {
+      "Id": "manual-review",
+      "TitleVi": "Cần kiểm tra thủ công",
+      "TitleEn": "Manual review required",
+      "Keywords": ["kiem tra thu cong", "manual review", "can xem lai", "chua du bang chung", "khong chac", "unverified"],
+      "AnswerVi": "'Cần kiểm tra thủ công' nghĩa là công cụ phát hiện tín hiệu liên quan nhưng chưa đủ bằng chứng để kết luận hoặc tự khắc phục. Hãy mở chi tiết bằng chứng, đối chiếu đường dẫn/nhà phát hành/chứng từ và chỉ xử lý sau khi xác nhận đúng đối tượng.",
+      "AnswerEn": "'Manual review required' means a relevant signal exists but evidence is insufficient for a conclusion or automatic remediation. Review the detailed evidence, path, publisher and records before acting."
+    },
+    {
+      "Id": "result-stale",
+      "TitleVi": "Kết quả theo thời điểm quét",
+      "TitleEn": "Point-in-time results",
+      "Keywords": ["ket qua cu", "quet lai", "thay doi", "hien tai", "bao cao hien tai", "moi nhat"],
+      "AnswerVi": "Báo cáo phản ánh dữ liệu tại thời điểm quét. Sau khi cài/gỡ phần mềm, kích hoạt hợp lệ, khôi phục hoặc thay đổi cấu hình, hãy chạy quét lại để có kết luận mới; Trợ lý không tự coi báo cáo cũ là trạng thái hiện tại.",
+      "AnswerEn": "A report reflects the scan time. After installation, removal, valid activation, restore or configuration changes, scan again for a fresh conclusion; the assistant does not treat an old report as current state."
+    },
+    {
+      "Id": "safe-boundary",
+      "TitleVi": "Phạm vi hỗ trợ an toàn",
+      "TitleEn": "Safe support boundary",
+      "Keywords": ["bo qua ban quyen", "vo hieu kich hoat", "huong dan crack", "tai keygen", "tat defender de crack", "lach ban quyen"],
+      "AnswerVi": "Trợ lý không hướng dẫn vượt cơ chế bản quyền, dùng crack/keygen hoặc tắt bảo vệ để chạy công cụ không rõ nguồn. Trong phạm vi Tool, Trợ lý có thể giúp đọc bằng chứng, sao lưu hợp lệ, gỡ dấu vết can thiệp đã xác nhận và chỉ ra cách kích hoạt chính thức.",
+      "AnswerEn": "I cannot help bypass licensing, use cracks/keygens, or disable protection to run untrusted tools. Within Tool scope I can explain evidence, make a valid backup, remove confirmed tampering traces, and point to official activation options."
+    },
+    {
+      "Id": "assistant-knowledge-update",
+      "TitleVi": "Cơ sở tri thức của Trợ lý",
+      "TitleEn": "Assistant knowledge database",
+      "Keywords": ["cap nhat co so du lieu tro ly", "dong bo kho tri thuc", "tri thuc theo phien ban", "du lieu tro ly tuong thich", "csdl tro ly", "knowledge database"],
+      "AnswerVi": "Mỗi bản Tool mang sẵn một cơ sở tri thức tương thích để Trợ lý vẫn hoạt động Offline. Khi người dùng chủ động bật Online và đồng bộ, Tool chỉ nhận tệp JSON đúng nguồn cho phép, đúng lược đồ, đúng dải phiên bản và đúng phiên bản phát hành; tệp không tương thích sẽ bị từ chối và bản cục bộ vẫn được giữ lại.",
+      "AnswerEn": "Every Tool release bundles a compatible knowledge database so the Assistant works Offline. When Online sync is explicitly enabled, only allowlisted JSON with the correct schema, release version, and compatibility range is accepted; incompatible data is rejected and the local copy remains available."
+    },
+    {
+      "Id": "report-pdf",
+      "TitleVi": "Bố cục báo cáo PDF",
+      "TitleEn": "PDF report layout",
+      "Keywords": ["pdf bi mat dong", "pdf cat chu", "pdf khuyet dong", "khoang cach hang pdf", "bang pdf qua rong", "bo cuc pdf"],
+      "AnswerVi": "PDF dùng bảng tổng quan gọn ở phần chính và chuyển bảng rộng sang phần bằng chứng chi tiết. Dòng chữ được phép xuống hàng, chiều cao hàng tự giãn và các hàng quan trọng không bị cắt giữa hai trang. Danh sách phần mềm hệ thống được đưa xuống phụ lục để phần chính dễ đọc.",
+      "AnswerEn": "PDF uses compact overview tables in the main section and moves wide evidence into detailed sections. Text wraps, rows grow naturally, and important rows avoid page splits. System software is placed in an appendix to keep the main report readable."
+    },
+    {
+      "Id": "software-system-filter",
+      "TitleVi": "Ẩn phần mềm hệ thống khỏi phần chính",
+      "TitleEn": "Hide system software from the main view",
+      "Keywords": ["an phan mem he thong", "hien phan mem mac dinh", "show system software", "phu luc phan mem he thong", "danh sach system component", "phan mem he thong trong pdf"],
+      "AnswerVi": "Phần tổng quan chỉ hiển thị ứng dụng người dùng và các mục cần chú ý. Thành phần Windows, runtime, driver và ứng dụng hệ thống mặc định được gom vào phụ lục; liên kết 'Xem phần mềm hệ thống' đưa người đọc tới danh sách đầy đủ, kèm liên kết quay lại tổng quan.",
+      "AnswerEn": "The overview shows user applications and items that need attention. Windows components, runtimes, drivers, and default system apps are grouped in an appendix; an internal link opens the full list and provides a return link."
+    },
+    {
+      "Id": "report-shared-folder",
+      "TitleVi": "Một thư mục Báo cáo chung",
+      "TitleEn": "One shared report folder",
+      "Keywords": ["mot thu muc bao cao chung", "khong tao thu muc moi moi lan quet", "gom json html pdf", "bao cao khong co thu muc con", "ten tep bao cao duy nhat", "shared report folder"],
+      "AnswerVi": "Mọi lượt quét ghi trực tiếp vào một thư mục BaoCao-Tool-Kiem-Tra trên Desktop, không tạo thư mục con cho từng lượt. Tên tệp chứa loại báo cáo, tên máy và thời gian đến mili giây để không ghi đè; JSON, HTML, PDF và checksum của cùng lượt có chung tên gốc.",
+      "AnswerEn": "Every scan writes directly to one BaoCao-Tool-Kiem-Tra folder on the Desktop, without per-run subfolders. Filenames include report type, computer, and millisecond timestamp to avoid overwrites; JSON, HTML, PDF, and checksum files from one run share the same base name."
+    },
+    {
+      "Id": "software-catalog",
+      "TitleVi": "Danh mục nhận diện phần mềm",
+      "TitleEn": "Software recognition catalogue",
+      "Keywords": ["mo rong catalogue phan mem", "cap nhat danh muc phan mem", "quet nhieu phan mem hon", "nhan dien them ung dung", "software catalogue", "catalog nhan dien"],
+      "AnswerVi": "Catalogue kết hợp tên sản phẩm, nhà phát hành, dấu vết cài đặt, tệp thực thi và đặc điểm cấp phép. Bản đi kèm Tool là nguồn mặc định Offline; bản Online chỉ được nhận sau khi kiểm tra nguồn, phiên bản, kích thước và cấu trúc. Phần mềm chưa có catalogue vẫn xuất hiện trong kho cài đặt nhưng được đánh dấu cần đối chiếu thay vì đoán bản quyền.",
+      "AnswerEn": "The catalogue combines product names, publishers, install traces, executables, and licensing characteristics. The bundled catalogue is the Offline default; Online data is accepted only after source, version, size, and schema validation. Uncatalogued applications still appear in inventory but are marked for review rather than having licensing guessed."
+    },
+    {
+      "Id": "duplicate-software",
+      "TitleVi": "Gộp phần mềm trùng",
+      "TitleEn": "Merge duplicate software records",
+      "Keywords": ["phan mem bi trung dong", "gop ket qua phan mem", "hop nhat ung dung lap", "duplicate application", "nhieu nguon phat hien", "trung phan mem"],
+      "AnswerVi": "Tool hợp nhất các bản ghi cùng sản phẩm, phiên bản và thư mục cài đặt được phát hiện từ Registry, AppX, tệp và catalogue. Nguồn phát hiện vẫn được giữ trong chi tiết. Hai phiên bản thực sự khác nhau hoặc cài ở vị trí độc lập vẫn được giữ thành các dòng riêng.",
+      "AnswerEn": "The Tool merges records for the same product, version, and install location found through Registry, AppX, files, and catalogue. Discovery sources remain visible in details. Truly different versions or independent installations remain separate records."
+    },
+    {
+      "Id": "integrity-compromised",
+      "TitleVi": "Tệp bị ảnh hưởng tính toàn vẹn",
+      "TitleEn": "File integrity compromised",
+      "Keywords": ["hash mismatch", "hashmismatch", "chu ky sai hash", "tep bi sua doi", "toan ven tep bi loi", "file integrity compromised"],
+      "AnswerVi": "HashMismatch chứng minh tệp đã thay đổi so với nội dung được ký hoặc tệp bị hỏng; đây là bằng chứng trực tiếp về tính toàn vẹn, không tự chứng minh giấy phép không chính hãng. Tool báo 'Ảnh hưởng tính toàn vẹn' và yêu cầu sửa/cài lại từ nguồn chính thức; chỉ kết luận rủi ro bản quyền khi còn có bằng chứng cấp phép độc lập.",
+      "AnswerEn": "HashMismatch proves that a file changed after signing or is corrupted; it is direct file-integrity evidence, not proof of an unlicensed entitlement. The Tool reports 'Integrity compromised' and recommends repair/reinstall from an official source; licensing risk requires separate licensing evidence."
+    },
+    {
+      "Id": "enterprise-connection-errors",
+      "TitleVi": "Chẩn đoán kết nối Máy chủ/Máy trạm",
+      "TitleEn": "Server/workstation connection diagnosis",
+      "Keywords": ["may tram timeout", "cong may chu bi chan", "dich vu may chu chua chay", "sai ma ghep noi", "loi ket noi server", "firewall may chu"],
+      "AnswerVi": "Kiểm tra kết nối đi theo thứ tự: địa chỉ và cổng, khả năng mở TCP, phản hồi dịch vụ Tool, phiên bản giao thức rồi mã ghép nối. Thông báo sẽ nêu đúng nhóm lỗi bằng tiếng Việt, không đưa exception kỹ thuật dài; báo cáo chưa gửi được được giữ trong hàng đợi để thử lại.",
+      "AnswerEn": "Connection checks proceed through address and port, TCP reachability, Tool service response, protocol version, and pairing code. Messages identify the correct failure category without exposing long technical exceptions; unsent reports remain queued for retry."
+    },
+    {
+      "Id": "enterprise-discovery",
+      "TitleVi": "Tự tìm máy chủ và quét mạng LAN",
+      "TitleEn": "Server discovery and LAN scan",
+      "Keywords": ["tu tim may chu", "quet may trong lan", "khong thay may tram", "tim server noi bo", "lan discovery", "scan may khong can ping"],
+      "AnswerVi": "Khi ô địa chỉ trống, Tool tự dò các mạng LAN riêng đang hoạt động và xác minh dịch vụ Tool trên cổng đã chọn. Quét thiết bị không phụ thuộc riêng vào ping: Tool kết hợp bảng láng giềng/ARP, DNS và thử cổng dịch vụ nên vẫn thấy máy chặn ICMP khi có dấu vết mạng phù hợp.",
+      "AnswerEn": "When the address field is empty, the Tool scans active private LAN profiles and validates the Tool service on the selected port. Device discovery does not rely only on ping: it combines neighbor/ARP data, DNS, and service-port probes so hosts blocking ICMP can still be found when network evidence exists."
+    },
+    {
+      "Id": "enterprise-network-mode",
+      "TitleVi": "Mạng LAN và Internet là hai trạng thái riêng",
+      "TitleEn": "LAN and Internet are separate states",
+      "Keywords": ["lan khac internet", "may chu noi bo offline", "internet va lan", "trang thai mang noi bo", "enterprise lan mode", "ket noi noi bo"],
+      "AnswerVi": "Kết nối Máy chủ/Máy trạm dùng LAN nội bộ và được hiển thị là 'LAN nội bộ'. Công tắc Online chỉ cấp quyền truy cập Internet cho cập nhật/đồng bộ. Vì vậy Tool có thể Offline với Internet nhưng vẫn kết nối máy chủ nội bộ khi quản trị viên cho phép LAN.",
+      "AnswerEn": "Server/workstation communication uses the local LAN and is shown as 'Local LAN'. The Online switch governs Internet access for updates and synchronization. The Tool can therefore be Internet-Offline while still using an administrator-enabled internal LAN."
+    },
+    {
+      "Id": "report-legal-limit",
+      "TitleVi": "Giới hạn kết luận của báo cáo",
+      "TitleEn": "Limits of report conclusions",
+      "Keywords": ["bao cao co khang dinh duoc khong", "bao cao chung minh hop phap", "ket qua co chac chinh hang", "gioi han ket luan", "doi chieu hoa don hop dong", "report legal conclusion"],
+      "AnswerVi": "Báo cáo có thể khẳng định bằng chứng kỹ thuật trực tiếp như trạng thái kích hoạt, nguồn KMS hoặc lỗi chữ ký/HashMismatch tại thời điểm quét. Báo cáo không thể chỉ từ các tín hiệu đó khẳng định quyền sử dụng hợp pháp; kết luận pháp lý còn cần đối chiếu tài khoản, hóa đơn, hợp đồng hoặc hồ sơ cấp phép.",
+      "AnswerEn": "The report can state direct technical evidence such as activation state, KMS source, or signature/HashMismatch findings at scan time. Those signals alone cannot prove legal entitlement; accounts, invoices, contracts, or licensing records must also be reviewed."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Entry points Tool-Kiem-Tra v4.6
 
-Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 26 descriptor, trong đó 23 entry point công khai và ba nguồn kiểm kê nội bộ.
+Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 27 descriptor, trong đó 24 entry point công khai và ba nguồn kiểm kê nội bộ.
 
 ## Launcher modes
 
@@ -15,7 +15,9 @@ Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 26 descriptor, trong 
 
 Người dùng phát hành nên chạy EXE. Chạy script trực tiếp chỉ dành cho phát triển/kiểm thử và không có toàn bộ bảo đảm secure-launch.
 
-## 23 entry point nghiệp vụ
+Từ v4.6.2, manifest EXE là `asInvoker`: `--gui` mở dashboard bằng quyền hiện tại. Các mode không-GUI trong bảng trên tự yêu cầu UAC khi cần; từ dashboard, hành động `Admin=Có`, cập nhật ứng dụng và Trung tâm doanh nghiệp được mở lại bằng `RunAs`. Hủy UAC không làm đóng dashboard hoặc vô hiệu hóa các chức năng chỉ đọc.
+
+## 24 entry point nghiệp vụ
 
 | ModuleId | Script / Operation | AccessMode | NetworkScope | Admin |
 | --- | --- | --- | --- | --- |
@@ -25,6 +27,7 @@ Người dùng phát hành nên chạy EXE. Chạy script trực tiếp chỉ d�
 | `report.office` | `kiem-tra-cau-hinh-ban-quyen.ps1 / Office` | ReadOnly | LocalOnly | Không |
 | `report.software` | `kiem-tra-cau-hinh-ban-quyen.ps1 / Software` | ReadOnly | LocalOnly | Không |
 | `software.catalog.update` | `software-license-online-update.ps1 / Update` | ReadOnly | Internet | Không |
+| `application.update.check` | `Tool-UpdateManager.ps1 / Check` | ReadOnly | Internet | Không |
 | `cleanup.scan` | `windows-license-compliance-cleanup.ps1 / Scan` | ReadOnly | LocalOnly | Có |
 | `cleanup.repair` | `windows-license-compliance-cleanup.ps1 / RepairScanSources` | SystemChange | LocalOnly | Có |
 | `cleanup.remediate` | `windows-license-compliance-cleanup.ps1 / Remediate` | SystemChange | LocalOnly | Có |
@@ -73,6 +76,6 @@ Kết quả chuẩn gồm `Status`, `ExitCode`, `DurationMs`, `Summary`, `Output
 
 - `LocalOnly`: chạy được trong Offline mode.
 - `Lan`: chỉ chạy sau khi người dùng bật công tắc mạng riêng của Mục 8; có thể tắt lại mà không xóa cấu hình.
-- `Internet`: chỉ `software.catalog.update`; yêu cầu người dùng bấm **Kết nối online**, đọc giải thích và xác nhận trước mỗi lần tải danh mục HTTPS. Thiếu consent hoặc `false` trả mã `2` trước mọi thao tác mạng. Không có luồng tải inventory, đường dẫn, khóa hoặc token lên mạng.
+- `Internet`: `software.catalog.update` chỉ chạy sau xác nhận riêng để tải catalog HTTPS. `application.update.check` chỉ chạy khi người dùng đã cho phép Online; nó chỉ lấy manifest phiên bản. Thiếu consent hoặc đang Offline trả mã `2` trước mọi thao tác mạng. Không mô-đun nào tải inventory, đường dẫn, khóa hoặc token lên mạng.
 
 Module mới phải khai báo `NetworkScope` và được thêm vào verifier trước khi phát hành.

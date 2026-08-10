@@ -499,7 +499,7 @@ function Set-ToolUiActionButtonVisual {
             $Button.AccessibleDescription = $marker
             $Button.ImageAlign = [Drawing.ContentAlignment]::MiddleLeft
             $Button.TextImageRelation = [Windows.Forms.TextImageRelation]::ImageBeforeText
-            $Button.Padding = New-Object Windows.Forms.Padding(7, 0, 7, 0)
+            $Button.Padding = New-Object Windows.Forms.Padding(10, 0, 9, 0)
         }
     }
 
@@ -804,13 +804,13 @@ function Set-ToolWindowTheme {
 function Get-ToolUiTypography {
     return [pscustomobject][ordered]@{
         FontFamily = "Segoe UI"
-        NormalSize = [single]9.6
-        SmallSize = [single]8.7
-        TileSize = [single]9.2
-        IntroTitleSize = [single]10.5
-        CardValueSize = [single]11
-        DialogTitleSize = [single]16
-        DashboardTitleSize = [single]19
+        NormalSize = [single]9.1
+        SmallSize = [single]8.2
+        TileSize = [single]8.5
+        IntroTitleSize = [single]9.8
+        CardValueSize = [single]10.0
+        DialogTitleSize = [single]15.0
+        DashboardTitleSize = [single]18.0
         TextRendering = "GDIPlus"
     }
 }

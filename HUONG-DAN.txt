@@ -1,24 +1,8 @@
-# Hướng dẫn sử dụng Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.6
+# Hướng dẫn sử dụng Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
 
-Phát triển bởi Thanh Việt  
-Áp dụng cho phiên bản v4.6.0.0 · Build 2026.08.06
+Phát triển bởi Thanh Việt
 
-Tài liệu này dành cho người trực tiếp chạy công cụ trên máy tính. Nội dung trình bày những điểm mới của v4.6, cách mở tệp thực thi, cách dùng từng chức năng và cách đọc kết quả.
-
-## v4.6 cập nhật những gì
-
-- Quét và kiểm kê phần mềm đầy đủ hơn từ danh sách cài đặt, ứng dụng Store, shortcut và các vị trí cài đặt phổ biến.
-- Quét sâu phổ quát cho mọi phần mềm phát hiện được, không giới hạn ở Adobe, Camtasia hay một hãng cụ thể. Công cụ kiểm tra nhiều EXE/DLL, chữ ký số, dấu vết activator, cấu hình hosts, dịch vụ, tác vụ và các bằng chứng liên quan.
-- Kết luận thận trọng hơn: chỉ báo Không chính hãng hoặc đã can thiệp khi có bằng chứng quyết định hoặc nhiều nhóm bằng chứng mạnh độc lập. Nếu chưa đủ dữ liệu, kết quả giữ ở Có dấu hiệu nghi vấn hoặc Chưa xác minh.
-- Mở rộng chức năng khắc phục cho Windows, Office và phần mềm khác. Người dùng có thể quét toàn bộ, chọn riêng phạm vi và chọn từng mục cần xử lý.
-- Bổ sung sao lưu và khôi phục theo phạm vi Toàn bộ, Windows, Office hoặc Phần mềm khác; luôn kiểm tra bản sao lưu trước khi thay đổi.
-- Thêm Kết nối online có xin phép để cập nhật danh mục nhận diện. Công cụ không tự gửi danh sách phần mềm, đường dẫn, product key, token hoặc báo cáo lên mạng.
-- Cải thiện giao diện sáng/tối, tiếng Việt/English, hiển thị theo DPI, nút Dừng, Sao chép toàn bộ log và Mở thư mục báo cáo.
-- Cải thiện báo cáo HTML/PDF, cảnh báo độ phủ quét, giới hạn thời gian và trạng thái tiến trình để giảm tình trạng chờ không rõ nguyên nhân.
-- Tối ưu tệp chạy một EXE nhỏ gọn hơn nhưng vẫn giữ nguyên các chức năng kiểm tra, khắc phục và báo cáo.
-- Mở rộng catalog `1.2.0.0` với 45 quy tắc, trong đó có 16 nhóm phần mềm kỹ thuật như CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering.
-- Thêm nút **Chạy thử – không thay đổi hệ thống**: hiển thị chính xác mục tiêu, hành động, backup và khả năng hoàn tác; không tạo restore point, không xóa/sửa/dừng gì.
-- Tách dữ liệu ghi sang vùng v4.6 với schema 2.0. Lần chạy đầu có thể migrate cấu hình/plugin/timeline/Enterprise cũ bằng bản sao staging đã kiểm tra SHA-256; dữ liệu cũ không bị xóa và migration lỗi sẽ rollback.
+Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng của Tool trên máy tính Windows. Nội dung cập nhật theo từng bản phát hành được tách riêng trong **Lịch sử phiên bản**; HDSD chỉ tập trung vào thao tác, cách đọc kết quả và nguyên tắc sử dụng an toàn.
 
 ## Phạm vi và nguyên tắc hoạt động
 
@@ -32,25 +16,25 @@ Tài liệu này dành cho người trực tiếp chạy công cụ trên máy t
 ## Chuẩn bị trước khi chạy
 
 1. Nếu nhận được tệp ZIP, hãy giải nén trước; không chạy trực tiếp bên trong tệp nén.
-2. Đặt Tool-Kiem-Tra-v4.6.exe trong một thư mục bình thường trên ổ đĩa cục bộ.
+2. Đặt tệp EXE của Tool trong một thư mục bình thường trên ổ đĩa cục bộ.
 3. Đóng Word, Excel, Outlook và các phần mềm đang cần kiểm tra trước khi thực hiện khắc phục.
 4. Nếu dự kiến thay đổi giấy phép, hãy chuẩn bị tài khoản hoặc key hợp lệ từ Microsoft, nhà sản xuất hay tổ chức của bạn.
-5. Đảm bảo còn đủ dung lượng trên ổ hệ thống và Desktop để lưu backup, báo cáo HTML/PDF và dữ liệu kiểm tra.
+5. Đảm bảo còn đủ dung lượng trên ổ hệ thống và Desktop để lưu backup, gói báo cáo và dữ liệu kiểm tra.
 6. Mặc định nên giữ Offline. Chỉ bật Online khi cần cập nhật danh mục nhận diện hoặc dùng chức năng quản lý trong mạng nội bộ.
 
-Nếu Windows SmartScreen hoặc phần mềm bảo mật cảnh báo, chỉ tiếp tục khi tệp đến từ nguồn mà bạn tin cậy. Trên máy doanh nghiệp có AppLocker, WDAC hoặc chính sách bảo mật riêng, hãy liên hệ quản trị viên thay vì cố vượt qua chính sách.
+Tệp một-EXE chưa ký số có thể bị SmartScreen hoặc antivirus chấm điểm theo hành vi vì nó tự giải nén PowerShell, kiểm tra dấu vết KMS/activator và có mô-đun cập nhật. Cảnh báo đó chưa tự chứng minh là virus, nhưng cũng không nên bỏ qua. Chỉ tải từ trang GitHub chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, đối chiếu SHA-256 với `TOOL-SHA256SUMS.txt`, kiểm tra `Get-AuthenticodeSignature`, quét lại bằng Microsoft Defender và gửi mẫu cho hãng antivirus nếu nghi false positive. Không tắt Defender/SmartScreen để chạy Tool; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
 
-## Cách chạy Tool-Kiem-Tra-v4.6.exe
+## Cách chạy Tool
 
-1. Nhấp đúp Tool-Kiem-Tra-v4.6.exe.
-2. Khi Windows hỏi quyền User Account Control, chọn Yes để công cụ có thể đọc đầy đủ Registry, dịch vụ, tác vụ, chữ ký tệp và trạng thái cấp phép.
-3. Chờ cửa sổ Trung tâm điều khiển xuất hiện. Lần mở đầu có thể lâu hơn một chút vì công cụ chuẩn bị vùng chạy bảo vệ.
+1. Nhấp đúp tệp EXE của Tool trong thư mục phát hành.
+2. Cửa sổ chính mở bằng quyền hiện tại và không hỏi UAC chỉ để xem/kiểm tra. Nếu chọn khắc phục, cập nhật hoặc quản trị doanh nghiệp, hãy đọc tên thao tác rồi chọn Yes tại UAC khi đúng nhu cầu.
+3. Chờ cửa sổ Trung tâm điều khiển xuất hiện. Lần mở đầu có thể lâu hơn một chút vì công cụ chuẩn bị vùng chạy bảo vệ theo tài khoản.
 4. Chọn Tiếng Việt hoặc English và giao diện Sáng/Tối trong mục Cài đặt nếu cần.
 5. Giữ công tắc ở Offline nếu chỉ kiểm tra máy đang dùng.
 6. Với lần kiểm tra đầu tiên, chọn Kiểm tra toàn bộ.
 7. Khi được hỏi về quyền riêng tư, chọn báo cáo đã che thông tin nếu cần gửi cho người khác; chọn báo cáo đầy đủ nếu chỉ dùng nội bộ.
 8. Chờ dòng trạng thái báo hoàn tất. Không đóng công cụ khi khu vực Hoạt động vẫn đang chạy.
-9. Báo cáo HTML được mở bằng trình duyệt mặc định; dùng nút Mở thư mục báo cáo nếu cần tìm lại tệp.
+9. HTML tổng quan được mở bằng trình duyệt mặc định. Đọc kết luận chính trước, sau đó chọn **Mở PDF chi tiết** trong HTML để xem toàn bộ dữ liệu; dùng nút Mở thư mục báo cáo nếu cần tìm lại tệp.
 
 Không cần mở mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật để sử dụng bản EXE.
 
@@ -63,7 +47,21 @@ Không cần mở mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật
 - Nút Sao chép toàn bộ log dùng khi cần gửi nội dung chẩn đoán cho kỹ thuật viên.
 - Nút Mở thư mục báo cáo mở nơi chứa kết quả mới nhất.
 - Nút Dừng chỉ dùng khi tác vụ kéo dài bất thường. Nếu dừng giữa lúc khắc phục, hãy giữ backup và quét lại trước khi làm tiếp.
-- Công tắc Offline/Online chỉ cấp quyền dùng mạng; bật Online không tự gửi dữ liệu và không tự chạy quét.
+- Công tắc Offline/Online chỉ cấp quyền dùng mạng trong phiên hiện tại; bật Online không tự gửi dữ liệu và không tự chạy quét. Mở lại Tool luôn trở về Offline.
+- Nút **Trợ lý Tool** nằm bên trái **Giới thiệu**. Nhập câu hỏi rồi bấm **Gửi** hoặc nhấn **Enter**; dùng `Shift+Enter` nếu cần xuống dòng. Khi đang xử lý, Tool tạm khóa ô nhập và nút Gửi để tránh gửi trùng. Nút **Kết nối Online** có chú thích khi rê chuột, chỉ cấp quyền mạng cho phiên hiện tại; sau đó nút Đồng bộ tri thức mới được bật.
+
+## Trợ lý Tool
+
+Trợ lý hỗ trợ giải đáp câu hỏi trong phạm vi Tool, gồm cách dùng chức năng, trạng thái Windows/Office/phần mềm, bằng chứng kỹ thuật, mã lỗi, báo cáo, catalogue và kết nối Máy chủ/Máy trạm.
+
+1. Bấm **Trợ lý Tool**.
+2. Nhập câu hỏi vào khung soạn rõ viền; bấm **Gửi** hoặc nhấn `Enter`. Dùng `Shift+Enter` để xuống dòng.
+3. Đọc câu hỏi và câu trả lời trong các khung màu riêng. Nội dung mới tự cuộn tới đúng vị trí và câu trả lời xuất hiện ngay trong lượt hỏi hiện tại.
+4. Nếu cần giải thích một lỗi hoặc kết quả cụ thể, hãy gửi kèm mã lỗi, trạng thái hoặc dòng bằng chứng liên quan.
+
+Trợ lý có thể xử lý nhiều cách diễn đạt tự nhiên, câu không dấu, một số viết tắt và lỗi gõ thông thường. Khi câu hỏi nằm ngoài phạm vi hoặc chưa đủ dữ liệu, Trợ lý sẽ trả lời phù hợp ngữ cảnh hoặc đề nghị bổ sung thông tin thay vì tự suy đoán.
+
+Trợ lý vẫn dùng được khi Offline. Online chỉ cho phép đồng bộ kho tri thức tương thích sau khi người dùng chủ động cấp quyền mạng.
 
 ## Quy trình sử dụng được khuyến nghị
 
@@ -141,6 +139,9 @@ Cách hiểu nhanh:
 - OEM_DM: có thể có key OEM trong firmware, nhưng edition hiện tại phải tương thích.
 - Retail/MAK: cần xác nhận nguồn key và phạm vi sử dụng.
 - Volume_KMS: chỉ hợp lệ khi máy thuộc tổ chức có máy chủ KMS được phê duyệt.
+- **Đã kích hoạt — chưa xác minh quyền sử dụng**: trạng thái kỹ thuật đang hoạt động nhưng Tool chưa có tài khoản, hóa đơn hoặc hợp đồng để chứng minh quyền sử dụng.
+- **KMS chưa được phê duyệt**: tìm thấy cấu hình KMS trực tiếp nhưng máy chủ không nằm trong danh sách KMS hợp lệ do đơn vị cung cấp.
+- **Không thể xác minh bản quyền**: nguồn cấp phép trả lỗi, dữ liệu mâu thuẫn hoặc thiếu bằng chứng. Đây không phải xác nhận chính hãng và cũng không tự động là kết luận crack.
 
 ## Bản quyền Microsoft Office
 
@@ -162,7 +163,7 @@ Một máy có thể có nhiều SKU. Hãy đọc từng dòng thay vì chỉ nh
 
 ## Phần mềm & dấu hiệu can thiệp
 
-Điểm mới quan trọng của v4.6 là chức năng này áp dụng cơ chế quét sâu chung cho mọi phần mềm phát hiện được.
+Chức năng này áp dụng cơ chế quét sâu chung cho mọi phần mềm phát hiện được.
 
 Khi nên dùng:
 
@@ -180,7 +181,7 @@ Cách thực hiện:
 6. Mở phần Dấu vết hệ thống liên quan để xem hosts, firewall, dịch vụ, task, autorun hoặc artifact được liên kết với ứng dụng.
 7. Đối chiếu tài khoản, hóa đơn, nguồn cài và thông báo từ chính hãng trước khi kết luận quyền sử dụng.
 
-v4.6 kiểm tra bổ sung:
+Tool kiểm tra bổ sung:
 
 - Nhiều EXE và DLL quan trọng trong thư mục cài đặt.
 - Chữ ký Authenticode, nhà phát hành và dấu hiệu HashMismatch.
@@ -336,7 +337,7 @@ Trung tâm có bảy lựa chọn:
 3. Xác minh và xuất timeline thay đổi bản quyền.
 4. Cài plugin JSON chỉ đọc từ tệp.
 5. Mở thư mục plugin được bảo vệ.
-6. Mở hướng dẫn sử dụng v4.6 bằng HTML/PDF.
+6. Mở hướng dẫn sử dụng bằng HTML/PDF.
 7. Xem Phiên bản và cập nhật.
 
 Cách dùng chính:
@@ -345,7 +346,7 @@ Cách dùng chính:
 - Plugin: chạy quy tắc JSON chỉ đọc; chỉ cài plugin từ nguồn tin cậy.
 - Timeline: xác minh chuỗi nhật ký do công cụ tạo trên máy này.
 - Hướng dẫn: mở chính tài liệu này thành HTML và tạo PDF trên Desktop.
-- Phiên bản và cập nhật: xem thay đổi từ các thế hệ trước đến v4.6.
+- Phiên bản và cập nhật: xem lịch sử thay đổi và thông tin cập nhật của Tool.
 
 ## Cách đọc trạng thái phần mềm
 
@@ -375,8 +376,9 @@ Kết nối này chỉ tải danh mục nhận diện. Công cụ không gửi d
 
 ## Báo cáo và vị trí lưu
 
-- Báo cáo HTML và PDF dành cho người đọc được lưu trên Desktop.
-- Sau khi hoàn tất, công cụ ưu tiên mở HTML bằng trình duyệt mặc định.
+- Thư mục duy nhất là `Desktop\BaoCao-Tool-Kiem-Tra`; Tool không tạo thư mục con cho từng lần xuất.
+- HTML tổng quan, PDF chi tiết, JSON/XML và tệp SHA-256 của cùng lần xuất nằm cạnh nhau, dùng cùng tên gốc và dấu thời gian đến mili-giây.
+- Sau khi hoàn tất, công cụ chỉ tự mở HTML tổng quan bằng trình duyệt mặc định. Muốn xem đủ bảng và bằng chứng, chọn **Mở PDF chi tiết** ngay trong HTML; PDF/JSON/XML không tự bật.
 - JSON, XML hoặc CSV dùng cho tích hợp, kiểm toán và phân tích có cấu trúc.
 - Báo cáo đã che phù hợp khi gửi ra ngoài; báo cáo đầy đủ chỉ nên dùng nội bộ.
 - Báo cáo đầy đủ có thể chứa tên máy, tên người dùng, IP, đường dẫn và KMS server, nhưng không chứa product key đầy đủ.
@@ -395,7 +397,7 @@ Kết nối này chỉ tải danh mục nhận diện. Công cụ không gửi d
 Không mở được EXE:
 
 - Di chuyển tệp ra khỏi ZIP và chạy từ ổ đĩa cục bộ.
-- Chỉ cho phép qua SmartScreen/antivirus khi biết rõ nguồn tệp.
+- Tải lại từ trang `releases/latest`, đối chiếu SHA-256 và quét bằng Defender; không thêm ngoại lệ hoặc tắt bảo vệ chỉ để ép chạy.
 - Trên máy doanh nghiệp, liên hệ quản trị viên nếu bị AppLocker/WDAC chặn.
 
 Không thấy phần mềm cần kiểm tra:

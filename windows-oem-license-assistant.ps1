@@ -1,7 +1,7 @@
 ﻿param(
     [ValidateSet("Inspect", "Apply")]
     [string]$Mode = "Inspect",
-    [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
+    [string]$OutputDir = (Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra"),
     [string]$DecisionFile = "",
     [ValidateSet("vi-VN", "en-US")]
     [string]$Culture = "vi-VN"
@@ -28,7 +28,7 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "Continue"
-$releaseVersion = "4.6.0.0"
+$releaseVersion = "4.8.0.0"
 
 function Safe-Cim {
     param([string]$ClassName, [string]$Namespace = "root/cimv2")
@@ -95,7 +95,7 @@ function Write-Report {
     if (-not (Test-Path -LiteralPath $expandedOutput)) {
         New-Item -ItemType Directory -Path $expandedOutput -Force | Out-Null
     }
-    $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+    $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss_fff")
     $basePath = Join-Path $expandedOutput ((Get-OemText "oemReport.fileBase") + "_$($env:COMPUTERNAME)_$stamp")
     $package = Export-ToolTextReportPresentation `
         -Lines $Lines.ToArray() -Title (Get-OemText "oemReport.title") -BasePath $basePath `

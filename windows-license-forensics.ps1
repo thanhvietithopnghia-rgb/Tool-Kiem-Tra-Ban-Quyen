@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
+    [string]$OutputDir = (Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra"),
     [string]$ApprovedKmsServerFile = "",
     [string]$DecisionFile = "",
     [ValidateSet("vi-VN", "en-US")]
@@ -33,8 +33,8 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "SilentlyContinue"
-$toolVersion = "4.6"
-$releaseVersion = "4.6.0.0"
+$toolVersion = "4.8"
+$releaseVersion = "4.8.0.0"
 $scanStarted = Get-Date
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 
@@ -257,7 +257,7 @@ function Test-ApprovedKms([string]$Server) {
 
 $OutputDir = [Environment]::ExpandEnvironmentVariables($OutputDir)
 if (-not (Test-Path -LiteralPath $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null }
-$stamp = $scanStarted.ToString("yyyyMMdd_HHmmss")
+$stamp = $scanStarted.ToString("yyyyMMdd_HHmmss_fff")
 $reportMachine = if ($RedactSensitive) { "AN_DANH" } else { $env:COMPUTERNAME }
 $bundleName = "LicenseForensics_${reportMachine}_$stamp"
 $bundleDir = Join-Path $OutputDir $bundleName

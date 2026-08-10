@@ -2,7 +2,7 @@
 $script:ToolDataSchemaVersion = "2.0"
 $script:ToolDataStorageGeneration = "v4.6"
 $script:ToolDataLegacyStorageGeneration = "v4.4"
-$script:ToolDataToolVersion = "4.6.0.0"
+$script:ToolDataToolVersion = "4.8.0.0"
 $script:ToolDataMigrationMutexName = "Global\ThanhViet.ToolKiemTra.DataMigration.v4.6"
 $script:ToolDataInitializedRoot = ""
 $script:ToolDataLifecycleState = $null

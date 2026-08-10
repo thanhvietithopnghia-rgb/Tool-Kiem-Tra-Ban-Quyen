@@ -1,4 +1,4 @@
-# Report Schema 1.5 — Tool-Kiem-Tra v4.3
+# Report Schema 1.5 — Tool-Kiem-Tra v4.8
 
 `Tool-ReportSchema.ps1` là nguồn chuẩn. JSON và XML dùng chung một envelope; mọi báo cáo phải qua `Test-ToolReportEnvelope`.
 
@@ -7,14 +7,14 @@
 - `SchemaVersion`: `1.5`
 - `ReportSchemaVersion`: `1.5`
 - `ReportKind`: một trong chín loại bên dưới
-- `ToolVersion`: `4.3`
+- `ToolVersion`: phiên bản Tool tạo báo cáo, hiện tại `4.8.0.0`
 - `ToolName`
 - `CreatedAt`: ISO 8601
 - `ComputerName` hoặc `AN_DANH` khi redact
 - `ModuleResult`: module result schema 1.0
 - `Export`: format, privacy mode và output path
 
-v4.3 có thể bổ sung các object `Capabilities`, `Compatibility`, `Localization` và `Offline`; consumer phải bỏ qua extension field không biết nhưng vẫn từ chối sai trường bắt buộc/schema.
+Tool có thể bổ sung các object `Capabilities`, `Compatibility`, `Localization` và `Offline`; consumer phải bỏ qua extension field không biết nhưng vẫn từ chối sai trường bắt buộc/schema.
 
 ## Chín ReportKind
 
@@ -45,7 +45,7 @@ v4.3 có thể bổ sung các object `Capabilities`, `Compatibility`, `Localizat
 - Thuộc tính `type`: `object`, `array`, `string`, `boolean`, `number`, `null`.
 - Item trong mảng dùng element `Item`.
 
-## HTML/PDF export schema 1.2
+## HTML/PDF export schema 1.4
 
 HTML là presentation, không phải nguồn dữ liệu machine-readable:
 
@@ -55,9 +55,11 @@ HTML là presentation, không phải nguồn dữ liệu machine-readable:
 - A4 print CSS;
 - offline safety validation trước package/PDF.
 
-PDF được tạo từ HTML theo Edge→Chrome→Word. Không có engine thì PDF có thể vắng mặt nhưng JSON/XML/HTML vẫn hợp lệ.
+HTML là bản tổng quan không có bảng dài: chỉ giữ cấu hình chính, kết luận, cảnh báo, hướng xử lý và hướng dẫn mở PDF. PDF được tạo từ một presentation chi tiết riêng theo Edge→Chrome→Word, giữ toàn bộ bảng và bằng chứng. Không có engine thì PDF có thể vắng mặt nhưng JSON/XML/HTML vẫn hợp lệ và HTML thông báo rõ trạng thái này.
 
-Schema 1.2 dùng ngắt trang A4 an toàn để không cắt hàng hoặc nội dung dài. HTML/PDF dành cho người đọc được lưu trực tiếp trên Desktop. Khi hoàn tất, Tool mở HTML trong trình duyệt mặc định; PDF vẫn được tạo và lưu cạnh HTML khi có engine phù hợp.
+Ở màn hình rộng, HTML cân năm thẻ kết quả nhanh trên một hàng; màn hình hẹp tự giảm số cột. Mỗi kết luận có hai ô con riêng cho Mức xác minh và Hướng xử lý. Chân presentation chi tiết dùng hai hàng cố định (tên công cụ, sau đó thông tin tác giả/hỗ trợ) để PDF không ép hoặc cắt chữ.
+
+Schema 1.4 dùng ngắt trang A4 an toàn cho PDF và metadata `HtmlPresentation=Summary`, `PdfPresentation=Detailed`. Các nhóm thẻ kết quả mang lớp đếm cột `cards-count-N`; vì vậy năm thẻ Windows, Office, dấu hiệu, rà soát và Online/Offline giữ trên cùng một hàng khi in PDF, còn màn hình hẹp vẫn tự co. Từ v4.8, mọi package ghi trực tiếp vào thư mục chung `Desktop\BaoCao-Tool-Kiem-Tra`, không tạo thư mục con theo lượt; các tệp cùng lượt dùng chung tên gốc có timestamp mili-giây. Khi hoàn tất, Tool mở HTML tổng quan và người dùng chọn nút trong HTML để mở đúng PDF đầy đủ.
 
 ## Integrity package
 

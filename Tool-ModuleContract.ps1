@@ -1,6 +1,6 @@
 ﻿$script:ToolModuleContractSchemaVersion = "1.0"
 $script:ToolModuleResultSchemaVersion = "1.0"
-$script:ToolModuleContractToolVersion = "4.6"
+$script:ToolModuleContractToolVersion = "4.8"
 $script:ToolModuleCatalogCache = $null
 
 $toolModuleContractLocalizationPath = Join-Path $PSScriptRoot "Tool-Localization.ps1"
@@ -60,6 +60,7 @@ function Get-ToolModuleCatalog {
 
     $completed = [ordered]@{ "0"="Completed"; "10"="Unsupported"; "12"="Blocked"; "20"="Blocked" }
     $cleanup = [ordered]@{ "0"="Completed"; "2"="CompletedWithFindings"; "3"="ActionRequired"; "4"="CompletedWithFindings"; "10"="Unsupported"; "20"="Blocked" }
+    $updateCheck = [ordered]@{ "0"="Completed"; "2"="Blocked"; "3"="Failed"; "10"="Unsupported"; "20"="Blocked" }
     $oemApply = [ordered]@{ "0"="Completed"; "10"="Unsupported"; "20"="Blocked"; "21"="CompletedWithFindings"; "22"="Failed"; "23"="ActionRequired"; "24"="Blocked" }
     $backup = [ordered]@{ "0"="Completed"; "10"="Unsupported"; "11"="Blocked"; "20"="Blocked"; "23"="Failed" }
 
@@ -70,6 +71,7 @@ function Get-ToolModuleCatalog {
         (New-ToolModuleDescriptor -ModuleId "report.office" -Category "Office" -DisplayName (Get-ToolTextCurrent "foundation.module.reportOffice") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Office" -TaskKind "Report" -ExitCodeMap $completed),
         (New-ToolModuleDescriptor -ModuleId "report.software" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.reportSoftware") -ScriptFile "kiem-tra-cau-hinh-ban-quyen.ps1" -Operation "Software" -TaskKind "Report" -ExitCodeMap $completed),
         (New-ToolModuleDescriptor -ModuleId "software.catalog.update" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.softwareCatalogUpdate") -ScriptFile "software-license-online-update.ps1" -Operation "Update" -TaskKind "SoftwareCatalogUpdate" -NetworkScope "Internet" -ExitCodeMap $cleanup),
+        (New-ToolModuleDescriptor -ModuleId "application.update.check" -Category "Foundation" -DisplayName (Get-ToolTextCurrent "foundation.module.applicationUpdateCheck") -ScriptFile "Tool-UpdateManager.ps1" -Operation "Check" -TaskKind "ApplicationUpdateCheck" -NetworkScope "Internet" -ExitCodeMap $updateCheck),
         (New-ToolModuleDescriptor -ModuleId "cleanup.scan" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupScan") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Scan" -TaskKind "CleanupScan" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
         (New-ToolModuleDescriptor -ModuleId "cleanup.repair" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupRepair") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "RepairScanSources" -TaskKind "CleanupScanRepair" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),
         (New-ToolModuleDescriptor -ModuleId "cleanup.remediate" -Category "Security" -DisplayName (Get-ToolTextCurrent "foundation.module.cleanupRemediate") -ScriptFile "windows-license-compliance-cleanup.ps1" -Operation "Remediate" -TaskKind "CleanupRemediate" -AccessMode "SystemChange" -RequiresElevation $true -RequiredCapabilities @("SupportedOperatingSystem", "CimCmdlets|WmiFallback", "ScheduledTasksModule|ScheduledTasksFallback", "NativeCscript") -ExitCodeMap $cleanup),

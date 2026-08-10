@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
+    [string]$OutputDir = (Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra"),
     [string]$ApprovedKmsServerFile = "",
     [string]$DecisionFile = "",
     [ValidateSet("vi-VN", "en-US")]
@@ -8,8 +8,8 @@
     [switch]$NoOpen
 )
 
-$toolVersion = "4.6"
-$releaseVersion = "4.6.0.0"
+$toolVersion = "4.8"
+$releaseVersion = "4.8.0.0"
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $reportSchemaHelper = Join-Path $PSScriptRoot "Tool-ReportSchema.ps1"
 $reportExportHelper = Join-Path $PSScriptRoot "Tool-ReportExport.ps1"
@@ -215,7 +215,7 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
 }
 
 $started = Get-Date
-$stamp = $started.ToString("yyyyMMdd_HHmmss")
+$stamp = $started.ToString("yyyyMMdd_HHmmss_fff")
 $reportMachine = if ($RedactSensitive) { "AN_DANH" } else { $env:COMPUTERNAME }
 $reportPath = Join-Path $OutputDir "BaoCao_BanQuyenWindows_ChuyenSau_${reportMachine}_$stamp.html"
 $pdfPath = [IO.Path]::ChangeExtension($reportPath, ".pdf")

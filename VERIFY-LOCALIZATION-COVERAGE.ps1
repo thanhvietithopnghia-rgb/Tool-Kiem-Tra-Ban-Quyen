@@ -84,7 +84,7 @@ $sourceNames = @(
     'Tool-EnterpriseAgent.ps1',
     'enterprise-license-manager.ps1',
     'windows-office-license-manager.ps1',
-    'Tool-Kiem-Tra-v4.6-OneFile.cs'
+    'Tool-Kiem-Tra-v4.8-OneFile.cs'
 )
 
 $staticKeys = New-Object System.Collections.Generic.HashSet[string]([StringComparer]::Ordinal)
@@ -234,7 +234,7 @@ foreach ($name in $foundationSourceNames) {
     }
 }
 
-$launcherPath = Join-Path $SourceDirectory 'Tool-Kiem-Tra-v4.6-OneFile.cs'
+$launcherPath = Join-Path $SourceDirectory 'Tool-Kiem-Tra-v4.8-OneFile.cs'
 if (Test-Path -LiteralPath $launcherPath -PathType Leaf) {
     $launcher = Read-Utf8 $launcherPath
     if ($launcher -match '\bUiText\s*\(') { Add-Failure 'Launcher still contains the legacy UiText(vietnamese, english) selector.' }

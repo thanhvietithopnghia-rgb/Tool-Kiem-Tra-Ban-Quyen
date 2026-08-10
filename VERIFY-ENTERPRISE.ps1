@@ -25,7 +25,7 @@ $required = @(
     "Tool-UiTheme.ps1",
     "Tool-ReportSchema.ps1",
     "Tool-ModuleContract.ps1",
-    "Tool-Kiem-Tra-v4.6-OneFile.cs"
+    "Tool-Kiem-Tra-v4.8-OneFile.cs"
 )
 foreach ($name in $required) {
     $path = Join-Path $SourceDirectory $name
@@ -44,8 +44,9 @@ $previousEnterpriseNetworkAllowed = [string]$env:TOOL_ENTERPRISE_NETWORK_ALLOWED
 $previousEnterpriseNetworkSettings = [string]$env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH
 $previousUiCulture = [string]$env:TOOL_UI_CULTURE
 $temporaryBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd("\") + "\"
-$testRoot = Join-Path $temporaryBase ("ThanhViet-v43-enterprise-test-" + [Guid]::NewGuid().ToString("N"))
-$exportRoot = Join-Path $temporaryBase ("ThanhViet-v43-enterprise-export-" + [Guid]::NewGuid().ToString("N"))
+$testRoot = Join-Path $temporaryBase ("ThanhViet-v48-enterprise-test-" + [Guid]::NewGuid().ToString("N"))
+$exportRoot = Join-Path $temporaryBase ("ThanhViet-v48-enterprise-export-" + [Guid]::NewGuid().ToString("N"))
+$hostProcess = $null
 try {
     $env:TOOL_ENTERPRISE_ROOT = $testRoot
     $env:TOOL_ENTERPRISE_SKIP_ACL = "1"
@@ -57,9 +58,14 @@ try {
     . (Join-Path $SourceDirectory "Tool-Enterprise.ps1")
 
     $metadata = Get-ToolEnterpriseMetadata
-    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.6.0.0") "Enterprise ToolVersion không phải 4.6.0.0."
+    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.8.0.0") "Enterprise ToolVersion không phải 4.8.0.0."
     Assert-Enterprise ([string]$metadata.ProtocolVersion -eq "1.0") "Enterprise protocol không phải 1.0."
     Assert-Enterprise (-not [bool]$metadata.FullProductKeysInReports) "Metadata không được cho phép full product key trong báo cáo."
+
+    $resolvedEndpoint = Resolve-ToolEnterpriseServerEndpoint -ServerAddress "192.168.2.5:49421" -Port 49420
+    Assert-Enterprise ([string]$resolvedEndpoint.Address -eq "192.168.2.5" -and [int]$resolvedEndpoint.Port -eq 49421) "Không tách đúng địa chỉ IP:cổng của máy chủ."
+    $invalidEndpoint = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress "địa chỉ không hợp lệ" -Port 49420 -TimeoutMs 200
+    Assert-Enterprise (-not [bool]$invalidEndpoint.Success -and [string]$invalidEndpoint.Code -eq "InvalidEndpoint") "Chẩn đoán không phân biệt địa chỉ máy chủ không hợp lệ."
 
     $server = New-ToolEnterpriseServerConfiguration -ServerName "EnterpriseVerification" -AdminCode "Verify-Admin-4826" -BindAddress "127.0.0.1" -Port 49542 -AllowedCidrs @("127.0.0.0/8")
     Assert-Enterprise (Test-ToolEnterpriseAdminCode -AdminCode "Verify-Admin-4826" -Verifier $server.AdminVerifier) "Không xác minh được mã quản trị đúng."
@@ -84,16 +90,52 @@ try {
     Assert-Enterprise $tamperRejected "Envelope bị sửa HMAC không bị từ chối."
 
     $report = Get-ToolEnterpriseLicenseSnapshot -ClientId $client.ClientId
-    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.6.0.0"
+    $queuedReportPath = Add-ToolEnterpriseOutboxReport -Report $report
+    Assert-Enterprise (Test-Path -LiteralPath $queuedReportPath -PathType Leaf) "Mất kết nối không tạo được hàng đợi báo cáo."
+    Assert-Enterprise ((Get-Content -LiteralPath $queuedReportPath -Raw) -notmatch 'EnterpriseInventory') "Hàng đợi báo cáo lưu dữ liệu rõ thay vì bảo vệ bằng DPAPI."
+    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.8.0.0"
     Assert-Enterprise ([bool]$validation.Valid) "Báo cáo EnterpriseInventory không đạt schema: $($validation.Errors -join '; ')"
     Assert-Enterprise (-not [bool]$report.Privacy.FullProductKeyIncluded) "Báo cáo khai báo chứa full product key."
     $reportJson = $report | ConvertTo-Json -Depth 14
     Assert-Enterprise ($reportJson -notmatch '(?i)[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}') "Báo cáo chứa chuỗi giống full product key."
 
+    # Chạy listener thật trên loopback để kiểm tra toàn bộ đường đi từng bị lỗi
+    # GetRequestStream: chẩn đoán TCP/dịch vụ, ghép nối và gửi báo cáo.
+    $nativePowerShell = Join-Path $PSHOME "powershell.exe"
+    if (-not (Test-Path -LiteralPath $nativePowerShell -PathType Leaf)) {
+        $nativePowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
+    }
+    $env:TOOL_ENTERPRISE_NETWORK_ALLOWED = "1"
+    $hostOutput = Join-Path $testRoot "host.stdout.log"
+    $hostError = Join-Path $testRoot "host.stderr.log"
+    $hostScript = Join-Path $SourceDirectory "Tool-EnterpriseHost.ps1"
+    $hostArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$hostScript`""
+    $hostProcess = Start-Process -FilePath $nativePowerShell -ArgumentList $hostArguments -WorkingDirectory $SourceDirectory -WindowStyle Hidden -PassThru -RedirectStandardOutput $hostOutput -RedirectStandardError $hostError
+    $liveDiagnostic = $null
+    $liveDeadline = [DateTime]::UtcNow.AddSeconds(10)
+    do {
+        Start-Sleep -Milliseconds 150
+        if ($hostProcess.HasExited) { break }
+        $liveDiagnostic = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress "127.0.0.1:49542" -Port 49420 -TimeoutMs 700
+    } while (($null -eq $liveDiagnostic -or -not [bool]$liveDiagnostic.Success) -and [DateTime]::UtcNow -lt $liveDeadline)
+    $hostFailure = ""
+    if (Test-Path -LiteralPath $hostError -PathType Leaf) {
+        $hostFailure = [string](Get-Content -LiteralPath $hostError -Raw -ErrorAction SilentlyContinue)
+        if ($null -eq $hostFailure) { $hostFailure = "" } else { $hostFailure = $hostFailure.Trim() }
+    }
+    $diagnosticSummary = if ($null -ne $liveDiagnostic) { "$([string]$liveDiagnostic.Code) $([string]$liveDiagnostic.Message)" } else { "không tạo được kết quả chẩn đoán" }
+    Assert-Enterprise ($null -ne $liveDiagnostic -and [bool]$liveDiagnostic.Success) "Listener loopback không sẵn sàng: $diagnosticSummary $hostFailure"
+    $registeredClient = Register-ToolEnterpriseClient -ServerAddress "127.0.0.1:49542" -Port 49420 -PairingCode $pairing -AllowRemoteLicenseChanges:$false -AutoSend:$true
+    Assert-Enterprise ([bool]$registeredClient.Enrolled -and [string]$registeredClient.ClientId -eq [string]$client.ClientId) "Máy trạm không ghép nối được với listener thật."
+    $sendResponse = Send-ToolEnterpriseReport -Report $report
+    Assert-Enterprise ([bool]$sendResponse.Accepted) "Listener thật không nhận báo cáo máy trạm."
+    $receivedReports = @(Get-ChildItem -LiteralPath (Join-Path $paths.ServerReports $client.ClientId) -Filter "*.json" -File -ErrorAction SilentlyContinue)
+    Assert-Enterprise ($receivedReports.Count -ge 1) "Máy chủ không lưu báo cáo nhận qua HTTP."
+
     $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
     Set-ToolEnterpriseServerClientSecret -ClientId $client.ClientId -Secret $clientSecret
     $record = [pscustomobject][ordered]@{
-        SchemaVersion="1.0"; ToolVersion="4.6.0.0"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
+    SchemaVersion="1.0"; ToolVersion="4.8.0.0"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
         RemoteAddress="127.0.0.1"; NetworkAddresses=@("127.0.0.1"); LastSeenUtc=[DateTime]::UtcNow.ToString("o")
         FirstSeenUtc=[DateTime]::UtcNow.ToString("o"); AllowRemoteLicenseChanges=$true
         WindowsStatus="NotReported"; WindowsChannel=""; WindowsLast5=""
@@ -173,7 +215,7 @@ try {
     }
     $managerContract = @($catalog | Where-Object ModuleId -eq "license.manager")[0]
     Assert-Enterprise ([string]$managerContract.NetworkScope -eq "LocalOnly") "Mở Mục 8 phải hoạt động Offline; chỉ tiến trình server/agent mới dùng LAN."
-    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.6-OneFile.cs") -Raw
+    $launcherText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Kiem-Tra-v4.8-OneFile.cs") -Raw
     foreach ($mode in @("--enterprise-ui","--enterprise-server","--enterprise-agent","--enterprise-agent-force","--local-license-manager")) {
         Assert-Enterprise ($launcherText.Contains($mode)) "Launcher thiếu mode $mode."
     }
@@ -264,6 +306,14 @@ try {
     Assert-Enterprise ($enterpriseCoreText -match 'function\s+Remove-ToolEnterpriseServerConfiguration' -and
         $enterpriseCoreText -match 'Test-ToolEnterpriseAdminCode' -and
         $enterpriseCoreText -match 'PreservedReportsPath') "Lõi enterprise thiếu xóa cấu hình có xác thực/giữ báo cáo."
+    Assert-Enterprise ($enterpriseCoreText -match 'function\s+Resolve-ToolEnterpriseServerEndpoint' -and
+        $enterpriseCoreText -match 'function\s+Get-ToolEnterpriseConnectionDiagnostic' -and
+        $enterpriseCoreText -match 'DiscoveryMethod' -and
+        $enterpriseCoreText -match 'ProbePorts' -and
+        $enterpriseCoreText -notmatch 'ToolVersionPattern') "Lõi enterprise thiếu IP:cổng, chẩn đoán từng lớp hoặc quét không phụ thuộc ICMP."
+    Assert-Enterprise ($enterpriseUiText -match 'ThanhViet Tool v4\.8 Enterprise Agent' -and
+        $enterpriseUiText -match 'Enable-EnterpriseServerListenerAccess' -and
+        $enterpriseUiText -match 'Resolve-EnterpriseClientServerAddress') "Giao diện enterprise chưa đồng bộ tác vụ v4.8, URLACL/Firewall hoặc tự dò máy chủ."
     $hostPath = Join-Path $SourceDirectory "Tool-EnterpriseHost.ps1"
     $hostText = Get-Content -LiteralPath $hostPath -Raw -Encoding UTF8
     $hostTokens = $null
@@ -280,10 +330,6 @@ try {
         Assert-Enterprise ($statusFunctionText -notmatch ("(?m)^\s*" + [regex]::Escape($sensitiveField) + "\s*=")) "Status không xác thực còn lộ $sensitiveField."
     }
     Assert-Enterprise ($hostText -match 'rate\.Count\+\+' -and $hostText -match 'StatusCode\s+429') "Endpoint Enterprise thiếu rate limit."
-    $nativePowerShell = Join-Path $PSHOME "powershell.exe"
-    if (-not (Test-Path -LiteralPath $nativePowerShell -PathType Leaf)) {
-        $nativePowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
-    }
     $previousUiTheme = [string]$env:TOOL_UI_THEME
     try {
         foreach ($networkState in @("0", "1")) {
@@ -308,9 +354,19 @@ try {
     Write-Host "  Protocol: $($metadata.ProtocolVersion), report schema: $($report.SchemaVersion), module count: $(@($catalog).Count)"
     exit 0
 } catch {
-    Write-Error "VERIFY-ENTERPRISE: FAIL - $($_.Exception.Message)"
+    Write-Error "VERIFY-ENTERPRISE: FAIL - $($_.Exception.Message)`n$($_.ScriptStackTrace)"
     exit 1
 } finally {
+    if ($hostProcess -and -not $hostProcess.HasExited) {
+        try {
+            $stopPath = Join-Path $testRoot "server\server.stop"
+            New-Item -ItemType File -Path $stopPath -Force | Out-Null
+            if (-not $hostProcess.WaitForExit(5000)) {
+                Stop-Process -Id $hostProcess.Id -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
+    }
+    if ($hostProcess) { try { $hostProcess.Dispose() } catch {} }
     $env:TOOL_ENTERPRISE_ROOT = $previousRoot
     $env:TOOL_ENTERPRISE_SKIP_ACL = $previousSkipAcl
     $env:TOOL_OFFLINE_MODE = $previousOfflineMode

@@ -1,9 +1,9 @@
 ﻿param()
 
-$toolVersion = "4.6"
+$toolVersion = "4.8.0"
 $dashboardSchemaVersion = "2.0"
-$releaseVersion = "4.6.0.0"
-$releaseBuildDate = "2026.08.06"
+$releaseVersion = "4.8.0.0"
+$releaseBuildDate = "2026.08.10"
 $toolDisplayVersion = "v$toolVersion"
 $releaseDisplayName = "v$releaseVersion"
 
@@ -26,8 +26,11 @@ $enterpriseHelper = Join-Path $PSScriptRoot "Tool-Enterprise.ps1"
 $uiThemeHelper = Join-Path $PSScriptRoot "Tool-UiTheme.ps1"
 $localizationHelper = Join-Path $PSScriptRoot "Tool-Localization.ps1"
 $offlinePolicyHelper = Join-Path $PSScriptRoot "Tool-OfflinePolicy.ps1"
+$assistantHelper = Join-Path $PSScriptRoot "Tool-Assistant.ps1"
 $softwareInventoryHelper = Join-Path $PSScriptRoot "Tool-SoftwareInventory.ps1"
 $softwareCatalogUpdateScript = Join-Path $PSScriptRoot "software-license-online-update.ps1"
+$applicationUpdateScript = Join-Path $PSScriptRoot "Tool-UpdateManager.ps1"
+$applicationUpdateManifestUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json"
 $script:dashboardCulture = "vi-VN"
 if (Test-Path -LiteralPath $localizationHelper -PathType Leaf) {
     . $localizationHelper
@@ -46,7 +49,7 @@ function Get-DashboardText {
     return "[$Key]"
 }
 
-$missingFoundationFiles = @($runtimeHelper, $dataLifecycleHelper, $compatibilityHelper, $capabilityHelper, $loggingHelper, $moduleContractHelper, $reportSchemaHelper, $reportExportHelper, $pluginEngineHelper, $timelineHelper, $safetyPolicyHelper, $enterpriseHelper, $uiThemeHelper, $localizationHelper, $offlinePolicyHelper, $softwareInventoryHelper, $softwareCatalogUpdateScript) | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }
+$missingFoundationFiles = @($runtimeHelper, $dataLifecycleHelper, $compatibilityHelper, $capabilityHelper, $loggingHelper, $moduleContractHelper, $reportSchemaHelper, $reportExportHelper, $pluginEngineHelper, $timelineHelper, $safetyPolicyHelper, $enterpriseHelper, $uiThemeHelper, $localizationHelper, $offlinePolicyHelper, $assistantHelper, $softwareInventoryHelper, $softwareCatalogUpdateScript, $applicationUpdateScript) | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }
 if ($missingFoundationFiles.Count -gt 0) {
     Add-Type -AssemblyName System.Windows.Forms
     [System.Windows.Forms.MessageBox]::Show(
@@ -71,6 +74,7 @@ try {
     . $uiThemeHelper
     if (-not (Get-Command Get-ToolText -ErrorAction SilentlyContinue)) { . $localizationHelper }
     . $offlinePolicyHelper
+    . $assistantHelper
     . $softwareInventoryHelper
     $architectureState = Assert-ToolNativeArchitecture
     $toolPowerShellPath = Get-ToolNativePowerShellPath
@@ -139,7 +143,7 @@ function New-DashboardIconBitmap {
         [ValidateSet(
             "Windows", "Office", "Shield", "Check", "Search", "Hardware", "Software",
             "Repair", "Key", "License", "DeepScan", "Report", "NavOverview", "NavScan",
-            "NavRepair", "NavReport", "NavSettings"
+            "NavRepair", "NavReport", "NavSettings", "Chat"
         )]
         [string]$Kind,
         [ValidateRange(16, 96)][int]$Size = 40
@@ -321,6 +325,19 @@ function New-DashboardIconBitmap {
                     $graphics.DrawLine($navPen, [single]$x1, [single]$y1, [single]$x2, [single]$y2)
                 }
             }
+            "Chat" {
+                $bubble = New-Object System.Drawing.Drawing2D.GraphicsPath
+                $bubble.AddArc(5, 7, 38, 31, 180, 90)
+                $bubble.AddArc(5, 7, 38, 31, 270, 90)
+                $bubble.AddArc(5, 7, 38, 31, 0, 90)
+                $bubble.AddLine(31, 38, 22, 44)
+                $bubble.AddLine(23, 38, 12, 38)
+                $bubble.AddArc(5, 7, 38, 31, 90, 90)
+                $bubble.CloseFigure()
+                try { $graphics.FillPath($blueBrush, $bubble) } finally { $bubble.Dispose() }
+                $graphics.DrawLine($whiteThinPen, 13, 18, 35, 18)
+                $graphics.DrawLine($whiteThinPen, 13, 26, 30, 26)
+            }
         }
     } catch {
         $bitmap.Dispose()
@@ -335,6 +352,62 @@ function New-DashboardIconBitmap {
         }
     }
     return $bitmap
+}
+
+function New-DashboardTileIconBitmap {
+    param(
+        [Parameter(Mandatory = $true)][string]$Kind,
+        [ValidateRange(16, 64)][int]$IconSize = 32,
+        [ValidateRange(4, 24)][int]$RightGap = 12
+    )
+
+    $source = New-DashboardIconBitmap -Kind $Kind -Size $IconSize
+    $canvas = New-Object System.Drawing.Bitmap(($IconSize + $RightGap), $IconSize, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $graphics = [System.Drawing.Graphics]::FromImage($canvas)
+    try {
+        $graphics.Clear([System.Drawing.Color]::Transparent)
+        $graphics.DrawImageUnscaled($source, 0, 0)
+    } finally {
+        $graphics.Dispose()
+        $source.Dispose()
+    }
+    return $canvas
+}
+
+function Get-AccountSid([string]$accountName) {
+    try {
+        return (New-Object Security.Principal.NTAccount($accountName)).Translate([Security.Principal.SecurityIdentifier]).Value
+    } catch { return "" }
+}
+
+function Test-ProtectedToolDirectoryAcl([string]$path) {
+    try {
+        $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
+        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+        $ownerSid = Get-AccountSid ([string]$acl.Owner)
+        $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $userScopedData = [string]$env:TOOL_DATA_SCOPE -ne "Machine"
+        $allowedOwners = @("S-1-5-32-544", "S-1-5-18")
+        $allowedWriters = @("S-1-5-32-544", "S-1-5-18")
+        if ($userScopedData) {
+            $allowedOwners += $currentUserSid
+            $allowedWriters += $currentUserSid
+        }
+        if ($ownerSid -notin $allowedOwners -or -not $acl.AreAccessRulesProtected) { return $false }
+        $writeMask = [Security.AccessControl.FileSystemRights]::Write -bor
+            [Security.AccessControl.FileSystemRights]::Modify -bor
+            [Security.AccessControl.FileSystemRights]::FullControl -bor
+            [Security.AccessControl.FileSystemRights]::Delete -bor
+            [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
+            [Security.AccessControl.FileSystemRights]::TakeOwnership
+        foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+            if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
+                $allowedWriters -notcontains $rule.IdentityReference.Value -and
+                (($rule.FileSystemRights -band $writeMask) -ne 0)) { return $false }
+        }
+        return $true
+    } catch { return $false }
 }
 
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -356,7 +429,7 @@ $integrityManifest = Join-Path $baseDir "TOOL-SHA256SUMS.txt"
 $requiredIntegrityFiles = @(
     "00-Tool-Kiem-Tra.ico", "HUONG-DAN.txt", "USER-GUIDE-en-US.md", "LICH-SU-PHIEN-BAN.txt", "VERSION-HISTORY-en-US.md",
     "Giao-Dien.ps1", "kiem-tra-cau-hinh-ban-quyen.ps1", "Tool-Kiem-Tra-icon.svg",
-    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-online-update.ps1", "windows-license-backup.ps1",
+    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-DataLifecycle.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-Assistant.ps1", "tool-assistant-knowledge-v1.1.json", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-online-update.ps1", "Tool-UpdateManager.ps1", "windows-license-backup.ps1",
     "Tool-ReportSchema.ps1", "Tool-ReportExport.ps1", "Tool-PluginEngine.ps1", "Tool-LicenseTimeline.ps1", "Tool-SafetyPolicy.ps1",
     "Tool-Enterprise.ps1", "Tool-EnterpriseHost.ps1", "Tool-EnterpriseAgent.ps1", "enterprise-license-manager.ps1",
     "windows-license-compliance-cleanup.ps1", "windows-license-restore.ps1",
@@ -366,22 +439,38 @@ $requiredIntegrityFiles = @(
 )
 $runtimeDir = if (-not [string]::IsNullOrWhiteSpace($env:TOOL_SECURE_RUNTIME_DIR)) { $env:TOOL_SECURE_RUNTIME_DIR } else { Join-Path $baseDir "runtime" }
 if (-not (Test-Path -LiteralPath $runtimeDir -PathType Container)) { New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null }
-try {
-    $administratorsSid = New-Object Security.Principal.SecurityIdentifier("S-1-5-32-544")
-    $systemSid = New-Object Security.Principal.SecurityIdentifier("S-1-5-18")
-    $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
-    $runtimeAcl = New-Object Security.AccessControl.DirectorySecurity
-    $runtimeAcl.SetAccessRuleProtection($true, $false)
-    $runtimeAcl.SetOwner($administratorsSid)
-    $runtimeAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($administratorsSid, "FullControl", $inheritance, "None", "Allow")))
-    $runtimeAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($systemSid, "FullControl", $inheritance, "None", "Allow")))
-    Set-Acl -LiteralPath $runtimeDir -AclObject $runtimeAcl -ErrorAction Stop
-} catch {
+$env:TOOL_SECURE_RUNTIME_FAILED = "0"
+$script:secureRuntimeAclInitError = ""
+if (-not (Test-ProtectedToolDirectoryAcl $runtimeDir)) {
+    try {
+        $administratorsSid = New-Object Security.Principal.SecurityIdentifier("S-1-5-32-544")
+        $systemSid = New-Object Security.Principal.SecurityIdentifier("S-1-5-18")
+        $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $userScopedData = [string]$env:TOOL_DATA_SCOPE -ne "Machine"
+        $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+        $runtimeAcl = New-Object Security.AccessControl.DirectorySecurity
+        $runtimeAcl.SetAccessRuleProtection($true, $false)
+        $runtimeAcl.SetOwner($(if ($userScopedData) { $currentUserSid } else { $administratorsSid }))
+        $runtimeAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($administratorsSid, "FullControl", $inheritance, "None", "Allow")))
+        $runtimeAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($systemSid, "FullControl", $inheritance, "None", "Allow")))
+        if ($userScopedData) {
+            $runtimeAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($currentUserSid, "FullControl", $inheritance, "None", "Allow")))
+        }
+        Set-Acl -LiteralPath $runtimeDir -AclObject $runtimeAcl -ErrorAction Stop
+    } catch {
+        $script:secureRuntimeAclInitError = $_.Exception.Message
+    }
+}
+if (-not (Test-ProtectedToolDirectoryAcl $runtimeDir)) {
     $env:TOOL_SECURE_RUNTIME_FAILED = "1"
+    if (Get-Command Write-ToolLog -ErrorAction SilentlyContinue) {
+        [void](Write-ToolLog -Level "ERROR" -Event "Security.RuntimeAclInvalid" -Message $script:secureRuntimeAclInitError -Data ([ordered]@{ RuntimeDirectory=$runtimeDir }))
+    }
 }
 $approvedKmsFile = if (-not [string]::IsNullOrWhiteSpace($env:TOOL_APPROVED_KMS_FILE)) { $env:TOOL_APPROVED_KMS_FILE } else { Join-Path $baseDir "approved-kms-servers.txt" }
 $bundledApprovedKmsFile = Join-Path $baseDir "approved-kms-servers.txt"
 $desktop = [Environment]::GetFolderPath("Desktop")
+$reportRoot = Join-Path $desktop "BaoCao-Tool-Kiem-Tra"
 $uiTypography = Get-ToolUiTypography
 $fontNormal = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.NormalSize, [System.Drawing.FontStyle]::Regular)
 $fontSmall = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.SmallSize, [System.Drawing.FontStyle]::Regular)
@@ -396,7 +485,7 @@ $fontTitleMicro = New-Object System.Drawing.Font($uiTypography.FontFamily, 9.0, 
 $fontTitleMinimum = New-Object System.Drawing.Font($uiTypography.FontFamily, 8.0, [System.Drawing.FontStyle]::Bold)
 $fontCardValue = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.CardValueSize, [System.Drawing.FontStyle]::Bold)
 $fontIntroTitle = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.IntroTitleSize, [System.Drawing.FontStyle]::Bold)
-$fontTile = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.TileSize, [System.Drawing.FontStyle]::Bold)
+$fontTile = New-Object System.Drawing.Font($uiTypography.FontFamily, $uiTypography.TileSize, [System.Drawing.FontStyle]::Regular)
 $fontSidebarTitle = New-Object System.Drawing.Font($uiTypography.FontFamily, 11.5, [System.Drawing.FontStyle]::Bold)
 $fontSidebar = New-Object System.Drawing.Font($uiTypography.FontFamily, 10.0, [System.Drawing.FontStyle]::Regular)
 
@@ -627,6 +716,32 @@ $introSummary.Location = New-Object System.Drawing.Point(15, 30)
 $introSummary.Size = New-Object System.Drawing.Size(650, 20)
 $introPanel.Controls.Add($introSummary)
 
+$introAssistantButton = New-Object System.Windows.Forms.Button
+$introAssistantButton.Text = Get-ToolText -Key "app.assistant" -Culture $script:dashboardCulture
+$introAssistantButton.Font = $fontBold
+$introAssistantButton.FlatStyle = "Flat"
+$introAssistantButton.FlatAppearance.BorderSize = 0
+$introAssistantButton.BackColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
+$introAssistantButton.ForeColor = [System.Drawing.Color]::White
+$introAssistantButton.TextImageRelation = [System.Windows.Forms.TextImageRelation]::ImageBeforeText
+$introAssistantButton.ImageAlign = "MiddleLeft"
+$introAssistantButton.TextAlign = "MiddleCenter"
+$introAssistantButton.Padding = New-Object System.Windows.Forms.Padding(7, 0, 6, 0)
+$introAssistantIcon = New-DashboardIconBitmap -Kind "Chat" -Size 18
+[void]$dashboardIconImages.Add($introAssistantIcon)
+$introAssistantButton.Image = $introAssistantIcon
+$introAssistantButton.Size = New-Object System.Drawing.Size(154, 32)
+$introAssistantButton.Location = New-Object System.Drawing.Point(526, 12)
+$introAssistantButton.Add_Click({
+    $requestAssistantOnline = {
+        if ($script:offlineMode) { [void](Toggle-DashboardOfflineMode) }
+        return (-not [bool]$script:offlineMode)
+    }
+    Show-ToolAssistantWindow -Owner $form -Culture $script:dashboardCulture -OnlineMode (-not $script:offlineMode) -CurrentReportPath ([string]$script:lastReportPath) -Theme $script:dashboardTheme -RequestOnline $requestAssistantOnline
+})
+$toolTip.SetToolTip($introAssistantButton, (Get-ToolText -Key "assistant.tooltip" -Culture $script:dashboardCulture))
+$introPanel.Controls.Add($introAssistantButton)
+
 $introDetailButton = New-Object System.Windows.Forms.Button
 $introDetailButton.Text = Get-ToolText -Key "app.about" -Culture $script:dashboardCulture
 $introDetailButton.Font = $fontBold
@@ -665,28 +780,29 @@ for ($cardIndex = 0; $cardIndex -lt $cardDefinitions.Count; $cardIndex++) {
     $cardCaption.Text = [string]$definition.Caption
     $cardCaption.Font = $fontSmall
     $cardCaption.ForeColor = [System.Drawing.Color]::FromArgb(102, 112, 133)
-    $cardCaption.Location = New-Object System.Drawing.Point(12, 10)
-    $cardCaption.Size = New-Object System.Drawing.Size(176, 18)
+    $cardCaption.AutoEllipsis = $true
+    $cardCaption.Location = New-Object System.Drawing.Point(58, 10)
+    $cardCaption.Size = New-Object System.Drawing.Size(134, 18)
     $card.Controls.Add($cardCaption)
 
     $cardValue = New-Object System.Windows.Forms.Label
     $cardValue.Text = [string]$definition.Value
     $cardValue.Font = $fontCardValue
     $cardValue.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
-    $cardValue.AutoEllipsis = $false
+    $cardValue.AutoEllipsis = $true
     $cardValue.TextAlign = "MiddleLeft"
     $cardValue.UseCompatibleTextRendering = $false
-    $cardValue.Location = New-Object System.Drawing.Point(12, 34)
-    $cardValue.Size = New-Object System.Drawing.Size(176, 30)
+    $cardValue.Location = New-Object System.Drawing.Point(58, 32)
+    $cardValue.Size = New-Object System.Drawing.Size(134, 34)
     $card.Controls.Add($cardValue)
 
     $cardGlyph = New-Object System.Windows.Forms.PictureBox
     $cardGlyph.BackColor = [System.Drawing.Color]::Transparent
     $cardGlyph.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
-    $cardGlyph.Location = New-Object System.Drawing.Point(10, 18)
-    $cardGlyph.Size = New-Object System.Drawing.Size(40, 40)
+    $cardGlyph.Location = New-Object System.Drawing.Point(11, 23)
+    $cardGlyph.Size = New-Object System.Drawing.Size(34, 34)
     $cardGlyph.Tag = "CardGlyph"
-    $cardIconImage = New-DashboardIconBitmap -Kind ([string]$definition.IconKind) -Size 40
+    $cardIconImage = New-DashboardIconBitmap -Kind ([string]$definition.IconKind) -Size 34
     [void]$dashboardIconImages.Add($cardIconImage)
     $cardGlyph.Image = $cardIconImage
     $card.Controls.Add($cardGlyph)
@@ -708,6 +824,8 @@ for ($cardIndex = 0; $cardIndex -lt $cardDefinitions.Count; $cardIndex++) {
     }
     [void]$dashboardCardPanels.Add($card)
     $dashboardPanel.Controls.Add($card)
+    $toolTip.SetToolTip($cardCaption, [string]$definition.Caption)
+    $toolTip.SetToolTip($cardValue, [string]$definition.Value)
 }
 
 $buttonPanel = New-Object System.Windows.Forms.Panel
@@ -854,6 +972,19 @@ $cleanupDryRunMode = $false
 $cleanupScanScope = "All"
 $softwareCatalogUpdateResultFile = ""
 $softwareCatalogAutoScan = $false
+$applicationUpdateResultFile = ""
+$availableApplicationUpdate = $null
+$applicationUpdateProcess = $null
+$applicationUpdateInvocation = $null
+$applicationUpdateCheckPending = $false
+$applicationUpdatePromptPending = $false
+$applicationUpdateReminderPending = $false
+$applicationUpdateReminderDueUtc = [DateTime]::MinValue
+$applicationUpdateTaskObservedAfterDeferral = $false
+$applicationUpdateDismissedForSession = $false
+$applicationUpdateCancelledForOffline = $false
+$applicationUpdateDialogVisible = $false
+$applicationUpdateApplyStarted = $false
 $backupScope = "All"
 $restoreScope = "All"
 $backupResultFile = ""
@@ -872,19 +1003,48 @@ $script:updatingMainLayout = $false
 $script:hasTaskActivity = $false
 $script:dashboardSection = "Overview"
 $script:taskCancellationRequested = $false
-$script:lastReportDirectory = $desktop
+$script:lastReportDirectory = $reportRoot
+$script:lastReportPath = ""
 $script:executionEnvironmentWarningShown = $false
+
+function New-ToolReportRunDirectory {
+    param([AllowNull()][string]$Category = "BaoCao")
+
+    # Tat ca ket qua cua Tool dung chung mot thu muc de nguoi dung khong phai
+    # mo tung thu muc con cho moi lan quet. Ten tep do tung module tao da gom
+    # loai bao cao, ten may va moc thoi gian nen van tach biet, khong ghi de.
+    if (-not (Test-Path -LiteralPath $reportRoot -PathType Container)) {
+        New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
+    }
+    $script:lastReportDirectory = $reportRoot
+    return $reportRoot
+}
 
 function Register-ToolReportPath {
     param([AllowNull()][string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) { return }
     try {
         $fullPath = [IO.Path]::GetFullPath($Path)
+        if (Test-Path -LiteralPath $fullPath -PathType Leaf) { $script:lastReportPath = $fullPath }
         $directory = if (Test-Path -LiteralPath $fullPath -PathType Container) { $fullPath } else { Split-Path -Parent $fullPath }
         if (-not [string]::IsNullOrWhiteSpace($directory) -and (Test-Path -LiteralPath $directory -PathType Container)) {
             $script:lastReportDirectory = $directory
         }
     } catch {}
+}
+
+function Open-ToolHtmlReport {
+    param([AllowNull()][string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    $extension = [IO.Path]::GetExtension([string]$Path).ToLowerInvariant()
+    if ($extension -notin @('.html', '.htm')) {
+        Write-ProgressLog (Get-DashboardText "report.htmlOnly" @([IO.Path]::GetFileName([string]$Path)))
+        return $false
+    }
+    Register-ToolReportPath -Path $Path
+    Start-Process -FilePath $Path
+    return $true
 }
 
 function Copy-AllToolLog {
@@ -911,7 +1071,9 @@ function Copy-AllToolLog {
 
 function Open-ReportDirectory {
     $directory = [string]$script:lastReportDirectory
-    if ([string]::IsNullOrWhiteSpace($directory) -or -not (Test-Path -LiteralPath $directory -PathType Container)) { $directory = $desktop }
+    if ([string]::IsNullOrWhiteSpace($directory) -or -not (Test-Path -LiteralPath $directory -PathType Container)) {
+        $directory = if (Test-Path -LiteralPath $reportRoot -PathType Container) { $reportRoot } else { $desktop }
+    }
     try {
         Start-Process -FilePath $nativeExplorerPath -ArgumentList ('"' + $directory + '"')
     } catch {
@@ -960,19 +1122,20 @@ function Open-ToolReportPresentation {
     if ($script:reportPresentationCache.ContainsKey($cacheKey)) {
         $cached = $script:reportPresentationCache[$cacheKey]
         if ($cached -and (Test-Path -LiteralPath $cached.HtmlPath -PathType Leaf)) {
-            Start-Process -FilePath $cached.HtmlPath
+            [void](Open-ToolHtmlReport -Path $cached.HtmlPath)
             return $cached
         }
         $script:reportPresentationCache.Remove($cacheKey)
     }
 
-    $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+    $stamp = (Get-Date).ToString("yyyyMMdd_HHmmss_fff")
     $safePrefix = ([string]$FilePrefix -replace '[^A-Za-z0-9_-]', '_').Trim('_')
     if ([string]::IsNullOrWhiteSpace($safePrefix)) { $safePrefix = "BaoCao" }
-    $basePath = Join-Path $desktop "${safePrefix}_$($env:COMPUTERNAME)_$stamp"
+    $presentationDirectory = New-ToolReportRunDirectory -Category "TaiLieu"
+    $basePath = Join-Path $presentationDirectory "${safePrefix}_$($env:COMPUTERNAME)_$stamp"
     $extension = [IO.Path]::GetExtension($sourceFull).ToLowerInvariant()
     if ($extension -in @(".html", ".htm")) {
-        $desktopFull = [IO.Path]::GetFullPath($desktop).TrimEnd([char]92)
+        $desktopFull = [IO.Path]::GetFullPath($presentationDirectory).TrimEnd([char]92)
         $sourceDirectory = [IO.Path]::GetFullPath((Split-Path -Parent $sourceFull)).TrimEnd([char]92)
         if ([string]::Equals($desktopFull, $sourceDirectory, [StringComparison]::OrdinalIgnoreCase)) {
             $htmlPath = $sourceFull
@@ -1009,7 +1172,7 @@ function Open-ToolReportPresentation {
     }
     $script:reportPresentationCache[$cacheKey] = $package
     Register-ToolReportPath -Path $package.HtmlPath
-    Start-Process -FilePath $package.HtmlPath
+    [void](Open-ToolHtmlReport -Path $package.HtmlPath)
     Write-ProgressLog (Get-DashboardText "report.savedOpened" @([IO.Path]::GetFileName($package.HtmlPath)))
     return $package
 }
@@ -1181,9 +1344,13 @@ function Update-MainLayout {
         $introDetailButton.Height = 30
         $introDetailButton.Left = $introPanel.ClientSize.Width - $introDetailButton.Width - 10
         $introDetailButton.Top = [Math]::Max(4, [Math]::Floor(($introPanel.ClientSize.Height - $introDetailButton.Height) / 2))
+        $introAssistantButton.Width = if ($ultraCompactHeight) { 142 } else { 154 }
+        $introAssistantButton.Height = 30
+        $introAssistantButton.Left = $introDetailButton.Left - $introAssistantButton.Width - 8
+        $introAssistantButton.Top = $introDetailButton.Top
         $description.Left = 15
         $description.Top = if ($ultraCompactHeight) { 9 } else { 5 }
-        $description.Width = [Math]::Max(260, $introDetailButton.Left - $description.Left - 10)
+        $description.Width = [Math]::Max(180, $introAssistantButton.Left - $description.Left - 10)
         $description.Height = 22
         $description.Visible = $true
         $introSummary.Left = 15
@@ -1206,18 +1373,18 @@ function Update-MainLayout {
             $card.Height = if ($ultraCompactHeight) { 60 } elseif ($compactHeight) { 66 } else { 82 }
             if ($card.Controls.Count -ge 2) {
                 $card.Controls[0].Top = if ($ultraCompactHeight) { 4 } elseif ($compactHeight) { 5 } else { 8 }
-                $card.Controls[0].Left = 52
-                $card.Controls[0].Width = [Math]::Max(84, $cardWidth - 60)
+                $card.Controls[0].Left = 58
+                $card.Controls[0].Width = [Math]::Max(78, $cardWidth - 68)
                 $card.Controls[1].Top = if ($ultraCompactHeight) { 23 } elseif ($compactHeight) { 25 } else { 30 }
-                $card.Controls[1].Left = 52
-                $card.Controls[1].Width = [Math]::Max(84, $cardWidth - 60)
+                $card.Controls[1].Left = 58
+                $card.Controls[1].Width = [Math]::Max(78, $cardWidth - 68)
                 $card.Controls[1].Height = if ($ultraCompactHeight) { 32 } elseif ($compactHeight) { 35 } else { 42 }
             }
             foreach ($child in $card.Controls) {
                 if ([string]$child.Tag -eq "CardAccent") { $child.Height = $card.ClientSize.Height }
                 if ([string]$child.Tag -eq "CardGlyph") {
-                    $iconSize = if ($ultraCompactHeight) { 34 } elseif ($compactHeight) { 36 } else { 40 }
-                    $child.Left = 9
+                    $iconSize = if ($ultraCompactHeight) { 30 } elseif ($compactHeight) { 32 } else { 34 }
+                    $child.Left = 11
                     $child.Top = [Math]::Max(7, [Math]::Floor(($card.ClientSize.Height - $iconSize) / 2))
                     $child.Width = $iconSize
                     $child.Height = $iconSize
@@ -1265,6 +1432,26 @@ function Update-MainLayout {
             $button.Top = 42 + ($row * ($tileHeight + $rowGap))
             $button.Width = $tileWidth
             $button.Height = $tileHeight
+            if ($button.Tag -and [string]$button.Tag.Kind -in @("QuickAction", "ReportAction")) {
+                $textLeft = if ($tileWidth -lt 280) { 54 } else { 60 }
+                $textWidth = [Math]::Max(80, $tileWidth - $textLeft - 10)
+                $titleHeight = if ($tileHeight -le 46) { 17 } else { 20 }
+                $descriptionHeight = if ($tileHeight -le 46) { 15 } else { [Math]::Min(22, $tileHeight - $titleHeight - 9) }
+                $contentHeight = $titleHeight + $descriptionHeight + 2
+                $contentTop = [Math]::Max(3, [Math]::Floor(($tileHeight - $contentHeight) / 2))
+                $button.Tag.TitleLabel.Left = $textLeft
+                $button.Tag.TitleLabel.Top = $contentTop
+                $button.Tag.TitleLabel.Width = $textWidth
+                $button.Tag.TitleLabel.Height = $titleHeight
+                $button.Tag.DescriptionLabel.Left = $textLeft
+                $button.Tag.DescriptionLabel.Top = $contentTop + $titleHeight + 2
+                $button.Tag.DescriptionLabel.Width = $textWidth
+                $button.Tag.DescriptionLabel.Height = $descriptionHeight
+            }
+            if ($script:dashboardSection -eq "Reports" -and
+                $visibleButtons.Count % 2 -eq 1 -and $buttonIndex -eq ($visibleButtons.Count - 1)) {
+                $button.Left = [Math]::Floor(($buttonPanel.ClientSize.Width - $tileWidth) / 2)
+            }
             Set-ModernRoundedRegion -Control $button -Radius 10
         }
 
@@ -1283,11 +1470,11 @@ function Update-MainLayout {
         $progressCaption.Visible = $progressExpanded
 
         $closeButton.Height = 30
-        $closeButton.Width = 92
+        $closeButton.Width = 108
         $closeButton.Left = $activityPanel.ClientSize.Width - $closeButton.Width - 16
         $closeButton.Top = $activityPanel.ClientSize.Height - $closeButton.Height - 12
         $stopButton.Height = $closeButton.Height
-        $stopButton.Width = 92
+        $stopButton.Width = 108
         $stopButton.Left = $closeButton.Left - $stopButton.Width - 8
         $stopButton.Top = $closeButton.Top
 
@@ -1331,6 +1518,7 @@ function Update-MainLayout {
         Set-ModernRoundedRegion -Control $activityPanel -Radius 14
         Set-ModernRoundedRegion -Control $themeButton -Radius 9
         Set-ModernRoundedRegion -Control $offlineButton -Radius 9
+        Set-ModernRoundedRegion -Control $introAssistantButton -Radius 9
         Set-ModernRoundedRegion -Control $introDetailButton -Radius 9
         Set-ModernRoundedRegion -Control $stopButton -Radius 9
         Set-ModernRoundedRegion -Control $closeButton -Radius 9
@@ -1792,6 +1980,7 @@ function Show-DashboardPreferences {
                 $script:offlineMode = $true
                 [void](Set-ToolOfflineModePreference -OfflineMode $true)
                 $env:TOOL_OFFLINE_MODE = "1"
+                Reset-ApplicationUpdateForOffline
                 Update-DashboardOfflineUi
                 Set-DashboardTheme -Mode $script:dashboardTheme
             } else {
@@ -1846,6 +2035,11 @@ function Toggle-DashboardOfflineMode {
     Set-DashboardTheme -Mode $script:dashboardTheme
     Refresh-DashboardLocalizedActivity
     [void](Write-ToolLog -Level "AUDIT" -Event "OfflineMode.Changed" -Message $(if ($script:offlineMode) { Get-DashboardText "offline.enabledLog" } else { Get-DashboardText "offline.networkAllowedLog" }) -Data ([ordered]@{ OfflineMode=[bool]$script:offlineMode }))
+    if ($script:offlineMode) {
+        Reset-ApplicationUpdateForOffline
+    } else {
+        Request-ApplicationUpdateCheck
+    }
 }
 
 function Set-DashboardLanguage {
@@ -1860,6 +2054,8 @@ function Set-DashboardLanguage {
     $sidebarFooter.Text = Get-DashboardText "dashboard.sidebar.footer" @($toolDisplayVersion)
     $description.Text = Get-ToolText -Key "dashboard.overview.title" -Culture $Culture
     $introSummary.Text = Get-ToolText -Key "dashboard.overview.subtitle" -Culture $Culture
+    $introAssistantButton.Text = Get-ToolText -Key "app.assistant" -Culture $Culture
+    $toolTip.SetToolTip($introAssistantButton, (Get-ToolText -Key "assistant.tooltip" -Culture $Culture))
     $introDetailButton.Text = Get-ToolText -Key "app.about" -Culture $Culture
     $activityPanelCaption.Text = Get-ToolText -Key "dashboard.activity" -Culture $Culture
     $sidebarBrand.Text = Get-ToolText -Key "dashboard.sidebar.brand" -Culture $Culture
@@ -1892,7 +2088,14 @@ function Set-DashboardLanguage {
     foreach ($button in $buttons) {
         $metadata = $button.Tag
         if ($metadata -and $metadata.PSObject.Properties["TitleKey"]) {
-            $button.Text = Get-DashboardMenuText -Metadata $metadata
+            if ([string]$metadata.Kind -in @("QuickAction", "ReportAction") -and $metadata.TitleLabel -and $metadata.DescriptionLabel) {
+                $metadata.TitleLabel.Text = Get-ToolText -Key ([string]$metadata.TitleKey) -Culture $Culture
+                $metadata.DescriptionLabel.Text = Get-ToolText -Key ([string]$metadata.DescriptionKey) -Culture $Culture
+            } else {
+                $button.Text = Get-DashboardMenuText -Metadata $metadata
+            }
+            $button.AccessibleName = Get-ToolText -Key ([string]$metadata.TitleKey) -Culture $Culture
+            $button.AccessibleDescription = Get-ToolText -Key ([string]$metadata.DescriptionKey) -Culture $Culture
             $toolTip.SetToolTip($button, (Get-ToolText -Key ([string]$metadata.DescriptionKey) -Culture $Culture))
         }
     }
@@ -1911,34 +2114,18 @@ function Get-DashboardTilePalette {
         [switch]$Hover
     )
 
+    # Một bề mặt trung tính cho toàn bộ tác vụ giúp mắt bám theo vị trí thay vì
+    # phải giải mã quá nhiều mảng màu. Mức cảnh báo vẫn nằm ở icon/tooltip.
     $dark = [bool]($Mode -eq "Dark")
-    if ($Tone -eq "Enterprise") {
-        return [pscustomobject]@{
-            BackColor = if ($dark) {
-                if ($Hover) { [System.Drawing.Color]::FromArgb(31, 105, 82) } else { [System.Drawing.Color]::FromArgb(23, 79, 63) }
-            } else {
-                if ($Hover) { [System.Drawing.Color]::FromArgb(206, 245, 224) } else { [System.Drawing.Color]::FromArgb(232, 250, 240) }
-            }
-            ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(142, 240, 194) } else { [System.Drawing.Color]::FromArgb(0, 105, 70) }
-        }
-    }
-    if ($Tone -eq "Warning") {
-        return [pscustomobject]@{
-            BackColor = if ($dark) {
-                if ($Hover) { [System.Drawing.Color]::FromArgb(108, 76, 30) } else { [System.Drawing.Color]::FromArgb(82, 57, 24) }
-            } else {
-                if ($Hover) { [System.Drawing.Color]::FromArgb(255, 235, 184) } else { [System.Drawing.Color]::FromArgb(255, 247, 224) }
-            }
-            ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(255, 205, 128) } else { [System.Drawing.Color]::FromArgb(128, 64, 0) }
-        }
-    }
     return [pscustomobject]@{
         BackColor = if ($dark) {
-            if ($Hover) { [System.Drawing.Color]::FromArgb(42, 69, 108) } else { [System.Drawing.Color]::FromArgb(30, 52, 82) }
+            if ($Hover) { [System.Drawing.Color]::FromArgb(43, 53, 69) } else { [System.Drawing.Color]::FromArgb(34, 42, 55) }
         } else {
-            if ($Hover) { [System.Drawing.Color]::FromArgb(215, 235, 255) } else { [System.Drawing.Color]::FromArgb(239, 247, 255) }
+            if ($Hover) { [System.Drawing.Color]::FromArgb(231, 238, 247) } else { [System.Drawing.Color]::FromArgb(244, 247, 251) }
         }
-        ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(137, 190, 255) } else { [System.Drawing.Color]::FromArgb(0, 75, 170) }
+        ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(220, 228, 239) } else { [System.Drawing.Color]::FromArgb(30, 64, 105) }
+        TitleColor = if ($dark) { [System.Drawing.Color]::FromArgb(137, 190, 255) } else { [System.Drawing.Color]::FromArgb(0, 98, 218) }
+        DescriptionColor = if ($dark) { [System.Drawing.Color]::FromArgb(174, 184, 200) } else { [System.Drawing.Color]::FromArgb(88, 101, 121) }
     }
 }
 
@@ -1948,35 +2135,10 @@ function Get-DashboardStatusPalette {
         [ValidateSet("Light", "Dark")][string]$Mode = "Light"
     )
     $dark = [bool]($Mode -eq "Dark")
-    switch ($Tone) {
-        "Office" {
-            return [pscustomobject]@{
-                BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(62, 35, 29) } else { [System.Drawing.Color]::FromArgb(255, 242, 235) }
-                AccentColor = if ($dark) { [System.Drawing.Color]::FromArgb(255, 125, 80) } else { [System.Drawing.Color]::FromArgb(242, 80, 34) }
-                ValueColor = if ($dark) { [System.Drawing.Color]::FromArgb(255, 177, 146) } else { [System.Drawing.Color]::FromArgb(160, 50, 10) }
-            }
-        }
-        "Secure" {
-            return [pscustomobject]@{
-                BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(28, 42, 72) } else { [System.Drawing.Color]::FromArgb(235, 242, 255) }
-                AccentColor = if ($dark) { [System.Drawing.Color]::FromArgb(105, 153, 255) } else { [System.Drawing.Color]::FromArgb(42, 104, 220) }
-                ValueColor = if ($dark) { [System.Drawing.Color]::FromArgb(175, 196, 255) } else { [System.Drawing.Color]::FromArgb(30, 72, 155) }
-            }
-        }
-        "Integrity" {
-            return [pscustomobject]@{
-                BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(23, 55, 45) } else { [System.Drawing.Color]::FromArgb(232, 249, 240) }
-                AccentColor = if ($dark) { [System.Drawing.Color]::FromArgb(57, 204, 137) } else { [System.Drawing.Color]::FromArgb(0, 158, 96) }
-                ValueColor = if ($dark) { [System.Drawing.Color]::FromArgb(142, 237, 190) } else { [System.Drawing.Color]::FromArgb(0, 100, 62) }
-            }
-        }
-        default {
-            return [pscustomobject]@{
-                BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(22, 44, 67) } else { [System.Drawing.Color]::FromArgb(235, 246, 255) }
-                AccentColor = if ($dark) { [System.Drawing.Color]::FromArgb(52, 160, 255) } else { [System.Drawing.Color]::FromArgb(0, 120, 212) }
-                ValueColor = if ($dark) { [System.Drawing.Color]::FromArgb(142, 203, 255) } else { [System.Drawing.Color]::FromArgb(0, 75, 160) }
-            }
-        }
+    return [pscustomobject]@{
+        BackColor = if ($dark) { [System.Drawing.Color]::FromArgb(31, 38, 50) } else { [System.Drawing.Color]::FromArgb(247, 249, 252) }
+        AccentColor = if ($dark) { [System.Drawing.Color]::FromArgb(105, 153, 222) } else { [System.Drawing.Color]::FromArgb(70, 112, 166) }
+        ValueColor = if ($dark) { [System.Drawing.Color]::FromArgb(220, 228, 239) } else { [System.Drawing.Color]::FromArgb(34, 61, 94) }
     }
 }
 
@@ -2005,6 +2167,8 @@ function Set-DashboardTheme {
     $introAccent.BackColor = $primary
     $description.ForeColor = $primary
     $introSummary.ForeColor = $text
+    $introAssistantButton.BackColor = $primary
+    $introAssistantButton.ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(18, 26, 38) } else { [System.Drawing.Color]::White }
     $introDetailButton.BackColor = $primary
     $introDetailButton.ForeColor = if ($dark) { [System.Drawing.Color]::FromArgb(18, 26, 38) } else { [System.Drawing.Color]::White }
     $dashboardPanel.BackColor = $background
@@ -2057,6 +2221,10 @@ function Set-DashboardTheme {
         $tilePalette = Get-DashboardTilePalette -Tone $tone -Mode $Mode
         $button.BackColor = $tilePalette.BackColor
         $button.ForeColor = $tilePalette.ForeColor
+        if ($button.Tag -and [string]$button.Tag.Kind -in @("QuickAction", "ReportAction")) {
+            if ($button.Tag.TitleLabel) { $button.Tag.TitleLabel.ForeColor = $tilePalette.TitleColor }
+            if ($button.Tag.DescriptionLabel) { $button.Tag.DescriptionLabel.ForeColor = $tilePalette.DescriptionColor }
+        }
     }
     foreach ($navButton in $sidebarNavButtons) {
         $selected = [bool]([string]$navButton.Tag.Section -eq $script:dashboardSection)
@@ -2072,7 +2240,7 @@ function Set-DashboardTheme {
     $neutralDarkArgb = [System.Drawing.Color]::FromArgb(226, 231, 239).ToArgb()
     if ($status.ForeColor.ToArgb() -in @($neutralLightArgb, $neutralDarkArgb)) { $status.ForeColor = $text }
     if ($activityLabel.ForeColor.ToArgb() -in @($neutralLightArgb, $neutralDarkArgb, [System.Drawing.Color]::FromArgb(18, 59, 116).ToArgb(), [System.Drawing.Color]::FromArgb(126, 174, 255).ToArgb())) { $activityLabel.ForeColor = $text }
-    foreach ($actionButton in @($introDetailButton, $themeButton, $offlineButton, $openReportFolderButton, $copyLogButton, $stopButton, $closeButton)) {
+    foreach ($actionButton in @($introAssistantButton, $introDetailButton, $themeButton, $offlineButton, $openReportFolderButton, $copyLogButton, $stopButton, $closeButton)) {
         Set-ToolUiActionButtonVisual -Button $actionButton -Mode $Mode
     }
     Set-ToolUiLiteralText -Root $form
@@ -2297,35 +2465,6 @@ function Get-Sha256([string]$path) {
     } catch { return "" }
 }
 
-function Get-AccountSid([string]$accountName) {
-    try {
-        return (New-Object Security.Principal.NTAccount($accountName)).Translate([Security.Principal.SecurityIdentifier]).Value
-    } catch { return "" }
-}
-
-function Test-ProtectedToolDirectoryAcl([string]$path) {
-    try {
-        $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
-        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
-        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
-        $ownerSid = Get-AccountSid ([string]$acl.Owner)
-        if ($ownerSid -notin @("S-1-5-32-544", "S-1-5-18") -or -not $acl.AreAccessRulesProtected) { return $false }
-        $allowedWriters = @("S-1-5-32-544", "S-1-5-18")
-        $writeMask = [Security.AccessControl.FileSystemRights]::Write -bor
-            [Security.AccessControl.FileSystemRights]::Modify -bor
-            [Security.AccessControl.FileSystemRights]::FullControl -bor
-            [Security.AccessControl.FileSystemRights]::Delete -bor
-            [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
-            [Security.AccessControl.FileSystemRights]::TakeOwnership
-        foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
-            if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
-                $allowedWriters -notcontains $rule.IdentityReference.Value -and
-                (($rule.FileSystemRights -band $writeMask) -ne 0)) { return $false }
-        }
-        return $true
-    } catch { return $false }
-}
-
 function Test-ToolIntegrity {
     # approved-kms-servers.txt được loại khỏi manifest vì đây là tệp cấu hình
     # do quản trị viên được phép sửa. Mọi thao tác có quyền cao đều kiểm tra lại.
@@ -2385,15 +2524,13 @@ function New-SecureRuntimePath([string]$prefix) {
 }
 
 function Confirm-IntegrityForElevatedAction([string]$actionName) {
-    if ($env:TOOL_SECURE_LAUNCH -ne "1" -or
-        -not (Test-ProtectedToolDirectoryAcl $baseDir) -or
-        -not (Test-ProtectedToolDirectoryAcl $runtimeDir)) {
+    if ($env:TOOL_SECURE_LAUNCH -ne "1" -or -not (Test-ProtectedToolDirectoryAcl $baseDir)) {
         [System.Windows.Forms.MessageBox]::Show(
             (Get-ToolText -Key "integrity.adminSourceBlocked" -Culture $script:dashboardCulture),
             (Get-ToolText -Key "integrity.adminBlockedTitle" -Culture $script:dashboardCulture), "OK", "Error") | Out-Null
         return $false
     }
-    if ($env:TOOL_SECURE_RUNTIME_FAILED -eq "1") {
+    if (-not (Test-ProtectedToolDirectoryAcl $runtimeDir)) {
         [System.Windows.Forms.MessageBox]::Show(
             (Get-ToolText -Key "integrity.runtimeBlocked" -Culture $script:dashboardCulture),
             (Get-ToolText -Key "integrity.protectionTitle" -Culture $script:dashboardCulture),
@@ -2402,6 +2539,9 @@ function Confirm-IntegrityForElevatedAction([string]$actionName) {
         ) | Out-Null
         return $false
     }
+    # Trạng thái ACL hiện tại mới là căn cứ bảo mật. Không chặn nhầm chỉ vì một
+    # lần ghi ACL dư thừa trước đó bị antivirus/chính sách hệ thống từ chối.
+    $env:TOOL_SECURE_RUNTIME_FAILED = "0"
     $freshResult = Test-ToolIntegrity
     if ($freshResult.Valid) { return $true }
     Write-ProgressLog (Get-DashboardText "integrity.blockedLog" @($actionName, $freshResult.Message))
@@ -2723,7 +2863,8 @@ function Start-Report([string]$mode, [string]$displayName) {
         Start-ProgressDisplay $displayName (Get-ToolText -Key "report.starting" -Culture $script:dashboardCulture) $false
         Write-ProgressLog (Get-ToolText -Key $(if ($redactSensitive) { "report.redactedProgress" } else { "report.internalProgress" }) -Culture $script:dashboardCulture)
         $privacyArgument = if ($redactSensitive) { " -RedactSensitive" } else { "" }
-        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$reportScript`" -OutputDir `"$desktop`" -Mode `"$mode`" -Culture `"$script:dashboardCulture`" -Pdf$privacyArgument"
+        $output = New-ToolReportRunDirectory -Category "BaoCao-$mode"
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$reportScript`" -OutputDir `"$output`" -Mode `"$mode`" -Culture `"$script:dashboardCulture`" -ApprovedKmsServerFile `"$approvedKmsFile`" -Pdf$privacyArgument"
         $moduleId = Get-ToolReportModuleId -Mode $mode
         [void](Start-ToolModuleProcess -ModuleId $moduleId -Arguments $arguments -Action $displayName -Hidden)
         $status.Text = Get-ToolText -Key "report.running" -Culture $script:dashboardCulture -FormatArguments @($displayName)
@@ -2803,7 +2944,7 @@ function Start-Cleanup {
     try {
         Start-ProgressDisplay (Get-DashboardText "cleanup.scan.action") (Get-DashboardText "cleanup.scan.detail") $false
         Write-ProgressLog (Get-DashboardText "cleanup.scan.scopeLog" @((Get-CleanupScopeLabel -Scope $script:cleanupScanScope)))
-        $output = Join-Path $desktop "bao-cao-go-ban-quyen"
+        $output = New-ToolReportRunDirectory -Category "KhacPhuc-Quet"
         $script:cleanupDecisionFile = New-SecureRuntimePath "tool-license-decision-"
         $privacyArgument = if ($script:cleanupRedactSensitive) { " -RedactSensitive" } else { "" }
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$cleanupScript`" -OutputDir `"$output`" -ApprovedKmsServerFile `"$approvedKmsFile`" -TreatUnapprovedKmsAsNonCompliant -DecisionFile `"$script:cleanupDecisionFile`" -ScanScope `"$script:cleanupScanScope`" -Culture `"$script:dashboardCulture`"$privacyArgument"
@@ -2897,6 +3038,364 @@ function Complete-SoftwareCatalogOnlineUpdate {
     if ($shouldScan -and $fallback -eq [System.Windows.Forms.DialogResult]::Yes) {
         Start-Cleanup -ScanScope "ThirdParty"
     }
+}
+
+function Get-ApplicationUpdateFileSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "").ToUpperInvariant() }
+        finally { $algorithm.Dispose() }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+function Remove-ApplicationUpdateResultFile {
+    if ($script:applicationUpdateResultFile -and (Test-Path -LiteralPath $script:applicationUpdateResultFile -PathType Leaf)) {
+        Remove-Item -LiteralPath $script:applicationUpdateResultFile -Force -ErrorAction SilentlyContinue
+    }
+    $script:applicationUpdateResultFile = ""
+}
+
+function Reset-ApplicationUpdateForOffline {
+    $script:applicationUpdateCheckPending = $false
+    $script:applicationUpdatePromptPending = $false
+    $script:applicationUpdateReminderPending = $false
+    $script:applicationUpdateReminderDueUtc = [DateTime]::MinValue
+    $script:applicationUpdateTaskObservedAfterDeferral = $false
+    $script:availableApplicationUpdate = $null
+    $script:applicationUpdateCancelledForOffline = $false
+    if ($script:applicationUpdateProcess) {
+        $script:applicationUpdateCancelledForOffline = $true
+        if (-not $script:applicationUpdateProcess.HasExited) {
+            try { $script:applicationUpdateProcess.Kill() } catch {}
+        }
+    }
+    Remove-ApplicationUpdateResultFile
+    [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.DisabledOffline" -Message (Get-DashboardText "offline.enabledLog"))
+}
+
+function Request-ApplicationUpdateCheck {
+    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+        $script:applicationUpdateDismissedForSession -or $script:applicationUpdateApplyStarted) {
+        return
+    }
+    if ($script:applicationUpdateProcess -and -not $script:applicationUpdateProcess.HasExited) { return }
+    $script:applicationUpdateCheckPending = $true
+    Invoke-PendingApplicationUpdateWork
+}
+
+function Start-ApplicationUpdateCheck {
+    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+        $script:applicationUpdateDismissedForSession -or $script:applicationUpdateApplyStarted) {
+        $script:applicationUpdateCheckPending = $false
+        return
+    }
+    try {
+        $freshIntegrity = Test-ToolIntegrity
+        if (-not $freshIntegrity.Valid) { throw $freshIntegrity.Message }
+        $descriptor = Get-ReadyToolModule -moduleId "application.update.check" -elevatedLaunch $false
+        $invocation = New-ToolModuleInvocation -ModuleId $descriptor.ModuleId
+        $script:applicationUpdateResultFile = New-SecureRuntimePath "tool-application-update-check-"
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$applicationUpdateScript`" -Mode Check -ConsentGranted -Culture `"$script:dashboardCulture`" -CurrentVersion `"$releaseVersion`" -ResultFile `"$script:applicationUpdateResultFile`" -ManifestUrl `"$applicationUpdateManifestUrl`""
+        $previousModuleId = [string]$env:TOOL_MODULE_ID
+        $previousInvocationId = [string]$env:TOOL_MODULE_INVOCATION_ID
+        try {
+            $env:TOOL_MODULE_ID = $descriptor.ModuleId
+            $env:TOOL_MODULE_INVOCATION_ID = $invocation.InvocationId
+            $updateCheckStartParameters = @{
+                FilePath = $toolPowerShellPath
+                ArgumentList = $arguments
+                WindowStyle = "Hidden"
+                PassThru = $true
+            }
+            $process = Start-Process @updateCheckStartParameters
+            if (-not $process) { throw (Get-DashboardText "module.processMissing") }
+        } finally {
+            $env:TOOL_MODULE_ID = $previousModuleId
+            $env:TOOL_MODULE_INVOCATION_ID = $previousInvocationId
+        }
+        $script:applicationUpdateProcess = $process
+        $script:applicationUpdateInvocation = $invocation
+        $script:applicationUpdateCheckPending = $false
+        $script:applicationUpdateCancelledForOffline = $false
+        if (-not $script:activeProcess) {
+            $status.Text = Get-DashboardText "update.check.running"
+            $status.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
+        }
+        [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.CheckStarted" -Message (Get-DashboardText "update.check.checking") -Data ([ordered]@{
+            CurrentVersion=$releaseVersion; ManifestHost="raw.githubusercontent.com"; OnlineConsent=$true
+        }))
+    } catch {
+        $script:applicationUpdateCheckPending = $false
+        $script:applicationUpdateProcess = $null
+        $script:applicationUpdateInvocation = $null
+        Remove-ApplicationUpdateResultFile
+        $message = Get-DashboardText "update.check.startFailed" @($_.Exception.Message)
+        if (-not $script:activeProcess) {
+            $status.Text = $message
+            $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        }
+        [void](Write-ToolLog -Level "WARN" -Event "ApplicationUpdate.CheckStartFailed" -Message $message)
+    }
+}
+
+function Complete-ApplicationUpdateCheck {
+    if (-not $script:applicationUpdateProcess -or -not $script:applicationUpdateProcess.HasExited) { return }
+    $exitCode = [int]$script:applicationUpdateProcess.ExitCode
+    $invocation = $script:applicationUpdateInvocation
+    $script:applicationUpdateProcess = $null
+    $script:applicationUpdateInvocation = $null
+    if ($invocation) {
+        try {
+            $moduleResult = Complete-ToolModuleInvocation -Invocation $invocation -ExitCode $exitCode -Summary (Get-DashboardText "update.check.action")
+            $moduleValidation = Test-ToolModuleResult -Result $moduleResult
+            if (-not $moduleValidation.Valid) {
+                [void](Write-ToolLog -Level "ERROR" -Event "ApplicationUpdate.ModuleResultInvalid" -Message ($moduleValidation.Errors -join "; "))
+            }
+        } catch {
+            [void](Write-ToolLog -Level "WARN" -Event "ApplicationUpdate.ModuleCompletionFailed" -Message $_.Exception.Message)
+        }
+    }
+
+    $result = $null
+    try {
+        if (-not $script:applicationUpdateResultFile -or -not (Test-Path -LiteralPath $script:applicationUpdateResultFile -PathType Leaf)) {
+            throw (Get-DashboardText "update.check.resultMissing")
+        }
+        $result = Get-Content -LiteralPath $script:applicationUpdateResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        $result = [pscustomobject]@{ Success=$false; Error=[string]$_.Exception.Message }
+    } finally {
+        Remove-ApplicationUpdateResultFile
+    }
+
+    if ($script:applicationUpdateCancelledForOffline -or $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0") {
+        $script:applicationUpdateCancelledForOffline = $false
+        return
+    }
+    if (-not [bool]$result.Success) {
+        $errorText = if ($result.PSObject.Properties["Error"]) { [string]$result.Error } else { Get-DashboardText "common.unknown" }
+        if (-not $script:activeProcess) {
+            $status.Text = Get-DashboardText "update.check.failedStatus"
+            $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        }
+        [void](Write-ToolLog -Level "WARN" -Event "ApplicationUpdate.CheckFailed" -Message (Get-DashboardText "update.check.failedLog" @($errorText)) -Data ([ordered]@{ ExitCode=$exitCode }))
+        return
+    }
+
+    if ([bool]$result.UpdateAvailable) {
+        $script:availableApplicationUpdate = $result
+        $script:applicationUpdatePromptPending = $true
+        if (-not $script:activeProcess) {
+            $status.Text = Get-DashboardText "update.check.availableStatus" @($result.LatestVersion)
+            $status.ForeColor = [System.Drawing.Color]::DarkGreen
+        }
+        [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.Available" -Message (Get-DashboardText "update.check.availableLog" @($result.LatestVersion)) -Data ([ordered]@{
+            CurrentVersion=$result.CurrentVersion; LatestVersion=$result.LatestVersion; DownloadStarted=$false
+        }))
+        Invoke-PendingApplicationUpdateWork
+        return
+    }
+
+    $script:availableApplicationUpdate = $null
+    $script:applicationUpdatePromptPending = $false
+    if (-not $script:activeProcess) {
+        $status.Text = Get-DashboardText "update.check.latestStatus" @($result.CurrentVersion)
+        $status.ForeColor = [System.Drawing.Color]::DarkGreen
+    }
+    [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.Current" -Message (Get-DashboardText "update.check.latestLog" @($result.CurrentVersion)))
+}
+
+function Show-ApplicationUpdateDialog {
+    param([Parameter(Mandatory = $true)][object]$Candidate)
+
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = Get-DashboardText "update.dialog.title"
+    $dialog.StartPosition = "CenterParent"
+    $dialog.Size = New-Object System.Drawing.Size(750, 610)
+    $dialog.MinimumSize = New-Object System.Drawing.Size(750, 610)
+    $dialog.MaximumSize = New-Object System.Drawing.Size(750, 610)
+    $dialog.FormBorderStyle = "FixedDialog"
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $dialog.ShowInTaskbar = $false
+    $dialog.Tag = "Later"
+
+    $heading = New-Object System.Windows.Forms.Label
+    $heading.Text = Get-DashboardText "update.dialog.heading" @([string]$Candidate.Title, [string]$Candidate.LatestVersion)
+    $heading.Font = $fontTitle
+    $heading.Location = New-Object System.Drawing.Point(28, 24)
+    $heading.Size = New-Object System.Drawing.Size(680, 46)
+    $dialog.Controls.Add($heading)
+
+    $versionLabel = New-Object System.Windows.Forms.Label
+    $versionLabel.Text = Get-DashboardText "update.dialog.version" @([string]$Candidate.CurrentVersion, [string]$Candidate.LatestVersion)
+    $versionLabel.Font = $fontBold
+    $versionLabel.Location = New-Object System.Drawing.Point(30, 76)
+    $versionLabel.Size = New-Object System.Drawing.Size(670, 26)
+    $dialog.Controls.Add($versionLabel)
+
+    $publishedAt = [DateTime]::MinValue
+    $publishedText = [string]$Candidate.PublishedAtUtc
+    if ([DateTime]::TryParse([string]$Candidate.PublishedAtUtc, [ref]$publishedAt)) {
+        $publishedText = $publishedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+    }
+    $publishedLabel = New-Object System.Windows.Forms.Label
+    $publishedLabel.Text = Get-DashboardText "update.dialog.published" @($publishedText)
+    $publishedLabel.Location = New-Object System.Drawing.Point(30, 104)
+    $publishedLabel.Size = New-Object System.Drawing.Size(670, 24)
+    $dialog.Controls.Add($publishedLabel)
+
+    $changesText = (@($Candidate.Changes | ForEach-Object { "• " + [string]$_ }) -join "`r`n")
+    $changes = New-Object System.Windows.Forms.TextBox
+    $changes.Multiline = $true
+    $changes.ReadOnly = $true
+    $changes.ScrollBars = "Vertical"
+    $changes.WordWrap = $true
+    $changes.Text = Get-DashboardText "update.dialog.changes" @($changesText)
+    $changes.Font = $fontNormal
+    $changes.Location = New-Object System.Drawing.Point(30, 136)
+    $changes.Size = New-Object System.Drawing.Size(670, 230)
+    $dialog.Controls.Add($changes)
+
+    $privacy = New-Object System.Windows.Forms.Label
+    $privacy.Text = Get-DashboardText "update.dialog.privacy"
+    $privacy.Location = New-Object System.Drawing.Point(30, 380)
+    $privacy.Size = New-Object System.Drawing.Size(670, 88)
+    $privacy.Font = $fontSmall
+    $dialog.Controls.Add($privacy)
+
+    $updateNowButton = New-Object System.Windows.Forms.Button
+    $updateNowButton.Text = Get-DashboardText "update.choice.updateNow"
+    $updateNowButton.Font = $fontBold
+    $updateNowButton.Location = New-Object System.Drawing.Point(76, 494)
+    $updateNowButton.Size = New-Object System.Drawing.Size(180, 42)
+    $updateNowButton.Add_Click({ $dialog.Tag = "UpdateNow"; $dialog.Close() })
+    $dialog.Controls.Add($updateNowButton)
+
+    $laterButton = New-Object System.Windows.Forms.Button
+    $laterButton.Text = Get-DashboardText "update.choice.remindLater"
+    $laterButton.Location = New-Object System.Drawing.Point(274, 494)
+    $laterButton.Size = New-Object System.Drawing.Size(180, 42)
+    $laterButton.Add_Click({ $dialog.Tag = "Later"; $dialog.Close() })
+    $dialog.Controls.Add($laterButton)
+
+    $dismissButton = New-Object System.Windows.Forms.Button
+    $dismissButton.Text = Get-DashboardText "update.choice.dismissSession"
+    $dismissButton.Location = New-Object System.Drawing.Point(472, 494)
+    $dismissButton.Size = New-Object System.Drawing.Size(180, 42)
+    $dismissButton.Add_Click({ $dialog.Tag = "Dismiss"; $dialog.Close() })
+    $dialog.Controls.Add($dismissButton)
+    $dialog.AcceptButton = $updateNowButton
+    $dialog.CancelButton = $laterButton
+
+    Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
+    $palette = Get-ToolUiPalette -Mode $script:dashboardTheme
+    $updateNowButton.BackColor = $palette.Primary
+    $updateNowButton.ForeColor = if ($script:dashboardTheme -eq "Dark") { [System.Drawing.Color]::FromArgb(18, 26, 38) } else { [System.Drawing.Color]::White }
+    foreach ($button in @($updateNowButton, $laterButton, $dismissButton)) {
+        $button.FlatStyle = "Flat"
+        $button.FlatAppearance.BorderSize = 0
+        Set-ModernRoundedRegion -Control $button -Radius 9
+    }
+    $changes.SelectionStart = 0
+    $changes.SelectionLength = 0
+    [void]$dialog.ShowDialog($form)
+    $choice = [string]$dialog.Tag
+    $dialog.Dispose()
+    return $choice
+}
+
+function Start-ApplicationUpdateApply {
+    param([Parameter(Mandatory = $true)][object]$Candidate)
+
+    try {
+        if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0") { throw (Get-DashboardText "foundation.offline.actionBlocked" @((Get-DashboardText "update.check.action"))) }
+        if (-not [bool]$Candidate.CanSelfUpdate) { throw (Get-DashboardText "update.selfUpdateUnavailable") }
+        if ([string]$env:TOOL_SECURE_LAUNCH -ne "1") { throw (Get-DashboardText "update.secureLauncherRequired") }
+        $launcherPath = [string]$env:TOOL_LAUNCHER_PATH
+        $launcherProcessId = 0
+        if ([string]::IsNullOrWhiteSpace($launcherPath) -or -not (Test-Path -LiteralPath $launcherPath -PathType Leaf) -or
+            -not [int]::TryParse([string]$env:TOOL_LAUNCHER_PID, [ref]$launcherProcessId) -or $launcherProcessId -le 0) {
+            throw (Get-DashboardText "update.secureLauncherRequired")
+        }
+        $freshIntegrity = Test-ToolIntegrity
+        if (-not $freshIntegrity.Valid) { throw $freshIntegrity.Message }
+        $currentLauncherSha256 = Get-ApplicationUpdateFileSha256 $launcherPath
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$applicationUpdateScript`" -Mode Apply -ConsentGranted -Culture `"$script:dashboardCulture`" -CurrentVersion `"$releaseVersion`" -ExpectedVersion `"$($Candidate.LatestVersion)`" -ManifestUrl `"$applicationUpdateManifestUrl`" -LauncherPath `"$launcherPath`" -LauncherProcessId $launcherProcessId -ExpectedCurrentSha256 `"$currentLauncherSha256`""
+        $updateApplyStartParameters = @{
+            FilePath = $toolPowerShellPath
+            ArgumentList = $arguments
+            WindowStyle = "Hidden"
+            PassThru = $true
+            Verb = "RunAs"
+        }
+        $updaterProcess = Start-Process @updateApplyStartParameters
+        if (-not $updaterProcess) { throw (Get-DashboardText "module.processMissing") }
+        $script:applicationUpdateApplyStarted = $true
+        $script:applicationUpdatePromptPending = $false
+        $script:applicationUpdateReminderPending = $false
+        [void](Write-ToolLog -Level "AUDIT" -Event "ApplicationUpdate.Confirmed" -Message (Get-DashboardText "update.choice.updateNow") -Data ([ordered]@{
+            CurrentVersion=$releaseVersion; TargetVersion=[string]$Candidate.LatestVersion; UpdaterProcessId=[int]$updaterProcess.Id
+        }))
+        $form.Close()
+    } catch {
+        $message = Get-DashboardText "update.apply.startFailed" @($_.Exception.Message)
+        $status.Text = $message
+        $status.ForeColor = [System.Drawing.Color]::DarkRed
+        [void](Write-ToolLog -Level "ERROR" -Event "ApplicationUpdate.ApplyStartFailed" -Message $message)
+        [System.Windows.Forms.MessageBox]::Show($message, (Get-DashboardText "update.apply.failedTitle"), "OK", "Error") | Out-Null
+        $script:applicationUpdateReminderPending = $true
+        $script:applicationUpdateReminderDueUtc = [DateTime]::UtcNow.AddMinutes(10)
+        $script:applicationUpdateTaskObservedAfterDeferral = $false
+    }
+}
+
+function Invoke-PendingApplicationUpdateWork {
+    if ($script:applicationUpdateApplyStarted -or $script:applicationUpdateDialogVisible -or
+        $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+        $script:applicationUpdateDismissedForSession) {
+        return
+    }
+    if ($script:applicationUpdateProcess -and -not $script:applicationUpdateProcess.HasExited) { return }
+    if ($script:activeProcess -and -not $script:activeProcess.HasExited) { return }
+
+    if ($script:applicationUpdateReminderPending -and $script:availableApplicationUpdate -and
+        ($script:applicationUpdateTaskObservedAfterDeferral -or [DateTime]::UtcNow -ge $script:applicationUpdateReminderDueUtc)) {
+        $script:applicationUpdateReminderPending = $false
+        $script:applicationUpdatePromptPending = $true
+    }
+    if ($script:applicationUpdatePromptPending -and $script:availableApplicationUpdate) {
+        $script:applicationUpdateDialogVisible = $true
+        try {
+            $choice = Show-ApplicationUpdateDialog -Candidate $script:availableApplicationUpdate
+            $script:applicationUpdatePromptPending = $false
+            if ($choice -eq "UpdateNow") {
+                Start-ApplicationUpdateApply -Candidate $script:availableApplicationUpdate
+            } elseif ($choice -eq "Dismiss") {
+                $script:applicationUpdateDismissedForSession = $true
+                $script:applicationUpdateReminderPending = $false
+                $status.Text = Get-DashboardText "update.dismissed.status"
+                $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
+                [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.DismissedForSession" -Message $status.Text)
+            } else {
+                $script:applicationUpdateReminderPending = $true
+                $script:applicationUpdateReminderDueUtc = [DateTime]::UtcNow.AddHours(2)
+                $script:applicationUpdateTaskObservedAfterDeferral = $false
+                $status.Text = Get-DashboardText "update.reminder.scheduled"
+                $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
+                [void](Write-ToolLog -Level "INFO" -Event "ApplicationUpdate.Deferred" -Message $status.Text -Data ([ordered]@{ ReminderAfterHours=2; ReminderAfterNextTask=$true }))
+            }
+        } finally {
+            $script:applicationUpdateDialogVisible = $false
+        }
+        return
+    }
+    if ($script:applicationUpdateCheckPending) { Start-ApplicationUpdateCheck }
 }
 
 function Get-AutomaticSafeCleanupItems {
@@ -3126,7 +3625,7 @@ function Start-CleanupDeep {
         $selectionMode = if ($AutomaticSafeMode) { Get-DashboardText "cleanup.mode.automatic" } else { Get-DashboardText "cleanup.mode.manual" }
         Write-ProgressLog (Get-DashboardText "cleanup.deep.selected" @(@($selection.SelectedIds).Count, $selectionMode))
         Write-ProgressLog (Get-DashboardText "cleanup.deep.scopeNote")
-        $output = Join-Path $desktop "bao-cao-go-ban-quyen"
+        $output = New-ToolReportRunDirectory -Category "KhacPhuc-XuLy"
         $script:cleanupResultFile = New-SecureRuntimePath "tool-license-deep-clean-result-"
         $script:cleanupSelectionFile = New-SecureRuntimePath "tool-license-deep-selection-"
         [pscustomobject]@{ SelectedIds=@($selection.SelectedIds); ScanScope=$script:cleanupScanScope } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:cleanupSelectionFile -Encoding UTF8
@@ -3235,7 +3734,7 @@ function Start-ScanSourceRepair {
     try {
         Start-ProgressDisplay (Get-DashboardText "scanRepair.action") (Get-DashboardText "scanRepair.detail") $true
         Write-ProgressLog (Get-DashboardText "scanRepair.requestAdmin")
-        $output = Join-Path $desktop "bao-cao-go-ban-quyen"
+        $output = New-ToolReportRunDirectory -Category "KhacPhuc-NguonQuet"
         $script:cleanupRepairDecisionFile = New-SecureRuntimePath "tool-scan-source-repair-"
         $privacyArgument = if ($script:cleanupRedactSensitive) { " -RedactSensitive" } else { "" }
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$cleanupScript`" -OutputDir `"$output`" -RepairScanSources -DecisionFile `"$script:cleanupRepairDecisionFile`" -Culture `"$script:dashboardCulture`"$privacyArgument"
@@ -3973,7 +4472,8 @@ function Start-OemInspect {
         Write-ProgressLog (Get-DashboardText "oem.inspect.progressLog")
         Write-ProgressLog (Get-DashboardText "oem.keyPrivacyLog")
         $script:oemDecisionFile = New-SecureRuntimePath "tool-oem-decision-"
-        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$oemScript`" -Mode Inspect -OutputDir `"$desktop`" -DecisionFile `"$script:oemDecisionFile`" -Culture `"$script:dashboardCulture`""
+        $output = New-ToolReportRunDirectory -Category "OEM-KiemTra"
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$oemScript`" -Mode Inspect -OutputDir `"$output`" -DecisionFile `"$script:oemDecisionFile`" -Culture `"$script:dashboardCulture`""
         [void](Start-ToolModuleProcess -ModuleId "oem.inspect" -Arguments $arguments -Action (Get-DashboardText "oem.inspect.action") -Hidden)
         $status.Text = Get-DashboardText "oem.inspect.running"
         $status.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
@@ -3992,7 +4492,8 @@ function Start-OemApply {
         Write-ProgressLog (Get-DashboardText "oem.apply.requestAdmin")
         Write-ProgressLog (Get-DashboardText "oem.apply.preserveKeyLog")
         $script:oemDecisionFile = New-SecureRuntimePath "tool-oem-apply-result-"
-        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$oemScript`" -Mode Apply -OutputDir `"$desktop`" -DecisionFile `"$script:oemDecisionFile`" -Culture `"$script:dashboardCulture`""
+        $output = New-ToolReportRunDirectory -Category "OEM-ApDung"
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$oemScript`" -Mode Apply -OutputDir `"$output`" -DecisionFile `"$script:oemDecisionFile`" -Culture `"$script:dashboardCulture`""
         [void](Start-ToolModuleProcess -ModuleId "oem.apply" -Arguments $arguments -Action (Get-DashboardText "oem.apply.action") -Elevate -Hidden)
         $status.Text = Get-DashboardText "oem.apply.running"
         $status.ForeColor = [System.Drawing.Color]::DarkOrange
@@ -4066,7 +4567,7 @@ function Start-DeepLicenseScan {
         Write-ProgressLog (Get-DashboardText "deepScan.adminLog")
         Write-ProgressLog (Get-DashboardText "deepScan.readOnlyLog")
         $script:deepScanDecisionFile = New-SecureRuntimePath "tool-deep-license-"
-        $output = $desktop
+        $output = New-ToolReportRunDirectory -Category "Quet-ChuyenSau"
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$deepScanScript`" -OutputDir `"$output`" -ApprovedKmsServerFile `"$approvedKmsFile`" -DecisionFile `"$script:deepScanDecisionFile`" -Culture `"$script:dashboardCulture`" -NoOpen$privacyArgument"
         [void](Start-ToolModuleProcess -ModuleId "license.deep-scan" -Arguments $arguments -Action (Get-DashboardText "deepScan.action") -Elevate -Hidden)
         $status.Text = Get-DashboardText "deepScan.running"
@@ -4102,7 +4603,7 @@ function Complete-DeepLicenseScan {
         $oemState = if ([bool]$result.OemKeyPresent) { Get-DashboardText "common.yes" } else { Get-DashboardText "common.notFound" }
         $message = Get-DashboardText "deepScan.resultSummary" @($result.Overall, $result.HighCount, $result.ReviewCount, $result.ActiveChannel, $oemState, $guidanceSummary, $reviewSummary, $result.ReportPath)
         [System.Windows.Forms.MessageBox]::Show($message, (Get-DashboardText "deepScan.completedTitle"), "OK", $(if ([int]$result.HighCount -gt 0) { "Warning" } else { "Information" })) | Out-Null
-        if (Test-Path -LiteralPath $result.ReportPath) { Start-Process $result.ReportPath }
+        [void](Open-ToolHtmlReport -Path ([string]$result.ReportPath))
         $status.Text = Get-DashboardText "deepScan.completedStatus" @($result.Overall)
         Write-ProgressLog (Get-DashboardText "deepScan.completedLog")
         $status.ForeColor = if ([int]$result.HighCount -gt 0) { [System.Drawing.Color]::DarkOrange } else { [System.Drawing.Color]::DarkGreen }
@@ -4130,7 +4631,7 @@ function Start-ForensicsScan {
         Write-ProgressLog (Get-DashboardText "forensics.adminLog")
         Write-ProgressLog (Get-DashboardText "forensics.readOnlyLog")
         $script:forensicsDecisionFile = New-SecureRuntimePath "tool-license-forensics-"
-        $output = $desktop
+        $output = New-ToolReportRunDirectory -Category "Quet-Forensics"
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$forensicsScript`" -OutputDir `"$output`" -ApprovedKmsServerFile `"$approvedKmsFile`" -DecisionFile `"$script:forensicsDecisionFile`" -Culture `"$script:dashboardCulture`" -NoOpen$privacyArgument"
         [void](Start-ToolModuleProcess -ModuleId "forensics.scan" -Arguments $arguments -Action (Get-DashboardText "forensics.action") -Elevate -Hidden)
         $status.Text = Get-DashboardText "forensics.running"
@@ -4164,7 +4665,7 @@ function Complete-ForensicsScan {
         $message = Get-DashboardText "forensics.resultSummary" @($result.Overall, $result.RiskScore, $result.RiskLevel, $result.HighCount, $result.ReviewCount, $result.NewFindingCount, $result.ResolvedFindingCount, $result.EvidenceFolder)
         $icon = if ([int]$result.RiskScore -ge 40) { "Warning" } else { "Information" }
         [System.Windows.Forms.MessageBox]::Show($message, (Get-DashboardText "forensics.completedTitle"), "OK", $icon) | Out-Null
-        if (Test-Path -LiteralPath $result.ReportPath) { Start-Process $result.ReportPath }
+        [void](Open-ToolHtmlReport -Path ([string]$result.ReportPath))
         $status.Text = Get-DashboardText "forensics.completedStatus" @($result.RiskScore, $result.RiskLevel)
         Write-ProgressLog (Get-DashboardText "forensics.completedLog")
         $status.ForeColor = if ([int]$result.RiskScore -ge 40) { [System.Drawing.Color]::DarkOrange } else { [System.Drawing.Color]::DarkGreen }
@@ -4193,7 +4694,7 @@ function Open-LicenseManager {
         $launcherPath = [string]$env:TOOL_LAUNCHER_PATH
         if ($env:TOOL_SECURE_LAUNCH -eq "1" -and -not [string]::IsNullOrWhiteSpace($launcherPath) -and (Test-Path -LiteralPath $launcherPath -PathType Leaf)) {
             [void](Get-ReadyToolModule -moduleId "license.manager" -elevatedLaunch $true)
-            $enterpriseProcess = Start-Process -FilePath $launcherPath -ArgumentList "--enterprise-ui" -PassThru
+            $enterpriseProcess = Start-Process -FilePath $launcherPath -ArgumentList "--enterprise-ui" -Verb RunAs -PassThru
             if (-not $enterpriseProcess) { throw (Get-ToolText -Key "status.enterprise.launchFailed" -Culture $script:dashboardCulture) }
             [void](Write-ToolLog -Level "AUDIT" -Event "Module.Launched" -Message (Get-ToolText -Key "status.enterprise.action" -Culture $script:dashboardCulture) -Data ([ordered]@{
                 ModuleId="license.manager"; ProcessId=$enterpriseProcess.Id; LaunchMode="--enterprise-ui"; OfflineMode=[bool]$script:offlineMode
@@ -4368,11 +4869,16 @@ function Open-ToolEmbeddedDocument {
         Start-ProgressDisplay $documentAction (Get-ToolText -Key $ExportingDetailKey -Culture $script:dashboardCulture) $false
         [System.Windows.Forms.Application]::DoEvents()
 
-        # Tên ổn định theo phiên bản/ngôn ngữ giúp mở lại tức thì và tránh tạo
-        # nhiều bản trùng nhau trên Desktop. SHA-256 nguồn làm khóa cache.
+        # Tên ổn định theo phiên bản/ngôn ngữ giúp mở lại tức thì. Toàn bộ HTML,
+        # PDF và checksum tài liệu nằm chung trong thư mục báo cáo của Tool.
         $documentRendererRevision = "2"
         $sourceHash = Get-ToolSha256Hex -Path $SourceFile
-        $documentBasePath = Join-Path $desktop "$FilePrefix-v$releaseVersion-$($script:dashboardCulture)"
+        $documentDirectory = Join-Path $reportRoot "TaiLieu"
+        if (-not (Test-Path -LiteralPath $documentDirectory -PathType Container)) {
+            New-Item -ItemType Directory -Path $documentDirectory -Force | Out-Null
+        }
+        $script:lastReportDirectory = $documentDirectory
+        $documentBasePath = Join-Path $documentDirectory "$FilePrefix-v$releaseVersion-$($script:dashboardCulture)"
         $htmlPath = "$documentBasePath.html"
         $pdfPath = "$documentBasePath.pdf"
         $manifestPath = "${documentBasePath}-SHA256SUMS.txt"
@@ -4441,8 +4947,7 @@ section p{margin:6px 0}section li{margin:4px 0}section ul,section ol{padding-lef
 
         # Mở HTML ngay sau khi có tệp hợp lệ. Tạo PDF diễn ra sau đó nên người
         # dùng không còn phải chờ Edge/Chrome/Word trước khi đọc hướng dẫn.
-        Register-ToolReportPath -Path $htmlPath
-        Start-Process -FilePath $htmlPath
+        [void](Open-ToolHtmlReport -Path $htmlPath)
         $status.Text = Get-ToolText -Key $ExportedKey -Culture $script:dashboardCulture -FormatArguments @([IO.Path]::GetFileName($htmlPath))
         $status.ForeColor = [System.Drawing.Color]::DarkGreen
         Write-ProgressLog $status.Text
@@ -4634,7 +5139,7 @@ function Start-CleanupBackup {
     }
     try {
         Start-ProgressDisplay (Get-DashboardText "backup.action") (Get-DashboardText "backup.detail") $true
-        $output = Join-Path $desktop "bao-cao-go-ban-quyen"
+        $output = New-ToolReportRunDirectory -Category "SaoLuu-BanQuyen"
         $script:backupResultFile = New-SecureRuntimePath "tool-license-backup-result-"
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$backupScript`" -OutputDir `"$output`" -DecisionFile `"$script:backupResultFile`" -Scope `"$script:backupScope`" -Culture `"$script:dashboardCulture`""
         [void](Start-ToolModuleProcess -ModuleId "backup.create" -Arguments $arguments -Action (Get-DashboardText "backup.action") -Elevate)
@@ -5097,7 +5602,7 @@ function Show-CleanupFunctionScreen {
 
     $backButton = New-Object System.Windows.Forms.Button
     $backButton.Text = Get-DashboardText "common.back"
-    $backButton.Font = $fontBold
+    $backButton.Font = $fontTile
     $backButton.Size = New-Object System.Drawing.Size($(if ($Mode -eq "Cleanup") { $compactCleanupButtonWidth } else { 132 }), 40)
     $backButton.Add_Click({ $screen.Tag = "Back"; $screen.Close() })
     $screen.CancelButton = $backButton
@@ -5105,7 +5610,7 @@ function Show-CleanupFunctionScreen {
 
     $actionButton = New-Object System.Windows.Forms.Button
     $actionButton.Text = Get-DashboardText $actionKeys[$Mode]
-    $actionButton.Font = $fontBold
+    $actionButton.Font = $fontTile
     $actionButton.Size = New-Object System.Drawing.Size($(if ($Mode -eq "Cleanup") { $compactCleanupButtonWidth } else { 250 }), 40)
     $actionButton.BackColor = [System.Drawing.Color]::FromArgb(234, 242, 255)
     $actionButton.Add_Click({ $screen.Tag = "Action"; $screen.Close() })
@@ -5114,7 +5619,7 @@ function Show-CleanupFunctionScreen {
     if ($Mode -eq "Cleanup") {
         $dryRunButton = New-Object System.Windows.Forms.Button
         $dryRunButton.Text = Get-DashboardText 'cleanup.dryRun.button'
-        $dryRunButton.Font = $fontBold
+        $dryRunButton.Font = $fontTile
         $dryRunButton.Size = New-Object System.Drawing.Size($compactCleanupButtonWidth, 40)
         $dryRunButton.BackColor = [System.Drawing.Color]::FromArgb(255, 248, 230)
         $dryRunButton.Add_Click({ $screen.Tag = 'DryRun'; $screen.Close() })
@@ -5122,7 +5627,7 @@ function Show-CleanupFunctionScreen {
 
         $onlineButton = New-Object System.Windows.Forms.Button
         $onlineButton.Text = Get-DashboardText "software.online.button"
-        $onlineButton.Font = $fontBold
+        $onlineButton.Font = $fontTile
         $onlineButton.Size = New-Object System.Drawing.Size($compactCleanupButtonWidth, 40)
         $onlineButton.BackColor = [System.Drawing.Color]::FromArgb(232, 247, 240)
         $onlineButton.Add_Click({ $screen.Tag = "Online"; $screen.Close() })
@@ -5277,7 +5782,8 @@ function Start-AssuranceReport {
     $redactArgument = if ($privacyChoice -eq [System.Windows.Forms.DialogResult]::Yes) { " -RedactSensitive" } else { "" }
     try {
         Start-ProgressDisplay $DisplayName (Get-ToolText -Key "report.starting" -Culture $script:dashboardCulture) $false
-        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$assuranceScript`" -Operation `"$Operation`" -OutputDir `"$desktop`" -Culture `"$script:dashboardCulture`" -Pdf$redactArgument"
+        $output = New-ToolReportRunDirectory -Category "BaoDam-$Operation"
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$assuranceScript`" -Operation `"$Operation`" -OutputDir `"$output`" -Culture `"$script:dashboardCulture`" -Pdf$redactArgument"
         [void](Start-ToolModuleProcess -ModuleId $ModuleId -Arguments $arguments -Action $DisplayName -Hidden)
         $status.Text = Get-ToolText -Key "report.running" -Culture $script:dashboardCulture -FormatArguments @($DisplayName)
         $status.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
@@ -5418,6 +5924,10 @@ function Show-AssuranceCenter {
     $dialog.CancelButton = $close
     $dialog.Controls.Add($close)
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
+    # Set-ToolWindowTheme dat mau chung cho Label. Khoi phuc mau tieu de chinh
+    # sau khi ap theme de Trung tam bao cao dong bo voi cac cua so chuc nang.
+    $heading.ForeColor = $script:baseUiPalette.Primary
+    $descriptionLabel.ForeColor = $script:baseUiPalette.Text
     [void]$dialog.ShowDialog($form)
     $choice = [string]$dialog.Tag
     $dialog.Dispose()
@@ -5449,21 +5959,18 @@ function Add-MenuButton([int]$number, [string]$titleKey, [string]$descriptionKey
         DescriptionKey = $descriptionKey
         Tone = if ($number -eq 8) { "Enterprise" } elseif ($warning) { "Warning" } else { "Normal" }
         IconKind = Get-DashboardMenuIconKind -Number $number
+        TitleLabel = $null
+        DescriptionLabel = $null
     }
-    $button.Text = Get-DashboardMenuText -Metadata $metadata
+    $button.Text = ""
     $button.Font = $fontTile
-    $button.TextAlign = "MiddleLeft"
     $button.ImageAlign = "MiddleLeft"
-    $button.TextImageRelation = [System.Windows.Forms.TextImageRelation]::ImageBeforeText
-    $button.Padding = New-Object System.Windows.Forms.Padding(11, 2, 8, 2)
-    # GDI+ is kept for the two-line tile text because the WinForms GDI button
-    # renderer can collapse the explicit title/description line break at high DPI.
-    $button.UseCompatibleTextRendering = $true
+    $button.Padding = New-Object System.Windows.Forms.Padding(12, 0, 10, 0)
     $row = [Math]::Floor($index / 2)
     $column = $index % 2
     $button.Location = New-Object System.Drawing.Point((14 + ($column * 420)), (34 + ($row * 58)))
     $button.Size = New-Object System.Drawing.Size(410, 50)
-    $menuIconImage = New-DashboardIconBitmap -Kind ([string]$metadata.IconKind) -Size 36
+    $menuIconImage = New-DashboardTileIconBitmap -Kind ([string]$metadata.IconKind) -IconSize 32 -RightGap 12
     [void]$dashboardIconImages.Add($menuIconImage)
     $button.Image = $menuIconImage
     $initialTilePalette = Get-DashboardTilePalette -Tone ([string]$metadata.Tone) -Mode $script:dashboardTheme
@@ -5473,6 +5980,40 @@ function Add-MenuButton([int]$number, [string]$titleKey, [string]$descriptionKey
     $button.FlatAppearance.BorderSize = 0
     $button.Cursor = [System.Windows.Forms.Cursors]::Hand
     $button.Tag = $metadata
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = Get-ToolText -Key $titleKey -Culture $script:dashboardCulture
+    $titleLabel.Font = $fontBold
+    $titleLabel.BackColor = [System.Drawing.Color]::Transparent
+    $titleLabel.ForeColor = $initialTilePalette.TitleColor
+    $titleLabel.AutoEllipsis = $true
+    $titleLabel.UseCompatibleTextRendering = $false
+    $titleLabel.UseMnemonic = $false
+    $titleLabel.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $titleLabel.Location = New-Object System.Drawing.Point(60, 4)
+    $titleLabel.Size = New-Object System.Drawing.Size(334, 20)
+    $titleLabel.Add_Click({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.PerformClick() } })
+    $titleLabel.Add_MouseEnter({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.BackColor = (Get-DashboardTilePalette -Tone ([string]$sender.Parent.Tag.Tone) -Mode $script:dashboardTheme -Hover).BackColor } })
+    $titleLabel.Add_MouseLeave({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.BackColor = (Get-DashboardTilePalette -Tone ([string]$sender.Parent.Tag.Tone) -Mode $script:dashboardTheme).BackColor } })
+    $button.Controls.Add($titleLabel)
+    $descriptionLabel = New-Object System.Windows.Forms.Label
+    $descriptionLabel.Text = Get-ToolText -Key $descriptionKey -Culture $script:dashboardCulture
+    $descriptionLabel.Font = $fontSupportSmall
+    $descriptionLabel.BackColor = [System.Drawing.Color]::Transparent
+    $descriptionLabel.ForeColor = $initialTilePalette.DescriptionColor
+    $descriptionLabel.AutoEllipsis = $true
+    $descriptionLabel.UseCompatibleTextRendering = $false
+    $descriptionLabel.UseMnemonic = $false
+    $descriptionLabel.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $descriptionLabel.Location = New-Object System.Drawing.Point(60, 24)
+    $descriptionLabel.Size = New-Object System.Drawing.Size(334, 19)
+    $descriptionLabel.Add_Click({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.PerformClick() } })
+    $descriptionLabel.Add_MouseEnter({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.BackColor = (Get-DashboardTilePalette -Tone ([string]$sender.Parent.Tag.Tone) -Mode $script:dashboardTheme -Hover).BackColor } })
+    $descriptionLabel.Add_MouseLeave({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.BackColor = (Get-DashboardTilePalette -Tone ([string]$sender.Parent.Tag.Tone) -Mode $script:dashboardTheme).BackColor } })
+    $button.Controls.Add($descriptionLabel)
+    $metadata.TitleLabel = $titleLabel
+    $metadata.DescriptionLabel = $descriptionLabel
+    $button.AccessibleName = Get-ToolText -Key $titleKey -Culture $script:dashboardCulture
+    $button.AccessibleDescription = Get-ToolText -Key $descriptionKey -Culture $script:dashboardCulture
     $button.Add_Click($action)
     $button.Add_MouseEnter({
         param($sender, $eventArgs)
@@ -5504,19 +6045,19 @@ function Add-ReportMenuButton([string]$actionId, [string]$titleKey, [string]$des
         DescriptionKey = $descriptionKey
         Tone = "Normal"
         IconKind = $iconKind
+        TitleLabel = $null
+        DescriptionLabel = $null
     }
-    $button.Text = Get-DashboardMenuText -Metadata $metadata
+    $button.Text = ""
     $button.Font = $fontTile
-    $button.TextAlign = "MiddleLeft"
     $button.ImageAlign = "MiddleLeft"
-    $button.TextImageRelation = [System.Windows.Forms.TextImageRelation]::ImageBeforeText
-    $button.Padding = New-Object System.Windows.Forms.Padding(11, 2, 8, 2)
-    $button.UseCompatibleTextRendering = $true
+    $button.Padding = New-Object System.Windows.Forms.Padding(12, 0, 10, 0)
+    $button.UseMnemonic = $false
     $row = [Math]::Floor($index / 2)
     $column = $index % 2
     $button.Location = New-Object System.Drawing.Point((14 + ($column * 420)), (34 + ($row * 58)))
     $button.Size = New-Object System.Drawing.Size(410, 50)
-    $menuIconImage = New-DashboardIconBitmap -Kind $iconKind -Size 36
+    $menuIconImage = New-DashboardTileIconBitmap -Kind $iconKind -IconSize 32 -RightGap 12
     [void]$dashboardIconImages.Add($menuIconImage)
     $button.Image = $menuIconImage
     $initialTilePalette = Get-DashboardTilePalette -Tone "Normal" -Mode $script:dashboardTheme
@@ -5526,6 +6067,56 @@ function Add-ReportMenuButton([string]$actionId, [string]$titleKey, [string]$des
     $button.FlatAppearance.BorderSize = 0
     $button.Cursor = [System.Windows.Forms.Cursors]::Hand
     $button.Tag = $metadata
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = Get-ToolText -Key $titleKey -Culture $script:dashboardCulture
+    $titleLabel.Font = $fontBold
+    $titleLabel.BackColor = [System.Drawing.Color]::Transparent
+    $titleLabel.ForeColor = $initialTilePalette.TitleColor
+    $titleLabel.AutoEllipsis = $true
+    $titleLabel.UseCompatibleTextRendering = $false
+    $titleLabel.UseMnemonic = $false
+    $titleLabel.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $titleLabel.Location = New-Object System.Drawing.Point(60, 4)
+    $titleLabel.Size = New-Object System.Drawing.Size(334, 20)
+    $titleLabel.Add_Click({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.PerformClick() } })
+    $button.Controls.Add($titleLabel)
+    $descriptionLabel = New-Object System.Windows.Forms.Label
+    $descriptionLabel.Text = Get-ToolText -Key $descriptionKey -Culture $script:dashboardCulture
+    $descriptionLabel.Font = $fontSupportSmall
+    $descriptionLabel.BackColor = [System.Drawing.Color]::Transparent
+    $descriptionLabel.ForeColor = $initialTilePalette.DescriptionColor
+    $descriptionLabel.AutoEllipsis = $true
+    $descriptionLabel.UseCompatibleTextRendering = $false
+    $descriptionLabel.UseMnemonic = $false
+    $descriptionLabel.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $descriptionLabel.Location = New-Object System.Drawing.Point(60, 24)
+    $descriptionLabel.Size = New-Object System.Drawing.Size(334, 19)
+    $descriptionLabel.Add_Click({ param($sender, $eventArgs); if ($sender.Parent) { $sender.Parent.PerformClick() } })
+    $button.Controls.Add($descriptionLabel)
+    foreach ($label in @($titleLabel, $descriptionLabel)) {
+        $label.Add_MouseEnter({
+            param($sender, $eventArgs)
+            if ($sender.Parent) {
+                $palette = Get-DashboardTilePalette -Tone "Normal" -Mode $script:dashboardTheme -Hover
+                $sender.Parent.BackColor = $palette.BackColor
+                $sender.Parent.Tag.TitleLabel.ForeColor = $palette.TitleColor
+                $sender.Parent.Tag.DescriptionLabel.ForeColor = $palette.DescriptionColor
+            }
+        })
+        $label.Add_MouseLeave({
+            param($sender, $eventArgs)
+            if ($sender.Parent) {
+                $palette = Get-DashboardTilePalette -Tone "Normal" -Mode $script:dashboardTheme
+                $sender.Parent.BackColor = $palette.BackColor
+                $sender.Parent.Tag.TitleLabel.ForeColor = $palette.TitleColor
+                $sender.Parent.Tag.DescriptionLabel.ForeColor = $palette.DescriptionColor
+            }
+        })
+    }
+    $metadata.TitleLabel = $titleLabel
+    $metadata.DescriptionLabel = $descriptionLabel
+    $button.AccessibleName = Get-ToolText -Key $titleKey -Culture $script:dashboardCulture
+    $button.AccessibleDescription = Get-ToolText -Key $descriptionKey -Culture $script:dashboardCulture
     $button.Visible = $false
     $button.Add_Click({
         param($sender, $eventArgs)
@@ -5536,12 +6127,16 @@ function Add-ReportMenuButton([string]$actionId, [string]$titleKey, [string]$des
         $hoverPalette = Get-DashboardTilePalette -Tone "Normal" -Mode $script:dashboardTheme -Hover
         $sender.BackColor = $hoverPalette.BackColor
         $sender.ForeColor = $hoverPalette.ForeColor
+        if ($sender.Tag.TitleLabel) { $sender.Tag.TitleLabel.ForeColor = $hoverPalette.TitleColor }
+        if ($sender.Tag.DescriptionLabel) { $sender.Tag.DescriptionLabel.ForeColor = $hoverPalette.DescriptionColor }
     })
     $button.Add_MouseLeave({
         param($sender, $eventArgs)
         $normalPalette = Get-DashboardTilePalette -Tone "Normal" -Mode $script:dashboardTheme
         $sender.BackColor = $normalPalette.BackColor
         $sender.ForeColor = $normalPalette.ForeColor
+        if ($sender.Tag.TitleLabel) { $sender.Tag.TitleLabel.ForeColor = $normalPalette.TitleColor }
+        if ($sender.Tag.DescriptionLabel) { $sender.Tag.DescriptionLabel.ForeColor = $normalPalette.DescriptionColor }
     })
     $toolTip.SetToolTip($button, (Get-ToolText -Key $descriptionKey -Culture $script:dashboardCulture))
     [void]$buttons.Add($button)
@@ -5570,7 +6165,17 @@ Add-ReportMenuButton "Guide" "assurance.guide" "dashboard.report.guide.descripti
 Add-ReportMenuButton "History" "assurance.history" "dashboard.report.history.description" 6 "License"
 Set-DashboardSection -Section "Overview"
 Set-DashboardTheme -Mode $script:dashboardTheme
-$form.Add_Shown({ Fit-MainWindowToWorkingArea; Update-MainLayout; Show-ExecutionEnvironmentWarning })
+$form.Add_Shown({
+    Fit-MainWindowToWorkingArea
+    Update-MainLayout
+    # Bounds được đổi ngay trong Shown có thể chưa cập nhật ClientSize cho tới
+    # lượt message-pump kế tiếp. Chạy lại một lần sau đó để mọi panel/card dùng
+    # đúng chiều rộng thật của màn hình, tránh giữ tọa độ 1480 px rồi tràn phải.
+    [void]$form.BeginInvoke([System.Action]{ Update-MainLayout })
+    Show-ExecutionEnvironmentWarning
+    $updateTimer.Start()
+    if (-not $script:offlineMode) { Request-ApplicationUpdateCheck }
+})
 $form.Add_Resize({ Update-MainLayout })
 
 $timer = New-Object System.Windows.Forms.Timer
@@ -5637,6 +6242,9 @@ $timer.Add_Tick({
         $script:activeTaskKind = ""
         $script:activeModuleId = ""
         $script:activeModuleInvocation = $null
+        if ($script:applicationUpdateReminderPending -and -not [string]::IsNullOrWhiteSpace($finishedTaskKind)) {
+            $script:applicationUpdateTaskObservedAfterDeferral = $true
+        }
         if ($wasCancellationRequested) {
             $script:taskCancellationRequested = $false
             Set-ButtonsEnabled $true
@@ -5759,6 +6367,15 @@ $timer.Add_Tick({
     }
 })
 
+$updateTimer = New-Object System.Windows.Forms.Timer
+$updateTimer.Interval = 1000
+$updateTimer.Add_Tick({
+    if ($script:applicationUpdateProcess -and $script:applicationUpdateProcess.HasExited) {
+        Complete-ApplicationUpdateCheck
+    }
+    Invoke-PendingApplicationUpdateWork
+})
+
 $form.Add_FormClosing({
     param($sender, $eventArgs)
     if ($script:activeProcess -and -not $script:activeProcess.HasExited) {
@@ -5773,6 +6390,14 @@ $form.Add_FormClosing({
 })
 
 $form.Add_FormClosed({
+    if ($updateTimer) {
+        $updateTimer.Stop()
+        $updateTimer.Dispose()
+    }
+    if ($script:applicationUpdateProcess -and -not $script:applicationUpdateProcess.HasExited) {
+        try { $script:applicationUpdateProcess.Kill() } catch {}
+    }
+    Remove-ApplicationUpdateResultFile
     foreach ($iconImage in @($dashboardIconImages)) {
         if ($iconImage) { $iconImage.Dispose() }
     }

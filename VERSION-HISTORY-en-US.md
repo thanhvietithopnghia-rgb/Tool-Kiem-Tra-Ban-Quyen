@@ -1,9 +1,26 @@
 # Computer Configuration and Software License Check Tool — Version History
 
-This document summarizes the main releases from v1.0 through v4.6. Patch releases in the form `x.y.z` are merged into their corresponding `x.y` release and do not receive separate headings.
+This document summarizes the main public releases from v1.0 through v4.8.0. v4.8.0 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
 
-Current release: **v4.6**  
-FileVersion: **4.6.0.0** · Build **2026.08.06**
+Current release: **v4.8.0**  
+FileVersion: **4.8.0.0** · Build **2026.08.10**
+
+## v4.8.0 — August 10, 2026
+
+Focus: **a leap-forward upgrade with in-depth improvements** from v4.6, delivering a clear advance in experience, performance, and core quality without making the Tool cumbersome or changing its Offline-first safety model.
+
+- **Interface:** refined colors, headings, and layout; synchronized the Report Center, balanced its seven actions, and improved DPI behavior.
+- **Tool Assistant:** added in-scope guidance with immediate answers, automatic scrolling, and duplicate-submit protection. The Offline/knowledge badge keeps a safe edge margin, the composer has a clear background, border, and focus state, and questions and answers use separate softly outlined colors.
+- **Natural-language handling:** expands support for accent-free text, abbreviations, common typos, and multi-intent questions; reduces cross-topic matches, repeated templates, and repeated commands while providing context-aware out-of-scope replies.
+- **Performance and source:** indexes normalized name groups during inventory merging, indexes external evidence, builds result property bags instead of issuing thousands of `Add-Member` calls, reuses one Scheduled Tasks snapshot, and uses a reverse translation map instead of hashing every report string while preserving sources, coverage, and conclusion order. On the same 480-application test machine, the inventory-and-assessment core fell from about 42.5 seconds to 26.4 seconds (about 38%); the final end-to-end scan-and-report run fell from 76.9 seconds to 60.4 seconds, with identical result SHA-256 values, 480 applications, and status distribution.
+- **Software catalog:** expanded to `1.3.0.0` with 73 rules; merges Registry/Appx/shortcut, same-release patch, and x86/x64 discoveries while retaining source, location, and architecture details.
+- **Conservative conclusions:** maps `HashMismatch` to `IntegrityCompromised`; file-integrity evidence alone no longer produces `NonGenuine` or enables license remediation.
+- **Reports:** fixes clipped PDF lines, text, and row spacing; splits wide tables, moves system software to an appendix, uses one shared report folder, and links HTML to the matching PDF.
+- **Server/Workstation:** supports `IP:port`, blank-address discovery, address/TCP/service/protocol/version diagnostics, Neighbor/ARP–ICMP–TCP LAN discovery, and queued report retry after connection loss.
+- **Safety and privilege:** keeps the dashboard at standard-user rights with on-demand UAC; fixes stale administrative-data-area blocks while continuing to fail closed for genuinely unsafe ACLs.
+- **Update and privacy:** remains Offline by default; checks/downloads only after consent, verifies size/SHA-256, and provides no telemetry or silent update.
+- **Documentation:** rewrites the Vietnamese and English user guides as evergreen feature-use documents without embedded release notes; all v4.8 changes directly from v4.6 are kept in Version History only.
+- **Release synchronization:** moves FileVersion to `4.8.0.0`, build `2026.08.10`, and synchronizes histories, READMEs, manifest, and x64/x86 verification.
 
 ## v4.6 — August 6, 2026
 
@@ -11,6 +28,7 @@ Focus: no-change remediation simulation, broader engineering-software recognitio
 Platform/technology: C#/.NET Framework 4 AnyCPU; Windows PowerShell 3+/WinForms; JSON catalog 1.2; DataSchema 2.0; SHA-256/HMAC/DPAPI; LAN HTTP with AES-256-CBC + HMAC-SHA256 application envelopes.
 
 - Expanded the software catalog to `1.2.0.0` with 45 product rules, including 16 CAD/CAM/CAE, BIM, simulation, structural, GIS, EDA, measurement, and rendering groups. Unknown products still use the vendor-neutral deep scanner.
+- Added a deep-scan performance hotfix with per-directory caching, lighter .NET enumeration, a reusable Authenticode runspace pool, and an adaptive 6/3/1 signature profile by risk. Source scope, depth, artifact inspection, and correlated system evidence are unchanged, and all limits remain reportable.
 - Added **Dry Run** for KMS/Activator remediation. It lists the exact file, Registry, service, task, KMS/key, MSI Repair, or uninstall action plus backup/restorability without creating a restore point, backup, or system change. Real execution reopens item selection and requires confirmation again.
 - Fixed online-catalog consent to fail closed: omitted consent or explicit `false` exits with code `2` before any network operation, and the wrapper no longer replaces the caller's value with `true`.
 - Reduced unauthenticated `GET /tool/v1/status` to exactly `Accepted`, `ProtocolVersion`, and `ToolVersion`; server identity, addresses, bind settings, CIDRs, and client counts are not disclosed. Business endpoints retain authenticated envelopes and rate limiting.

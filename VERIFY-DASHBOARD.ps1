@@ -16,22 +16,66 @@ function Assert-SourcePattern {
 }
 
 $guiPath = Join-Path $root 'Giao-Dien.ps1'
+$guiAst = $null
 if (-not (Test-Path -LiteralPath $guiPath -PathType Leaf)) {
     Add-Failure 'Thiếu Giao-Dien.ps1.'
     $text = ''
 } else {
     $tokens = $null
     $parseErrors = $null
-    [void][Management.Automation.Language.Parser]::ParseFile($guiPath, [ref]$tokens, [ref]$parseErrors)
+    $guiAst = [Management.Automation.Language.Parser]::ParseFile($guiPath, [ref]$tokens, [ref]$parseErrors)
     foreach ($parseError in @($parseErrors)) {
         Add-Failure "Lỗi cú pháp Giao-Dien.ps1: $($parseError.Message)"
     }
     $text = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
 }
 
+# The dashboard re-checks TOOL-SHA256SUMS.txt before every elevated action.
+# Keep its allow-list exactly synchronized with the generated integrity manifest.
+if ($guiAst) {
+    $requiredIntegrityAssignment = $guiAst.Find({
+        param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+            $node.Left.Extent.Text -eq '$requiredIntegrityFiles'
+    }, $true)
+    if (-not $requiredIntegrityAssignment) {
+        Add-Failure 'Dashboard thiếu danh sách requiredIntegrityFiles.'
+    } else {
+        try {
+            $dashboardIntegrityFiles = @(
+                $requiredIntegrityAssignment.Right.FindAll({
+                    param($node)
+                    $node -is [Management.Automation.Language.StringConstantExpressionAst]
+                }, $true) | ForEach-Object { $_.Value }
+            )
+            $manifestIntegrityFiles = @(
+                foreach ($manifestLine in Get-Content -LiteralPath (Join-Path $root 'TOOL-SHA256SUMS.txt') -ErrorAction Stop) {
+                    if ($manifestLine -match '^[0-9A-Fa-f]{64}\s+\*?(.+)$') { $matches[1].Trim() }
+                }
+            )
+            $dashboardIntegritySet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+            $manifestIntegritySet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+            foreach ($name in $dashboardIntegrityFiles) { [void]$dashboardIntegritySet.Add([string]$name) }
+            foreach ($name in $manifestIntegrityFiles) { [void]$manifestIntegritySet.Add([string]$name) }
+            foreach ($name in $manifestIntegrityFiles) {
+                if (-not $dashboardIntegritySet.Contains([string]$name)) {
+                    Add-Failure "Manifest có tệp nhưng dashboard sẽ khóa là ngoài danh sách: $name"
+                }
+            }
+            foreach ($name in $dashboardIntegrityFiles) {
+                if (-not $manifestIntegritySet.Contains([string]$name)) {
+                    Add-Failure "Dashboard yêu cầu tệp không có trong manifest: $name"
+                }
+            }
+        } catch {
+            Add-Failure "Không thể đối chiếu allow-list toàn vẹn của dashboard: $($_.Exception.Message)"
+        }
+    }
+}
+
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
-Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.6\.0\.0"' 'Dashboard chưa dùng release 4.6.0.0.'
-Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.06"' 'Dashboard chưa dùng ngày build 2026.08.06.'
+Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.0"' 'Dashboard chưa dùng release 4.8.0.0.'
+Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.10"' 'Dashboard chưa dùng ngày build 2026.08.10.'
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'
 Assert-SourcePattern $text 'AutoScaleMode\]::Dpi' 'Dashboard thiếu DPI scaling.'
@@ -42,6 +86,8 @@ if ($text -match '[$]form\.AutoScroll\s*=\s*[$]true') { Add-Failure 'Cửa sổ 
 Assert-SourcePattern $text '[$]form\.Size\s*=\s*New-Object\s+System\.Drawing\.Size\(1480,\s*900\)' 'Dashboard chưa dùng khung hiện đại 1480 x 900.'
 Assert-SourcePattern $text '[$]availableWidth\s*=\s*\[Math\]::Max\(640,\s*[$]workArea\.Width\s*-\s*16\)' 'Dashboard chưa co chiều rộng an toàn theo WorkingArea.'
 Assert-SourcePattern $text '[$]availableHeight\s*=\s*\[Math\]::Max\(520,\s*[$]workArea\.Height\s*-\s*12\)' 'Dashboard chưa co chiều cao an toàn theo WorkingArea.'
+Assert-SourcePattern $text 'BeginInvoke\(\[System\.Action\]\{\s*Update-MainLayout\s*\}\)' 'Dashboard chưa căn lại layout sau khi Bounds/ClientSize được cập nhật ở message-pump kế tiếp.'
+Assert-SourcePattern $text '[$]closeButton\.Width\s*=\s*108' 'Nút Đóng chưa đủ rộng sau khi thêm icon nên vẫn có thể mất chữ.'
 Assert-SourcePattern $text 'ClientSize\.Height\s*-lt\s*760' 'Dashboard chưa chuyển sang layout gọn ở chiều cao phù hợp.'
 Assert-SourcePattern $text 'ClientSize\.Height\s*-lt\s*640' 'Dashboard thiếu layout siêu gọn cho vùng làm việc thấp.'
 
@@ -73,8 +119,8 @@ Assert-SourcePattern $text '[$]minimumTileHeight\s*=\s*if\s*\([$]ultraCompactHei
 Assert-SourcePattern $text 'function\s+Get-DashboardTilePalette' 'Dashboard thiếu palette riêng theo loại tile.'
 Assert-SourcePattern $text 'ValidateSet\("Normal",\s*"Warning",\s*"Enterprise"\)' 'Dashboard thiếu tone Enterprise cho Mục 8.'
 Assert-SourcePattern $text 'if\s*\([$]number\s+-eq\s+8\)\s*\{\s*"Enterprise"\s*\}' 'Mục 8 chưa được gắn tone Enterprise.'
-Assert-SourcePattern $text 'FromArgb\(232,\s*250,\s*240\)' 'Mục 8 thiếu màu xanh tươi riêng ở Light mode.'
-Assert-SourcePattern $text 'FromArgb\(23,\s*79,\s*63\)' 'Mục 8 thiếu màu xanh tươi riêng ở Dark mode.'
+Assert-SourcePattern $text 'FromArgb\(244,\s*247,\s*251\)' 'Tile Light chưa dùng bề mặt trung tính thống nhất.'
+Assert-SourcePattern $text 'FromArgb\(34,\s*42,\s*55\)' 'Tile Dark chưa dùng bề mặt trung tính thống nhất.'
 Assert-SourcePattern $text 'Get-DashboardTilePalette\s+-Tone\s+[$]tone\s+-Mode\s+[$]script:dashboardTheme\s+-Hover' 'Mục 8 chưa có hover theo palette riêng.'
 Assert-SourcePattern $text 'function\s+New-DashboardIconBitmap' 'Dashboard thiếu bộ icon vector nội bộ.'
 Assert-SourcePattern $text 'IconKind="Windows"' 'Thẻ Windows chưa dùng biểu tượng Windows.'
@@ -145,7 +191,7 @@ try {
     $fitFont.Dispose()
     $fitPanel.Dispose()
 }
-$cleanupFooterFont = New-Object Drawing.Font('Segoe UI', 9.6, [Drawing.FontStyle]::Bold)
+$cleanupFooterFont = New-Object Drawing.Font('Segoe UI', 8.5, [Drawing.FontStyle]::Regular)
 try {
     foreach ($cleanupFitCase in @(
         @('Light', $fitViCatalog),
@@ -194,10 +240,10 @@ try {
     $cleanupFooterFont.Dispose()
 }
 $enterpriseColorPairs = @(
-    @('Light', [Drawing.Color]::FromArgb(0,105,70), [Drawing.Color]::FromArgb(232,250,240)),
-    @('LightHover', [Drawing.Color]::FromArgb(0,105,70), [Drawing.Color]::FromArgb(206,245,224)),
-    @('Dark', [Drawing.Color]::FromArgb(142,240,194), [Drawing.Color]::FromArgb(23,79,63)),
-    @('DarkHover', [Drawing.Color]::FromArgb(142,240,194), [Drawing.Color]::FromArgb(31,105,82))
+    @('Light', [Drawing.Color]::FromArgb(30,64,105), [Drawing.Color]::FromArgb(244,247,251)),
+    @('LightHover', [Drawing.Color]::FromArgb(30,64,105), [Drawing.Color]::FromArgb(231,238,247)),
+    @('Dark', [Drawing.Color]::FromArgb(220,228,239), [Drawing.Color]::FromArgb(34,42,55)),
+    @('DarkHover', [Drawing.Color]::FromArgb(220,228,239), [Drawing.Color]::FromArgb(43,53,69))
 )
 foreach ($colorPair in $enterpriseColorPairs) {
     $contrast = Get-ToolUiContrastRatio -Foreground $colorPair[1] -Background $colorPair[2]
@@ -339,12 +385,12 @@ Assert-SourcePattern $text '[$]capabilityState\.ExecutionEnvironment' 'Dashboard
 Assert-SourcePattern $text 'LICH-SU-PHIEN-BAN\.txt' 'Dashboard chưa nhúng tài liệu lịch sử phiên bản.'
 Assert-SourcePattern $text 'New-ToolProfessionalHtmlDocument' 'Hướng dẫn chưa dùng bố cục báo cáo HTML chuyên nghiệp.'
 Assert-SourcePattern $text 'Convert-ToolHtmlToPdf' 'Hướng dẫn chưa hỗ trợ PDF.'
-Assert-SourcePattern $text '[$]documentBasePath\s*=\s*Join-Path\s+[$]desktop\s+"[$]FilePrefix-v[$]releaseVersion-[$]\([$]script:dashboardCulture\)"' 'Hướng dẫn chưa dùng tên tệp ổn định theo phiên bản/ngôn ngữ.'
+Assert-SourcePattern $text '[$]documentBasePath\s*=\s*Join-Path\s+[$]documentDirectory\s+"[$]FilePrefix-v[$]releaseVersion-[$]\([$]script:dashboardCulture\)"' 'Hướng dẫn chưa dùng tên tệp ổn định trong thư mục báo cáo theo phiên bản/ngôn ngữ.'
 Assert-SourcePattern $text '# Source-SHA256:' 'Hướng dẫn chưa dùng SHA-256 nguồn làm khóa cache.'
 Assert-SourcePattern $text '# Renderer-Revision:' 'Hướng dẫn chưa có phiên bản renderer để làm mới cache khi giao diện HTML/PDF thay đổi.'
-Assert-SourcePattern $text 'Start-Process\s+-FilePath\s+[$]htmlPath' 'Hướng dẫn chưa mở trực tiếp HTML bằng trình duyệt mặc định.'
+Assert-SourcePattern $text 'Open-ToolHtmlReport\s+-Path\s+[$]htmlPath' 'Hướng dẫn chưa giới hạn tự mở ở tệp HTML.'
 $documentationFunctionIndex = $text.IndexOf('function Open-ToolEmbeddedDocument')
-$documentationOpenIndex = if ($documentationFunctionIndex -ge 0) { $text.IndexOf('Start-Process -FilePath $htmlPath', $documentationFunctionIndex) } else { -1 }
+$documentationOpenIndex = if ($documentationFunctionIndex -ge 0) { $text.IndexOf('Open-ToolHtmlReport -Path $htmlPath', $documentationFunctionIndex) } else { -1 }
 $documentationPdfIndex = if ($documentationFunctionIndex -ge 0) { $text.IndexOf('Convert-ToolHtmlToPdf -HtmlPath $htmlPath', $documentationFunctionIndex) } else { -1 }
 if ($documentationFunctionIndex -lt 0 -or $documentationOpenIndex -lt 0 -or $documentationPdfIndex -lt 0 -or $documentationOpenIndex -ge $documentationPdfIndex) {
     Add-Failure 'Hướng dẫn phải mở HTML trước khi tạo PDF để giảm thời gian chờ.'
@@ -363,9 +409,11 @@ if ([string]$viCatalog.'app.offline.enabled' -ne 'Offline' -or
     [string]$viCatalog.'app.offline.disabled' -ne 'Online' -or
     [string]$enCatalog.'app.offline.enabled' -ne 'Offline' -or
     [string]$enCatalog.'app.offline.disabled' -ne 'Online' -or
-    [string]$viCatalog.'enterprise.network.allow' -ne 'Online' -or
-    [string]$viCatalog.'enterprise.network.disable' -ne 'Offline') {
-    Add-Failure 'Nút mạng chưa dùng đúng hai nhãn ngắn Offline/Online.'
+    [string]$viCatalog.'enterprise.network.stateOnline' -ne 'LAN nội bộ: Bật' -or
+    [string]$viCatalog.'enterprise.network.stateOffline' -ne 'LAN nội bộ: Tắt' -or
+    [string]$viCatalog.'app.offline.enable' -notmatch 'nhấp để chuyển sang Offline' -or
+    [string]$viCatalog.'enterprise.network.tooltipOffline' -notmatch 'LAN nội bộ đang tắt') {
+    Add-Failure 'Nút Internet và LAN chưa dùng đúng hai trạng thái độc lập.'
 }
 if ([string]$viCatalog.'enterprise.client.tab' -ne 'Chức năng máy trạm' -or
     [string]$viCatalog.'enterprise.navigation.back' -ne 'Trở về' -or
@@ -402,13 +450,13 @@ if (-not (Test-Path -LiteralPath $guideViPath -PathType Leaf) -or
     if ($guideViText -match '(?im)^\s*(Bản|Phiên bản)\s+v?\d' -or $guideEnText -match '(?im)^\s*(Version|Release)\s+v?\d') {
         Add-Failure 'HDSD còn trộn nhật ký cập nhật phiên bản thay vì chỉ hướng dẫn chức năng.'
     }
-    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.6\.0\.0\*\*' -or
-        $historyText -notmatch 'v4\.6' -or
+    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.8\.0\.0\*\*' -or
+        $historyText -notmatch 'v4\.8\.0' -or
         $historyText -notmatch 'Nền tảng/công nghệ:' -or
         $historyText -notmatch 'Trọng tâm:') {
         Add-Failure 'Tài liệu phiên bản chưa mô tả bản mới, mô hình triển khai và công nghệ/ngôn ngữ.'
     }
-    foreach ($mainVersion in @('1.0','1.1','1.2','1.3','2.4','2.5','2.6','2.7','2.8','2.9','3.0','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8','3.9','4.0','4.1','4.2','4.3','4.4','4.6')) {
+    foreach ($mainVersion in @('1.0','1.1','1.2','1.3','2.4','2.5','2.6','2.7','2.8','2.9','3.0','3.1','3.2','3.3','3.4','3.5','3.6','3.7','3.8','3.9','4.0','4.1','4.2','4.3','4.4','4.6','4.8')) {
         if ($historyText -notmatch "(?m)^##\s+v$([regex]::Escape($mainVersion))\b") {
             Add-Failure "Tài liệu lịch sử thiếu phiên bản chính v$mainVersion."
         }
@@ -428,12 +476,12 @@ if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
     foreach ($reportPattern in @(
         'function\s+Get-SoftwareSignatureState',
         'Get-ReportText\s+"report\.file\.software"',
-        'Add-Section\s+"Phan mem da cai"\s+\(Add-Table\s+[$]legacyApps\s+@\("Ten phan mem","Phien ban","Hang","Ngay cai"\)\)',
+        'Add-Section\s+"Phan mem da cai"\s+\(\(Add-Table\s+[$]legacyApps\s+@\("Ten phan mem","Phien ban","Hang","Ngay cai"\)\)\s*\+\s*[$]systemAppendixLink\)',
         'Add-Section\s+"Danh gia so bo ban quyen phan mem"\s+\(Add-Table\s+[$]legacySoftwareAudit',
         'Add-Section\s+"Dich vu Windows"\s+\(Add-Table\s+[$]services\s+@\("Ten","Hien thi","Trang thai","Loai khoi dong"\)\)',
         'Add-Section\s+"Kiểm tra bổ sung phần mềm bên thứ ba"',
         'Get-ReportText\s+"report\.text\.045"',
-        'Get-ReportText\s+"report\.text\.046"',
+        'Get-ReportText\s+"report\.text\.048"',
         'Get-ReportText\s+"report\.text\.050"',
         'ThirdPartyServices',
         'ThirdPartyScheduledTasks',
@@ -494,11 +542,20 @@ if ($text -match '[$]number\s*=\s*"\{0:00\}"' -or $text -match 'return\s+"[$]num
     Add-Failure 'Tile tác vụ vẫn còn ghép số thứ tự 01–10 vào nhãn hiển thị.'
 }
 Assert-SourcePattern $text '[$]script:dashboardTheme\s*=\s*"Light"' 'Ứng dụng chưa khởi động bằng giao diện sáng.'
-Assert-SourcePattern $text '[$]cardValue\.AutoEllipsis\s*=\s*[$]false' 'Thẻ trạng thái vẫn cắt chữ bằng dấu ba chấm.'
+Assert-SourcePattern $text '[$]cardValue\.AutoEllipsis\s*=\s*[$]true' 'Thẻ trạng thái chưa có ellipsis/tooltip an toàn khi cửa sổ quá hẹp.'
+Assert-SourcePattern $text 'function\s+New-DashboardTileIconBitmap' 'Tile chưa có khoảng đệm ảnh riêng để icon không sát chữ.'
+Assert-SourcePattern $text 'IconSize\s+32\s+-RightGap\s+12' 'Khoảng cách icon/chữ của tile chưa được chuẩn hóa.'
+Assert-SourcePattern $text '[$]fontTile\s*=.*FontStyle\]::Regular' 'Tile vẫn dùng toàn bộ chữ đậm.'
+Assert-SourcePattern $text '(?s)function\s+New-ToolReportRunDirectory.+?return\s+[$]reportRoot' 'Dashboard chưa gom mọi lần xuất vào một thư mục báo cáo dùng chung.'
+Assert-SourcePattern $text 'ApprovedKmsServerFile\s+`"[$]approvedKmsFile`"' 'Báo cáo chưa nhận danh sách KMS được phê duyệt để kết luận chặt chẽ.'
 Assert-SourcePattern $text '[$]applyButton\.Text\s*=\s*Get-DashboardText\s+"dashboard\.settings\.apply"' 'Cài đặt thiếu nút Áp dụng có nhãn localization.'
 Assert-SourcePattern $text '[$]dialog\.AcceptButton\s*=\s*[$]applyButton' 'Nút Áp dụng chưa là hành động chính trong Cài đặt.'
 Assert-SourcePattern $text 'function\s+Invoke-AssuranceCenterAction' 'Thiếu bộ định tuyến bảy tác vụ Báo cáo.'
 Assert-SourcePattern $text '"Reports"\s*\{\s*@\(\)\s*\}' 'Mục Báo cáo vẫn chỉ hiển thị tile số 10.'
+Assert-SourcePattern $text '[$]menuCaption\.ForeColor\s*=\s*[$]primary' 'Tiêu đề Trung tâm báo cáo chưa dùng màu tiêu đề chung.'
+Assert-SourcePattern $text 'Kind\s*=\s*"ReportAction"' 'Các ô Trung tâm báo cáo chưa có metadata giao diện riêng.'
+Assert-SourcePattern $text '(?s)function\s+Add-ReportMenuButton.+?TitleLabel.+?DescriptionLabel.+?TitleColor.+?DescriptionColor' 'Ô báo cáo chưa tách màu tiêu đề và mô tả như các mục khác.'
+Assert-SourcePattern $text '(?s)[$]script:dashboardSection\s+-eq\s+"Reports".+?[$]visibleButtons\.Count\s*%\s*2\s+-eq\s*1' 'Hàng cuối Trung tâm báo cáo chưa được căn giữa khi có bảy ô.'
 
 $reportMenuMatches = [regex]::Matches(
     $text,
@@ -518,6 +575,9 @@ foreach ($key in @(
 )) {
     if ([string]::IsNullOrWhiteSpace([string]$viCatalog.$key) -or [string]::IsNullOrWhiteSpace([string]$enCatalog.$key)) {
         Add-Failure "Thiếu mô tả song ngữ cho mục Báo cáo: $key"
+    }
+    if ($historyText -match '(?m)^##\s+v4\.7\b') {
+        Add-Failure 'Lịch sử công khai phải thể hiện v4.8 nâng trực tiếp từ v4.6, không có mục phát hành v4.7.'
     }
 }
 
@@ -542,7 +602,7 @@ if ($text -match '[$]licenseLaunchMode\s*=\s*if\s*\([$]script:offlineMode\)' -or
     Add-Failure 'Mục 8 vẫn ẩn chức năng Máy chủ/Máy trạm khi Offline.'
 }
 
-if ($text -match '(?i)https?://[^''"\s]+(?:\.js|\.css|\.woff)') {
+if ($text -match '(?i)https?://[^''"\s]+(?:\.js|\.css|\.woff)(?:[?#''"\s]|$)') {
     Add-Failure 'Dashboard tham chiếu tài nguyên giao diện từ xa, trái với Offline mode.'
 }
 

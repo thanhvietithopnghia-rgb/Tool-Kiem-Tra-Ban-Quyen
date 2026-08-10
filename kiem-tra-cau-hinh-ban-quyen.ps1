@@ -1,16 +1,17 @@
 ﻿param(
-    [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
+    [string]$OutputDir = (Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra"),
     [ValidateSet("All", "Hardware", "Windows", "Office", "Software")]
     [string]$Mode = "All",
     [ValidateSet("vi-VN", "en-US")]
     [string]$Culture = "vi-VN",
+    [string]$ApprovedKmsServerFile = "",
     [switch]$Pdf,
     [switch]$RedactSensitive,
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.6"
-$ToolReleaseVersion = "4.6.0.0"
+$ToolVersion = "4.8"
+$ToolReleaseVersion = "4.8.0.0"
 
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $compatibilityHelper = Join-Path $PSScriptRoot "Tool-Compatibility.ps1"
@@ -87,7 +88,7 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
 $started = Get-Date
 $computer = $env:COMPUTERNAME
 $reportComputer = if ($RedactSensitive) { Get-ReportText "report.file.redactedToken" } else { $computer }
-$stamp = $started.ToString("yyyyMMdd_HHmmss")
+$stamp = $started.ToString("yyyyMMdd_HHmmss_fff")
 $modeInfo = switch ($Mode) {
     "Hardware" { @{ Suffix=(Get-ReportText "report.file.hardware"); Title=(Get-ToolText -Key "report.title.hardware" -Culture $Culture) } }
     "Windows"  { @{ Suffix=(Get-ReportText "report.file.windows"); Title=(Get-ToolText -Key "report.title.windows" -Culture $Culture) } }
@@ -110,7 +111,30 @@ $xmlPath = "$reportBasePath.xml"
 $manifestPath = "${reportBasePath}-SHA256SUMS.txt"
 
 $script:reportPresentationCache = @{}
-$script:reportLiteralHasher = [Security.Cryptography.SHA256]::Create()
+$script:reportLiteralTranslationMaps = @{}
+
+function Get-ReportLiteralTranslationMap {
+    param([Parameter(Mandatory = $true)][ValidateSet("vi-VN", "en-US")][string]$TargetCulture)
+
+    if ($script:reportLiteralTranslationMaps.ContainsKey($TargetCulture)) {
+        return $script:reportLiteralTranslationMaps[$TargetCulture]
+    }
+    # Literal keys are SHA-256 identifiers in the catalog, but their vi-VN
+    # values are the exact source literals used by this report. Building one
+    # ordinal reverse map avoids hashing every unique application path, vendor,
+    # version and evidence string during JSON/XML preparation.
+    $sourceCatalog = Get-ToolLocalizationCatalog -Culture 'vi-VN'
+    $targetCatalog = Get-ToolLocalizationCatalog -Culture $TargetCulture
+    $map = New-Object Collections.Hashtable ([StringComparer]::Ordinal)
+    foreach ($property in $sourceCatalog.PSObject.Properties) {
+        if (-not ([string]$property.Name).StartsWith('report.literal.', [StringComparison]::Ordinal)) { continue }
+        $sourceText = [string]$property.Value
+        $targetProperty = $targetCatalog.PSObject.Properties[[string]$property.Name]
+        $map[$sourceText] = if ($targetProperty) { [string]$targetProperty.Value } else { $sourceText }
+    }
+    $script:reportLiteralTranslationMaps[$TargetCulture] = $map
+    return $map
+}
 
 function Get-ReportPresentationTextForCulture {
     param(
@@ -122,10 +146,9 @@ function Get-ReportPresentationTextForCulture {
     $text = [string]$Value
     $cacheKey = $TargetCulture + [char]0 + $text
     if ($script:reportPresentationCache.ContainsKey($cacheKey)) { return [string]$script:reportPresentationCache[$cacheKey] }
-    $literalHash = $script:reportLiteralHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))
-    $literalKey = 'report.literal.' + (([BitConverter]::ToString($literalHash)) -replace '-', '').ToLowerInvariant()
-    $literalText = Get-ToolText -Key $literalKey -Culture $TargetCulture
-    if ($literalText -ne "[$literalKey]") {
+    $literalMap = Get-ReportLiteralTranslationMap -TargetCulture $TargetCulture
+    if ($literalMap.ContainsKey($text)) {
+        $literalText = [string]$literalMap[$text]
         $script:reportPresentationCache[$cacheKey] = $literalText
         return $literalText
     }
@@ -160,7 +183,7 @@ function Get-ReportPresentationText {
     return Get-ReportPresentationTextForCulture -Value $Value -TargetCulture $Culture
 }
 
-function Protect-ReportText($value) {
+function Protect-ReportText($value, [switch]$PreserveVersionLike) {
     if ($null -eq $value) { return "" }
     $text = [string]$value
     if (-not $RedactSensitive) { return $text }
@@ -175,8 +198,10 @@ function Protect-ReportText($value) {
             $text = [regex]::Replace($text, $secretPattern, (Get-ReportText "report.redaction.value"), [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
-    $ipv4Part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
-    $text = [regex]::Replace($text, "(?<![0-9.])$ipv4Part(?:\.$ipv4Part){3}(?![0-9.])", (Get-ReportText "report.redaction.ip"))
+    if (-not $PreserveVersionLike) {
+        $ipv4Part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
+        $text = [regex]::Replace($text, "(?<![0-9.])$ipv4Part(?:\.$ipv4Part){3}(?![0-9.])", (Get-ReportText "report.redaction.ip"))
+    }
     $text = [regex]::Replace($text, '(?i)(?<![0-9A-F])(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}(?![0-9A-F])', (Get-ReportText "report.redaction.mac"))
     return $text
 }
@@ -184,27 +209,30 @@ function Protect-ReportText($value) {
 function ConvertTo-ReportRedactedObject {
     param(
         [AllowNull()][object]$Value,
-        [int]$Depth = 0
+        [int]$Depth = 0,
+        [string]$PropertyName = ''
     )
 
     if (-not $RedactSensitive -or $null -eq $Value) { return $Value }
-    if ($Depth -gt 12) { return Protect-ReportText $Value }
-    if ($Value -is [string]) { return Protect-ReportText $Value }
+    $preserveVersionLike = [bool]($PropertyName -match '(?i)(?:version|phien ban|build|schema|date|ngay|sha|hash|thumbprint)' -or
+        $PropertyName -match '(?i)^(?:name|software|product|application|title|ten phan mem)$')
+    if ($Depth -gt 12) { return Protect-ReportText $Value -PreserveVersionLike:$preserveVersionLike }
+    if ($Value -is [string]) { return Protect-ReportText $Value -PreserveVersionLike:$preserveVersionLike }
     if ($Value -is [Collections.IDictionary]) {
         $result = [ordered]@{}
         foreach ($key in $Value.Keys) {
-            $result[[string]$key] = ConvertTo-ReportRedactedObject -Value $Value[$key] -Depth ($Depth + 1)
+            $result[[string]$key] = ConvertTo-ReportRedactedObject -Value $Value[$key] -Depth ($Depth + 1) -PropertyName ([string]$key)
         }
         return [pscustomobject]$result
     }
     if ($Value -isnot [string] -and $Value -is [Collections.IEnumerable]) {
-        return @($Value | ForEach-Object { ConvertTo-ReportRedactedObject -Value $_ -Depth ($Depth + 1) })
+        return @($Value | ForEach-Object { ConvertTo-ReportRedactedObject -Value $_ -Depth ($Depth + 1) -PropertyName $PropertyName })
     }
     if ($Value.PSObject -and @($Value.PSObject.Properties).Count -gt 0 -and
         $Value -isnot [ValueType] -and $Value -isnot [DateTime]) {
         $result = [ordered]@{}
         foreach ($property in @($Value.PSObject.Properties)) {
-            $result[[string]$property.Name] = ConvertTo-ReportRedactedObject -Value $property.Value -Depth ($Depth + 1)
+            $result[[string]$property.Name] = ConvertTo-ReportRedactedObject -Value $property.Value -Depth ($Depth + 1) -PropertyName ([string]$property.Name)
         }
         return [pscustomobject]$result
     }
@@ -252,11 +280,13 @@ function Protect-ReportCell($row, [string]$column, $value) {
         ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS)$')) {
         return Get-ReportText "report.redaction.value"
     }
-    return Protect-ReportText $value
+    $preserveVersionLike = [bool]($column -match '(?i)(?:phien ban|version|build|ngay cai|install date|file version|schema|sha|hash)' -or
+        $column -match '(?i)^(?:name|software|product|application|title|ten phan mem)$')
+    return Protect-ReportText $value -PreserveVersionLike:$preserveVersionLike
 }
 
-function Html($value) {
-    $safeValue = Protect-ReportText $value
+function Html($value, [switch]$PreserveVersionLike) {
+    $safeValue = Protect-ReportText $value -PreserveVersionLike:$PreserveVersionLike
     $safeValue = Get-ReportPresentationText $safeValue
     try { return [System.Net.WebUtility]::HtmlEncode([string]$safeValue) }
     catch { return [System.Web.HttpUtility]::HtmlEncode([string]$safeValue) }
@@ -300,19 +330,43 @@ function Add-Table {
     if (-not $Rows -or $Rows.Count -eq 0) {
         return "<p class='muted'>$(Html (Get-ReportText "report.text.001"))</p>"
     }
+    if ($Columns.Count -gt 6) {
+        $remainingColumnCount = $Columns.Count - 1
+        $partCount = [int][Math]::Ceiling($remainingColumnCount / 5.0)
+        $groupSize = [int][Math]::Ceiling($remainingColumnCount / [double]$partCount)
+        $splitBuilder = New-Object Text.StringBuilder
+        $partNumber = 0
+        for ($offset = 1; $offset -lt $Columns.Count; $offset += $groupSize) {
+            $partNumber++
+            $lastIndex = [Math]::Min($Columns.Count - 1, $offset + $groupSize - 1)
+            $partColumns = @($Columns[0]) + @($Columns[$offset..$lastIndex])
+            [void]$splitBuilder.Append("<div class='table-split-part'><div class='table-split-label'>$partNumber / $partCount</div>")
+            [void]$splitBuilder.Append((Add-Table -Rows $Rows -Columns $partColumns))
+            [void]$splitBuilder.Append('</div>')
+        }
+        return $splitBuilder.ToString()
+    }
+    $profile = Get-ToolHtmlTableProfile -Columns $Columns
     $builder = New-Object Text.StringBuilder
-    [void]$builder.Append("<table><thead><tr>")
-    foreach ($col in $Columns) { [void]$builder.Append("<th>$(Html $col)</th>") }
+    [void]$builder.Append("<div class='table-wrap'><table class='$($profile.TableClass)'><colgroup>")
+    foreach ($columnClass in $profile.Classes) { [void]$builder.Append("<col class='col-$columnClass'>") }
+    [void]$builder.Append("</colgroup><thead><tr>")
+    for ($columnIndex = 0; $columnIndex -lt $Columns.Count; $columnIndex++) {
+        [void]$builder.Append("<th class='cell-$($profile.Classes[$columnIndex])'>$(Html $Columns[$columnIndex])</th>")
+    }
     [void]$builder.Append("</tr></thead><tbody>")
     foreach ($row in $Rows) {
         [void]$builder.Append("<tr>")
-        foreach ($col in $Columns) {
-            $value = $row.PSObject.Properties[$col].Value
-            [void]$builder.Append("<td>$(Html (Protect-ReportCell $row $col $value))</td>")
+        for ($columnIndex = 0; $columnIndex -lt $Columns.Count; $columnIndex++) {
+            $col = $Columns[$columnIndex]
+            $property = $row.PSObject.Properties[$col]
+            $value = if ($property) { $property.Value } else { "" }
+            $protectedValue = Protect-ReportCell $row $col $value
+            [void]$builder.Append("<td class='cell-$($profile.Classes[$columnIndex])'>$(ConvertTo-ToolHtmlTableCell -Value $protectedValue -ColumnClass $profile.Classes[$columnIndex])</td>")
         }
         [void]$builder.Append("</tr>")
     }
-    [void]$builder.Append("</tbody></table>")
+    [void]$builder.Append("</tbody></table></div>")
     return $builder.ToString()
 }
 
@@ -383,7 +437,9 @@ function Get-SoftwareSignatureState {
     try {
         $signature = Get-AuthenticodeSignature -FilePath $Path -ErrorAction Stop
         $publisher = ""
-        if ($signature.SignerCertificate) { $publisher = [string]$signature.SignerCertificate.Subject }
+        if ($signature.SignerCertificate) {
+            $publisher = ConvertTo-ToolHtmlCompactPublisher -Value ([string]$signature.SignerCertificate.Subject)
+        }
         $version = ""
         try { $version = [string](Get-Item -LiteralPath $Path -Force).VersionInfo.FileVersion } catch {}
         return [pscustomobject][ordered]@{
@@ -432,6 +488,7 @@ function Get-ReportSoftwareAssessmentLabel {
         'GenuineVerified' { 'report.software.status.genuineVerified' }
         'Unactivated' { 'report.software.status.unactivated' }
         'NonGenuine' { 'report.software.status.nonGenuine' }
+        'IntegrityCompromised' { 'report.software.status.integrityCompromised' }
         'Suspicious' { 'report.software.status.suspicious' }
         'TrialOrUnverified' { 'report.software.status.trialOrUnverified' }
         default { 'report.software.status.unverified' }
@@ -495,6 +552,132 @@ function License-StatusText($code) {
     }
 }
 
+function Normalize-ReportKmsServer {
+    param([AllowNull()][string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+    $candidate = $Value.Trim().ToLowerInvariant()
+    $candidate = $candidate -replace '^\[([^\]]+)\](?::\d+)?$', '$1'
+    $candidate = $candidate -replace '^([^:]+):\d+$', '$1'
+    return $candidate
+}
+
+function Get-ReportApprovedKmsServers {
+    $path = [string]$ApprovedKmsServerFile
+    if ([string]::IsNullOrWhiteSpace($path)) { $path = [string]$env:TOOL_APPROVED_KMS_FILE }
+    if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        return [pscustomobject]@{ Configured=$false; Entries=@(); Path=$path }
+    }
+    $entries = @(
+        Get-Content -LiteralPath $path -ErrorAction SilentlyContinue |
+            ForEach-Object { ([string]$_).Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith('#') } |
+            ForEach-Object { Normalize-ReportKmsServer $_ } |
+            Where-Object { $_ } |
+            Select-Object -Unique
+    )
+    return [pscustomobject]@{ Configured=$true; Entries=$entries; Path=$path }
+}
+
+function Test-ReportKmsServerApproved {
+    param(
+        [AllowNull()][string]$Server,
+        [AllowNull()][object]$ApprovedState
+    )
+    $normalized = Normalize-ReportKmsServer $Server
+    if (-not $normalized -or -not $ApprovedState -or -not [bool]$ApprovedState.Configured) { return $false }
+    return [bool](@($ApprovedState.Entries) -contains $normalized)
+}
+
+function New-ReportLicenseVerdict {
+    param(
+        [Parameter(Mandatory = $true)][string]$Code,
+        [Parameter(Mandatory = $true)][string]$ConclusionKey,
+        [Parameter(Mandatory = $true)][string]$LevelKey,
+        [Parameter(Mandatory = $true)][ValidateSet('ok','warning','danger','info')][string]$Tone,
+        [Parameter(Mandatory = $true)][string]$DirectionKey
+    )
+    return [pscustomobject][ordered]@{
+        Code = $Code
+        Conclusion = Get-ReportText $ConclusionKey
+        VerificationLevel = Get-ReportText $LevelKey
+        Tone = $Tone
+        Direction = Get-ReportText $DirectionKey
+    }
+}
+
+function Get-WindowsLicenseVerdict {
+    param(
+        [bool]$Requested,
+        [AllowNull()][object]$ActiveLicense,
+        [AllowNull()][object[]]$Licenses,
+        [AllowNull()][string]$ActivationOutput,
+        [int]$SlmgrExitCode,
+        [AllowNull()][object]$ApprovedKmsState
+    )
+    if (-not $Requested) {
+        return New-ReportLicenseVerdict 'NotScanned' 'report.license.notScanned' 'report.license.level.notScanned' 'info' 'report.license.direction.notScanned'
+    }
+    $licenseList = @($Licenses)
+    $activationSearchText = ConvertTo-ToolHtmlSearchKey -Value $ActivationOutput
+    $licensingError = $SlmgrExitCode -ne 0 -or $activationSearchText -match '(?i)0xC004|error|loi'
+    if (-not $ActiveLicense) {
+        if ($licenseList.Count -eq 0 -or $licensingError) {
+            return New-ReportLicenseVerdict 'Unverifiable' 'report.license.windows.unverifiable' 'report.license.level.undetermined' 'warning' 'report.license.direction.unverifiable'
+        }
+        return New-ReportLicenseVerdict 'NotLicensed' 'report.license.windows.notLicensed' 'report.license.level.high' 'danger' 'report.license.direction.windowsLicense'
+    }
+
+    $isKms = [string]$ActiveLicense.Description -match 'KMSCLIENT|VOLUME_KMS'
+    if ($isKms) {
+        $kmsServer = [string]$ActiveLicense.KeyManagementServiceMachine
+        if (Test-ReportKmsServerApproved -Server $kmsServer -ApprovedState $ApprovedKmsState) {
+            return New-ReportLicenseVerdict 'KmsApprovedHost' 'report.license.windows.kmsApproved' 'report.license.level.review' 'warning' 'report.license.direction.kmsRecords'
+        }
+        if (-not [string]::IsNullOrWhiteSpace($kmsServer) -and [bool]$ApprovedKmsState.Configured) {
+            return New-ReportLicenseVerdict 'KmsUnapprovedHost' 'report.license.windows.kmsUnapproved' 'report.license.level.high' 'danger' 'report.license.direction.kmsUnapproved'
+        }
+        return New-ReportLicenseVerdict 'KmsEntitlementUnverified' 'report.license.windows.kmsUnverified' 'report.license.level.high' 'danger' 'report.license.direction.kmsRecords'
+    }
+    return New-ReportLicenseVerdict 'ActivatedEntitlementUnverified' 'report.license.windows.activatedUnverified' 'report.license.level.review' 'warning' 'report.license.direction.windowsRecords'
+}
+
+function Get-OfficeLicenseVerdict {
+    param(
+        [bool]$Requested,
+        [bool]$Detected,
+        [bool]$Activated,
+        [AllowNull()][object]$ActiveLicense,
+        [AllowNull()][string]$RawStatus,
+        [AllowNull()][object]$ApprovedKmsState
+    )
+    if (-not $Requested) {
+        return New-ReportLicenseVerdict 'NotScanned' 'report.license.notScanned' 'report.license.level.notScanned' 'info' 'report.license.direction.notScanned'
+    }
+    if (-not $Detected) {
+        return New-ReportLicenseVerdict 'NotDetected' 'report.license.office.notDetected' 'report.license.level.notScanned' 'info' 'report.license.direction.officeNotDetected'
+    }
+    if (-not $Activated) {
+        if ([string]::IsNullOrWhiteSpace($RawStatus) -and -not $ActiveLicense) {
+            return New-ReportLicenseVerdict 'Unverifiable' 'report.license.office.unverifiable' 'report.license.level.undetermined' 'warning' 'report.license.direction.unverifiable'
+        }
+        return New-ReportLicenseVerdict 'NotLicensed' 'report.license.office.notLicensed' 'report.license.level.high' 'danger' 'report.license.direction.officeLicense'
+    }
+
+    $description = if ($ActiveLicense) { [string]$ActiveLicense.Description } else { [string]$RawStatus }
+    $isKms = $description -match '(?i)KMSCLIENT|VOLUME_KMS|KMS'
+    if ($isKms) {
+        $kmsServer = if ($ActiveLicense) { [string]$ActiveLicense.KeyManagementServiceMachine } else { '' }
+        if (Test-ReportKmsServerApproved -Server $kmsServer -ApprovedState $ApprovedKmsState) {
+            return New-ReportLicenseVerdict 'KmsApprovedHost' 'report.license.office.kmsApproved' 'report.license.level.review' 'warning' 'report.license.direction.kmsRecords'
+        }
+        if (-not [string]::IsNullOrWhiteSpace($kmsServer) -and [bool]$ApprovedKmsState.Configured) {
+            return New-ReportLicenseVerdict 'KmsUnapprovedHost' 'report.license.office.kmsUnapproved' 'report.license.level.high' 'danger' 'report.license.direction.kmsUnapproved'
+        }
+        return New-ReportLicenseVerdict 'KmsEntitlementUnverified' 'report.license.office.kmsUnverified' 'report.license.level.high' 'danger' 'report.license.direction.kmsRecords'
+    }
+    return New-ReportLicenseVerdict 'ActivatedEntitlementUnverified' 'report.license.office.activatedUnverified' 'report.license.level.review' 'warning' 'report.license.direction.officeRecords'
+}
+
 $sections = @()
 $tocItems = @()
 $sectionCounter = 0
@@ -546,14 +729,16 @@ $capabilityRows = @(
 Add-Section "Khả năng tương thích hệ thống" (Add-Table $capabilityRows @("Thành phần","Trạng thái","Phương án"))
 
 $activationText = ""
+$slmgrExitCode = -1
 $licenseRows = @()
 $windowsLicenses = @()
 $windowsLicenseBody = ""
 if ($wantWindows) {
 try {
-    $slmgr = & $nativeCscriptPath //nologo (Get-ToolNativeSystemPath "slmgr.vbs") /xpr 2>$null
+    $slmgr = & $nativeCscriptPath //nologo (Get-ToolNativeSystemPath "slmgr.vbs") /xpr 2>&1
+    $slmgrExitCode = [int]$LASTEXITCODE
     $activationText = ($slmgr -join "`n").Trim()
-} catch {}
+} catch { $activationText = $_.Exception.Message }
 $licenseRows = @(
     [pscustomobject]@{ "Muc"="Trang thai kich hoat Windows"; "Gia tri"=$activationText }
 )
@@ -664,17 +849,22 @@ $officeSummaryStatus = if ($officeActivated) {
     Get-ReportText "report.literal.1354cb33be9c44fa682e988efee9a1b96d77d89fd4f4255fa6cf6f48dcea41ff"
 }
 
+$approvedKmsState = Get-ReportApprovedKmsServers
+$windowsVerdict = Get-WindowsLicenseVerdict -Requested $wantWindows -ActiveLicense $activeWindowsLicense -Licenses $windowsLicenses -ActivationOutput $activationText -SlmgrExitCode $slmgrExitCode -ApprovedKmsState $approvedKmsState
+$officeVerdict = Get-OfficeLicenseVerdict -Requested $wantOffice -Detected $officeDetected -Activated $officeActivated -ActiveLicense $activeOfficeLicense -RawStatus $officeStatusText -ApprovedKmsState $approvedKmsState
+
 $licenseOverviewRows = @(
-    [pscustomobject]@{ "San pham"="Windows"; "Trang thai"=$windowsSummaryStatus; "Kenh / thong tin"=$windowsSummaryChannel },
-    [pscustomobject]@{ "San pham"="Microsoft Office"; "Trang thai"=$officeSummaryStatus; "Kenh / thong tin"=if ($activeOfficeLicense) { $activeOfficeLicense.Description } elseif ($clickToRun) { $clickToRun.ProductReleaseIds } else { "Khong xac dinh" } }
+    [pscustomobject]@{ "San pham"="Windows"; "Trang thai kich hoat"=$windowsSummaryStatus; "Ket luan ky thuat"=$windowsVerdict.Conclusion; "Muc xac minh"=$windowsVerdict.VerificationLevel; "Kenh / thong tin"=$windowsSummaryChannel },
+    [pscustomobject]@{ "San pham"="Microsoft Office"; "Trang thai kich hoat"=$officeSummaryStatus; "Ket luan ky thuat"=$officeVerdict.Conclusion; "Muc xac minh"=$officeVerdict.VerificationLevel; "Kenh / thong tin"=if ($activeOfficeLicense) { $activeOfficeLicense.Description } elseif ($clickToRun) { $clickToRun.ProductReleaseIds } else { "Khong xac dinh" } }
 )
 $licenseOverviewNote = Get-ReportText "report.text.009"
 $windowsOverviewNote = Get-ReportText "report.text.010"
 $officeOverviewNote = Get-ReportText "report.text.011"
 $noteLabel = Get-ReportText "report.text.012"
-$licenseOverviewBody = (Add-Table $licenseOverviewRows @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $licenseOverviewNote)</p>"
-$windowsOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Windows" }) @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $windowsOverviewNote)</p>"
-$officeOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Microsoft Office" }) @("San pham","Trang thai","Kenh / thong tin")) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $officeOverviewNote)</p>"
+$licenseOverviewColumns = @("San pham","Trang thai kich hoat","Ket luan ky thuat","Muc xac minh","Kenh / thong tin")
+$licenseOverviewBody = (Add-Table $licenseOverviewRows $licenseOverviewColumns) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $licenseOverviewNote)</p>"
+$windowsOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Windows" }) $licenseOverviewColumns) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $windowsOverviewNote)</p>"
+$officeOverviewBody = (Add-Table @($licenseOverviewRows | Where-Object { $_."San pham" -eq "Microsoft Office" }) $licenseOverviewColumns) + "<p class='license-warning'><strong>$(Html $noteLabel)</strong> $(Html $officeOverviewNote)</p>"
 
 Add-Section "Tổng quan bản quyền Windows" $windowsOverviewBody "Windows"
 Add-Section "Chi tiết kích hoạt Windows" $windowsLicenseBody "Windows"
@@ -905,13 +1095,22 @@ if ($wantSoftware) {
             RemediationSupported = [bool]$assessment.RemediationSupported
             StrongEvidenceCount = [int]$assessment.StrongEvidenceCount
             VendorScope = [string]$assessment.VendorScope
+            IsSystemComponent = [bool]$assessment.IsSystemComponent
+            SystemComponentReason = [string]$assessment.SystemComponentReason
+            MergedRecordCount = [int]$assessment.MergedRecordCount
         }
     } | Sort-Object "Ten phan mem", "Phien ban", "Phạm vi")
+
+    # Giữ toàn bộ dữ liệu trong JSON/XML nhưng chỉ đưa ứng dụng người dùng vào
+    # luồng đọc chính. Thành phần hệ thống và ứng dụng mặc định được chuyển sang
+    # một phụ lục có liên kết nội bộ để PDF không bị kéo dài khó đọc.
+    $systemApps = @($apps | Where-Object { [bool]$_.IsSystemComponent })
+    $primaryApps = @($apps | Where-Object { -not [bool]$_.IsSystemComponent })
 
     # Hợp đồng hiển thị Mục 5 của v4.3.0.3 được giữ nguyên. Dữ liệu giàu hơn
     # vẫn được thu thập trong $apps nhưng bốn cột truyền thống là nguồn cho
     # các bảng cũ và việc dò dấu hiệu cũ.
-    $legacyApps = @($apps |
+    $legacyApps = @($primaryApps |
         Select-Object "Ten phan mem", "Phien ban", "Hang", "Ngay cai" |
         Sort-Object "Ten phan mem", "Phien ban" -Unique)
 
@@ -940,8 +1139,11 @@ if ($wantSoftware) {
             "Ly do" = $reason
         }
     })
+    $legacySoftwareAuditDisplay = @($legacySoftwareAudit | Where-Object {
+        [string]$_.'Danh gia so bo' -ne 'Can doi chieu hoa don/license'
+    })
 
-    $softwareAudit = @($apps | ForEach-Object {
+    $softwareAudit = @($primaryApps | ForEach-Object {
         $app = $_
         $name = [string]$app."Ten phan mem"
         $publisher = [string]$app."Hang"
@@ -956,6 +1158,10 @@ if ($wantSoftware) {
             'Suspicious' {
                 $reviewRank = [Math]::Max($reviewRank, 2)
                 [void]$reasons.Add((Get-ReportText "report.software.reason.suspiciousEvidence"))
+            }
+            'IntegrityCompromised' {
+                $reviewRank = [Math]::Max($reviewRank, 2)
+                [void]$reasons.Add((Get-ReportText "report.software.reason.integrityCompromised"))
             }
             'Unverified' {
                 $reviewRank = [Math]::Max($reviewRank, 1)
@@ -1045,7 +1251,7 @@ if ($wantSoftware) {
         }
     })
 
-    $thirdPartyApps = @($apps | Where-Object { -not [bool]$_.IsMicrosoft })
+    $thirdPartyApps = @($primaryApps | Where-Object { -not [bool]$_.IsMicrosoft })
     $thirdPartyAudit = @($softwareAudit | Where-Object { $_."Phân loại" -eq (Get-ReportText "report.text.018") })
     $thirdPartyReview = @($thirdPartyAudit | Where-Object { [int]$_.ReviewRank -gt 0 })
     $parallelVersions = @($thirdPartyApps |
@@ -1062,6 +1268,8 @@ if ($wantSoftware) {
 
     $softwareOverview = @(
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.035"); "Gia tri"=@($apps).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.primary"); "Gia tri"=@($primaryApps).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.system"); "Gia tri"=@($systemApps).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.036"); "Gia tri"=@($thirdPartyApps).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.037"); "Gia tri"=@($apps | Where-Object { [bool]$_.IsMicrosoft }).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.038"); "Gia tri"=@($apps | Where-Object { $_.SignatureStatus -eq "Valid" }).Count },
@@ -1069,15 +1277,20 @@ if ($wantSoftware) {
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.040"); "Gia tri"=@($parallelVersions).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.nonGenuine"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -eq 'NonGenuine' }).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.suspicious"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -eq 'Suspicious' }).Count },
+        [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.integrityCompromised"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -eq 'IntegrityCompromised' }).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.unverified"); "Gia tri"=@($apps | Where-Object { $_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count },
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.software.overview.catalog"); "Gia tri"=$(if ($softwareCatalog) { "$($softwareCatalog.CatalogSource) · $($softwareCatalog.CatalogVersion) · $(@($softwareCatalog.Products).Count)" } else { Get-ReportText 'common.unknown' }) }
     )
 
-    Add-Section "Phan mem da cai" (Add-Table $legacyApps @("Ten phan mem","Phien ban","Hang","Ngay cai")) "Software"
-    Add-Section "Danh gia so bo ban quyen phan mem" (Add-Table $legacySoftwareAudit @("Ten phan mem","Phien ban","Hang","Danh gia so bo","Ly do")) "Software"
-    $assessmentRows = @($softwareAudit | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
-    Add-Section (Get-ReportText "report.software.assessmentSection") `
-        (Add-Table $assessmentRows @("Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)) "Software"
+    $systemAppendixLink = "<p class='note system-app-link'><a href='#system-software-appendix'>$(Html (Get-ReportText 'report.software.system.open' @(@($systemApps).Count)))</a></p>"
+    Add-Section "Phan mem da cai" ((Add-Table $legacyApps @("Ten phan mem","Phien ban","Hang","Ngay cai")) + $systemAppendixLink) "Software"
+    Add-Section "Danh gia so bo ban quyen phan mem" (Add-Table $legacySoftwareAuditDisplay @("Ten phan mem","Phien ban","Hang","Danh gia so bo","Ly do")) "Software"
+    $softwareAssessmentRows = @($softwareAudit | Where-Object { [int]$_.ReviewRank -gt 0 -or [string]$_.$assessmentCodeColumn -notin @('FreeOrIncluded','GenuineVerified') } | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
+    $softwareAssessmentEvidenceRows = @($softwareAudit | Where-Object { [int]$_.ReviewRank -ge 2 -or [bool]$_.StrongTechnicalEvidence } | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
+    $softwareAssessmentOverview = Add-Table $softwareAssessmentRows @("Ten phan mem","Phien ban","Hang",$technicalStatusColumn,$confidenceColumn,$remediationEligibilityColumn)
+    $softwareAssessmentEvidence = "<h3>$(Html (Get-ReportText 'report.software.assessmentEvidence'))</h3>" + `
+        (Add-Table $softwareAssessmentEvidenceRows @("Ten phan mem",$licenseModelColumn,$assessmentCodeColumn,$evidenceColumn,$vendorScopeColumn,$officialReferenceColumn))
+    Add-Section (Get-ReportText "report.software.assessmentSection") ($softwareAssessmentOverview + $softwareAssessmentEvidence) "Software"
 
     Write-Host (Get-ReportText "report.progress.supportingSignals")
     $startup = @(Safe-Cim Win32_StartupCommand | Sort-Object Name | ForEach-Object {
@@ -1190,8 +1403,12 @@ if ($wantSoftware) {
             }
         }
     }
+    $scheduledTaskObjectsAll = @()
     try {
-        $taskFindings = Get-ScheduledTask | Where-Object {
+        if ($capabilityState.ScheduledTasksModule) {
+            $scheduledTaskObjectsAll = @(Get-ScheduledTask)
+        }
+        $taskFindings = $scheduledTaskObjectsAll | Where-Object {
             ($_.TaskName -match $strongCrackPattern) -or ($_.TaskPath -match $strongCrackPattern) -or ($_.Author -match $strongCrackPattern)
         } | Select-Object -First 80
         foreach ($task in $taskFindings) {
@@ -1323,7 +1540,9 @@ Write-Host (Get-ReportText "report.progress.scheduledTasks")
 $tasks = @()
 $thirdPartyTasks = @()
 if ($capabilityState.ScheduledTasksModule) {
-    $scheduledTaskObjects = @(Get-ScheduledTask | Where-Object { $_.State -ne "Disabled" } | Select-Object -First 120)
+    # Reuse the same read-only snapshot collected for crack-indicator matching.
+    # Calling Get-ScheduledTask twice was one of the visible processing delays.
+    $scheduledTaskObjects = @($scheduledTaskObjectsAll | Where-Object { $_.State -ne "Disabled" } | Select-Object -First 120)
     $tasks = $scheduledTaskObjects | ForEach-Object {
         [pscustomobject]@{
             "Task"=$_.TaskName
@@ -1427,12 +1646,8 @@ if ($wantSoftware) {
     $supplementBody = "<p class='note'>$(Html $supplementNote)</p>"
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.045"))</h3>"
     $supplementBody += (Add-Table $softwareOverview @("Muc","Gia tri"))
-    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.046"))</h3>"
-    $supplementBody += (Add-Table $thirdPartyApps @("Ten phan mem","Phien ban","Hang","Ngay cai","Phạm vi","Kiến trúc","Duong dan"))
-    $supplementBody += "<h3>$(Html (Get-ReportText "report.text.047"))</h3>"
-    $supplementBody += (Add-Table $thirdPartyApps @("Ten phan mem","Chữ ký","Nhà phát hành chữ ký","Tệp kiểm tra","Phiên bản tệp","Có trình gỡ","Metadata cập nhật"))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.048"))</h3>"
-    $supplementBody += (Add-Table $thirdPartyReview @("Ten phan mem","Phien ban","Hang","Mức rà soát",$technicalStatusColumn,$remediationEligibilityColumn,"Lý do rà soát","Chữ ký","Duong dan"))
+    $supplementBody += (Add-Table @($thirdPartyReview | Where-Object { [int]$_.ReviewRank -ge 2 }) @("Ten phan mem","Phien ban","Hang","Mức rà soát",$technicalStatusColumn,$remediationEligibilityColumn,"Lý do rà soát","Chữ ký","Duong dan"))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.049"))</h3>"
     $supplementBody += (Add-Table $parallelVersions @("Ten phan mem","Số lượng","Phiên bản","Phạm vi"))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.050"))</h3>"
@@ -1442,29 +1657,37 @@ if ($wantSoftware) {
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.052"))</h3>"
     $supplementBody += (Add-Table $thirdPartyTasks @("Task","Path","State","Author","Hành động","Chữ ký","Tệp kiểm tra"))
     Add-Section "Kiểm tra bổ sung phần mềm bên thứ ba" $supplementBody "Software"
+
+    $systemAppendixRows = @($systemApps | ForEach-Object {
+        [pscustomobject][ordered]@{
+            "Ten phan mem"=[string]$_.'Ten phan mem'
+            "Phien ban"=[string]$_.'Phien ban'
+            "Hang"=[string]$_.'Hang'
+            $licenseModelColumn=[string]$_.LicenseModel
+            $technicalStatusColumn=(Get-ReportSoftwareAssessmentLabel -StatusCode ([string]$_.AssessmentCode))
+            $discoverySourceColumn=[string]$_.$discoverySourceColumn
+        }
+    })
+    $systemAppendixTitle = Get-ReportText 'report.software.system.appendixTitle'
+    $systemAppendixBody = "<p class='note'>$(Html (Get-ReportText 'report.software.system.appendixNote'))</p>" + `
+        (Add-Table $systemAppendixRows @("Ten phan mem","Phien ban","Hang",$discoverySourceColumn)) + `
+        "<p class='back-link'><a href='#section-1'>$(Html (Get-ReportText 'report.software.system.back'))</a></p>"
+    $tocItems += [pscustomobject]@{ Id='system-software-appendix'; Title=$systemAppendixTitle }
+    $sections += "<section id='system-software-appendix' class='system-software-appendix'><h2>$(Html $systemAppendixTitle)</h2>$systemAppendixBody</section>"
 }
 
 # Phần kết luận luôn hiển thị để người quản trị có hướng xử lý rõ ràng.
 $assessmentRows = @()
+$verificationLevelColumn = Get-ReportText 'report.license.column.verificationLevel'
 if ($wantWindows) {
-    $windowsDirection = if ($windowsSummaryChannel -match "KMS") {
-        Get-ReportText "report.text.053"
-    } elseif ($windowsActivated) {
-        Get-ReportText "report.text.054"
-    } else {
-        Get-ReportText "report.text.055"
-    }
-    $assessmentRows += [pscustomobject]@{ "Đối tượng"="Windows"; "Đánh giá"=(Get-ReportPresentationText $windowsSummaryStatus); "Phương hướng xử lý"=$windowsDirection }
+    $assessmentRow = [ordered]@{ "Đối tượng"="Windows"; "Đánh giá"=$windowsVerdict.Conclusion; "Phương hướng xử lý"=$windowsVerdict.Direction }
+    $assessmentRow[$verificationLevelColumn] = $windowsVerdict.VerificationLevel
+    $assessmentRows += [pscustomobject]$assessmentRow
 }
 if ($wantOffice) {
-    $officeDirection = if ($officeActivated) {
-        Get-ReportText "report.text.056"
-    } elseif ($officeDetected) {
-        Get-ReportText "report.text.057"
-    } else {
-        Get-ReportText "report.text.058"
-    }
-    $assessmentRows += [pscustomobject]@{ "Đối tượng"="Microsoft Office"; "Đánh giá"=(Get-ReportPresentationText $officeSummaryStatus); "Phương hướng xử lý"=$officeDirection }
+    $assessmentRow = [ordered]@{ "Đối tượng"="Microsoft Office"; "Đánh giá"=$officeVerdict.Conclusion; "Phương hướng xử lý"=$officeVerdict.Direction }
+    $assessmentRow[$verificationLevelColumn] = $officeVerdict.VerificationLevel
+    $assessmentRows += [pscustomobject]$assessmentRow
 }
 if ($wantSoftware) {
     $softwareDirection = if (@($crackFindings).Count -gt 0) {
@@ -1482,15 +1705,32 @@ if ($wantSoftware) {
         Get-ReportText "report.text.064"
     }
     $softwareTarget = Get-ReportText "report.text.065"
-    $assessmentRows += [pscustomobject]@{ "Đối tượng"=$softwareTarget; "Đánh giá"=$softwareAssessment; "Phương hướng xử lý"=$softwareDirection }
+    $assessmentRow = [ordered]@{ "Đối tượng"=$softwareTarget; "Đánh giá"=$softwareAssessment; "Phương hướng xử lý"=$softwareDirection }
+    $assessmentRow[$verificationLevelColumn] = Get-ReportText 'report.license.level.technicalSignals'
+    $assessmentRows += [pscustomobject]$assessmentRow
 }
 if ($assessmentRows.Count -gt 0) {
     $sectionCounter++
     $assessmentId = "section-$sectionCounter"
     $assessmentTitle = Get-ReportText "report.text.066"
     $assessmentNote = Get-ReportText "report.text.067"
+    $directInterferenceEvidence = New-Object System.Collections.Generic.List[string]
+    if ([string]$activationText -match '(?i)Rearm\s+successful|Rearms?\s+Remaining|AutoKMS|KMS\s*activator|Microsoft\s+Activation\s+Scripts') {
+        $directInterferenceEvidence.Add('Windows licensing output')
+    }
+    foreach ($finding in @($crackFindings)) {
+        $findingText = @([string]$finding.Nguon, [string]$finding.'Dau hieu', [string]$finding.'Vi tri') -join ' '
+        if ($findingText -match '(?i)AutoKMS|KMS(?:Pico|Auto|38)?|activator|rearm|Microsoft[ ._-]*Activation[ ._-]*Scripts|HWIDGEN') {
+            $directInterferenceEvidence.Add($findingText)
+        }
+    }
+    $assessmentBody = Add-Table $assessmentRows @("Đối tượng","Đánh giá",$verificationLevelColumn,"Phương hướng xử lý")
+    if ($directInterferenceEvidence.Count -gt 0) {
+        $assessmentBody += "<p class='license-warning'><strong>$(Html (Get-ReportText 'report.license.interferenceWarning'))</strong></p>"
+    }
+    $assessmentBody += "<p class='note'>$(Html $assessmentNote)</p>"
     $tocItems += [pscustomobject]@{ Id=$assessmentId; Title=$assessmentTitle }
-    $sections += "<section id='$assessmentId'><h2>$(Html $assessmentTitle)</h2>$(Add-Table $assessmentRows @("Đối tượng","Đánh giá","Phương hướng xử lý"))<p class='note'>$(Html $assessmentNote)</p></section>"
+    $sections += "<section id='$assessmentId'><h2>$(Html $assessmentTitle)</h2>$assessmentBody</section>"
 }
 
 $professionalCss = Get-ToolProfessionalReportCss
@@ -1498,13 +1738,25 @@ $tocLinks = @($tocItems | ForEach-Object { "<li><a href='#$(Html $_.Id)'>$(Html 
 $tocLabel = Get-ToolText -Key "report.toc" -Culture $Culture
 $tocBlock = if ($tocItems.Count -gt 1) { "<nav class='toc'><strong>$(Html $tocLabel)</strong><ol>$tocLinks</ol></nav>" } else { "" }
 $notScannedLabel = Get-ToolText -Key "report.notScanned" -Culture $Culture
-$windowsCardValue = if ($wantWindows) { [string]$windowsSummaryStatus } else { $notScannedLabel }
-$officeCardValue = if ($wantOffice) { [string]$officeSummaryStatus } else { $notScannedLabel }
+$windowsCardValue = if (-not $wantWindows) {
+    $notScannedLabel
+} elseif ([string]$windowsVerdict.Code -eq 'Unverifiable') {
+    Get-ReportText 'report.license.windows.unverifiableShort'
+} else {
+    [string]$windowsVerdict.Conclusion
+}
+$officeCardValue = if (-not $wantOffice) {
+    $notScannedLabel
+} elseif ([string]$officeVerdict.Code -eq 'Unverifiable') {
+    Get-ReportText 'report.license.office.unverifiableShort'
+} else {
+    [string]$officeVerdict.Conclusion
+}
 $pluginHighCount = if ($pluginAudit) { [int]$pluginAudit.HighOrCriticalCount } else { 0 }
-$windowsTone = if ($wantWindows -and $windowsActivated) { "ok" } elseif ($wantWindows) { "warning" } else { "info" }
-$officeTone = if ($wantOffice -and $officeActivated) { "ok" } elseif ($wantOffice) { "warning" } else { "info" }
+$windowsTone = if ($wantWindows) { [string]$windowsVerdict.Tone } else { "info" }
+$officeTone = if ($wantOffice) { [string]$officeVerdict.Tone } else { "info" }
 $findingTone = if (@($crackFindings).Count -gt 0) { "danger" } else { "ok" }
-$pluginTone = if ($pluginHighCount -gt 0) { "danger" } elseif ($pluginAudit -and $pluginAudit.TriggeredFindingCount -gt 0) { "warning" } else { "ok" }
+$manualReviewTone = if (@($manualReviewFindings).Count -gt 0) { "warning" } else { "ok" }
 $htmlLanguage = if ($Culture -eq "en-US") { "en" } else { "vi" }
 $offlineCardValue = Get-ToolText -Key $(if ($script:reportOfflineMode) { "report.offlineYes" } else { "report.offlineNo" }) -Culture $Culture
 $offlineTone = if ($script:reportOfflineMode) { "ok" } else { "warning" }
@@ -1515,7 +1767,7 @@ $summaryCardsHtml = New-Object Text.StringBuilder
 [void]$summaryCardsHtml.Append("<div class='card tone-$windowsTone'><div class='card-label'>Windows</div><div class='card-value'>$(Html $windowsCardValue)</div></div>")
 [void]$summaryCardsHtml.Append("<div class='card tone-$officeTone'><div class='card-label'>Microsoft Office</div><div class='card-value'>$(Html $officeCardValue)</div></div>")
 [void]$summaryCardsHtml.Append("<div class='card tone-$findingTone'><div class='card-label'>$(Html (Get-ToolText -Key 'report.specificFindings' -Culture $Culture))</div><div class='card-value'>$(@($crackFindings).Count)</div></div>")
-[void]$summaryCardsHtml.Append("<div class='card tone-$pluginTone'><div class='card-label'>Plugin High/Critical</div><div class='card-value'>$pluginHighCount</div></div>")
+[void]$summaryCardsHtml.Append("<div class='card tone-$manualReviewTone'><div class='card-label'>$(Html (Get-ToolText -Key 'report.manualReviewFindings' -Culture $Culture))</div><div class='card-value'>$(@($manualReviewFindings).Count)</div></div>")
 [void]$summaryCardsHtml.Append("<div class='card tone-$offlineTone'><div class='card-label'>$(Html (Get-ToolText -Key 'report.offline' -Culture $Culture))</div><div class='card-value'>$(Html $offlineCardValue)</div></div>")
 $reportModeLabel = if ($Mode -eq "Software") {
     if ($script:reportOfflineMode) { "OFFLINE" } else { "NETWORK ALLOWED" }
@@ -1524,14 +1776,58 @@ $reportModeLabel = if ($Mode -eq "Software") {
 } else {
     Get-ReportText "report.text.069"
 }
-$html = @"
+
+$summaryHardwareSection = ""
+if ($wantHardware) {
+    $hardwareItems = @(
+        [pscustomobject]@{ Label=(Get-ReportText "report.summary.model"); Value=("$($cs.Manufacturer) $($cs.Model)".Trim()) },
+        [pscustomobject]@{ Label=(Get-ReportText "report.summary.operatingSystem"); Value=("$($os.Caption) $($os.Version) build $($os.BuildNumber)".Trim()) },
+        [pscustomobject]@{ Label="CPU"; Value=([string]$cpu.Name).Trim() },
+        [pscustomobject]@{ Label="RAM"; Value=(Size-GB $cs.TotalPhysicalMemory) }
+    )
+    $hardwareOverview = New-Object Text.StringBuilder
+    foreach ($item in $hardwareItems) {
+        $itemValue = if ([string]::IsNullOrWhiteSpace([string]$item.Value)) { Get-ReportText "report.summary.unavailable" } else { [string]$item.Value }
+        [void]$hardwareOverview.Append("<article class='summary-result'><div class='summary-label'>$(Html $item.Label)</div><h3>$(Html $itemValue)</h3></article>")
+    }
+    $summaryHardwareSection = "<section><h2>$(Html (Get-ReportText 'report.summary.hardwareTitle'))</h2><div class='summary-grid'>$($hardwareOverview.ToString())</div></section>"
+}
+
+$summaryConclusionSection = ""
+if (@($assessmentRows).Count -gt 0) {
+    $summaryConclusionItems = New-Object Text.StringBuilder
+    foreach ($row in @($assessmentRows)) {
+        $verificationProperty = $row.PSObject.Properties[$verificationLevelColumn]
+        $verificationValue = if ($verificationProperty) { [string]$verificationProperty.Value } else { "" }
+        [void]$summaryConclusionItems.Append("<article class='summary-result summary-conclusion'><h3>$(Html ([string]$row.'Đối tượng'))</h3><p class='summary-verdict'>$(Html ([string]$row.'Đánh giá'))</p><div class='summary-detail-grid'><div class='summary-detail-box summary-detail-verification'><span class='summary-label'>$(Html (Get-ReportText 'report.summary.verificationLevel'))</span><div class='summary-detail-value'>$(Html $verificationValue)</div></div><div class='summary-detail-box summary-detail-direction'><span class='summary-label'>$(Html (Get-ReportText 'report.summary.direction'))</span><div class='summary-detail-value'>$(Html ([string]$row.'Phương hướng xử lý'))</div></div></div></article>")
+    }
+    $summaryConclusionSection = "<section><h2>$(Html (Get-ReportText 'report.summary.mainConclusions'))</h2><div class='summary-grid'>$($summaryConclusionItems.ToString())</div><p class='note'>$(Html (Get-ReportText 'report.summary.conclusionLimit'))</p></section>"
+}
+
+$summaryAlertSection = ""
+if (@($crackFindings).Count -gt 0) {
+    $summaryAlertSection = "<section class='summary-alert summary-alert-danger'><h2>$(Html (Get-ReportText 'report.summary.attentionTitle'))</h2><p>$(Html (Get-ReportText 'report.summary.alertSpecific' @(@($crackFindings).Count)))</p></section>"
+} elseif (@($manualReviewFindings).Count -gt 0) {
+    $summaryAlertSection = "<section class='summary-alert summary-alert-warning'><h2>$(Html (Get-ReportText 'report.summary.attentionTitle'))</h2><p>$(Html (Get-ReportText 'report.summary.alertReview' @(@($manualReviewFindings).Count)))</p></section>"
+} elseif ($wantWindows -or $wantOffice -or $wantSoftware) {
+    $summaryAlertSection = "<section class='summary-alert'><h2>$(Html (Get-ReportText 'report.summary.attentionTitle'))</h2><p>$(Html (Get-ReportText 'report.summary.alertClear'))</p></section>"
+}
+
+$summarySystemSection = ""
+if ($wantSoftware -and @($systemAppendixRows).Count -gt 0) {
+    $summarySystemSection = "<section><h2>$(Html $systemAppendixTitle)</h2><details class='system-summary-details'><summary>$(Html (Get-ReportText 'report.software.system.open' @(@($systemAppendixRows).Count)))</summary><p class='note'>$(Html (Get-ReportText 'report.software.system.appendixNote'))</p>$(Add-Table $systemAppendixRows @('Ten phan mem','Phien ban','Hang',$discoverySourceColumn))</details></section>"
+}
+
+$summaryReportTitle = Get-ReportText "report.summary.title" @($reportTitle)
+$detailReportTitle = Get-ReportText "report.detail.title" @($reportTitle)
+$detailedHtml = @"
 <!doctype html>
-<html lang="$htmlLanguage">
+<html lang="$htmlLanguage" data-report-view="detailed">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
-<title>$(Html $reportTitle) - $(Html $reportComputer)</title>
+<title>$(Html $detailReportTitle) - $(Html $reportComputer)</title>
 <style>$professionalCss</style>
 </head>
 <body>
@@ -1539,23 +1835,64 @@ $html = @"
 <header class="hero">
 <div class="report-mode">$(Html $reportModeLabel)</div>
 <div class="eyebrow">$(Html (Get-ToolText -Key "report.eyebrow" -Culture $Culture))</div>
-<h1>$(Html $reportTitle)</h1>
+<h1>$(Html $detailReportTitle)</h1>
 <div class="subtitle">$(Html $ToolDescription)</div>
 <div class="meta-grid">
 <div class="meta-item"><b>$(Html (Get-ToolText -Key "report.machine" -Culture $Culture))</b>$(Html $reportComputer)</div>
 <div class="meta-item"><b>$(Html (Get-ToolText -Key "report.time" -Culture $Culture))</b>$(Html $started.ToString("yyyy-MM-dd HH:mm:ss"))</div>
 <div class="meta-item"><b>$(Html (Get-ToolText -Key "report.mode" -Culture $Culture))</b>$(Html $Mode)</div>
-<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.version" -Culture $Culture))</b>$(Html $ToolReleaseVersion) / Report $(Html $reportSchemaState.SchemaVersion)</div>
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.version" -Culture $Culture))</b>$(Html $ToolReleaseVersion -PreserveVersionLike) / Report $(Html $reportSchemaState.SchemaVersion -PreserveVersionLike)</div>
 <div class="meta-item"><b>$(Html (Get-ToolText -Key "report.privacy" -Culture $Culture))</b>$(Html (Get-ToolText -Key $(if ($RedactSensitive) { "report.redacted" } else { "report.internal" }) -Culture $Culture))</div>
 </div>
 </header>
-<div class="cards">
+<div class="cards cards-count-5">
 $($summaryCardsHtml.ToString())
 </div>
 $tocBlock
 <section><h2>$(Html (Get-ToolText -Key "report.scope" -Culture $Culture))</h2><p>$(Html $ToolDescription)</p><p class="note">$(Html $DeveloperCredit)</p></section>
 $($sections -join "`n")
-<div class="footer">$(Html $ToolName) &mdash; $(Html $DeveloperCredit)</div>
+<div class="footer"><div class="footer-line">$(Html $ToolName)</div><div class="footer-line">$(Html $DeveloperCredit)</div></div>
+</main>
+</body>
+</html>
+"@
+
+$html = @"
+<!doctype html>
+<html lang="$htmlLanguage" data-report-view="summary">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
+<title>$(Html $summaryReportTitle) - $(Html $reportComputer)</title>
+<style>$professionalCss</style>
+</head>
+<body>
+<main class="page">
+<header class="hero">
+<div class="report-mode">$(Html $reportModeLabel)</div>
+<div class="eyebrow">$(Html (Get-ToolText -Key "report.eyebrow" -Culture $Culture))</div>
+<h1>$(Html $summaryReportTitle)</h1>
+<div class="subtitle">$(Html (Get-ReportText "report.summary.description"))</div>
+<div class="meta-grid">
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.machine" -Culture $Culture))</b>$(Html $reportComputer)</div>
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.time" -Culture $Culture))</b>$(Html $started.ToString("yyyy-MM-dd HH:mm:ss"))</div>
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.mode" -Culture $Culture))</b>$(Html $Mode)</div>
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.version" -Culture $Culture))</b>$(Html $ToolReleaseVersion -PreserveVersionLike) / Report $(Html $reportSchemaState.SchemaVersion -PreserveVersionLike)</div>
+<div class="meta-item"><b>$(Html (Get-ToolText -Key "report.privacy" -Culture $Culture))</b>$(Html (Get-ToolText -Key $(if ($RedactSensitive) { "report.redacted" } else { "report.internal" }) -Culture $Culture))</div>
+</div>
+</header>
+<div class="cards cards-summary cards-count-5">
+$($summaryCardsHtml.ToString())
+</div>
+<section class="summary-intro"><h2>$(Html (Get-ReportText "report.summary.quickViewTitle"))</h2><p>$(Html (Get-ReportText "report.summary.quickViewBody"))</p></section>
+$summaryHardwareSection
+$summaryConclusionSection
+$summaryAlertSection
+$summarySystemSection
+{{TOOL_REPORT_PDF_GUIDE}}
+<section><h2>$(Html (Get-ToolText -Key "report.scope" -Culture $Culture))</h2><p>$(Html $ToolDescription)</p><p class="note">$(Html (Get-ReportText "report.summary.scopeNote"))</p></section>
+<div class="footer"><div class="footer-line">$(Html $ToolName)</div><div class="footer-line">$(Html $DeveloperCredit)</div></div>
 </main>
 </body>
 </html>
@@ -1610,6 +1947,8 @@ if ($wantSoftware) {
         LegacyInstalledApplications = @($legacyApps)
         LegacyPreliminaryAssessment = @($legacySoftwareAudit)
         InstalledApplications = @($apps)
+        PrimaryApplications = @($primaryApps)
+        SystemApplications = @($systemApps)
         ThirdPartyApplications = @($thirdPartyApps)
         ThirdPartyAssessment = @($thirdPartyAudit)
         ThirdPartyReviewItems = @($thirdPartyReview)
@@ -1650,8 +1989,14 @@ $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion
     PdfReport = ""
     WindowsStatus = [string]$windowsSummaryStatus
     WindowsChannel = [string]$windowsSummaryChannel
+    WindowsConclusionCode = [string]$windowsVerdict.Code
+    WindowsConclusion = [string]$windowsVerdict.Conclusion
+    WindowsVerificationLevel = [string]$windowsVerdict.VerificationLevel
     OfficeStatus = [string]$officeSummaryStatus
     OfficeDetected = [bool]$officeDetected
+    OfficeConclusionCode = [string]$officeVerdict.Code
+    OfficeConclusion = [string]$officeVerdict.Conclusion
+    OfficeVerificationLevel = [string]$officeVerdict.VerificationLevel
     SuspiciousFindingCount = [int]@($crackFindings).Count
     ManualReviewFindingCount = [int]@($manualReviewFindings).Count
     ThirdPartyApplicationCount = $thirdPartyCount
@@ -1659,6 +2004,8 @@ $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion
     ThirdPartyHighSeverityCount = $thirdPartyHighCount
     SoftwareNonGenuineCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -eq 'NonGenuine' }).Count } else { 0 })
     SoftwareSuspiciousCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -eq 'Suspicious' }).Count } else { 0 })
+    SoftwareIntegrityCompromisedCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -eq 'IntegrityCompromised' }).Count } else { 0 })
+    SoftwareSystemComponentCount = $(if ($wantSoftware) { [int]@($systemApps).Count } else { 0 })
     SoftwareUnverifiedCount = $(if ($wantSoftware) { [int]@($apps | Where-Object { $_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count } else { 0 })
     PluginAudit = $pluginAuditForExport
     Timeline = $timelineSnapshotForExport
@@ -1673,7 +2020,7 @@ $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion
 $summaryValidation = Test-ToolReportEnvelope -Report $summary -ExpectedReportKind "InventoryAndLicense" -ExpectedToolVersion $ToolVersion
 if (-not $summaryValidation.Valid) { throw (Get-ReportText "report.jsonSchemaInvalid" @(($summaryValidation.Errors -join '; '))) }
 Write-Host (Get-ReportText "report.progress.export")
-$package = Export-ToolReportPackage -Report $summary -HtmlContent $html -BasePath $reportBasePath -IncludePdf:$Pdf -RedactPaths:$RedactSensitive
+$package = Export-ToolReportPackage -Report $summary -HtmlContent $html -PdfHtmlContent $detailedHtml -BasePath $reportBasePath -IncludePdf:$Pdf -RedactPaths:$RedactSensitive
 Write-Host $DeveloperCredit
 Write-Host (Get-ReportText "report.output.html" @($package.HtmlPath))
 if (-not [string]::IsNullOrWhiteSpace([string]$package.PdfPath)) { Write-Host (Get-ReportText "report.output.pdf" @($package.PdfPath)) }

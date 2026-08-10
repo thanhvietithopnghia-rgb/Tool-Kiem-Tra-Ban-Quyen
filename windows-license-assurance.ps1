@@ -4,14 +4,14 @@ param(
     [string]$Operation = "CertificateAudit",
     [ValidateSet("vi-VN", "en-US")]
     [string]$Culture = "vi-VN",
-    [string]$OutputDir = [Environment]::GetFolderPath("Desktop"),
+    [string]$OutputDir = (Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra"),
     [switch]$Pdf,
     [switch]$RedactSensitive,
     [switch]$NoOpen
 )
 
-$ToolVersion = "4.6"
-$ReleaseVersion = "4.6.0.0"
+$ToolVersion = "4.8"
+$ReleaseVersion = "4.8.0.0"
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Off
 
@@ -68,7 +68,7 @@ if (-not (Test-Path -LiteralPath $OutputDir -PathType Container)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 $started = Get-Date
-$stamp = $started.ToString("yyyyMMdd_HHmmss")
+$stamp = $started.ToString("yyyyMMdd_HHmmss_fff")
 $computer = if ($RedactSensitive) { Get-AssuranceText "assurance.file.redactedToken" } else { [string]$env:COMPUTERNAME }
 $toolName = Get-ToolText -Key "app.title" -Culture $Culture
 $developer = Get-ToolText -Key "report.footer" -Culture $Culture

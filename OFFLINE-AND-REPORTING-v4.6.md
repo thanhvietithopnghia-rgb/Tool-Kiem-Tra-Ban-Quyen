@@ -1,12 +1,8 @@
-# Offline mode và báo cáo v4.6
+# Offline mode, Trợ lý Tool và báo cáo v4.8
 
 ## Chính sách mặc định
 
-v4.6 khôi phục lựa chọn **Offline/Online** đã lưu; tài khoản chưa có cấu hình vẫn khởi động **Offline** nếu:
-
-- chưa có thiết lập;
-- tệp thiết lập không đọc được hoặc sai định dạng;
-- launcher không nhận giá trị `TOOL_OFFLINE_MODE` hợp lệ.
+v4.8 luôn khởi động **Offline** ở mỗi tiến trình mới. Lựa chọn Online chỉ có hiệu lực trong phiên hiện tại; đóng rồi mở lại ứng dụng sẽ trở về Offline, không phụ thuộc thiết lập của phiên trước.
 
 Trạng thái được hiển thị trên dashboard. Chuyển sang “Cho phép mạng” cần xác nhận rõ ràng và được ghi audit.
 
@@ -19,9 +15,9 @@ Trong Offline mode, tool chặn:
 - loopback/network listener;
 - tiến trình Enterprise server/agent khi công tắc mạng riêng của Mục 8 đang tắt;
 - mở URL hỗ trợ/release;
-- mọi telemetry và kiểm tra cập nhật tự động.
+- mọi telemetry, kiểm tra phiên bản và tải cập nhật ứng dụng.
 
-Ngoại lệ duy nhất là `software.catalog.update` (`NetworkScope=Internet`). Mô-đun chỉ chạy một lượt sau khi người dùng bấm **Kết nối online**, đọc giải thích và xác nhận. Nó tải catalog JSON qua HTTPS GET từ host allowlist, không tải inventory/đường dẫn/khóa/token lên mạng và không đổi chế độ Offline mặc định. Enterprise UI là `LocalOnly`; server và agent khai báo `NetworkScope=Lan` và cần công tắc mạng riêng của Mục 8.
+Khi người dùng chủ động cho phép Online, ba luồng Internet mới có thể chạy: `software.catalog.update` tải catalog sau xác nhận riêng; `application.update.check` chỉ đọc manifest phiên bản GitHub; Trợ lý Tool chỉ tải JSON tri thức từ URL GitHub cố định. Cả ba fail-closed khi Offline và không tải inventory, đường dẫn, khóa, token, báo cáo hay nội dung trò chuyện lên mạng. Enterprise UI là `LocalOnly`; server và agent khai báo `NetworkScope=Lan` và cần công tắc mạng riêng của Mục 8.
 
 ## Những gì vẫn hoạt động
 
@@ -54,6 +50,15 @@ Mục 8 dùng preference riêng, mặc định `Allowed=false`, độc lập v�
 - Catalog tải về phải qua kiểm tra schema/quy tắc trước khi ghi cache. Nếu tải lỗi, người dùng có thể tiếp tục quét bằng catalog cục bộ/cache hợp lệ.
 - Catalog cache khác catalog tích hợp không được tạo bằng chứng hash/tên activator mang tính quyết định; không có kết nối mạng nào được dùng để tải inventory lên hoặc hỏi trạng thái giấy phép tài khoản.
 
+## Kiểm tra và cài phiên bản mới
+
+- Chỉ kiểm tra manifest khi Online đã được người dùng cho phép trong phiên hiện tại. Lần mở tiếp theo trở lại Offline; chuyển về Offline hủy kiểm tra đang chờ và không tải gì.
+- Khi có bản mới, Tool chỉ hiển thị **Cập nhật ngay**, **Để sau**, **Bỏ qua lần này**. Không lựa chọn nào được tự giả định.
+- **Để sau** hỏi lại sau tác vụ kế tiếp hoặc khoảng 2 giờ. **Bỏ qua lần này** chỉ áp dụng cho phiên ứng dụng hiện tại; lần mở sau vẫn Offline cho tới khi người dùng chủ động bật Online.
+- Chỉ **Cập nhật ngay** tải EXE từ asset GitHub HTTPS đúng repository/tag. Tệp phải khớp kích thước, SHA-256 và signer Authenticode nếu manifest yêu cầu trước khi thay thế.
+- Bản EXE cũ được backup; nếu bản mới thoát trong lúc kiểm tra khởi động, updater khôi phục và mở lại bản cũ.
+- Không có dịch vụ nền, telemetry, silent update hoặc gửi dữ liệu máy. Manifest `update-manifest-v1.json` chỉ chứa phiên bản, mô tả, URL, kích thước, SHA-256 và chính sách chữ ký.
+
 ## HTML
 
 HTML được tạo tự chứa:
@@ -68,7 +73,11 @@ HTML được tạo tự chứa:
 
 `Test-ToolHtmlOfflineSafe` từ chối HTML có `http(s)`, protocol-relative URL, remote `src`/`href`, `@import`, script hoặc iframe trước khi PDF/package được coi là hợp lệ.
 
-Từ export schema 1.2, mọi báo cáo dành cho người đọc dùng chung giao diện chuyên nghiệp và ngắt trang an toàn. HTML/PDF được lưu trực tiếp trên Desktop; HTML luôn được mở bằng trình duyệt mặc định sau khi hoàn tất.
+Từ export schema 1.4, HTML và PDF dùng cùng dữ liệu nhưng khác mức trình bày. HTML là tổng quan, giữ cấu hình chính, kết luận, cảnh báo, ứng dụng chính và nút mở đúng PDF. PDF là bản chi tiết có toàn bộ bảng/bằng chứng cùng phụ lục phần mềm hệ thống; bảng rộng được tách, nội dung dài mở đầy đủ khi in và ngắt trang A4 an toàn. Mọi lượt xuất dùng chung `Desktop\BaoCao-Tool-Kiem-Tra`, không tạo thư mục con; tên tệp có timestamp mili-giây và sau khi hoàn tất chỉ HTML tổng quan được mở.
+
+Kho Trợ lý schema `1.1` chỉ được cache khi `KnowledgeVersion`, `ToolVersionMin`, `ToolVersionMax` và `ReleasedWithToolVersion` tương thích Tool `4.8.0.0`. Tệp lỗi, quá lớn, sai nguồn hoặc khác phiên bản bị loại bỏ; Offline tiếp tục dùng bản nhúng hợp lệ gần nhất.
+
+HTML cân năm thẻ kết quả nhanh trên màn hình rộng và đặt Mức xác minh/Hướng xử lý trong các ô con riêng. Chân PDF được chia thành hai hàng để giữ đủ tên công cụ và thông tin tác giả/hỗ trợ trên khổ A4.
 
 ## PDF
 
@@ -86,11 +95,13 @@ Nếu không có engine, tool báo rõ lỗi PDF nhưng vẫn giữ HTML/JSON/XM
 
 Mỗi package có:
 
-- HTML trình bày;
-- PDF nếu engine khả dụng;
+- HTML tổng quan kèm hướng dẫn mở bản đầy đủ;
+- PDF chi tiết nếu engine khả dụng;
 - JSON theo report schema 1.5;
 - XML kiểu hóa;
 - `*-SHA256SUMS.txt`.
+
+Tên thư mục package gồm loại báo cáo và timestamp. Các artefact của một lượt xuất không bị rải trực tiếp trên Desktop và PDF/JSON/XML không tự mở.
 
 Tất cả định dạng dùng cùng dữ liệu nguồn. Consumer phải xác minh SHA-256 và schema trước khi nhập.
 

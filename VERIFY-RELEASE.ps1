@@ -184,7 +184,9 @@ if ($guiText -notmatch 'New-ToolElevatedBootstrapArguments' -or $guiText -notmat
     $elevatedBridgeText -notmatch 'Test-BridgeProtectedDirectoryAcl' -or
     $elevatedBridgeText -notmatch 'ElevatedBridgeScriptBindingInvalid' -or
     $elevatedBridgeText -notmatch "'cleanup\.deep'\s*=\s*'windows-license-compliance-cleanup\.ps1'" -or
-    $elevatedBridgeText -notmatch '\[EnvironmentVariableTarget\]::Process') {
+    $elevatedBridgeText -notmatch 'ProcessStartInfo' -or
+    $elevatedBridgeText -notmatch 'UseShellExecute\s*=\s*\$false' -or
+    $elevatedBridgeText -notmatch 'EnvironmentVariables\[\$name\]') {
     $failures.Add('Thiếu cầu nối UAC đã khóa module/script/runtime và allowlist biến môi trường.')
 }
 if ($launcherText -notmatch 'RequiresAdministrator' -or $launcherText -notmatch 'RelaunchElevated' -or

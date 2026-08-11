@@ -138,20 +138,43 @@ try {
     $scriptItem = Get-Item -LiteralPath $actualScriptPath -Force -ErrorAction Stop
     if (($scriptItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ElevatedBridgeScriptReparsePointRejected' }
 
+    # Do not use Start-Process/ShellExecute for this second hop.  On a real
+    # RunAs boundary Windows can ask the shell broker to create the child;
+    # that broker then supplies its own environment instead of the values
+    # restored in this elevated bridge.  The cleanup process consequently
+    # sees TOOL_SECURE_LAUNCH as empty and rejects the signed selection file.
+    #
+    # UseShellExecute=false makes this process create the child directly and
+    # lets us attach the reviewed TOOL_* contract as an explicit environment
+    # block.  All other ordinary Windows variables remain inherited from the
+    # already-elevated bridge.
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $targetFilePath
+    $startInfo.Arguments = $targetArguments
+    $startInfo.WorkingDirectory = $bridgeRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = [bool]$payload.HiddenWindow
+    if ([bool]$payload.HiddenWindow) {
+        $startInfo.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+    }
     foreach ($name in $allowedEnvironmentNames) {
-        $value = if ($environmentValues.ContainsKey($name)) { $environmentValues[$name] } else { $null }
-        [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
+        if ($environmentValues.ContainsKey($name) -and $null -ne $environmentValues[$name]) {
+            $startInfo.EnvironmentVariables[$name] = [string]$environmentValues[$name]
+        } else {
+            [void]$startInfo.EnvironmentVariables.Remove($name)
+        }
     }
-    $startParameters = @{
-        FilePath = $targetFilePath
-        ArgumentList = $targetArguments
-        PassThru = $true
-        Wait = $true
+
+    $child = New-Object System.Diagnostics.Process
+    $child.StartInfo = $startInfo
+    if (-not $child.Start()) { throw 'ElevatedBridgeChildMissing' }
+    try {
+        $child.WaitForExit()
+        $childExitCode = [int]$child.ExitCode
+    } finally {
+        $child.Dispose()
     }
-    if ([bool]$payload.HiddenWindow) { $startParameters.WindowStyle = 'Hidden' }
-    $child = Start-Process @startParameters
-    if (-not $child) { throw 'ElevatedBridgeChildMissing' }
-    exit [int]$child.ExitCode
+    exit $childExitCode
 } catch {
     [Console]::Error.WriteLine('Tool elevated bridge failed: ' + [string]$_.Exception.Message)
     exit $bridgeFailureExitCode

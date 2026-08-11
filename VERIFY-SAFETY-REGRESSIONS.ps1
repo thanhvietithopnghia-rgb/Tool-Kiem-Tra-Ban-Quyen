@@ -57,6 +57,7 @@ $backup = Read-And-Parse 'windows-license-backup.ps1'
 $cleanup = Read-And-Parse 'windows-license-compliance-cleanup.ps1'
 $restore = Read-And-Parse 'windows-license-restore.ps1'
 $gui = Read-And-Parse 'Giao-Dien.ps1'
+$elevatedBridge = Read-And-Parse 'Tool-ElevatedBridge.ps1'
 $softwareInventory = Read-And-Parse 'Tool-SoftwareInventory.ps1'
 $softwareCatalogUpdater = Read-And-Parse 'software-license-online-update.ps1'
 
@@ -390,6 +391,11 @@ ERROR CODE: 0xC004F014
 
 if ($gui) {
     try {
+        if (-not $elevatedBridge -or
+            $elevatedBridge.Text -notmatch '(?s)ProcessStartInfo.+?UseShellExecute\s*=\s*\$false.+?EnvironmentVariables\[\$name\].+?\$child\.Start\(\).+?WaitForExit\(\)' -or
+            $elevatedBridge.Text -match 'Start-Process\s+@startParameters') {
+            Fail 'Cầu nối UAC chưa tạo tiến trình con trực tiếp với khối môi trường TOOL_* tường minh.'
+        }
         foreach ($functionName in @('Get-ToolElevatedEnvironmentSnapshot','New-ToolElevatedBootstrapArguments')) {
             $functionAst = $gui.Ast.Find({
                 param($node)

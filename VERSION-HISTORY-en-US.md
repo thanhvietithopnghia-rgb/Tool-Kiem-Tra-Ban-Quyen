@@ -3,9 +3,9 @@
 This document summarizes the main public releases from v1.0 through v4.8.0. v4.8.0 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
 
 Current release: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.10**
+FileVersion: **4.8.0.0** · Build **2026.08.11**
 
-## v4.8.0 — August 10, 2026
+## v4.8.0 — August 10, 2026 · updated build August 11, 2026
 
 Focus: **a leap-forward upgrade with in-depth improvements** from v4.6, delivering a clear advance in experience, performance, and core quality without making the Tool cumbersome or changing its Offline-first safety model.
 
@@ -13,14 +13,18 @@ Focus: **a leap-forward upgrade with in-depth improvements** from v4.6, deliveri
 - **Tool Assistant:** added in-scope guidance with immediate answers, automatic scrolling, and duplicate-submit protection. The Offline/knowledge badge keeps a safe edge margin, the composer has a clear background, border, and focus state, and questions and answers use separate softly outlined colors.
 - **Natural-language handling:** expands support for accent-free text, abbreviations, common typos, and multi-intent questions; reduces cross-topic matches, repeated templates, and repeated commands while providing context-aware out-of-scope replies.
 - **Performance and source:** indexes normalized name groups during inventory merging, indexes external evidence, builds result property bags instead of issuing thousands of `Add-Member` calls, reuses one Scheduled Tasks snapshot, and uses a reverse translation map instead of hashing every report string while preserving sources, coverage, and conclusion order. On the same 480-application test machine, the inventory-and-assessment core fell from about 42.5 seconds to 26.4 seconds (about 38%); the final end-to-end scan-and-report run fell from 76.9 seconds to 60.4 seconds, with identical result SHA-256 values, 480 applications, and status distribution.
-- **Software catalog:** expanded to `1.3.0.0` with 73 rules; merges Registry/Appx/shortcut, same-release patch, and x86/x64 discoveries while retaining source, location, and architecture details.
+- **Software catalog:** expanded to `1.3.1.0` with 76 rules; adds IObit Driver Booster, WIRIS MathType, commercial PDF editors, and the short IDM name, while merging Registry/Appx/shortcut, same-release patch, and x86/x64 discoveries with source, location, and architecture details retained.
+- **August 11 hotfix — normal scan and KMS:** Windows/Office-only reports now inspect current MAS, TSforge, OHook, KMS-tool, and Microsoft Toolkit evidence; keep the KMS channel visible in Notification state; show the renewable up-to-180-day lifecycle; and distinguish approved KMS hosts from unverified entitlement. The normal Software report also scans bounded priority install roots instead of relying on Downloads.
+- **August 11 hotfix — report data:** normalizes install dates to `yyyy-MM-dd`, resolves monitor names through EDID/DesktopMonitor/PnP fallbacks, and presents explicit redacted/internal/cancel privacy buttons. The timeline retains old events as history but separates the latest observed snapshot so removed evidence is not shown as current.
+- **August 11 hotfix — third-party remediation:** records each action and reports success only after a real system change; guidance alone is no longer counted as a repair. Adds a bounded WinRAR `rarreg.key` adapter and verifies `Unactivated` after the local registration file is removed.
+- **August 11 hotfix — Server/Workstation:** aligns the strong-wildcard URL ACL and listener, grants the URL ACL to the SID of the account running the Tool instead of the UAC-filtered Administrators group, verifies firewall/URL ACL state, waits for heartbeat and diagnostics before reporting server startup, and uses structured agent success/failure results instead of reporting send success early.
 - **Conservative conclusions:** maps `HashMismatch` to `IntegrityCompromised`; file-integrity evidence alone no longer produces `NonGenuine` or enables license remediation.
 - **Reports:** fixes clipped PDF lines, text, and row spacing; splits wide tables, moves system software to an appendix, uses one shared report folder, and links HTML to the matching PDF.
 - **Server/Workstation:** supports `IP:port`, blank-address discovery, address/TCP/service/protocol/version diagnostics, Neighbor/ARP–ICMP–TCP LAN discovery, and queued report retry after connection loss.
 - **Safety and privilege:** keeps the dashboard at standard-user rights with on-demand UAC; fixes stale administrative-data-area blocks while continuing to fail closed for genuinely unsafe ACLs.
 - **Update and privacy:** remains Offline by default; checks/downloads only after consent, verifies size/SHA-256, and provides no telemetry or silent update.
 - **Documentation:** rewrites the Vietnamese and English user guides as evergreen feature-use documents without embedded release notes; all v4.8 changes directly from v4.6 are kept in Version History only.
-- **Release synchronization:** moves FileVersion to `4.8.0.0`, build `2026.08.10`, and synchronizes histories, READMEs, manifest, and x64/x86 verification.
+- **Release synchronization:** keeps FileVersion `4.8.0.0`, updates build `2026.08.11`, and synchronizes histories, READMEs, manifest, and x64/x86 verification.
 
 ## v4.6 — August 6, 2026
 

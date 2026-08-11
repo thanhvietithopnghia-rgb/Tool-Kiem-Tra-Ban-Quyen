@@ -471,6 +471,27 @@ if ($Operation -eq "CertificateAudit") {
         $row[$timelineColumns[3]]=$_.Source; $row[$timelineColumns[4]]=$(if ($_.IsChange) {Get-AssuranceText "assurance.text.039"} else {Get-AssuranceText "assurance.text.040"}); $row[$timelineColumns[5]]=$detail
         [pscustomobject]$row
     })
+    $latestSnapshotEvents = @($reportEvents | Where-Object { $_.EventType -in @('LicenseStateObserved','LicenseStateChanged') -and $_.Data -and $_.Data.State })
+    $latestSnapshot = if ($latestSnapshotEvents.Count -gt 0) { $latestSnapshotEvents[-1] } else { $null }
+    $latestState = if ($latestSnapshot) { $latestSnapshot.Data.State } else { $null }
+    $latestActivatorEvidence = [bool]($latestState -and $latestState.PSObject.Properties['ActivatorEvidenceCurrent'] -and [bool]$latestState.ActivatorEvidenceCurrent)
+    $latestStateColumns = @((Get-AssuranceText 'assurance.timeline.field'), (Get-AssuranceText 'assurance.timeline.value'))
+    $latestStateRows = @()
+    if ($latestState) {
+        $latestStateRows = @($latestState.PSObject.Properties | ForEach-Object {
+            $valueText = if ($null -eq $_.Value) { '' } elseif ($_.Value -is [string] -or $_.Value -is [ValueType]) { [string]$_.Value } else { $_.Value | ConvertTo-Json -Depth 4 -Compress }
+            $row = [ordered]@{}
+            $row[$latestStateColumns[0]] = [string]$_.Name
+            $row[$latestStateColumns[1]] = Protect-AssuranceText $valueText
+            [pscustomobject]$row
+        })
+    }
+    $latestStateBody = if ($latestStateRows.Count -gt 0) {
+        (Get-AssuranceText 'assurance.timeline.currentNote' @([string]$latestSnapshot.TimestampUtc)) +
+            (ConvertTo-AssuranceHtmlTable -Rows $latestStateRows -Columns $latestStateColumns)
+    } else {
+        '<p class="muted">' + (Get-AssuranceText 'assurance.timeline.noSnapshot') + '</p>'
+    }
     $envelope = New-ToolReportEnvelope -ReportKind "LicenseTimeline" -ToolVersion $ToolVersion -Data ([ordered]@{
         ToolName = $toolName
         CreatedAt = $started.ToString("o")
@@ -480,9 +501,12 @@ if ($Operation -eq "CertificateAudit") {
         ChangeCount = [int]$history.ChangeCount
         ValidationErrors = ConvertTo-AssuranceRedactedObject $history.Errors
         Integrity = Get-AssuranceText "assurance.text.041"
+        LatestObservationAtUtc = $(if ($latestSnapshot) { [string]$latestSnapshot.TimestampUtc } else { '' })
+        LatestObservedState = $latestState
+        CurrentActivatorEvidence = $latestActivatorEvidence
         Events = $reportEvents
     })
-    $timelineLimitBody = Get-AssuranceText "assurance.text.042"
+    $timelineLimitBody = (Get-AssuranceText "assurance.text.042") + (Get-AssuranceText 'assurance.timeline.historicalNote')
     $html = New-ToolProfessionalHtmlDocument -Title (Get-AssuranceText "assurance.text.043") `
         -Subtitle (Get-AssuranceText "assurance.text.044") `
         -Metadata @(
@@ -494,8 +518,9 @@ if ($Operation -eq "CertificateAudit") {
             [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.051");Value=$history.RecordCount;Tone="info"},
             [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.052");Value=$history.ChangeCount;Tone=$(if ($history.ChangeCount) {"warning"} else {"ok"})},
             [pscustomobject]@{Label=(Get-AssuranceText "assurance.text.053");Value=$(if ($history.Valid) {Get-AssuranceText "assurance.text.054"} else {Get-AssuranceText "assurance.text.055"});Tone=$(if ($history.Valid) {"ok"} else {"danger"})},
-            [pscustomobject]@{Label=(Get-AssuranceText "assurance.meta.schema");Value="Timeline 1.0";Tone="info"}
+            [pscustomobject]@{Label=(Get-AssuranceText 'assurance.timeline.currentEvidence');Value=$(if ($latestActivatorEvidence) {Get-AssuranceText 'assurance.timeline.present'} else {Get-AssuranceText 'assurance.timeline.none'});Tone=$(if ($latestActivatorEvidence) {'warning'} else {'ok'})}
         ) -Sections @(
+            [pscustomobject]@{Title=(Get-AssuranceText 'assurance.timeline.currentSection');BodyHtml=$latestStateBody},
             [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.056");BodyHtml=(ConvertTo-AssuranceHtmlTable -Rows $eventRows -Columns $timelineColumns)},
             [pscustomobject]@{Title=(Get-AssuranceText "assurance.text.057");BodyHtml=$timelineLimitBody}
         ) -Footer "$developer · Tool v$ReleaseVersion" -Culture $Culture -OfflineMode $true

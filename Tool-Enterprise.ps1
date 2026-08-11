@@ -84,6 +84,8 @@ function Get-ToolEnterprisePaths {
         ClientOutbox = Join-Path $root "client\outbox"
         ClientProcessed = Join-Path $root "client\processed"
         ClientAudit = Join-Path $root "client\enterprise-audit.jsonl"
+        ClientAgentResult = Join-Path $root "client\agent-result.json"
+        ClientAgentError = Join-Path $root "client\agent-error.json"
         Bin = Join-Path $root "bin"
     }
 }

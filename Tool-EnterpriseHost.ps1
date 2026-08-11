@@ -154,7 +154,9 @@ function Start-ToolEnterpriseHost {
     }
 
     $listener = New-Object Net.HttpListener
-    $prefixAddress = if ([string]$configuration.BindAddress -eq "0.0.0.0") { "*" } else { [string]$configuration.BindAddress }
+    # Use the same strong-wildcard prefix that the UI reserves with HTTP.sys.
+    # Reserving http://+ but listening on http://* can fail on hardened hosts.
+    $prefixAddress = if ([string]$configuration.BindAddress -eq "0.0.0.0") { "+" } else { [string]$configuration.BindAddress }
     $prefix = "http://$prefixAddress`:$([int]$configuration.Port)/tool/v1/"
     $startedAt = [DateTime]::UtcNow
     $replayCache = @{}

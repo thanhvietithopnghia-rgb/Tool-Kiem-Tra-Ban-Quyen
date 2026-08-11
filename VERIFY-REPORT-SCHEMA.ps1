@@ -93,7 +93,7 @@ $reportExportText = Read-SourceText 'Tool-ReportExport.ps1'
 try {
     $inventoryPath = Join-Path $sourceDirectoryFull 'kiem-tra-cau-hinh-ban-quyen.ps1'
     $inventoryAst = [Management.Automation.Language.Parser]::ParseFile($inventoryPath, [ref]$null, [ref]$null)
-    foreach ($functionName in @('Protect-ReportText','ConvertTo-ReportRedactedObject')) {
+    foreach ($functionName in @('Protect-ReportText','ConvertTo-ReportRedactedObject','Get-ReportWindowsLicenseChannel','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorFamilyCode')) {
         $functionAst = $inventoryAst.Find({
             param($node)
             $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
@@ -114,13 +114,30 @@ try {
         Software='FormatFactory 5.13.0.0'
         Version='5.13.0.0'
         ServerAddress='192.168.2.5'
+        SerialNumber='SERIAL-FIXTURE-001'
+        UserName='fixture-user'
+        KmsServer='kms.example.internal'
         Evidence='Máy chủ 192.168.2.5'
     })
     if ([string]$redactionFixture.Software -ne 'FormatFactory 5.13.0.0' -or
         [string]$redactionFixture.Version -ne '5.13.0.0' -or
-        [string]$redactionFixture.ServerAddress -ne '[IP]' -or
+        [string]$redactionFixture.ServerAddress -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.SerialNumber -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.UserName -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.KmsServer -ne '[ĐÃ CHE]' -or
         [string]$redactionFixture.Evidence -notmatch '\[IP\]') {
-        Add-Failure 'Ẩn dữ liệu nhạy cảm đang che nhầm phiên bản phần mềm hoặc làm lọt địa chỉ IP.'
+        Add-Failure 'Ẩn dữ liệu nhạy cảm đang che nhầm phiên bản hoặc làm lọt IP/serial/user/KMS host.'
+    }
+    $notificationKms = [pscustomobject]@{ Name='Windows(R), Professional edition'; Description='Windows Operating System, VOLUME_KMSCLIENT channel'; LicenseStatus=5 }
+    $licensedRetail = [pscustomobject]@{ Name='Windows(R), Professional edition'; Description='Windows Operating System, RETAIL channel'; LicenseStatus=1 }
+    if ((Get-ReportWindowsLicenseChannel (Select-ReportPrimaryWindowsLicense @($notificationKms))) -ne 'KMS' -or
+        (Get-ReportWindowsLicenseChannel (Select-ReportPrimaryWindowsLicense @($notificationKms,$licensedRetail))) -ne 'Retail') {
+        Add-Failure 'Tổng quan Windows không giữ kênh KMS khi Notification hoặc không ưu tiên license đang hoạt động.'
+    }
+    foreach ($familyFixture in @{
+        'TSforge Activation'='TSforge'; 'Office OHook'='OHook'; 'Microsoft Toolkit'='MicrosoftToolkit'; 'MAS_AIO'='MAS'; 'KMS_VL_ALL'='KmsActivator'
+    }.GetEnumerator()) {
+        if ((Get-ReportActivatorFamilyCode $familyFixture.Key) -ne $familyFixture.Value) { Add-Failure "Không nhận diện family activator: $($familyFixture.Key)" }
     }
 } catch {
     Add-Failure "Không chạy được fixture ẩn IP/giữ phiên bản: $($_.Exception.Message)"
@@ -176,6 +193,12 @@ if ($inventoryText -notmatch 'Desktop"\)\)\s+"BaoCao-Tool-Kiem-Tra"' -or
 }
 foreach ($requiredToken in @('$primaryApps','$systemApps','system-software-appendix','system-app-link','back-link','PrimaryApplications','SystemApplications','SoftwareIntegrityCompromisedCount')) {
     if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "Báo cáo phần mềm thiếu bộ lọc/phụ lục chi tiết: $requiredToken" }
+}
+foreach ($requiredToken in @('Get-ReportMonitorInventory','WmiMonitorID','Win32_DesktopMonitor','Win32_PnPEntity','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorArtifactFindings','IncludeFileSearch','reportActivatorArtifactExtensions','installedProductRoots','WindowsActivationProfile','WindowsKmsTrust','ActivatorEvidenceCurrent','KMSRenewalUpTo180Days')) {
+    if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "Báo cáo thiếu hồi quy màn hình/KMS/timeline: $requiredToken" }
+}
+foreach ($requiredToken in @('tsforge','ohook','deepReport.kmsLifecycle.detected','forensicsReport.kmsLifecycle.renewal')) {
+    if (-not $deepScanText.Contains($requiredToken) -and -not $forensicsText.Contains($requiredToken)) { Add-Failure "Quét sâu/forensics thiếu dấu hiệu: $requiredToken" }
 }
 if ($inventoryText -notmatch 'Add-Table\s+\$softwareAssessmentRows\s+@\("Ten phan mem","Phien ban","Hang",\$technicalStatusColumn,\$confidenceColumn,\$remediationEligibilityColumn\)' -or
     $inventoryText -notmatch 'Add-Table\s+\$softwareAssessmentEvidenceRows\s+@\("Ten phan mem",\$licenseModelColumn,\$assessmentCodeColumn,\$evidenceColumn,\$vendorScopeColumn,\$officialReferenceColumn\)') {

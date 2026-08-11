@@ -3,9 +3,9 @@
 Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.8.0. v4.8.0 là bản nâng cấp trực tiếp từ v4.6; các thay đổi trung gian đã được kiểm định được hợp nhất vào v4.8 và không tách thành một phiên bản công khai riêng.
 
 Phiên bản hiện tại: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.10**
+FileVersion: **4.8.0.0** · Build **2026.08.11**
 
-## v4.8.0 — 10/08/2026
+## v4.8.0 — 10/08/2026 · build cập nhật 11/08/2026
 
 Trọng tâm: **nâng cấp nhảy vọt, cải tiến chuyên sâu** từ v4.6; tạo ra thay đổi rõ rệt về trải nghiệm, hiệu năng và chất lượng cốt lõi mà không làm Tool nặng nề hoặc thay đổi định hướng Offline–an toàn.
 
@@ -13,14 +13,18 @@ Trọng tâm: **nâng cấp nhảy vọt, cải tiến chuyên sâu** từ v4.6;
 - **Trợ lý Tool:** bổ sung hỏi–đáp trong phạm vi Tool; hiển thị câu trả lời ngay, tự cuộn và khóa gửi trùng. Dòng trạng thái Offline/tri thức được căn cách mép, khung nhập có viền–nền rõ và trạng thái focus, còn câu hỏi/câu trả lời dùng bong bóng màu riêng có viền mềm để dễ theo dõi.
 - **Hiểu ngôn ngữ tự nhiên:** mở rộng nhận dạng câu không dấu, viết tắt, lỗi gõ và câu nhiều ý; giảm trả lời chéo chủ đề, lặp mẫu hoặc lặp câu lệnh, đồng thời từ chối ngoài phạm vi theo ngữ cảnh.
 - **Hiệu năng và mã nguồn:** lập chỉ mục nhóm tên khi gộp kiểm kê, lập chỉ mục bằng chứng ngoài, dựng kết quả bằng bảng thuộc tính thay cho hàng nghìn lượt `Add-Member`, tái sử dụng một ảnh chụp Scheduled Tasks và dùng bảng dịch ngược thay cho băm từng chuỗi báo cáo; vẫn giữ nguyên nguồn, độ phủ và thứ tự kết luận. Trên cùng máy kiểm thử với 480 ứng dụng, lõi kiểm kê–đánh giá giảm từ khoảng 42,5 giây xuống 26,4 giây (xấp xỉ 38%); lượt quét–xử lý báo cáo thực tế cuối giảm từ 76,9 giây xuống 60,4 giây, với SHA-256 kết quả, 480 ứng dụng và phân bố trạng thái giống hệt trước tối ưu.
-- **Catalogue phần mềm:** mở rộng lên `1.3.0.0` với 73 quy tắc; gộp Registry/Appx/shortcut, bản vá cùng dòng và x86/x64 của cùng sản phẩm nhưng vẫn giữ nguồn, vị trí và kiến trúc để xem chi tiết.
+- **Catalogue phần mềm:** mở rộng lên `1.3.1.0` với 76 quy tắc; bổ sung IObit Driver Booster, WIRIS MathType, nhóm PDF editor thương mại và tên ngắn IDM; gộp Registry/Appx/shortcut, bản vá cùng dòng và x86/x64 của cùng sản phẩm nhưng vẫn giữ nguồn, vị trí và kiến trúc để xem chi tiết.
+- **Hotfix 11/08 — Quét thường và KMS:** báo cáo Windows/Office riêng vẫn rà MAS, TSforge, OHook, KMS tool và Microsoft Toolkit; giữ kênh KMS khi license ở trạng thái Notification, hiển thị chu kỳ gia hạn tối đa 180 ngày và tách máy chủ KMS được phê duyệt khỏi quyền sử dụng chưa xác minh. Quét Phần mềm thường bổ sung các thư mục cài đặt thương mại có giới hạn, không chỉ dò Download.
+- **Hotfix 11/08 — Dữ liệu báo cáo:** chuẩn hóa ngày cài `yyyy-MM-dd`; lấy tên màn hình theo EDID/DesktopMonitor/PnP; bổ sung ba nút riêng tư rõ ràng cho bản đã che, bản đầy đủ nội bộ và hủy. Timeline giữ sự kiện cũ đúng vai trò lịch sử nhưng tách riêng snapshot mới nhất để không trình bày dấu vết đã gỡ như trạng thái hiện tại.
+- **Hotfix 11/08 — Khắc phục phần mềm khác:** ghi kết quả từng hành động và chỉ báo thành công khi có thay đổi hệ thống thật; hướng dẫn cài lại đơn thuần không còn bị tính là đã sửa. Bổ sung adapter WinRAR giới hạn đúng `rarreg.key` và đầu dò `Unactivated` sau khi bỏ giấy phép cục bộ.
+- **Hotfix 11/08 — Máy chủ/Máy trạm:** đồng bộ strong-wildcard URL ACL/listener, cấp ACL đúng SID của tài khoản chạy Tool thay vì nhóm Administrators bị lọc bởi UAC, hậu kiểm Firewall/URL ACL, chờ heartbeat và chẩn đoán trước khi báo máy chủ đã chạy; agent ghi kết quả thành công/thất bại có cấu trúc để nút gửi báo cáo không còn báo thành công sớm.
 - **Kết luận thận trọng:** tách `HashMismatch` thành `IntegrityCompromised`; lỗi toàn vẹn tệp không tự đồng nghĩa `NonGenuine` và không tự mở khắc phục giấy phép.
 - **Báo cáo:** sửa PDF khuyết dòng/cắt chữ/khoảng cách hàng; tách bảng rộng, đưa phần mềm hệ thống vào phụ lục, dùng một thư mục báo cáo chung và liên kết HTML tới đúng PDF.
 - **Máy chủ/Máy trạm:** hỗ trợ `IP:cổng`, tự dò khi để trống, chẩn đoán địa chỉ/TCP/dịch vụ/giao thức/phiên bản, quét LAN bằng Neighbor/ARP–ICMP–TCP và xếp hàng gửi lại báo cáo khi mất kết nối.
 - **An toàn và quyền quản trị:** dashboard chạy bằng quyền thường, UAC chỉ xuất hiện khi cần; sửa chặn nhầm vùng dữ liệu quản trị nhưng vẫn fail-closed nếu ACL hiện tại thực sự không an toàn.
 - **Cập nhật và riêng tư:** tiếp tục mặc định Offline; chỉ kiểm tra/tải bản mới sau khi người dùng cho phép, xác minh kích thước/SHA-256 và không có telemetry hay cập nhật im lặng.
 - **Tài liệu:** viết lại HDSD Việt–Anh thành tài liệu thuần cách sử dụng, không trộn ghi chú phát hành; toàn bộ nội dung thay đổi của v4.8 trực tiếp từ v4.6 chỉ nằm trong lịch sử phiên bản.
-- **Đồng bộ phát hành:** nâng FileVersion lên `4.8.0.0`, build `2026.08.10`; đồng bộ lịch sử Việt–Anh, README, manifest và bộ kiểm thử x64/x86.
+- **Đồng bộ phát hành:** giữ FileVersion `4.8.0.0`, cập nhật build `2026.08.11`; đồng bộ lịch sử Việt–Anh, README, manifest và bộ kiểm thử x64/x86.
 
 ## v4.6 — 06/08/2026
 

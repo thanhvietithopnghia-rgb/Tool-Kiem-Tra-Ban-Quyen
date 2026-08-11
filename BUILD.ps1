@@ -15,8 +15,8 @@ Set-StrictMode -Version 2.0
 
 $productVersion = '4.8'
 $releaseVersion = '4.8.0.0'
-$releaseBuildDate = '2026.08.10'
-$releaseLabel = "$releaseVersion-assistant-performance-catalog-report-enterprise-20260810"
+$releaseBuildDate = '2026.08.11'
+$releaseLabel = "$releaseVersion-assistant-performance-catalog-report-enterprise-20260811"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -296,9 +296,9 @@ $softwareCatalogMetadata = Get-Content -LiteralPath (Join-Path $sourceDirectory 
 $engineeringCatalogRules = @($softwareCatalogMetadata.Products | Where-Object {
     $_.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Category)
 })
-if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.0.0' -or
-    @($softwareCatalogMetadata.Products).Count -lt 73 -or $engineeringCatalogRules.Count -lt 16) {
-    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.0.0 / 73 quy tắc / 16 quy tắc kỹ thuật.'
+if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.1.0' -or
+    @($softwareCatalogMetadata.Products).Count -lt 76 -or $engineeringCatalogRules.Count -lt 16) {
+    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.1.0 / 76 quy tắc / 16 quy tắc kỹ thuật.'
 }
 
 Write-Host '[1/8] Tạo TOOL-SHA256SUMS.txt...'
@@ -592,6 +592,13 @@ $releaseManifest = [ordered]@{
     AssuranceCenter = $true
     Function5Compatibility = 'v4.3.0.3 title, primary tables, assessment and summary-card layout preserved'
     ThirdPartySoftwareInspection = 'All-source installed-software inventory + vendor-neutral bounded deep scan + conservative evidence scoring'
+    NormalReportActivatorInspection = 'Windows/Office-only reports inspect current process/service/startup/task and bounded file evidence for MAS, TSforge, OHook, KMS tools and Microsoft Toolkit'
+    NormalSoftwareInstalledArtifactInspection = 'Bounded scan of priority paid/trial/review application install roots plus user and shared data roots'
+    WindowsKmsLifecyclePresentation = 'KMS channel remains visible in Notification state; grace minutes/days/expiry and approved-host trust are reported separately from entitlement'
+    InstallDateNormalization = 'Registry yyyyMMdd, CIM datetime and plausible Unix epoch values normalize to yyyy-MM-dd'
+    MonitorNameSources = @('WmiMonitorID EDID','Win32_DesktopMonitor','Win32_PnPEntity')
+    ReportPrivacyChoice = @('Redacted copy','Full internal copy','Cancel')
+    TimelineCurrentStatePolicy = 'Latest observed state is separated from retained historical events; removed evidence is not presented as current'
     UniversalDeepSoftwareScan = $true
     SoftwareLicenseCatalogVersion = [string]$softwareCatalogMetadata.CatalogVersion
     SoftwareLicenseCatalogProductRules = [int]@($softwareCatalogMetadata.Products).Count
@@ -604,7 +611,7 @@ $releaseManifest = [ordered]@{
     DeepSoftwareScanScoring = 'NonGenuine requires decisive evidence or two independent strong groups; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
     DeepSoftwareScanBudgetPolicy = 'Bounded time/depth/files/signatures/hashes; weighted budgeting prioritizes paid/trial/evidence-bearing software while reserving coverage for unknown/free applications'
     DeepSoftwareScanCatalogTrust = 'Online-cache rules cannot create decisive hash/name evidence unless byte-identical to the bundled catalog'
-    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','Generic exact-artifact/hosts cleanup + validated MSI Repair + manual official-reinstall fallback')
+    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR bounded local rarreg.key reset','Generic exact-artifact/hosts cleanup + validated MSI Repair + manual official-reinstall fallback')
     ThirdPartyAutomaticResetPolicy = 'Verified decisive evidence + scope-locked safe action + complete scan sources; uninstall/reinstall is manual-only'
     ThirdPartyBackupPolicy = 'HMAC-protected inventory and quarantine; unauthorized activators and licensing tokens are non-restorable'
     RemediationDryRun = $true
@@ -723,7 +730,7 @@ $applicationUpdateManifest = [ordered]@{
     Channel = 'stable'
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
-    PublishedAtUtc = '2026-08-10T00:00:00Z'
+    PublishedAtUtc = '2026-08-11T00:00:00Z'
     Title = [ordered]@{
         'vi-VN' = 'v4.8.0 - Nâng cấp nhảy vọt, cải tiến chuyên sâu'
         'en-US' = 'v4.8.0 - A leap-forward upgrade with in-depth improvements'
@@ -806,13 +813,18 @@ $infoLines = @(
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
     'Tro ly schema 1.1 co hon 270 tu khoa/cach hoi, chuan hoa viet tat/loi go, xu ly nhieu y dinh va rang buoc knowledge 1.1.0 theo Tool 4.8.',
-    'Catalogue phan mem 1.3.0.0 co 73 quy tac; gop Registry/Appx/shortcut trung nhau va giu moi nguon phat hien.',
+    'Catalogue phan mem 1.3.1.0 co 76 quy tac; bo sung IObit Driver Booster, WIRIS MathType va nhom PDF editor thuong mai; sua nhan nham Driver Booster thanh driver he thong va nhan ten ngan IDM.',
+    'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
+    'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',
+    'Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.',
+    'WinRAR co dau do rarreg.key: sau khi go license cuc bo, quet lai xac nhan Unactivated thay vi dua vao viec chuong trinh van mo duoc.',
+    'Khac phuc phan mem ben thu ba ghi ket qua tung hanh dong va chi bao thanh cong khi he thong thuc su thay doi; huong dan don thuan khong con bi tinh la da sua.',
     'HashMismatch duoc tach thanh IntegrityCompromised: tep bi sua/hong nhung khong tu ket luan quyen su dung khong chinh hang.',
     'Phan mem he thong/mac dinh an khoi bang chinh, co link mo phu luc trong HTML va hien day du trong PDF/JSON chi tiet.',
     'Moi bao cao nam truc tiep trong Desktop\BaoCao-Tool-Kiem-Tra, khong tao thu muc con; ten tep co mili-giay va HTML link dung PDF.',
     'PDF tach bang rong thanh tong quan/bang chung, mo chi tiet khi in, lap header va tranh cat dong/hang qua trang.',
     'Enterprise nhan IP:port, tu do khi de trong, chan doan endpoint/TCP/service/protocol/version va quet Neighbor-ARP/ICMP/TCP.',
-    'Enterprise server cau hinh URLACL/Firewall qua UAC; may tram xep hang bao cao DPAPI va gui lai khi co ket noi.',
+    'Enterprise server cau hinh va hau kiem URLACL/Firewall qua UAC; chi bao da khoi dong sau heartbeat/diagnostic, agent chi bao da gui sau tep ket qua xac nhan.',
     'Muc Bao cao hien thi truc tiep du bay chuc nang con; huong dan vi-VN/en-US duoc nhung trong EXE va mo bang HTML/PDF A4.',
     'HTML/PDF chi dung asset cuc bo, CSP default-src none; browser PDF tat background networking va map DNS ve 0.0.0.0.',
     'Profile Edge/Chrome tam nam trong %LOCALAPPDATA%\Temp, ACL chi cho nguoi dung hien tai va SYSTEM; profile duoc don sau moi lan xuat.',

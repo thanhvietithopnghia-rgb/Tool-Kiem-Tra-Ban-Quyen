@@ -62,7 +62,7 @@ $ErrorActionPreference = "Continue"
 $releaseVersion = "4.8.0.0"
 if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
-$script:StrictActivatorPattern = "(?i)(kmspico|kmsauto|auto[\s_-]*kms|autokms|kms[_-]?vl|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|microsoft toolkit|hwidgen|\bmassgrave\b)"
+$script:StrictActivatorPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|autokms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|\bmassgrave\b|mas[\s._-]*aio|tsforge|ohook)"
 $script:ThirdPartyAdobeActivatorPattern = "(?i)(\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\badobe.{0,24}\b(?:patcher|activator|crack)\b|\b(?:patcher|activator|crack).{0,24}\badobe\b)"
 $script:ThirdPartyAutodeskActivatorPattern = "(?i)(\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:autodesk|adsk).{0,24}\b(?:license[\s._-]*patch|patcher|activator|crack)\b|\b(?:patcher|activator|crack).{0,24}\b(?:autodesk|adsk)\b)"
 try { Add-Type -AssemblyName System.Security -ErrorAction Stop }
@@ -992,10 +992,13 @@ function Get-ThirdPartyStrongEvidence {
 }
 
 function Get-ThirdPartyLicenseStatePaths {
-    param([Parameter(Mandatory = $true)][ValidateSet('Adobe','Autodesk')][string]$VendorScope)
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('Adobe','Autodesk','WinRAR')][string]$RemediationAdapter,
+        $Applications = @()
+    )
     $paths = New-Object System.Collections.Generic.List[object]
     $candidates = @()
-    if ($VendorScope -eq 'Adobe') {
+    if ($RemediationAdapter -eq 'Adobe') {
         $candidates = @(
             (Join-Path $env:ProgramData 'Adobe\SLStore'),
             (Join-Path $env:ProgramData 'Adobe\SLCache'),
@@ -1003,7 +1006,7 @@ function Get-ThirdPartyLicenseStatePaths {
             $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Adobe\OOBE\opm.db' }),
             $(if ($env:APPDATA) { Join-Path $env:APPDATA 'Adobe\OOBE\opm.db' })
         ) | Where-Object { $_ }
-    } else {
+    } elseif ($RemediationAdapter -eq 'Autodesk') {
         $candidates = @(
             (Join-Path $env:ProgramData 'Autodesk\CLM\LGS'),
             $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Autodesk\Web Services\LoginState.xml' })
@@ -1012,6 +1015,13 @@ function Get-ThirdPartyLicenseStatePaths {
         if (Test-Path -LiteralPath $flexRoot -PathType Container) {
             $candidates += @(Get-ChildItem -LiteralPath $flexRoot -File -Filter 'adskflex_*_tsf.data*' -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
         }
+    } else {
+        foreach ($application in @($Applications)) {
+            $root = Get-ThirdPartyNormalizedInstallRoot -Application $application
+            if ($root) { $candidates += (Join-Path $root 'rarreg.key') }
+        }
+        if ($env:APPDATA) { $candidates += (Join-Path $env:APPDATA 'WinRAR\rarreg.key') }
+        if ($env:ProgramData) { $candidates += (Join-Path $env:ProgramData 'WinRAR\rarreg.key') }
     }
     foreach ($path in @($candidates | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath $path)) { continue }
@@ -1020,16 +1030,16 @@ function Get-ThirdPartyLicenseStatePaths {
         $paths.Add([pscustomobject][ordered]@{
             Type=$(if ($item.PSIsContainer) { 'Folder' } else { 'File' })
             Kind='ThirdPartyLicenseState'; Name=[string]$item.Name; Location=[string]$item.FullName
-            Detail=(Get-CleanupText "cleanupReport.thirdParty.plan.licenseState" @($VendorScope)); Restorable=$false
+            Detail=(Get-CleanupText "cleanupReport.thirdParty.plan.licenseState" @($RemediationAdapter)); Restorable=$false
         })
     }
     return $paths.ToArray()
 }
 
 function Get-ThirdPartyRemediationPlan {
-    param([string]$VendorScope, $Evidence)
+    param([string]$RemediationAdapter, [string]$EvidenceScope, $Evidence, $Applications = @())
     $plan = New-Object System.Collections.Generic.List[object]
-    foreach ($item in @($Evidence | Where-Object { [string]$_.VendorScope -eq $VendorScope })) {
+    foreach ($item in @($Evidence | Where-Object { [string]$_.VendorScope -eq $EvidenceScope })) {
         switch ([string]$item.Type) {
             'InstalledActivator' {
                 if (-not [string]::IsNullOrWhiteSpace([string]$item.RegistryPath)) {
@@ -1045,7 +1055,7 @@ function Get-ThirdPartyRemediationPlan {
             'Folder' { $plan.Add([pscustomobject][ordered]@{ Type='Folder'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[string]$item.Name; Location=[string]$item.Location; Detail=[string]$item.Detail; Restorable=$false }) }
         }
     }
-    foreach ($statePath in @(Get-ThirdPartyLicenseStatePaths -VendorScope $VendorScope)) { $plan.Add($statePath) }
+    foreach ($statePath in @(Get-ThirdPartyLicenseStatePaths -RemediationAdapter $RemediationAdapter -Applications $Applications)) { $plan.Add($statePath) }
     return @($plan.ToArray() |
         Group-Object { "$($_.Type)|$($_.Kind)|$($_.Name)|$($_.Location)" } |
         ForEach-Object { $_.Group[0] })
@@ -1201,30 +1211,41 @@ function Get-ThirdPartyGenericRemediationPlan {
 function Get-ThirdPartyLicenseCandidates {
     param($Applications, $Evidence)
     $candidates = New-Object System.Collections.Generic.List[object]
-    foreach ($vendorScope in @('Adobe','Autodesk')) {
+    $adapterDefinitions = @(
+        [pscustomobject]@{ Adapter='Adobe'; EvidenceScope='Adobe'; Mode='VendorSharedReset' },
+        [pscustomobject]@{ Adapter='Autodesk'; EvidenceScope='Autodesk'; Mode='VendorSharedReset' },
+        [pscustomobject]@{ Adapter='WinRAR'; EvidenceScope='RARLAB'; Mode='LocalLicenseFileReset' }
+    )
+    foreach ($adapterDefinition in $adapterDefinitions) {
+        $adapter = [string]$adapterDefinition.Adapter
+        $vendorScope = [string]$adapterDefinition.EvidenceScope
         $vendorApps = @($Applications | Where-Object {
-            [string]$_.VendorScope -eq $vendorScope -and [bool]$_.NeedsReview -and [bool]$_.ManualEligible
+            [string]$_.RemediationAdapter -eq $adapter -and [bool]$_.NeedsReview -and [bool]$_.ManualEligible
         })
         $vendorEvidence = @($Evidence | Where-Object { [string]$_.VendorScope -eq $vendorScope })
         if ($vendorApps.Count -eq 0) { continue }
-        $plan = @(Get-ThirdPartyRemediationPlan -VendorScope $vendorScope -Evidence $vendorEvidence)
+        $plan = @(Get-ThirdPartyRemediationPlan -RemediationAdapter $adapter -EvidenceScope $vendorScope -Evidence $vendorEvidence -Applications $vendorApps)
         if ($plan.Count -eq 0) { continue }
         $licenseStateCount = @($plan | Where-Object { [string]$_.Kind -eq 'ThirdPartyLicenseState' }).Count
         $applicationNames = @($vendorApps | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
-        $familyName = Get-CleanupText ("cleanupReport.thirdParty.family." + $vendorScope.ToLowerInvariant())
+        $familyName = if ($adapter -in @('Adobe','Autodesk')) {
+            Get-CleanupText ("cleanupReport.thirdParty.family." + $adapter.ToLowerInvariant())
+        } else {
+            [string]($applicationNames | Select-Object -First 1)
+        }
         $strongEvidenceCount = [int](($vendorApps | Measure-Object -Property StrongEvidenceCount -Sum).Sum)
         $manualOnlyCount = [int]@($vendorApps | Where-Object { -not [bool]$_.AutoEligible }).Count
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $familyName `
-            -Location ($applicationNames -join '; ') -TargetId $vendorScope `
+            -Location ($applicationNames -join '; ') -TargetId $adapter `
             -Detail (Get-CleanupText "cleanupReport.thirdParty.candidateDetailExtended" @($vendorApps.Count, $strongEvidenceCount, $manualOnlyCount, $licenseStateCount)) `
             -DefaultSelected $false -VendorScope $vendorScope -AutoEligible:([bool]($licenseStateCount -gt 0 -and @($vendorApps | Where-Object { [bool]$_.AutoEligible }).Count -gt 0)) `
             -ApplicationNames $applicationNames -ApplicationIds @($vendorApps | ForEach-Object { [string]$_.Id }) `
-            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode 'VendorSharedReset'
+            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode ([string]$adapterDefinition.Mode)
         $candidates.Add($candidate)
     }
 
     $genericApplications = @($Applications | Where-Object {
-        [bool]$_.ManualEligible -and [string]$_.RemediationAdapter -notin @('Adobe','Autodesk')
+        [bool]$_.ManualEligible -and [string]$_.RemediationAdapter -notin @('Adobe','Autodesk','WinRAR')
     })
     $genericGroups = @($genericApplications | Group-Object {
         $root = Get-ThirdPartyNormalizedInstallRoot -Application $_
@@ -1268,13 +1289,15 @@ function Connect-ThirdPartyApplicationsToCandidates {
         $applicationId = [string]$application.Id
         $candidate = @($Candidates | Where-Object { @($_.ApplicationIds) -contains $applicationId } | Select-Object -First 1)
         $application.TechnicalStatus = Get-ThirdPartyAssessmentStatusLabel -StatusCode ([string]$application.AssessmentCode)
-        $supported = [bool]($candidate.Count -gt 0 -and [bool]$application.ManualEligible)
+        $hasExecutablePlan = [bool]($candidate.Count -gt 0 -and @($candidate[0].PlanItems | Where-Object { [string]$_.Type -ne 'Guidance' }).Count -gt 0)
+        $supported = [bool]($candidate.Count -gt 0 -and [bool]$application.ManualEligible -and $hasExecutablePlan)
         $assessmentAutoEligible = [bool]$application.AutoEligible
         $application.RemediationSupported = $supported
         $application | Add-Member -NotePropertyName AssessmentAutoEligible -NotePropertyValue $assessmentAutoEligible -Force
         $application.AutoEligible = [bool]($candidate.Count -gt 0 -and [bool]$candidate[0].AutoEligible)
         $application | Add-Member -NotePropertyName CleanupCandidateId -NotePropertyValue $(if ($candidate.Count -gt 0) { [string]$candidate[0].Id } else { '' }) -Force
         $application | Add-Member -NotePropertyName CleanupRemediationMode -NotePropertyValue $(if ($candidate.Count -gt 0) { [string]$candidate[0].RemediationMode } else { '' }) -Force
+        $application | Add-Member -NotePropertyName CleanupGuidanceOnly -NotePropertyValue ([bool]($candidate.Count -gt 0 -and -not $hasExecutablePlan)) -Force
     }
 }
 
@@ -1537,7 +1560,7 @@ function Get-InvalidActivationHistory {
     # Lịch sử chỉ là bằng chứng quá khứ, không được dùng một mình để kết luận
     # crack vẫn đang hoạt động hoặc để tự động gỡ product key.
     $history = New-Object System.Collections.Generic.List[object]
-    $strictPattern = "(?i)(kmspico|kmsauto|auto[\s_-]*kms|kms[_-]?vl|kms-r|aact(?:portable)?|sppextcomobj(?:hook|patcher)|microsoft toolkit|hwidgen|massgrave|digital license activation|\bactivator\b|0xC004F074|VOLUME_KMSCLIENT)"
+    $strictPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation|\bactivator\b|0xC004F074|VOLUME_KMSCLIENT)"
     $since = (Get-Date).AddDays(-180)
 
     $eventQueries = @(
@@ -2255,9 +2278,10 @@ function Invoke-Remediation {
         $OfficeEntries = @()
     )
     $actions = New-Object System.Collections.Generic.List[string]
+    [int]$systemChangeCount = 0
     if (-not (Is-Admin)) {
         $actions.Add((Get-CleanupText "cleanupReport.action.adminRequired"))
-        return $actions
+        return [pscustomobject]@{ Actions=@($actions); SystemChangeCount=0; SystemChangeApplied=$false }
     }
 
     if (-not $NoRestorePoint -and -not $SkipRestorePoint) {
@@ -2275,6 +2299,7 @@ function Invoke-Remediation {
             try {
                 Stop-Process -Name $f.Name -Force -ErrorAction Stop
                 $actions.Add((Get-CleanupText "cleanupReport.action.processStopped" @($f.Name)))
+                $systemChangeCount++
             } catch {
                 $actions.Add((Get-CleanupText "cleanupReport.action.processStopFailed" @($f.Name, $_.Exception.Message)))
             }
@@ -2284,6 +2309,7 @@ function Invoke-Remediation {
                 Stop-Service -Name $f.Name -Force -ErrorAction SilentlyContinue
                 Set-Service -Name $f.Name -StartupType Disabled -ErrorAction Stop
                 $actions.Add((Get-CleanupText "cleanupReport.action.serviceDisabled" @($f.Name)))
+                $systemChangeCount++
             } catch {
                 $actions.Add((Get-CleanupText "cleanupReport.action.serviceDisableFailed" @($f.Name, $_.Exception.Message)))
             }
@@ -2298,6 +2324,7 @@ function Invoke-Remediation {
                 }
                 Disable-ScheduledTask -TaskName $taskName -TaskPath $taskPath -ErrorAction Stop | Out-Null
                 $actions.Add((Get-CleanupText "cleanupReport.action.taskDisabled" @($f.Name)))
+                $systemChangeCount++
             } catch {
                 $actions.Add((Get-CleanupText "cleanupReport.action.taskDisableFailed" @($f.Name, $_.Exception.Message)))
             }
@@ -2308,7 +2335,9 @@ function Invoke-Remediation {
     }
 
     if ($CleanupKmsConfiguration) {
-        $actions.Add("slmgr /ckms: $(Run-SlmgrActionText -SlmgrArguments @('/ckms'))")
+        $ckmsResult = Invoke-SlmgrCommand -SlmgrArguments @('/ckms')
+        $actions.Add("slmgr /ckms: $($ckmsResult.Summary)")
+        if ([bool]$ckmsResult.Success) { $systemChangeCount++ }
     }
 
     $windowsTargets = @($WindowsProductsToRemove)
@@ -2322,11 +2351,18 @@ function Invoke-Remediation {
             }
             $upkResult = Invoke-SlmgrCommand -SlmgrArguments @('/upk', $activationId)
             $actions.Add((Get-CleanupText "cleanupReport.action.upkSelected" @($upkResult.Summary)))
-            if ([bool]$upkResult.Success) { $removedWindowsKeyCount++ }
+            if ([bool]$upkResult.Success) {
+                $removedWindowsKeyCount++
+                $systemChangeCount++
+            }
         }
         if ($removedWindowsKeyCount -gt 0) {
-            $actions.Add("slmgr /cpky: $(Run-SlmgrActionText -SlmgrArguments @('/cpky'))")
-            $actions.Add("slmgr /rilc: $(Run-SlmgrActionText -SlmgrArguments @('/rilc'))")
+            $cpkyResult = Invoke-SlmgrCommand -SlmgrArguments @('/cpky')
+            $rilcResult = Invoke-SlmgrCommand -SlmgrArguments @('/rilc')
+            $actions.Add("slmgr /cpky: $($cpkyResult.Summary)")
+            $actions.Add("slmgr /rilc: $($rilcResult.Summary)")
+            if ([bool]$cpkyResult.Success) { $systemChangeCount++ }
+            if ([bool]$rilcResult.Success) { $systemChangeCount++ }
         } else {
             $actions.Add((Get-CleanupText "cleanupReport.action.skipCpkyRilc"))
         }
@@ -2343,6 +2379,7 @@ function Invoke-Remediation {
         $remhst = Invoke-OfficeOsppCommand -Path $path -Arguments @('/remhst') -SuccessPattern '(?i)Successfully applied setting|thành công'
         if ([bool]$remhst.Success) {
             $actions.Add((Get-CleanupText "cleanupReport.action.officeRemhstPass" @($path, $remhst.Summary)))
+            $systemChangeCount++
         } else {
             $actions.Add((Get-CleanupText "cleanupReport.action.officeRemhstFail" @($path, $remhst.ExitCode, $remhst.Summary)))
         }
@@ -2353,6 +2390,7 @@ function Invoke-Remediation {
             $unpkey = Invoke-OfficeOsppCommand -Path ([string]$entry.Path) -Arguments @("/unpkey:$($entry.Last5)") -SuccessPattern '(?i)product key uninstall successful|gỡ.+khóa.+thành công'
             if ([bool]$unpkey.Success) {
                 $officeRemoved++
+                $systemChangeCount++
                 $actions.Add((Get-CleanupText "cleanupReport.action.officeUnpkeyPass" @($entry.Last5, $entry.SkuId, $entry.LicenseName, $unpkey.Summary)))
             } else {
                 $actions.Add((Get-CleanupText "cleanupReport.action.officeUnpkeyFail" @($entry.Last5, $entry.SkuId, $entry.LicenseName, $unpkey.ExitCode, $unpkey.Summary)))
@@ -2366,16 +2404,39 @@ function Invoke-Remediation {
     } else {
         $actions.Add((Get-CleanupText "cleanupReport.action.officeRemovalSummary" @($officeRemoved, @($officeEntries | Where-Object { $_.Last5 }).Count)))
     }
-    return $actions
+    return [pscustomobject]@{
+        Actions = @($actions)
+        SystemChangeCount = $systemChangeCount
+        SystemChangeApplied = [bool]($systemChangeCount -gt 0)
+    }
 }
 
 function Invoke-DeepCleanupV35 {
     param($Candidates, [string[]]$SelectedIds)
     $actions = New-Object System.Collections.Generic.List[string]
     $restoreItems = New-Object System.Collections.Generic.List[object]
+    $thirdPartyExecutionResults = New-Object System.Collections.Generic.List[object]
+    [int]$systemChangeCount = 0
+
+    function Add-ThirdPartyExecutionResult {
+        param($Candidate, [string]$Status, [bool]$Changed, [string]$Message = '')
+        if (-not $Candidate -or ([string]$Candidate.Kind -notmatch '^ThirdParty' -and [string]$Candidate.Type -ne 'Guidance')) { return }
+        $thirdPartyExecutionResults.Add([pscustomobject][ordered]@{
+            ParentCandidateId = $(if ($Candidate.PSObject.Properties['ParentCandidateId']) { [string]$Candidate.ParentCandidateId } else { '' })
+            TargetId = [string]$Candidate.TargetId
+            VendorScope = [string]$Candidate.VendorScope
+            Type = [string]$Candidate.Type
+            Kind = [string]$Candidate.Kind
+            Name = [string]$Candidate.Name
+            Target = [string]$Candidate.Location
+            Status = $Status
+            Changed = [bool]$Changed
+            Message = $Message
+        })
+    }
     if (-not (Is-Admin)) {
         $actions.Add((Get-CleanupText "cleanupReport.action.deepAdminRequired"))
-        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0 }
+        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0; SystemChangeCount=0; SystemChangeApplied=$false; ThirdPartyExecutionResults=@() }
     }
 
     $selectedLookup = @{}
@@ -2387,7 +2448,7 @@ function Invoke-DeepCleanupV35 {
     $selectedTopLevel = @($Candidates | Where-Object { $selectedLookup.ContainsKey(([string]$_.Id).ToLowerInvariant()) })
     if ($selectedTopLevel.Count -eq 0) {
         $actions.Add((Get-CleanupText "cleanupReport.action.deepNothingSelected"))
-        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0 }
+        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0; SystemChangeCount=0; SystemChangeApplied=$false; ThirdPartyExecutionResults=@() }
     }
 
     # Dòng Ứng dụng đại diện cho phạm vi giấy phép dùng chung của hãng. Chỉ mở
@@ -2404,6 +2465,7 @@ function Invoke-DeepCleanupV35 {
             $restorable = $true
             if ($planItem.PSObject.Properties['Restorable']) { $restorable = [bool]$planItem.Restorable }
             $child | Add-Member -NotePropertyName Restorable -NotePropertyValue $restorable -Force
+            $child | Add-Member -NotePropertyName ParentCandidateId -NotePropertyValue ([string]$applicationCandidate.Id) -Force
             $expanded.Add($child)
         }
         $actions.Add((Get-CleanupText "cleanupReport.thirdParty.action.planExpanded" @($applicationCandidate.Name, @($applicationCandidate.PlanItems).Count)))
@@ -2420,7 +2482,7 @@ function Invoke-DeepCleanupV35 {
         if (-not (Test-ProtectedDirectoryAcl $quarantine)) { throw (Get-CleanupText "cleanupReport.deep.invalidAcl") }
     } catch {
         $actions.Add((Get-CleanupText "cleanupReport.action.deepBackupBlocked" @($_.Exception.Message)))
-        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0 }
+        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0; SystemChangeCount=0; SystemChangeApplied=$false; ThirdPartyExecutionResults=@() }
     }
     $manifestPath = Join-Path $quarantine "RESTORE-MANIFEST.json"
     $hmacPath = Join-Path $quarantine "RESTORE-MANIFEST.hmac"
@@ -2583,7 +2645,7 @@ function Invoke-DeepCleanupV35 {
     if (-not $restoreBundleReady) {
         $actions.Add((Get-CleanupText "cleanupReport.action.backupRequiredBlocked"))
         if ($hmacKey) { [Array]::Clear($hmacKey, 0, $hmacKey.Length) }
-        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0 }
+        return [pscustomobject]@{ Actions=@($actions); BackupDirectory=""; SelectedCount=0; SystemChangeCount=0; SystemChangeApplied=$false; ThirdPartyExecutionResults=@() }
     }
 
     # Thay đổi product key không thể tự rollback nếu không lưu key đầy đủ.
@@ -2618,8 +2680,11 @@ function Invoke-DeepCleanupV35 {
         try {
             Stop-Process -Name $candidate.Name -Force -ErrorAction Stop
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedProcessStopped" @($candidate.Name)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedProcessStopFailed" @($candidate.Name, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
@@ -2635,7 +2700,10 @@ function Invoke-DeepCleanupV35 {
     }
 
     foreach ($candidate in @($selected | Where-Object { $_.Type -eq "Registry" })) {
-        if (-not (Backup-RegKeyV35 $candidate)) { continue }
+        if (-not (Backup-RegKeyV35 $candidate)) {
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.execution.backupFailed')
+            continue
+        }
         try {
             if ($candidate.Kind -eq "KmsOverride") {
                 foreach ($name in @(
@@ -2649,21 +2717,27 @@ function Invoke-DeepCleanupV35 {
                     $actions.Add("Windows /ckms: $(Run-SlmgrActionText -SlmgrArguments @('/ckms'))")
                 }
                 $actions.Add((Get-CleanupText "cleanupReport.action.selectedKmsRemoved" @($candidate.Location)))
+                $systemChangeCount++
             } elseif ($candidate.Kind -eq "SppNoGenTicketPolicy") {
                 Remove-ItemProperty -LiteralPath $candidate.Location -Name "NoGenTicket" -Force -ErrorAction Stop
                 $actions.Add((Get-CleanupText "cleanupReport.action.selectedPolicyRemoved" @($candidate.Location)))
+                $systemChangeCount++
             } elseif ($candidate.Kind -eq "IfeoHook") {
                 Remove-Item -LiteralPath $candidate.Location -Recurse -Force -ErrorAction Stop
                 $actions.Add((Get-CleanupText "cleanupReport.action.selectedIfeoRemoved" @($candidate.Name)))
+                $systemChangeCount++
             } elseif ($candidate.Kind -eq 'ThirdPartyUninstallEntry') {
                 $safeUninstallPath = [bool]([string]$candidate.Location -match '(?i)^(HKLM|HKCU):\\SOFTWARE\\(?:WOW6432Node\\)?Microsoft\\Windows\\CurrentVersion\\Uninstall\\[^\\]+$')
                 $strongName = [bool]((Get-ThirdPartyEvidenceScope (([string]$candidate.Name) + ' ' + ([string]$candidate.Location))) -ne '')
                 if (-not $safeUninstallPath -or -not $strongName) { throw (Get-CleanupText "cleanupReport.thirdParty.action.registryScopeRejected") }
                 Remove-Item -LiteralPath $candidate.Location -Recurse -Force -ErrorAction Stop
                 $actions.Add((Get-CleanupText "cleanupReport.thirdParty.action.uninstallEntryRemoved" @($candidate.Name)))
+                $systemChangeCount++
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
             }
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.registryProcessFailed" @($candidate.Location, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
@@ -2675,6 +2749,7 @@ function Invoke-DeepCleanupV35 {
             })
             Remove-MpPreference -ExclusionPath ([string]$candidate.Location) -ErrorAction Stop
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedDefenderRemoved" @($candidate.Location)))
+            $systemChangeCount++
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.defenderRemoveFailed" @($candidate.Location, $_.Exception.Message)))
         }
@@ -2682,7 +2757,10 @@ function Invoke-DeepCleanupV35 {
 
     foreach ($candidate in @($selected | Where-Object { $_.Type -eq "File" })) {
         try {
-            if (-not (Test-Path -LiteralPath $candidate.Location -PathType Leaf)) { continue }
+            if (-not (Test-Path -LiteralPath $candidate.Location -PathType Leaf)) {
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'NoChange' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.execution.targetMissing')
+                continue
+            }
             if ((((Get-Item -LiteralPath $candidate.Location -Force).Attributes) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-CleanupText "cleanupReport.deep.reparseRejected") }
             $destination = Join-Path $quarantine ((Split-Path $candidate.Location -Leaf) + "_" + [guid]::NewGuid().ToString("N") + ".quarantine")
             Copy-Item -LiteralPath $candidate.Location -Destination $destination -Force -ErrorAction Stop
@@ -2694,8 +2772,11 @@ function Invoke-DeepCleanupV35 {
             })
             Remove-Item -LiteralPath $candidate.Location -Force -ErrorAction Stop
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedFileQuarantined" @($candidate.Location)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.fileQuarantineFailed" @($candidate.Location, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
@@ -2717,15 +2798,21 @@ function Invoke-DeepCleanupV35 {
             })
             Remove-CompatibleScheduledTask -Record $task
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedTaskRemoved" @($candidate.Name)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.taskRemoveFailed" @($candidate.Name, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
     foreach ($candidate in @($selected | Where-Object { $_.Type -eq "Service" })) {
         try {
             $serviceInfo = Safe-Cim Win32_Service | Where-Object { $_.Name -eq $candidate.Name } | Select-Object -First 1
-            if (-not $serviceInfo) { continue }
+            if (-not $serviceInfo) {
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'NoChange' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.execution.targetMissing')
+                continue
+            }
             $nativeServicePath = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\$($serviceInfo.Name)"
             $serviceBackupPath = Join-Path $quarantine ("Service_" + ($serviceInfo.Name -replace '[\\/:*?"<>| ]','_') + "_" + [guid]::NewGuid().ToString("N") + ".reg")
             $serviceExport = (& $nativeRegPath export $nativeServicePath $serviceBackupPath /y 2>&1) -join " | "
@@ -2747,14 +2834,20 @@ function Invoke-DeepCleanupV35 {
             $deleteOutput = (& $nativeScPath delete $serviceInfo.Name 2>&1) -join " | "
             if ($LASTEXITCODE -ne 0) { throw $deleteOutput }
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedServiceRemoved" @($serviceInfo.Name)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.serviceRemoveFailed" @($candidate.Name, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
     foreach ($candidate in @($selected | Where-Object { $_.Type -eq "Folder" })) {
         try {
-            if (-not (Test-Path -LiteralPath $candidate.Location -PathType Container)) { continue }
+            if (-not (Test-Path -LiteralPath $candidate.Location -PathType Container)) {
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'NoChange' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.execution.targetMissing')
+                continue
+            }
             if ((((Get-Item -LiteralPath $candidate.Location -Force).Attributes) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-CleanupText "cleanupReport.deep.reparseRejected") }
             $destination = Join-Path $quarantine (($candidate.Name -replace '[\\/:*?"<>| ]','_') + "_" + [guid]::NewGuid().ToString("N"))
             Copy-Item -LiteralPath $candidate.Location -Destination $destination -Recurse -Force -ErrorAction Stop
@@ -2766,8 +2859,11 @@ function Invoke-DeepCleanupV35 {
             })
             Remove-Item -LiteralPath $candidate.Location -Recurse -Force -ErrorAction Stop
             $actions.Add((Get-CleanupText "cleanupReport.action.selectedFolderQuarantined" @($candidate.Location)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText "cleanupReport.action.folderQuarantineFailed" @($candidate.Location, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
@@ -2819,10 +2915,20 @@ function Invoke-DeepCleanupV35 {
                 } finally {
                     if ($hostsTemp -and (Test-Path -LiteralPath $hostsTemp -PathType Leaf)) { Remove-Item -LiteralPath $hostsTemp -Force -ErrorAction SilentlyContinue }
                 }
+                $systemChangeCount++
             }
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.hostsRestored' @($hostsUpdate.RemovedCount, $hostsUpdate.TargetCount)))
+            foreach ($candidate in $hostsCandidates) {
+                Add-ThirdPartyExecutionResult -Candidate $candidate `
+                    -Status $(if ([int]$hostsUpdate.RemovedCount -gt 0) { 'Succeeded' } else { 'NoChange' }) `
+                    -Changed:([bool]([int]$hostsUpdate.RemovedCount -gt 0)) `
+                    -Message $(if ([int]$hostsUpdate.RemovedCount -gt 0) { [string]$candidate.Detail } else { Get-CleanupText 'cleanupReport.thirdParty.execution.targetMissing' })
+            }
         } catch {
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.hostsFailed' @($_.Exception.Message)))
+            foreach ($candidate in $hostsCandidates) {
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
+            }
         }
     }
     foreach ($serviceName in $vendorLicenseServiceState.Keys) {
@@ -2848,8 +2954,11 @@ function Invoke-DeepCleanupV35 {
             if ($result.TimedOut) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiTimedOut' @(300)) }
             if ([int]$result.ExitCode -notin @(0, 3010)) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiExitCode' @($result.ExitCode, $result.Output)) }
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiRepairCompleted' @($candidate.Name, $result.ExitCode)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'SucceededNeedsVerification' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiRepairFailed' @($candidate.Name, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
@@ -2865,13 +2974,17 @@ function Invoke-DeepCleanupV35 {
             if ($result.TimedOut) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiTimedOut' @(300)) }
             if ([int]$result.ExitCode -notin @(0, 1605, 3010)) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiExitCode' @($result.ExitCode, $result.Output)) }
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiUninstallCompleted' @($candidate.Name, $result.ExitCode)))
+            $systemChangeCount++
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
         } catch {
             $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiUninstallFailed' @($candidate.Name, $_.Exception.Message)))
+            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
         }
     }
 
     foreach ($candidate in @($selected | Where-Object { [string]$_.Type -eq 'Guidance' -and [string]$_.Kind -eq 'ThirdPartyOfficialSource' })) {
         $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.officialSourceRequired' @($candidate.Name, $(if ($candidate.Location) { [string]$candidate.Location } else { Get-CleanupText 'common.unknown' }))))
+        Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'GuidanceOnly' -Changed $false -Message ([string]$candidate.Detail)
     }
 
     try {
@@ -2896,6 +3009,9 @@ function Invoke-DeepCleanupV35 {
         Actions=@($actions)
         BackupDirectory=$quarantine
         SelectedCount=[int]$selectedTopLevel.Count
+        SystemChangeCount=[int]$systemChangeCount
+        SystemChangeApplied=[bool]($systemChangeCount -gt 0)
+        ThirdPartyExecutionResults=@($thirdPartyExecutionResults.ToArray())
     }
 }
 
@@ -3171,9 +3287,12 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     ScanWarnings = $verification.ScanWarnings
     ReadinessChecks = $verification.ReadinessChecks
     DeepCleanupApplied = $false
+    SystemChangeApplied = $false
+    SystemChangeCount = 0
+    ThirdPartyExecutionResults = @()
     DryRunRequested = [bool]$DryRun
     SimulationOnly = [bool]$DryRun
-    NoSystemChangesApplied = [bool]$DryRun
+    NoSystemChangesApplied = $true
     PlannedActionCount = 0
     PlannedActions = @()
     SelectedCleanupIds = @()
@@ -3193,6 +3312,8 @@ $actions = New-Object System.Collections.Generic.List[string]
 $selectedCleanupIds = @(Get-SelectedCleanupIds)
 $backupDirectory = ""
 $plannedActions = @()
+$thirdPartyExecutionResults = @()
+[int]$systemChangeCount = 0
 
 if ($Remediate) {
     if ($env:TOOL_SECURE_LAUNCH -ne "1" -or -not (Test-ProtectedDirectoryAcl $PSScriptRoot)) {
@@ -3237,15 +3358,19 @@ if ($Remediate) {
         # mới cho phép thay đổi product key đã được người dùng chọn.
         $deepResult = Invoke-DeepCleanupV35 -Candidates $cleanupItems -SelectedIds $selectedCleanupIds
         $backupDirectory = [string]$deepResult.BackupDirectory
+        if ($deepResult.PSObject.Properties['SystemChangeCount']) { $systemChangeCount += [int]$deepResult.SystemChangeCount }
+        if ($deepResult.PSObject.Properties['ThirdPartyExecutionResults']) { $thirdPartyExecutionResults = @($deepResult.ThirdPartyExecutionResults) }
         foreach ($deepAction in @($deepResult.Actions)) { $actions.Add([string]$deepAction) }
         if ($backupDirectory) {
-            $basicActions = @(Invoke-Remediation -Products $products -Findings $findings `
+            $basicResult = Invoke-Remediation -Products $products -Findings $findings `
                 -CleanupActivator:$false `
                 -CleanupKmsConfiguration:$false `
                 -WindowsProductsToRemove $(if ($removeWindowsLicense) { $windowsProductsToRemove } else { @() }) `
                 -SkipRestorePoint `
-                -OfficeEntries $officeEntriesToClean)
+                -OfficeEntries $officeEntriesToClean
+            $basicActions = @($basicResult.Actions)
             foreach ($basicAction in $basicActions) { $actions.Add([string]$basicAction) }
+            $systemChangeCount += [int]$basicResult.SystemChangeCount
         } else {
             $actions.Add((Get-CleanupText "cleanupReport.action.productKeyBlocked"))
         }
@@ -3291,6 +3416,25 @@ if ($Remediate) {
     $postActiveChannel = if ($postActiveProduct) { Get-LicenseChannel $postActiveProduct } else { Get-CleanupText "common.unknown" }
     $postConfirmedThirdPartyCount = [int]@($thirdPartyApplications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count
     $postCrackDetected = [bool]([int]$verification.ActiveActivatorFindingCount -gt 0 -or [int]$verification.UnapprovedWindowsKmsCount -gt 0 -or [int]$verification.UnapprovedOfficeKmsCount -gt 0 -or $postConfirmedThirdPartyCount -gt 0 -or @($thirdPartyCandidates).Count -gt 0)
+    $thirdPartyChangedCount = [int]@($thirdPartyExecutionResults | Where-Object { [bool]$_.Changed }).Count
+    $thirdPartyFailedCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'Failed' }).Count
+    $thirdPartyGuidanceOnlyCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'GuidanceOnly' }).Count
+    $postReadyForCurrentScope = [bool]$(if ($ScanScope -eq 'ThirdParty') { $scopeReadyForOriginalState } else { $verification.ReadyForOfficialActivation })
+    $postDecisionCode = if ($DryRun) {
+        'DryRunCompleted'
+    } elseif ($selectedCleanupIds.Count -gt 0 -and $systemChangeCount -eq 0 -and $thirdPartyGuidanceOnlyCount -gt 0) {
+        'NoAutomaticChange'
+    } elseif ($postReadyForCurrentScope) {
+        'PostCheckPassed'
+    } else {
+        'ResidueRemaining'
+    }
+    $postDecisionText = switch ($postDecisionCode) {
+        'DryRunCompleted' { Get-CleanupText 'cleanupReport.dryRun.completed' }
+        'NoAutomaticChange' { Get-CleanupText 'cleanupReport.decision.noAutomaticChange' }
+        'PostCheckPassed' { Get-CleanupText 'cleanupReport.decision.postCheckPassed' }
+        default { Get-CleanupText 'cleanupReport.decision.residueRemaining' }
+    }
     if (-not $DryRun) { $actions.Add((Get-CleanupText "cleanupReport.action.postCheck" @($verification.Conclusion))) }
     $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
         ScanScope = $ScanScope
@@ -3338,13 +3482,16 @@ if ($Remediate) {
         ThirdPartyApplications = @($thirdPartyApplications)
         ThirdPartyEvidence = @($thirdPartyEvidence)
         ThirdPartyCandidates = @($thirdPartyCandidates)
+        ThirdPartyChangedCount = $thirdPartyChangedCount
+        ThirdPartyFailedCount = $thirdPartyFailedCount
+        ThirdPartyGuidanceOnlyCount = $thirdPartyGuidanceOnlyCount
         ApprovedOfficeKmsCount = [int]($officeKmsEntries.Count - $verification.UnapprovedOfficeKmsCount)
         ApprovedKmsServerFile = [string]$approvedKmsConfig.Path
         ApprovedKmsServerCount = [int]$approvedKmsConfig.Valid.Count
         InvalidApprovedKmsCount = [int]$approvedKmsConfig.Invalid.Count
         ApprovedKmsConfigWarning = [string]$approvedKmsConfig.Warning
-        DecisionCode = if ($DryRun) { 'DryRunCompleted' } elseif ($verification.ReadyForOfficialActivation) { "PostCheckPassed" } else { "ResidueRemaining" }
-        Decision = if ($DryRun) { Get-CleanupText 'cleanupReport.dryRun.completed' } elseif ($verification.ReadyForOfficialActivation) { Get-CleanupText "cleanupReport.decision.postCheckPassed" } else { Get-CleanupText "cleanupReport.decision.residueRemaining" }
+        DecisionCode = $postDecisionCode
+        Decision = $postDecisionText
         Reason = [string]$verification.Conclusion
         ReadyForOfficialActivation = [bool]$verification.ReadyForOfficialActivation
         ScopeReadyForOriginalState = [bool]$scopeReadyForOriginalState
@@ -3352,10 +3499,13 @@ if ($Remediate) {
         ScanWarningCount = [int]$verification.ScanWarningCount
         ScanWarnings = $verification.ScanWarnings
         ReadinessChecks = $verification.ReadinessChecks
-        DeepCleanupApplied = [bool](-not $DryRun -and -not [string]::IsNullOrWhiteSpace($backupDirectory))
+        DeepCleanupApplied = [bool](-not $DryRun -and $systemChangeCount -gt 0)
+        SystemChangeApplied = [bool](-not $DryRun -and $systemChangeCount -gt 0)
+        SystemChangeCount = [int]$systemChangeCount
+        ThirdPartyExecutionResults = @($thirdPartyExecutionResults)
         DryRunRequested = [bool]$DryRun
         SimulationOnly = [bool]$DryRun
-        NoSystemChangesApplied = [bool]$DryRun
+        NoSystemChangesApplied = [bool]($DryRun -or $systemChangeCount -eq 0)
         PlannedActionCount = [int]@($plannedActions).Count
         PlannedActions = @($plannedActions)
         SelectedCleanupIds = @($selectedCleanupIds)
@@ -3389,7 +3539,13 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     DeepClean = [bool]$DeepClean
     DryRunRequested = [bool]$DryRun
     SimulationOnly = [bool]$DryRun
-    NoSystemChangesApplied = [bool]$DryRun
+    NoSystemChangesApplied = [bool]($DryRun -or $systemChangeCount -eq 0)
+    SystemChangeApplied = [bool](-not $DryRun -and $systemChangeCount -gt 0)
+    SystemChangeCount = [int]$systemChangeCount
+    ThirdPartyExecutionResults = @($thirdPartyExecutionResults)
+    ThirdPartyChangedCount = [int]@($thirdPartyExecutionResults | Where-Object { [bool]$_.Changed }).Count
+    ThirdPartyFailedCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'Failed' }).Count
+    ThirdPartyGuidanceOnlyCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'GuidanceOnly' }).Count
     PlannedActionCount = [int]@($plannedActions).Count
     PlannedActions = @($plannedActions)
     SelectedCleanupIds = @($selectedCleanupIds)

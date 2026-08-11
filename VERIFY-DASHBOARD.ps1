@@ -75,7 +75,7 @@ if ($guiAst) {
 
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
 Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.0"' 'Dashboard chưa dùng release 4.8.0.0.'
-Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.10"' 'Dashboard chưa dùng ngày build 2026.08.10.'
+Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.11"' 'Dashboard chưa dùng ngày build 2026.08.11.'
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'
 Assert-SourcePattern $text 'AutoScaleMode\]::Dpi' 'Dashboard thiếu DPI scaling.'

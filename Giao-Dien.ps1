@@ -3,7 +3,7 @@
 $toolVersion = "4.8.0"
 $dashboardSchemaVersion = "2.0"
 $releaseVersion = "4.8.0.0"
-$releaseBuildDate = "2026.08.10"
+$releaseBuildDate = "2026.08.11"
 $toolDisplayVersion = "v$toolVersion"
 $releaseDisplayName = "v$releaseVersion"
 
@@ -2843,6 +2843,61 @@ function Start-DetachedToolModuleProcess {
     return $process
 }
 
+function Show-ReportPrivacyChooser {
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = Get-ToolText -Key 'report.privacy.title' -Culture $script:dashboardCulture
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.FormBorderStyle = 'FixedDialog'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $dialog.ShowInTaskbar = $false
+    $dialog.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
+    $dialog.ClientSize = New-Object System.Drawing.Size(650, 260)
+    $dialog.Tag = 'Cancel'
+
+    $message = New-Object System.Windows.Forms.Label
+    $message.Text = Get-ToolText -Key 'report.privacy.promptExplicit' -Culture $script:dashboardCulture
+    $message.Font = $fontNormal
+    $message.Location = New-Object System.Drawing.Point(28, 24)
+    $message.Size = New-Object System.Drawing.Size(594, 140)
+    $message.AutoEllipsis = $true
+    $dialog.Controls.Add($message)
+
+    $redactedButton = New-Object System.Windows.Forms.Button
+    $redactedButton.Text = Get-ToolText -Key 'report.privacy.redactedButton' -Culture $script:dashboardCulture
+    $redactedButton.Location = New-Object System.Drawing.Point(28, 188)
+    $redactedButton.Size = New-Object System.Drawing.Size(190, 42)
+    $redactedButton.Font = $fontBold
+    $redactedButton.Add_Click({ $dialog.Tag = 'Redacted'; $dialog.Close() })
+    $dialog.Controls.Add($redactedButton)
+
+    $internalButton = New-Object System.Windows.Forms.Button
+    $internalButton.Text = Get-ToolText -Key 'report.privacy.internalButton' -Culture $script:dashboardCulture
+    $internalButton.Location = New-Object System.Drawing.Point(230, 188)
+    $internalButton.Size = New-Object System.Drawing.Size(190, 42)
+    $internalButton.Add_Click({ $dialog.Tag = 'Internal'; $dialog.Close() })
+    $dialog.Controls.Add($internalButton)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = Get-ToolText -Key 'report.privacy.cancelButton' -Culture $script:dashboardCulture
+    $cancelButton.Location = New-Object System.Drawing.Point(432, 188)
+    $cancelButton.Size = New-Object System.Drawing.Size(190, 42)
+    $cancelButton.Add_Click({ $dialog.Tag = 'Cancel'; $dialog.Close() })
+    $dialog.Controls.Add($cancelButton)
+    $dialog.AcceptButton = $redactedButton
+    $dialog.CancelButton = $cancelButton
+
+    Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
+    $palette = Get-ToolUiPalette -Mode $script:dashboardTheme
+    $redactedButton.BackColor = $palette.Primary
+    $redactedButton.ForeColor = if ($script:dashboardTheme -eq 'Dark') { [Drawing.Color]::FromArgb(18, 26, 38) } else { [Drawing.Color]::White }
+    foreach ($button in @($redactedButton,$internalButton,$cancelButton)) { $button.FlatStyle = 'Flat' }
+    [void]$dialog.ShowDialog($form)
+    $choice = [string]$dialog.Tag
+    $dialog.Dispose()
+    return $choice
+}
+
 function Start-Report([string]$mode, [string]$displayName) {
     if (-not (Test-Path -LiteralPath $reportScript)) {
         [System.Windows.Forms.MessageBox]::Show(
@@ -2851,14 +2906,9 @@ function Start-Report([string]$mode, [string]$displayName) {
             "OK", "Error") | Out-Null
         return
     }
-    $privacyChoice = [System.Windows.Forms.MessageBox]::Show(
-        (Get-ToolText -Key "report.privacy.prompt" -Culture $script:dashboardCulture),
-        (Get-ToolText -Key "report.privacy.title" -Culture $script:dashboardCulture),
-        [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
-        [System.Windows.Forms.MessageBoxIcon]::Information,
-        [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
-    if ($privacyChoice -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
-    $redactSensitive = [bool]($privacyChoice -eq [System.Windows.Forms.DialogResult]::Yes)
+    $privacyChoice = Show-ReportPrivacyChooser
+    if ($privacyChoice -eq 'Cancel') { return }
+    $redactSensitive = [bool]($privacyChoice -eq 'Redacted')
     try {
         Start-ProgressDisplay $displayName (Get-ToolText -Key "report.starting" -Culture $script:dashboardCulture) $false
         Write-ProgressLog (Get-ToolText -Key $(if ($redactSensitive) { "report.redactedProgress" } else { "report.internalProgress" }) -Culture $script:dashboardCulture)
@@ -3904,6 +3954,7 @@ function Show-ThirdPartyAssessmentResults {
         $actionText = if ($actionable) {
             switch ($remediationMode) {
                 'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
+                'LocalLicenseFileReset' { Get-DashboardText "software.results.action.localLicenseReset" }
                 'AutomaticOfficialRepair' { Get-DashboardText "software.results.action.automaticRepair" }
                 'ArtifactCleanup' { Get-DashboardText "software.results.action.artifactCleanup" }
                 'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
@@ -4153,6 +4204,9 @@ function Show-CleanupResultCenter {
 
     $isDryRun = [bool]($Result.PSObject.Properties['SimulationOnly'] -and [bool]$Result.SimulationOnly)
     $remainingItems = @($Result.CleanupItems)
+    $thirdPartyExecutionResults = @($(if ($Result.PSObject.Properties['ThirdPartyExecutionResults']) { @($Result.ThirdPartyExecutionResults) }))
+    $systemChangeApplied = [bool]($Result.PSObject.Properties['SystemChangeApplied'] -and [bool]$Result.SystemChangeApplied)
+    $noAutomaticChange = [bool](-not $isDryRun -and -not $SafetyBlocked -and [int]$Result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied -and $thirdPartyExecutionResults.Count -gt 0)
     $nextActions = @($Result.NextActions)
     if ($isDryRun) {
         $nextActions = @([pscustomobject]@{
@@ -4168,6 +4222,8 @@ function Show-CleanupResultCenter {
         Get-DashboardText 'cleanup.dryRun.completedHeading' @([int]$Result.PlannedActionCount)
     } elseif ($SafetyBlocked) {
         Get-DashboardText "cleanup.result.blockedHeading"
+    } elseif ($noAutomaticChange) {
+        Get-DashboardText "cleanup.result.noAutomaticChangeHeading"
     } elseif ([bool]$Result.ReadyForOfficialActivation) {
         Get-DashboardText "cleanup.result.readyHeading"
     } elseif ($remainingItems.Count -gt 0) {
@@ -4175,7 +4231,7 @@ function Show-CleanupResultCenter {
     } else {
         Get-DashboardText "cleanup.result.reviewHeading"
     }
-    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ([bool]$Result.ReadyForOfficialActivation) { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
+    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ($noAutomaticChange) { [System.Drawing.Color]::DarkOrange } elseif ([bool]$Result.ReadyForOfficialActivation) { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
     if ($SafetyBlocked) { $headingColor = [System.Drawing.Color]::DarkRed }
 
     $body = New-Object System.Collections.Generic.List[string]
@@ -4201,6 +4257,24 @@ function Show-CleanupResultCenter {
             $restoreLabel = if ([bool]$planned.Restorable) { Get-DashboardText 'cleanup.dryRun.restorable' } else { Get-DashboardText 'cleanup.dryRun.notRestorable' }
             $body.Add("$($planned.Order). $($planned.Action) - $($planned.Target) [$restoreLabel]")
         }
+    }
+
+    if ($thirdPartyExecutionResults.Count -gt 0) {
+        $body.Add("")
+        $body.Add((Get-DashboardText 'cleanup.result.thirdPartyExecutionHeading'))
+        foreach ($execution in @($thirdPartyExecutionResults | Select-Object -First 30)) {
+            $statusKey = switch ([string]$execution.Status) {
+                'Succeeded' { 'cleanup.result.execution.succeeded' }
+                'SucceededNeedsVerification' { 'cleanup.result.execution.needsVerification' }
+                'Failed' { 'cleanup.result.execution.failed' }
+                'NoChange' { 'cleanup.result.execution.noChange' }
+                default { 'cleanup.result.execution.guidanceOnly' }
+            }
+            $executionStatus = Get-DashboardText $statusKey
+            $executionTarget = if ([string]::IsNullOrWhiteSpace([string]$execution.Target)) { Get-DashboardText 'common.unknown' } else { [string]$execution.Target }
+            $body.Add("- [$executionStatus] $([string]$execution.Name) - $executionTarget")
+        }
+        if ($thirdPartyExecutionResults.Count -gt 30) { $body.Add((Get-DashboardText 'cleanup.result.moreItems' @($thirdPartyExecutionResults.Count - 30))) }
     }
 
     if ($nextActions.Count -gt 0) {
@@ -4248,7 +4322,7 @@ function Show-CleanupResultCenter {
     $body.Add((Get-DashboardText "common.reportPath" @($Result.ReportPath)))
 
     $dialog = New-Object System.Windows.Forms.Form
-    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
+    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ($noAutomaticChange) { Get-DashboardText 'cleanup.result.noAutomaticChangeTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
     $dialog.StartPosition = "CenterParent"
     $dialog.FormBorderStyle = "Sizable"
     $dialog.MaximizeBox = $true
@@ -4385,14 +4459,13 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             Write-ProgressLog (Get-DashboardText "cleanup.report.readyOnDemand" @($result.ReportPath))
         }
         $wasSafetyBlocked = [bool](@($result.Actions | Where-Object { [string]$_ -match '^ĐÃ KHÓA XỬ LÝ:' }).Count -gt 0)
-        $confirmedActions = @($result.Actions | Where-Object {
-            [string]$_ -match '^(Đã |Office /(?:remhst|unpkey:).+ ĐẠT|Windows /(?:upk|ckms|cpky|rilc):.+(?:ĐẠT|success|thành công))'
-        })
+        $systemChangeApplied = if ($result.PSObject.Properties['SystemChangeApplied']) { [bool]$result.SystemChangeApplied } else { $false }
+        $confirmedActionCount = if ($result.PSObject.Properties['SystemChangeCount']) { [int]$result.SystemChangeCount } else { 0 }
         $timelineEventType = if ($completedDryRunMode) { 'LicenseCleanupDryRunCompleted' } else { 'LicenseCleanupCompleted' }
-        [void](Write-LicenseTimelineEventSafe -EventType $timelineEventType -Source "GUI" -IsChange:([bool](-not $completedDryRunMode -and -not $wasSafetyBlocked -and $confirmedActions.Count -gt 0)) -Data ([ordered]@{
+        [void](Write-LicenseTimelineEventSafe -EventType $timelineEventType -Source "GUI" -IsChange:([bool](-not $completedDryRunMode -and -not $wasSafetyBlocked -and $systemChangeApplied)) -Data ([ordered]@{
             SafetyBlocked=$wasSafetyBlocked
             SelectedItemCount=[int]$result.SelectedCleanupItemCount
-            ConfirmedActionCount=[int]$confirmedActions.Count
+            ConfirmedActionCount=$confirmedActionCount
             ReadyForOfficialActivation=[bool]$result.ReadyForOfficialActivation
             RemainingItemCount=[int](@($result.CleanupItems).Count)
             BackupCreated=[bool](-not [string]::IsNullOrWhiteSpace([string]$result.BackupDirectory))
@@ -4405,6 +4478,9 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             $status.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
         } elseif ($wasSafetyBlocked) {
             $status.Text = Get-DashboardText "cleanup.remediation.blockedStatus"
+            $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        } elseif ([int]$result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied) {
+            $status.Text = Get-DashboardText "cleanup.remediation.noAutomaticChangeStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
         } elseif ([bool]$result.ReadyForOfficialActivation) {
             $status.Text = Get-DashboardText "cleanup.remediation.readyStatus"

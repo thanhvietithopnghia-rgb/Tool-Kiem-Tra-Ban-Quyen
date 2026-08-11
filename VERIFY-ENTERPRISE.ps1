@@ -46,6 +46,7 @@ $previousUiCulture = [string]$env:TOOL_UI_CULTURE
 $temporaryBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd("\") + "\"
 $testRoot = Join-Path $temporaryBase ("ThanhViet-v48-enterprise-test-" + [Guid]::NewGuid().ToString("N"))
 $exportRoot = Join-Path $temporaryBase ("ThanhViet-v48-enterprise-export-" + [Guid]::NewGuid().ToString("N"))
+$separateClientRoot = Join-Path $temporaryBase ("ThanhViet-v48-enterprise-client-test-" + [Guid]::NewGuid().ToString("N"))
 $hostProcess = $null
 try {
     $env:TOOL_ENTERPRISE_ROOT = $testRoot
@@ -78,6 +79,7 @@ try {
     Assert-Enterprise ([string]$client.ClientId -eq [string]$clientAgain.ClientId) "ClientId bị đổi khi cập nhật cấu hình."
 
     $paths = Get-ToolEnterprisePaths
+    Assert-Enterprise ([string]$paths.ClientAgentResult -match 'agent-result\.json$' -and [string]$paths.ClientAgentError -match 'agent-error\.json$') "Lõi enterprise thiếu tệp xác nhận kết quả agent."
     $secret = Get-ToolEnterpriseSecret -Path $paths.ServerMasterSecret
     $envelope = New-ToolEnterpriseEnvelope -Secret $secret -Context "verify" -Payload ([ordered]@{ Value="round-trip"; Number=42 })
     $opened = Open-ToolEnterpriseEnvelope -Secret $secret -ExpectedContext "verify" -Envelope $envelope
@@ -131,6 +133,29 @@ try {
     Assert-Enterprise ([bool]$sendResponse.Accepted) "Listener thật không nhận báo cáo máy trạm."
     $receivedReports = @(Get-ChildItem -LiteralPath (Join-Path $paths.ServerReports $client.ClientId) -Filter "*.json" -File -ErrorAction SilentlyContinue)
     Assert-Enterprise ($receivedReports.Count -ge 1) "Máy chủ không lưu báo cáo nhận qua HTTP."
+
+    # Mô phỏng đúng hai máy: tiến trình máy chủ vẫn dùng $testRoot, còn mọi
+    # cấu hình/secret/outbox của máy trạm nằm ở một root hoàn toàn độc lập.
+    $separateClientId = ''
+    try {
+        $env:TOOL_ENTERPRISE_ROOT = $separateClientRoot
+        $env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH = Join-Path $separateClientRoot 'enterprise-network-settings.json'
+        $separateClient = Register-ToolEnterpriseClient -ServerAddress '127.0.0.1:49542' -Port 49420 -PairingCode $pairing -AllowRemoteLicenseChanges:$false -AutoSend:$true
+        $separateClientId = [string]$separateClient.ClientId
+        $separatePaths = Get-ToolEnterprisePaths
+        Assert-Enterprise ([bool]$separateClient.Enrolled -and (Test-Path -LiteralPath $separatePaths.ClientSecret -PathType Leaf)) 'Máy trạm ở kho dữ liệu độc lập không ghép nối/ghi secret được.'
+        Assert-Enterprise ([string]$separatePaths.Root -ne [string]$paths.Root -and
+            [string]$separatePaths.ClientConfig -like (([string]$separatePaths.Root).TrimEnd('\') + '\*')) 'Fixture máy trạm còn vô tình dùng chung kho dữ liệu với máy chủ.'
+        $separateReport = Get-ToolEnterpriseLicenseSnapshot -ClientId $separateClientId
+        $separateSendResponse = Send-ToolEnterpriseReport -Report $separateReport
+        Assert-Enterprise ([bool]$separateSendResponse.Accepted) 'Máy trạm có kho dữ liệu độc lập không gửi được báo cáo.'
+    } finally {
+        $env:TOOL_ENTERPRISE_ROOT = $testRoot
+        $env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH = Join-Path $testRoot 'enterprise-network-settings.json'
+    }
+    $paths = Get-ToolEnterprisePaths
+    $separateReceivedReports = @(Get-ChildItem -LiteralPath (Join-Path $paths.ServerReports $separateClientId) -Filter '*.json' -File -ErrorAction SilentlyContinue)
+    Assert-Enterprise ($separateReceivedReports.Count -ge 1) 'Máy chủ không lưu báo cáo gửi từ máy trạm có kho dữ liệu độc lập.'
 
     $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
     Set-ToolEnterpriseServerClientSecret -ClientId $client.ClientId -Secret $clientSecret
@@ -314,6 +339,16 @@ try {
     Assert-Enterprise ($enterpriseUiText -match 'ThanhViet Tool v4\.8 Enterprise Agent' -and
         $enterpriseUiText -match 'Enable-EnterpriseServerListenerAccess' -and
         $enterpriseUiText -match 'Resolve-EnterpriseClientServerAddress') "Giao diện enterprise chưa đồng bộ tác vụ v4.8, URLACL/Firewall hoặc tự dò máy chủ."
+    Assert-Enterprise ($enterpriseUiText -match 'function\s+Wait-EnterpriseServerReady' -and
+        $enterpriseUiText -match 'function\s+Wait-EnterpriseAgentResult' -and
+        $enterpriseUiText -match 'ClientAgentResult' -and
+        $enterpriseUiText -match 'enterprise\.server\.startingVerified' -and
+        $enterpriseUiText -match 'enterprise\.client\.agentSent') 'Giao diện enterprise còn báo thành công trước khi máy chủ/agent có kết quả xác nhận.'
+    Assert-Enterprise ($enterpriseUiText -match 'http://\+:\$port/tool/v1/' -and
+        $enterpriseUiText -match 'WindowsIdentity.*?User\.Value' -and
+        $enterpriseUiText -match 'sddl=D:\(A;;GX;;;\$currentUserSid\)' -and
+        $enterpriseUiText -match 'enterprise\.error\.urlAclNotApplied' -and
+        $enterpriseUiText -match 'enterprise\.error\.firewallNotApplied') 'URL ACL/Firewall chưa dùng đúng prefix hoặc chưa hậu kiểm quyền listener.'
     $hostPath = Join-Path $SourceDirectory "Tool-EnterpriseHost.ps1"
     $hostText = Get-Content -LiteralPath $hostPath -Raw -Encoding UTF8
     $hostTokens = $null
@@ -330,6 +365,11 @@ try {
         Assert-Enterprise ($statusFunctionText -notmatch ("(?m)^\s*" + [regex]::Escape($sensitiveField) + "\s*=")) "Status không xác thực còn lộ $sensitiveField."
     }
     Assert-Enterprise ($hostText -match 'rate\.Count\+\+' -and $hostText -match 'StatusCode\s+429') "Endpoint Enterprise thiếu rate limit."
+    Assert-Enterprise ($hostText -match '\$prefixAddress\s*=\s*if.+?\{\s*"\+"\s*\}' -and $hostText -match 'http://\$prefixAddress') 'Listener không dùng cùng strong-wildcard prefix với URL ACL.'
+    $agentText = Get-Content -LiteralPath (Join-Path $SourceDirectory 'Tool-EnterpriseAgent.ps1') -Raw -Encoding UTF8
+    Assert-Enterprise ($agentText -match 'function\s+Write-ToolEnterpriseAgentResultFile' -and
+        $agentText -match 'ClientAgentResult' -and $agentText -match 'ClientAgentError' -and
+        $agentText -match 'Success=\$true; ExitCode=0' -and $agentText -match 'Success=\$false; ExitCode=1') 'Agent chưa ghi kết quả thành công/thất bại có cấu trúc cho giao diện.'
     $previousUiTheme = [string]$env:TOOL_UI_THEME
     try {
         foreach ($networkState in @("0", "1")) {
@@ -373,7 +413,7 @@ try {
     $env:TOOL_ENTERPRISE_NETWORK_ALLOWED = $previousEnterpriseNetworkAllowed
     $env:TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH = $previousEnterpriseNetworkSettings
     $env:TOOL_UI_CULTURE = $previousUiCulture
-    foreach ($target in @($testRoot,$exportRoot)) {
+    foreach ($target in @($testRoot,$exportRoot,$separateClientRoot)) {
         try {
             $full = [IO.Path]::GetFullPath($target)
             if ($full.StartsWith($temporaryBase, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $full)) {

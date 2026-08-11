@@ -30,7 +30,7 @@ try {
 $ErrorActionPreference = "Continue"
 $releaseVersion = "4.8.0.0"
 if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
-$strictPattern = "(?i)(kmspico|kmsauto|auto[\s_-]*kms|autokms|kms[_-]?vl|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|microsoft toolkit|hwidgen|\bmassgrave\b)"
+$strictPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|autokms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|\bmassgrave\b|mas[\s._-]*aio|tsforge|ohook)"
 $includeWindows = [bool]($Scope -in @("All", "Windows"))
 $includeOffice = [bool]($Scope -in @("All", "Office"))
 $includeThirdParty = [bool]($Scope -in @("All", "ThirdParty"))

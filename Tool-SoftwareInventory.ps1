@@ -12,7 +12,7 @@ $script:ToolSoftwareDeepDirectoryCache = @{}
 $script:ToolSoftwareDeepSystemSnapshotCache = $null
 $script:ToolSoftwareLastDeepScanMetadata = $null
 $script:ToolSoftwareCatalogTrustCache = @{}
-$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
+$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*aio\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
 $script:ToolSoftwareSuspiciousArtifactPattern = '(?i)(\bcrack(?:ed)?\b|\bkeygen\b|\bactivator\b|\bactivation[\s._-]*(?:bypass|patch(?:er)?)\b|\blicen[cs]e[\s._-]*(?:bypass|patch(?:er)?)\b|\bserial[\s._-]*generator\b)'
 $script:ToolSoftwareDeepRelevantExtensions = @('.exe','.dll','.sys','.ocx','.cpl','.scr','.com','.msi','.cmd','.bat','.ps1','.vbs','.js','.jar','.zip','.rar','.7z')
 $script:ToolSoftwareAuthenticodeExtensions = @('.exe','.dll','.sys','.ocx','.cpl','.scr','.com','.msi','.ps1','.vbs','.js')
@@ -42,6 +42,35 @@ function Get-ToolSoftwareOptionalPropertyString {
     $values = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $InputObject -Name $Name)
     if ($values.Count -eq 0 -or $null -eq $values[0]) { return $Default }
     return [string]$values[0]
+}
+
+function ConvertTo-ToolSoftwareInstallDateText {
+    param([AllowNull()][object]$Value)
+    if ($null -eq $Value) { return '' }
+    if ($Value -is [DateTime]) { return ([DateTime]$Value).ToString('yyyy-MM-dd') }
+    $text = ([string]$Value).Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return '' }
+
+    $dateParts = $null
+    if ($text -match '^(?<year>\d{4})(?<month>\d{2})(?<day>\d{2})(?:\d{6}(?:\.\d{6})?[+\-]\d{3})?$') {
+        try {
+            $dateParts = New-Object DateTime ([int]$matches.year, [int]$matches.month, [int]$matches.day)
+            return $dateParts.ToString('yyyy-MM-dd')
+        } catch { return $text }
+    }
+    if ($text -match '^\d{9,11}$') {
+        try {
+            $unixSeconds = [int64]$text
+            $dateParts = ([DateTime]'1970-01-01T00:00:00Z').AddSeconds($unixSeconds).ToLocalTime()
+            if ($dateParts.Year -ge 2000 -and $dateParts.Year -le 2100) { return $dateParts.ToString('yyyy-MM-dd') }
+        } catch {}
+    }
+    $parsed = [DateTime]::MinValue
+    if ([DateTime]::TryParse($text, [Globalization.CultureInfo]::CurrentCulture, [Globalization.DateTimeStyles]::AllowWhiteSpaces, [ref]$parsed) -or
+        [DateTime]::TryParse($text, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AllowWhiteSpaces, [ref]$parsed)) {
+        return $parsed.ToString('yyyy-MM-dd')
+    }
+    return $text
 }
 
 function Get-ToolSoftwareCatalogCachePath {
@@ -709,7 +738,7 @@ function New-ToolSoftwareInventoryRecord {
     if ($classifiedAsSystem -and [string]::IsNullOrWhiteSpace($SystemComponentReason)) { $SystemComponentReason = 'HeuristicOrPlatformMetadata' }
     return [pscustomobject][ordered]@{
         Id=Get-ToolSoftwareStableId -Value $identity; Name=$Name.Trim(); Version=$Version; Publisher=$Publisher
-        InstallDate=$InstallDate; InstallLocation=$InstallLocation; DisplayIcon=$DisplayIcon; UninstallString=$UninstallString
+        InstallDate=(ConvertTo-ToolSoftwareInstallDateText -Value $InstallDate); InstallLocation=$InstallLocation; DisplayIcon=$DisplayIcon; UninstallString=$UninstallString
         RegistryPath=$RegistryPath; Scope=$Scope; Architecture=$Architecture; SourceKind=$SourceKind; SourceDetail=$SourceDetail
         RepresentativePath=$RepresentativePath; SignatureStatus=[string]$signature.Status; SignaturePublisher=[string]$signature.Publisher
         FileVersion=[string]$signature.FileVersion; IsMicrosoft=[bool]($Publisher -match '(?i)\bMicrosoft\b' -or $Name -match '(?i)^\s*(Microsoft|Windows)\b')
@@ -950,6 +979,51 @@ function Find-ToolSoftwareCatalogProduct {
         return $product
     }
     return $null
+}
+
+function Get-ToolSoftwareKnownActivationState {
+    param(
+        [Parameter(Mandatory = $true)]$Application,
+        [AllowNull()][object]$CatalogProduct
+    )
+
+    if (-not $CatalogProduct) { return '' }
+    $catalogProductId = Get-ToolSoftwareOptionalPropertyString -InputObject $CatalogProduct -Name 'Id'
+    if ([string]$catalogProductId -ne 'winrar') { return '' }
+
+    # WinRAR keeps its local registration in rarreg.key.  The program remains
+    # usable in trial mode after this file is removed, therefore "the program
+    # still opens" must never be interpreted as "the license is still active".
+    # Probe only bounded, product-specific locations and report Unactivated
+    # only when at least one real WinRAR location can be inspected.
+    $locations = New-Object System.Collections.Generic.List[string]
+    $probeAvailable = $false
+    foreach ($rootCandidate in @([string]$Application.InstallLocation, $(if ($Application.RepresentativePath) { Split-Path -Parent ([string]$Application.RepresentativePath) }))) {
+        if ([string]::IsNullOrWhiteSpace($rootCandidate)) { continue }
+        try {
+            $root = [IO.Path]::GetFullPath($rootCandidate).TrimEnd('\')
+            if (Test-Path -LiteralPath $root -PathType Container) {
+                $probeAvailable = $true
+                $locations.Add((Join-Path $root 'rarreg.key'))
+            }
+        } catch {}
+    }
+    if ($env:APPDATA) {
+        $userRoot = Join-Path $env:APPDATA 'WinRAR'
+        if (Test-Path -LiteralPath $userRoot -PathType Container) { $probeAvailable = $true }
+        $locations.Add((Join-Path $userRoot 'rarreg.key'))
+    }
+    if ($env:ProgramData) {
+        $machineRoot = Join-Path $env:ProgramData 'WinRAR'
+        if (Test-Path -LiteralPath $machineRoot -PathType Container) { $probeAvailable = $true }
+        $locations.Add((Join-Path $machineRoot 'rarreg.key'))
+    }
+
+    foreach ($path in @($locations.ToArray() | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) { return 'LocalLicensePresent' }
+    }
+    if ($probeAvailable) { return 'Unactivated' }
+    return ''
 }
 
 function Get-ToolSoftwareBlockedHostEvidence {
@@ -1879,11 +1953,13 @@ function Get-ToolSoftwareAssessments {
             ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive)) -and
             [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
         }).Count
+        $knownActivationState = Get-ToolSoftwareKnownActivationState -Application $application -CatalogProduct $catalogProduct
         $statusCode = 'Unverified'
         $confidence = 'Low'
         if ($licensingDecisiveCount -gt 0 -or ($independentLicenseRiskCount -gt 0 -and $strongCount -ge 2 -and $strongEvidenceGroupCount -ge 2)) { $statusCode='NonGenuine'; $confidence='High' }
         elseif ($integrityEvidenceCount -gt 0 -and $independentLicenseRiskCount -eq 0) { $statusCode='IntegrityCompromised'; $confidence='High' }
         elseif ($strongCount -gt 0 -or $moderateCount -gt 0 -or $weakCount -ge 2) { $statusCode='Suspicious'; $confidence='Medium' }
+        elseif ($knownActivationState -eq 'Unactivated') { $statusCode='Unactivated'; $confidence='High' }
         elseif ($licenseModel -in @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) { $statusCode='FreeOrIncluded'; $confidence=$(if ($catalogProduct) {'High'} else {'Medium'}) }
         elseif ($licenseModel -eq 'Trialware') { $statusCode='TrialOrUnverified'; $confidence='Medium' }
         elseif ($catalogProduct) { $statusCode='Unverified'; $confidence='Medium' }
@@ -1900,8 +1976,12 @@ function Get-ToolSoftwareAssessments {
         # thành phần hệ thống/driver/runtime. Adapter Generic chỉ cho phép các
         # thao tác đã khóa phạm vi (cách ly artifact chính xác, sửa hosts chính
         # xác, Repair MSI đã xác thực hoặc hướng dẫn cài lại chính thức).
+        $knownLocalResetEligible = [bool](
+            $remediationAdapter -eq 'WinRAR' -and
+            $knownActivationState -eq 'LocalLicensePresent'
+        )
         $manualEligible = [bool](
-            $statusCode -in @('NonGenuine','Suspicious') -and
+            (($statusCode -in @('NonGenuine','Suspicious')) -or $knownLocalResetEligible) -and
             $licenseModel -notin @('SystemComponent','Driver','Runtime')
         )
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
@@ -1910,13 +1990,15 @@ function Get-ToolSoftwareAssessments {
         # AutoEligible ở lớp đánh giá chỉ biểu thị có bằng chứng mạnh. Lớp lập
         # kế hoạch còn phải chứng minh tồn tại hành động tự động an toàn trước
         # khi mục thực sự được đưa vào chế độ Tự động an toàn.
-        $autoEligible = [bool]($manualEligible -and $decisiveCount -gt 0)
+        $autoEligible = [bool]($manualEligible -and -not $knownLocalResetEligible -and $decisiveCount -gt 0)
         $needsReview = [bool]($statusCode -notin @('FreeOrIncluded','GenuineVerified','Unactivated'))
         $referenceUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'OfficialUrl'
         $remediationImpact = if (-not $manualEligible) {
             'NoChangeProposed'
         } elseif ($remediationAdapter -in @('Adobe','Autodesk')) {
             'VendorSharedLicenseState'
+        } elseif ($knownLocalResetEligible) {
+            'LocalLicenseFileReset'
         } else {
             'GenericArtifactCleanupOrOfficialRepair'
         }
@@ -1940,7 +2022,7 @@ function Get-ToolSoftwareAssessments {
             @('ConclusiveEvidenceCount',[int]$conclusiveCount), @('StrongEvidenceCount',[int]$strongCount),
             @('ModerateEvidenceCount',[int]$moderateCount), @('WeakEvidenceCount',[int]$weakCount),
             @('DecisiveEvidenceCount',[int]$decisiveCount), @('IndependentStrongEvidenceGroupCount',[int]$strongEvidenceGroupCount),
-            @('TechnicalStatus',$statusCode), @('NeedsReview',$needsReview),
+            @('TechnicalStatus',$statusCode), @('NeedsReview',$needsReview), @('ActivationStateProbe',$knownActivationState),
             @('DeepScanEnabled',[bool]$DeepScan), @('DeepScanStatus',[string]$deepResult.Status), @('DeepScanComplete',[bool]$deepResult.Complete),
             @('DeepScanRoots',@($deepResult.Roots)), @('DeepScanFilesEnumerated',[int]$deepResult.FilesEnumerated),
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),

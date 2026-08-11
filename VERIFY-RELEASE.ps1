@@ -118,7 +118,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 $versionChecks = @(
     @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8\.0"' },
     @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.8\.0\.0"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.10"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.11"' },
     @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.8"' },
     @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8"' },
     @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyVersion\("4\.8\.0\.0"\)' },
@@ -545,10 +545,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.10') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.10.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.11') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.11.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-assistant-performance-catalog-report-enterprise-20260810') { throw 'Sai release label v4.8.0.0.' }
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-assistant-performance-catalog-report-enterprise-20260811') { throw 'Sai release label v4.8.0.0.' }
         if ([int]$releaseManifest.PayloadCount -ne 48 -or [int]$releaseManifest.IntegrityFileCount -ne 46) { throw 'Sai số lượng payload/integrity.' }
         $payloadCompression = $releaseManifest.PayloadCompression
         if ([string]$payloadCompression.Scheme -ne 'PerResourceDeflateOrRaw-v1' -or
@@ -567,7 +567,8 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             @($releaseManifest.UserPreferencePersistence).Count -ne 1 -or
             @($releaseManifest.EnvironmentWarnings).Count -ne 2 -or
             @($releaseManifest.ProgressUtilities).Count -ne 2) { throw 'Thiếu metadata cải tiến giao diện v4.6.' }
-        if (@($releaseManifest.ThirdPartyLicenseRemediationAdapters).Count -ne 3 -or
+        if (@($releaseManifest.ThirdPartyLicenseRemediationAdapters).Count -ne 4 -or
+            (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'WinRAR' -or
             [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'Verified decisive evidence' -or
             [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'manual-only' -or
             [string]$releaseManifest.ThirdPartyBackupPolicy -notmatch 'non-restorable') {
@@ -580,11 +581,20 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'byte-identical') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
-        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.3.0.0' -or
-            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 73 -or
+        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.3.1.0' -or
+            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 76 -or
             [int]$releaseManifest.EngineeringSoftwareCatalogRules -lt 16 -or
             @($releaseManifest.EngineeringSoftwareCategories).Count -lt 8) {
             throw 'Thiếu metadata mở rộng catalog phần mềm kỹ thuật v4.6.'
+        }
+        if ([string]$releaseManifest.NormalReportActivatorInspection -notmatch 'MAS, TSforge, OHook' -or
+            [string]$releaseManifest.NormalSoftwareInstalledArtifactInspection -notmatch 'install roots' -or
+            [string]$releaseManifest.WindowsKmsLifecyclePresentation -notmatch 'Notification' -or
+            [string]$releaseManifest.InstallDateNormalization -notmatch 'yyyy-MM-dd' -or
+            @($releaseManifest.MonitorNameSources).Count -ne 3 -or
+            @($releaseManifest.ReportPrivacyChoice).Count -ne 3 -or
+            [string]$releaseManifest.TimelineCurrentStatePolicy -notmatch 'Latest observed state') {
+            throw 'Thiếu metadata hotfix quét thường/KMS/ngày cài/màn hình/riêng tư/timeline.'
         }
         if (-not [bool]$releaseManifest.RemediationDryRun -or
             [string]$releaseManifest.RemediationDryRunPolicy -notmatch 'no system changes' -or

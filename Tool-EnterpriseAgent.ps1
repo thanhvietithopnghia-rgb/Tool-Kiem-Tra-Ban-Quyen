@@ -100,6 +100,15 @@ function Invoke-ToolEnterpriseAgentOnce {
     return [pscustomobject]$summary
 }
 
+function Write-ToolEnterpriseAgentResultFile {
+    param([Parameter(Mandatory = $true)][object]$Value, [switch]$ErrorResult)
+    try {
+        $paths = Initialize-ToolEnterpriseStorage
+        $path = if ($ErrorResult) { [string]$paths.ClientAgentError } else { [string]$paths.ClientAgentResult }
+        Write-ToolEnterpriseJson -Path $path -Value $Value
+    } catch {}
+}
+
 $created = $false
 $mutex = New-Object Threading.Mutex($false, "Global\ThanhViet.ToolKiemTra.v4.6.EnterpriseAgent", [ref]$created)
 if (-not $created) {
@@ -108,15 +117,29 @@ if (-not $created) {
     exit 11
 }
 try {
+    $agentPaths = Initialize-ToolEnterpriseStorage
+    foreach ($stalePath in @($agentPaths.ClientAgentResult,$agentPaths.ClientAgentError)) {
+        if (Test-Path -LiteralPath $stalePath -PathType Leaf) { Remove-Item -LiteralPath $stalePath -Force -ErrorAction SilentlyContinue }
+    }
     $result = Invoke-ToolEnterpriseAgentOnce
     Write-ToolEnterpriseAgentEvent -Event "Agent.Completed" -Message (Get-ToolEnterpriseText "enterpriseAgent.audit.completed") -Data ([ordered]@{
         Sent=$result.Sent; Queued=$result.Queued; JobStatus=$result.JobStatus
+    })
+    Write-ToolEnterpriseAgentResultFile -Value ([ordered]@{
+        SchemaVersion=$script:ToolEnterpriseSchemaVersion; ToolVersion=$script:ToolEnterpriseToolVersion
+        Success=$true; ExitCode=0; CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
+        ClientId=[string]$result.ClientId; Sent=[int]$result.Sent; Queued=[int]$result.Queued
+        JobStatus=[string]$result.JobStatus; Message=[string]$result.Message
     })
     $result | ConvertTo-Json -Depth 8 -Compress | Write-Output
     exit 0
 } catch {
     $message = ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1200
     Write-ToolEnterpriseAgentEvent -Event "Agent.Failed" -Message $message
+    Write-ToolEnterpriseAgentResultFile -ErrorResult -Value ([ordered]@{
+        SchemaVersion=$script:ToolEnterpriseSchemaVersion; ToolVersion=$script:ToolEnterpriseToolVersion
+        Success=$false; ExitCode=1; CompletedAtUtc=[DateTime]::UtcNow.ToString('o'); Message=$message
+    })
     [Console]::Error.WriteLine($message)
     exit 1
 } finally {

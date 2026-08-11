@@ -122,7 +122,7 @@ ERROR CODE: 0xC004F014
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
-    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyMsiRepair','ThirdPartyMsiUninstall','ThirdPartyOfficialSource')) {
+    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyMsiRepair','ThirdPartyMsiUninstall','ThirdPartyOfficialSource','LocalLicenseFileReset','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Thiếu thành phần khắc phục phần mềm bên thứ ba: $requiredToken" }
     }
     if ($cleanup.Text -notmatch '(?s)ThirdPartyLicenseState.+?Restorable=\$false' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
@@ -295,7 +295,7 @@ if ($gui) {
 }
 
 if ($softwareInventory) {
-    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','Merge-ToolSoftwareInventoryRecords','Test-ToolSoftwareLikelySystemComponent','IsSystemComponent','KnownBadFileHash','DeepSignatureHashMismatch','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt 2097152','UploadedInventory=$false','SentLicenseKeys=$false')) {
+    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareKnownActivationState','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','Merge-ToolSoftwareInventoryRecords','Test-ToolSoftwareLikelySystemComponent','IsSystemComponent','KnownBadFileHash','DeepSignatureHashMismatch','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt 2097152','UploadedInventory=$false','SentLicenseKeys=$false')) {
         if ($softwareInventory.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Mô-đun kiểm kê/danh mục online thiếu ràng buộc an toàn: $requiredToken" }
     }
     if ($softwareInventory.Text -match '(?i)\b(method\s*=\s*["''](?:POST|PUT|PATCH)|uploadfile|invoke-restmethod\b.+-(?:method\s+)?(?:post|put|patch))') {
@@ -303,6 +303,21 @@ if ($softwareInventory) {
     }
     try {
         . (Join-Path $root 'Tool-SoftwareInventory.ps1')
+        foreach ($dateFixture in @(
+            [pscustomobject]@{ Raw='20260811'; Expected='2026-08-11' },
+            [pscustomobject]@{ Raw='20260811112233.000000+420'; Expected='2026-08-11' },
+            [pscustomobject]@{ Raw='1786406400'; Expected='2026-08-11' }
+        )) {
+            if ((ConvertTo-ToolSoftwareInstallDateText $dateFixture.Raw) -ne $dateFixture.Expected) {
+                Fail "Ngày cài '$($dateFixture.Raw)' chưa chuẩn hóa thành $($dateFixture.Expected)."
+            }
+        }
+        foreach ($activatorFixture in @('TSforge Activation','Office OHook','MAS_AIO','KMS_VL_ALL','Microsoft Toolkit')) {
+            if ($activatorFixture -notmatch $script:ToolSoftwareKnownActivatorPattern) { Fail "Thiếu mẫu activator: $activatorFixture" }
+        }
+        if ('Microsoft.Toolkit.Win32.UI.XamlHost.dll' -match $script:ToolSoftwareKnownActivatorPattern) {
+            Fail 'Thư viện Microsoft.Toolkit hợp lệ đang bị nhầm với Microsoft Toolkit activator.'
+        }
         if ('IObit Unlocker' -match $script:ToolSoftwareSuspiciousArtifactPattern) {
             Fail 'Tên sản phẩm hợp lệ IObit Unlocker bị coi nhầm là artifact crack.'
         }
@@ -445,8 +460,67 @@ if ($softwareInventory) {
     try {
         $catalog = Get-Content -LiteralPath (Join-Path $root 'software-license-catalog-v1.0.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         $catalogIds = @($catalog.Products | ForEach-Object { [string]$_.Id })
-        if ([string]$catalog.CatalogVersion -ne '1.3.0.0' -or $catalogIds.Count -lt 73 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
-            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.3.0.0 / 73 quy tắc duy nhất.'
+        if ([string]$catalog.CatalogVersion -ne '1.3.1.0' -or $catalogIds.Count -lt 76 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
+            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.3.1.0 / 76 quy tắc duy nhất.'
+        }
+        foreach ($requiredCatalogId in @('iobit-driver-booster','winrar','adobe-creative-cloud-paid','autodesk-commercial','commercial-pdf-editors','internet-download-manager','mathworks-matlab-simulink','wiris-mathtype')) {
+            if ($catalogIds -notcontains $requiredCatalogId) { Fail "Catalogue phần mềm thiếu quy tắc: $requiredCatalogId" }
+        }
+
+        $classificationApps = @(
+            (New-ToolSoftwareInventoryRecord -Name 'IObit Driver Booster 13 Pro' -Version '13.0' -Publisher 'IObit' -InstallLocation 'C:\Fixture\DriverBooster' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'MathType 7' -Version '7.8' -Publisher 'WIRIS' -InstallLocation 'C:\Fixture\MathType' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Wondershare PDFelement' -Version '11.0' -Publisher 'Wondershare' -InstallLocation 'C:\Fixture\PDFelement' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'IDM 6.42' -Version '6.42' -Publisher 'Tonec' -InstallLocation 'C:\Fixture\IDM' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery)
+        )
+        $classificationResults = @(Get-ToolSoftwareAssessments -Applications $classificationApps -Catalog $catalog)
+        $iobitResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'iobit-driver-booster' })
+        $mathTypeResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'wiris-mathtype' })
+        $pdfResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'commercial-pdf-editors' })
+        $idmResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'internet-download-manager' })
+        if ($iobitResult.Count -ne 1 -or [string]$iobitResult[0].LicenseModel -ne 'Freemium' -or [bool]$iobitResult[0].IsSystemComponent) {
+            Fail 'IObit Driver Booster vẫn bị bỏ sót hoặc phân loại nhầm thành driver hệ thống.'
+        }
+        if ($mathTypeResult.Count -ne 1 -or [string]$mathTypeResult[0].LicenseModel -ne 'Subscription') {
+            Fail 'MathType chưa được nhận diện đúng bằng catalogue.'
+        }
+        if ($pdfResult.Count -ne 1 -or [string]$pdfResult[0].LicenseModel -ne 'Commercial') { Fail 'PDF editor thương mại chưa được nhận diện đúng bằng catalogue.' }
+        if ($idmResult.Count -ne 1 -or [string]$idmResult[0].LicenseModel -ne 'Trialware') { Fail 'Tên ngắn IDM chưa được nhận diện đúng bằng catalogue.' }
+
+        $activationFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-WinRAR-State-Fixture-' + [guid]::NewGuid().ToString('N'))
+        $previousAppData = [string]$env:APPDATA
+        $previousProgramData = [string]$env:ProgramData
+        try {
+            $winRarInstallRoot = Join-Path $activationFixtureRoot 'WinRAR'
+            $env:APPDATA = Join-Path $activationFixtureRoot 'AppData'
+            $env:ProgramData = Join-Path $activationFixtureRoot 'ProgramData'
+            foreach ($directory in @($winRarInstallRoot,$env:APPDATA,$env:ProgramData)) { [void][IO.Directory]::CreateDirectory($directory) }
+            $winRarProduct = @($catalog.Products | Where-Object { [string]$_.Id -eq 'winrar' })[0]
+            $winRarApp = New-ToolSoftwareInventoryRecord -Name 'WinRAR 7.11' -Version '7.11' -Publisher 'win.rar GmbH' -InstallLocation $winRarInstallRoot -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
+            if ([string](Get-ToolSoftwareKnownActivationState -Application $winRarApp -CatalogProduct $winRarProduct) -ne 'Unactivated') {
+                Fail 'WinRAR không có rarreg.key chưa được xác nhận là chưa kích hoạt.'
+            }
+            $rarRegPath = Join-Path $winRarInstallRoot 'rarreg.key'
+            [IO.File]::WriteAllText($rarRegPath, 'fixture-license', (New-Object Text.UTF8Encoding($false)))
+            if ([string](Get-ToolSoftwareKnownActivationState -Application $winRarApp -CatalogProduct $winRarProduct) -ne 'LocalLicensePresent') {
+                Fail 'WinRAR có rarreg.key nhưng đầu dò không nhận ra trạng thái giấy phép cục bộ.'
+            }
+            $registeredWinRarAssessment = @(Get-ToolSoftwareAssessments -Applications @($winRarApp) -Catalog $catalog)[0]
+            if (-not [bool]$registeredWinRarAssessment.ManualEligible -or [bool]$registeredWinRarAssessment.AutoEligible -or
+                [string]$registeredWinRarAssessment.RemediationAdapter -ne 'WinRAR' -or [string]$registeredWinRarAssessment.RemediationImpact -ne 'LocalLicenseFileReset') {
+                Fail 'WinRAR có rarreg.key chưa mở đúng lựa chọn đặt lại thủ công hoặc đang bị chọn tự động không an toàn.'
+            }
+            [IO.File]::Delete($rarRegPath)
+            $winRarAssessment = @(Get-ToolSoftwareAssessments -Applications @($winRarApp) -Catalog $catalog)[0]
+            if ([string]$winRarAssessment.AssessmentCode -ne 'Unactivated' -or [string]$winRarAssessment.ActivationStateProbe -ne 'Unactivated' -or [bool]$winRarAssessment.ManualEligible) {
+                Fail 'Quét lại WinRAR sau khi bỏ giấy phép cục bộ không giữ trạng thái chưa kích hoạt.'
+            }
+        } finally {
+            $env:APPDATA = $previousAppData
+            $env:ProgramData = $previousProgramData
+            if ($activationFixtureRoot -and (Test-Path -LiteralPath $activationFixtureRoot -PathType Container)) {
+                Remove-Item -LiteralPath $activationFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
 
         $recordA = New-ToolSoftwareInventoryRecord -Name 'Example Professional x64' -Version '2.0' -Publisher 'Example Corp' -InstallLocation 'C:\Program Files\Example' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery

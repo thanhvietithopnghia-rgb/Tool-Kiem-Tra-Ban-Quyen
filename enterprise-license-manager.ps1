@@ -241,6 +241,100 @@ function Start-EnterpriseChild {
     return (Start-Process @fallbackParameters)
 }
 
+function Get-EnterpriseServerRuntimeError {
+    try {
+        $paths = Get-ToolEnterprisePaths
+        if (Test-Path -LiteralPath $paths.ServerError -PathType Leaf) {
+            $errorRecord = Read-ToolEnterpriseJson -Path $paths.ServerError -MaximumBytes 65536
+            if ($errorRecord -and -not [string]::IsNullOrWhiteSpace([string]$errorRecord.Message)) {
+                return (ConvertTo-ToolEnterpriseSafeText $errorRecord.Message 1200)
+            }
+        }
+    } catch {}
+    return ''
+}
+
+function Wait-EnterpriseServerReady {
+    param(
+        [Parameter(Mandatory = $true)][object]$Configuration,
+        [Parameter(Mandatory = $true)][object]$LauncherProcess,
+        [ValidateRange(3, 60)][int]$TimeoutSeconds = 18
+    )
+
+    $paths = Get-ToolEnterprisePaths
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $lastDiagnostic = $null
+    do {
+        [Windows.Forms.Application]::DoEvents()
+        try { $LauncherProcess.Refresh() } catch {}
+        if ($LauncherProcess.HasExited) {
+            $runtimeError = Get-EnterpriseServerRuntimeError
+            if ([string]::IsNullOrWhiteSpace($runtimeError)) {
+                $runtimeError = Get-EnterpriseText 'enterprise.server.processExited' @($LauncherProcess.ExitCode)
+            }
+            throw $runtimeError
+        }
+
+        $lastDiagnostic = Get-ToolEnterpriseConnectionDiagnostic -ServerAddress '127.0.0.1' -Port ([int]$Configuration.Port) -TimeoutMs 900
+        if ($lastDiagnostic.Success -and
+            (Test-Path -LiteralPath $paths.ServerPid -PathType Leaf) -and
+            (Test-Path -LiteralPath $paths.ServerHeartbeat -PathType Leaf)) {
+            $pidRecord = Read-ToolEnterpriseJson -Path $paths.ServerPid -MaximumBytes 65536
+            $heartbeat = Read-ToolEnterpriseJson -Path $paths.ServerHeartbeat -MaximumBytes 65536
+            if ($pidRecord -and $heartbeat -and [int]$pidRecord.ProcessId -gt 0 -and
+                [int]$heartbeat.ProcessId -eq [int]$pidRecord.ProcessId) {
+                return [pscustomobject][ordered]@{
+                    Success=$true; ProcessId=[int]$pidRecord.ProcessId; Diagnostic=$lastDiagnostic; Heartbeat=$heartbeat
+                }
+            }
+        }
+        Start-Sleep -Milliseconds 220
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    $runtimeError = Get-EnterpriseServerRuntimeError
+    if ([string]::IsNullOrWhiteSpace($runtimeError)) {
+        $diagnosticText = if ($lastDiagnostic) { [string]$lastDiagnostic.Message } else { Get-EnterpriseText 'enterprise.server.noDiagnostic' }
+        $runtimeError = Get-EnterpriseText 'enterprise.server.startTimeout' @($TimeoutSeconds, $diagnosticText)
+    }
+    throw $runtimeError
+}
+
+function Wait-EnterpriseAgentResult {
+    param(
+        [Parameter(Mandatory = $true)][object]$LauncherProcess,
+        [ValidateRange(5, 180)][int]$TimeoutSeconds = 90
+    )
+
+    $paths = Get-ToolEnterprisePaths
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        try { $LauncherProcess.Refresh() } catch {}
+        if ($LauncherProcess.HasExited) { break }
+        [Windows.Forms.Application]::DoEvents()
+        Start-Sleep -Milliseconds 180
+    }
+    if (-not $LauncherProcess.HasExited) {
+        throw (Get-EnterpriseText 'enterprise.client.agentTimeout' @($TimeoutSeconds))
+    }
+    if (Test-Path -LiteralPath $paths.ClientAgentError -PathType Leaf) {
+        $errorResult = Read-ToolEnterpriseJson -Path $paths.ClientAgentError -MaximumBytes 65536
+        $errorMessage = if ($errorResult -and -not [string]::IsNullOrWhiteSpace([string]$errorResult.Message)) {
+            ConvertTo-ToolEnterpriseSafeText $errorResult.Message 1200
+        } else {
+            Get-EnterpriseText 'enterprise.client.agentFailed' @($LauncherProcess.ExitCode, '')
+        }
+        throw $errorMessage
+    }
+    if (-not (Test-Path -LiteralPath $paths.ClientAgentResult -PathType Leaf)) {
+        throw (Get-EnterpriseText 'enterprise.client.agentResultMissing' @($LauncherProcess.ExitCode))
+    }
+    $result = Read-ToolEnterpriseJson -Path $paths.ClientAgentResult -MaximumBytes 65536
+    if (-not $result -or -not [bool]$result.Success -or [int]$LauncherProcess.ExitCode -ne 0) {
+        throw (Get-EnterpriseText 'enterprise.client.agentFailed' @($LauncherProcess.ExitCode, (ConvertTo-ToolEnterpriseSafeText $result.Message 800)))
+    }
+    return $result
+}
+
 function Stop-EnterpriseServer {
     try {
         $paths = Get-ToolEnterprisePaths
@@ -381,11 +475,27 @@ function Enable-EnterpriseServerListenerAccess {
     if (-not (Test-Path -LiteralPath $netsh -PathType Leaf)) { throw (Get-EnterpriseText "enterprise.error.netshMissing") }
     $port = [int]$Configuration.Port
     $url = "http://+:$port/tool/v1/"
-    $show = & $netsh http show urlacl 2>$null | Out-String
-    if ($show -notmatch [regex]::Escape($url)) {
-        $aclArgs = "http add urlacl url=$url user=Administrators"
+    $currentUserSid = [string][Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    if ([string]::IsNullOrWhiteSpace($currentUserSid) -or $currentUserSid -notmatch '^S-1-') {
+        throw (Get-EnterpriseText 'enterprise.error.urlAclIdentityMissing')
+    }
+    $show = & $netsh http show urlacl url=$url 2>$null | Out-String
+    $reservationMatchesCurrentUser = [bool]($show -match [regex]::Escape($url) -and $show -match [regex]::Escape($currentUserSid))
+    if (-not $reservationMatchesCurrentUser) {
+        # The dashboard and host intentionally run without a permanent elevated
+        # token. Reserve the exact strong-wildcard URL for the current account,
+        # not merely for the Administrators group (deny-only under filtered UAC).
+        if ($show -match [regex]::Escape($url)) {
+            $deleteProcess = Start-Process -FilePath $netsh -ArgumentList "http delete urlacl url=$url" -Verb RunAs -Wait -PassThru -WindowStyle Hidden
+            if ($deleteProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($deleteProcess.ExitCode)) }
+        }
+        $aclArgs = "http add urlacl url=$url sddl=D:(A;;GX;;;$currentUserSid)"
         $aclProcess = Start-Process -FilePath $netsh -ArgumentList $aclArgs -Verb RunAs -Wait -PassThru -WindowStyle Hidden
         if ($aclProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($aclProcess.ExitCode)) }
+    }
+    $showAfter = & $netsh http show urlacl url=$url 2>$null | Out-String
+    if ($showAfter -notmatch [regex]::Escape($url) -or $showAfter -notmatch [regex]::Escape($currentUserSid)) {
+        throw (Get-EnterpriseText 'enterprise.error.urlAclNotApplied' @($url))
     }
 
     $firewallName = "ThanhViet Tool v4.8 Enterprise Server"
@@ -402,6 +512,13 @@ function Enable-EnterpriseServerListenerAccess {
         $firewallArguments = 'advfirewall firewall add rule name="' + $firewallName + '" dir=in action=allow protocol=TCP localport=' + $port + ' profile=domain,private'
         $firewallProcess = Start-Process -FilePath $netsh -ArgumentList $firewallArguments -Verb RunAs -Wait -PassThru -WindowStyle Hidden
         if ($firewallProcess.ExitCode -ne 0) { throw (Get-EnterpriseText "enterprise.error.netshExit" @($firewallProcess.ExitCode)) }
+    }
+    if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) {
+        $verifiedFirewall = [bool](@(Get-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue |
+            Where-Object { [string]$_.Enabled -eq 'True' -and [string]$_.Direction -eq 'Inbound' -and [string]$_.Action -eq 'Allow' } |
+            Get-NetFirewallPortFilter -ErrorAction SilentlyContinue |
+            Where-Object { [string]$_.Protocol -eq 'TCP' -and @([string]$_.LocalPort -split ',') -contains [string]$port }).Count -gt 0)
+        if (-not $verifiedFirewall) { throw (Get-EnterpriseText 'enterprise.error.firewallNotApplied' @($port)) }
     }
 }
 
@@ -503,10 +620,27 @@ function Invoke-ServerStart {
         }
         if (-not (Confirm-EnterpriseAction (Get-EnterpriseText "enterprise.server.startPrompt" @($cfg.Port)))) { return }
         Enable-EnterpriseServerListenerAccess -Configuration $cfg
+        $paths = Get-ToolEnterprisePaths
+        foreach ($stalePath in @($paths.ServerError,$paths.ServerPid,$paths.ServerHeartbeat)) {
+            if (Test-Path -LiteralPath $stalePath -PathType Leaf) { Remove-Item -LiteralPath $stalePath -Force -ErrorAction SilentlyContinue }
+        }
+        Set-EnterpriseStatus (Get-EnterpriseText 'enterprise.server.startingVerified' @($cfg.Port)) $true
         $script:serverProcess = Start-EnterpriseChild -Role Server
+        $ready = Wait-EnterpriseServerReady -Configuration $cfg -LauncherProcess $script:serverProcess -TimeoutSeconds 18
         $detectedAddress = Update-EnterpriseDetectedServerAddress
-        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.started" @($detectedAddress, $cfg.Port, $script:serverProcess.Id)) $true
-    } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1200) }
+        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.server.started" @($detectedAddress, $cfg.Port, $ready.ProcessId)) $true
+    } catch {
+        try {
+            $paths = Get-ToolEnterprisePaths
+            New-Item -ItemType File -Path $paths.ServerStop -Force | Out-Null
+            if ($script:serverProcess -and -not $script:serverProcess.HasExited) {
+                if (-not $script:serverProcess.WaitForExit(1800)) {
+                    Stop-Process -Id $script:serverProcess.Id -Force -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {}
+        Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1200)
+    }
 }
 
 function Invoke-ServerScan {
@@ -615,9 +749,28 @@ function Invoke-ClientTest {
 function Invoke-ClientSend {
     try {
         if (-not (Confirm-EnterpriseNetworkAccess -ActionKey "enterprise.action.sendReport")) { return }
+        $paths = Get-ToolEnterprisePaths
+        foreach ($stalePath in @($paths.ClientAgentResult,$paths.ClientAgentError)) {
+            if (Test-Path -LiteralPath $stalePath -PathType Leaf) { Remove-Item -LiteralPath $stalePath -Force -ErrorAction SilentlyContinue }
+        }
+        Set-EnterpriseStatus (Get-EnterpriseText 'enterprise.client.agentRunning') $true
         $script:agentProcess = Start-EnterpriseChild -Role Agent -Force:$true
-        Set-EnterpriseStatus (Get-EnterpriseText "enterprise.client.agentStarted" @($script:agentProcess.Id)) $true
-    } catch { Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1000) }
+        $agentResult = Wait-EnterpriseAgentResult -LauncherProcess $script:agentProcess -TimeoutSeconds 90
+        if ([int]$agentResult.Sent -gt 0) {
+            Set-EnterpriseStatus (Get-EnterpriseText 'enterprise.client.agentSent' @($agentResult.Sent, $agentResult.JobStatus)) $true
+        } elseif ([int]$agentResult.Queued -gt 0) {
+            Set-EnterpriseStatus (Get-EnterpriseText 'enterprise.client.agentQueued' @($agentResult.Queued, $agentResult.Message)) $false
+        } else {
+            Set-EnterpriseStatus (Get-EnterpriseText 'enterprise.client.agentNoReport' @($agentResult.Message)) $false
+        }
+    } catch {
+        try {
+            if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
+                Stop-Process -Id $script:agentProcess.Id -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
+        Show-EnterpriseError (ConvertTo-ToolEnterpriseSafeText $_.Exception.Message 1000)
+    }
 }
 
 function Invoke-ClientSchedule {

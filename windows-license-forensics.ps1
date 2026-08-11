@@ -277,7 +277,10 @@ if (Test-Path -LiteralPath $ApprovedKmsServerFile) {
 }
 
 # 1. Trạng thái giấy phép Windows và kênh kích hoạt.
-$licenses = @(Safe-Cim SoftwareLicensingProduct | Where-Object { $_.PartialProductKey -and $_.Name -match "Windows" })
+$licenses = @(Safe-Cim SoftwareLicensingProduct | Where-Object {
+    $_.PartialProductKey -and $_.Name -match "Windows" -and
+    (-not $_.ApplicationID -or [string]$_.ApplicationID -eq '55c92734-d682-4d71-983e-d6ec3f16059f')
+})
 $activeLicense = $licenses | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
 $licenseForAnalysis = if ($activeLicense) { $activeLicense } else { $licenses | Sort-Object LicenseStatus -Descending | Select-Object -First 1 }
 $channel = Get-LicenseChannel $licenseForAnalysis
@@ -293,6 +296,22 @@ if (-not $activeLicense) {
 } else {
     $kmsNote = if ($channel -eq "KMS") { Get-ForensicsText "forensicsReport.windows.approvedKms" @($kmsServer) } else { Get-ForensicsText "forensicsReport.windows.channel" @($channel) }
     Add-Finding (New-Finding "WIN-LICENSE" (Get-ForensicsText "forensicsReport.category.windows") "OK" 0 (Get-ForensicsText "forensicsReport.windows.licensed" @($kmsNote, $partialKey)) (Get-ForensicsText "forensicsReport.windows.licensedRecommendation"))
+}
+if ($channel -eq 'KMS') {
+    $graceMinutes = if ($licenseForAnalysis -and $licenseForAnalysis.PSObject.Properties['GracePeriodRemaining']) { [int]$licenseForAnalysis.GracePeriodRemaining } else { -1 }
+    $graceDays = if ($graceMinutes -ge 0) { [Math]::Round($graceMinutes / 1440.0, 1) } else { -1 }
+    $kmsApproved = Test-ApprovedKms $kmsServer
+    $lifecycleStatus = if ($kmsApproved) { 'Info' } else { 'Review' }
+    $lifecycleScore = if ($kmsApproved) { 0 } else { 8 }
+    $lifecycleEvidence = if ($graceMinutes -eq 0) {
+        Get-ForensicsText 'forensicsReport.kmsLifecycle.expired' @($graceMinutes, $kmsServer)
+    } elseif ($graceMinutes -gt 0) {
+        Get-ForensicsText 'forensicsReport.kmsLifecycle.renewal' @($graceMinutes, $graceDays, $kmsServer)
+    } else {
+        Get-ForensicsText 'forensicsReport.kmsLifecycle.unknown' @($kmsServer)
+    }
+    $lifecycleRecommendation = Get-ForensicsText $(if ($kmsApproved) { 'forensicsReport.kmsLifecycle.approvedRecommendation' } else { 'forensicsReport.kmsLifecycle.reviewRecommendation' })
+    Add-Finding (New-Finding 'KMS-LIFECYCLE' (Get-ForensicsText 'forensicsReport.category.kmsLifecycle') $lifecycleStatus $lifecycleScore $lifecycleEvidence $lifecycleRecommendation)
 }
 
 # 2. Key OEM firmware và logic edition.
@@ -339,7 +358,7 @@ if ($coreBad -gt 0 -or $coreMissing -gt 0) {
 }
 
 # 4. Dấu vết activator trong tiến trình, dịch vụ, task và startup.
-$activatorRegex = "(?i)(kmspico|kmsauto|autokms|aact|sppextcomobj(?:hook|patcher)|microsoft toolkit|hwidgen|massgrave|digital license activation|get\.activated\.win)"
+$activatorRegex = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|aact|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation|get\.activated\.win)"
 $artifactRows = New-Object System.Collections.Generic.List[object]
 foreach ($serviceItem in @(Safe-Cim Win32_Service | Where-Object { $_.Name -match $activatorRegex -or $_.DisplayName -match $activatorRegex -or $_.PathName -match $activatorRegex })) {
     $path = Get-ExecutablePath ([string]$serviceItem.PathName)

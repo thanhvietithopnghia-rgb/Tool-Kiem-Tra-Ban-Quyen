@@ -227,7 +227,10 @@ $productName = if ($currentVersion.ProductName) { [string]$currentVersion.Produc
 $edition = if ($currentVersion.EditionID) { [string]$currentVersion.EditionID } else { Get-DeepText "common.unknown" }
 $installDate = Get-DeepText "common.unknown"
 $os = Safe-Cim Win32_OperatingSystem | Select-Object -First 1
-if ($os.InstallDate) { $installDate = [string]$os.InstallDate }
+if ($os.InstallDate) {
+    try { $installDate = ([DateTime]$os.InstallDate).ToString('yyyy-MM-dd') }
+    catch { $installDate = [string]$os.InstallDate }
+}
 
 $service = Safe-Cim SoftwareLicensingService | Select-Object -First 1
 $oemKey = if ($service) { [string]$service.OA3xOriginalProductKey } else { "" }
@@ -235,7 +238,8 @@ $oemMasked = Mask-Key $oemKey
 $oemPresent = -not [string]::IsNullOrWhiteSpace($oemKey)
 
 $licenses = Safe-Cim SoftwareLicensingProduct | Where-Object {
-    $_.PartialProductKey -and $_.Name -match "Windows"
+    $_.PartialProductKey -and $_.Name -match "Windows" -and
+    (-not $_.ApplicationID -or [string]$_.ApplicationID -eq '55c92734-d682-4d71-983e-d6ec3f16059f')
 }
 $activeLicense = $licenses | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
 $licenseForAnalysis = if ($activeLicense) { $activeLicense } else { $licenses | Sort-Object LicenseStatus -Descending | Select-Object -First 1 }
@@ -266,7 +270,7 @@ if ($channel -eq "KMS") {
 }
 
 # 2. Services/processes/history markers. History content is never copied to the report.
-$activatorRegex = "(?i)(kmspico|kmsauto|autokms|aact|sppextcomobj(?:hook|patcher)|microsoft toolkit|hwidgen|massgrave|digital license activation)"
+$activatorRegex = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|aact|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation)"
 $serviceHits = @(Safe-Cim Win32_Service | Where-Object {
     $_.Name -match $activatorRegex -or $_.DisplayName -match $activatorRegex -or $_.PathName -match $activatorRegex
 })
@@ -275,7 +279,7 @@ $runtimePaths = @($serviceHits | Select-Object -ExpandProperty PathName) + @($pr
 $historyHitCount = 0
 $historyPath = Join-Path $env:APPDATA "Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
 if (Test-Path -LiteralPath $historyPath) {
-    $historyRegex = "(?i)(massgrave|get\.activated\.win|kmspico|kmsauto|hwidgen|irm\s+https?://.+\|\s*iex)"
+    $historyRegex = "(?i)(massgrave|get\.activated\.win|kmspico|kmsauto|kms[\s._-]*vl(?:[\s._-]*all)?|hwidgen|mas[\s._-]*aio|tsforge|ohook|microsoft[\s_-]+toolkit|irm\s+https?://.+\|\s*iex)"
     $historyHitCount = @((Get-Content -LiteralPath $historyPath -ErrorAction SilentlyContinue) | Where-Object { $_ -match $historyRegex }).Count
 }
 $runtimeCount = $serviceHits.Count + $processHits.Count
@@ -292,6 +296,13 @@ if ($runtimeCount -gt 0) {
 # 3. KMS38/expiration pattern
 if ($channel -eq "KMS" -and $xprText -match "2038") {
     $results.Add((New-Result 3 (Get-DeepText "deepReport.group.kms38") $statusStrong (Get-DeepText "deepReport.kms38.detected") (Get-DeepText "deepReport.kms38.recommendation")))
+} elseif ($channel -eq 'KMS') {
+    $graceMinutes = if ($licenseForAnalysis -and $licenseForAnalysis.PSObject.Properties['GracePeriodRemaining']) { [int]$licenseForAnalysis.GracePeriodRemaining } else { -1 }
+    $graceDays = if ($graceMinutes -ge 0) { [Math]::Round($graceMinutes / 1440.0, 1) } else { -1 }
+    $kmsLifecycleStatus = if (Test-ApprovedKms $kmsServer) { $statusClear } else { $statusReview }
+    $results.Add((New-Result 3 (Get-DeepText 'deepReport.group.kmsLifecycle') $kmsLifecycleStatus `
+        (Get-DeepText 'deepReport.kmsLifecycle.detected' @($graceMinutes, $graceDays)) `
+        (Get-DeepText 'deepReport.kmsLifecycle.recommendation')))
 } else {
     $summaryXpr = ($xprText -replace "\s+", " ").Trim()
     if ($summaryXpr.Length -gt 180) { $summaryXpr = $summaryXpr.Substring(0,180) + "..." }

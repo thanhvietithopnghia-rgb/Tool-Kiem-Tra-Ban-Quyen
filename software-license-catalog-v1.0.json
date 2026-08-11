@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.3.0.0",
-  "GeneratedAtUtc": "2026-08-10T12:00:00Z",
+  "CatalogVersion": "1.3.1.0",
+  "GeneratedAtUtc": "2026-08-11T03:00:00Z",
   "CatalogScope": ["General", "Design", "CAD", "CAM", "CAE", "BIM", "GIS", "Simulation", "Engineering"],
   "UpdateUrl": "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json",
   "Privacy": {
@@ -96,6 +96,18 @@
       "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
     },
     {
+      "Id": "commercial-pdf-editors",
+      "Category": "Productivity/PDF",
+      "Vendor": "PDF editor vendors",
+      "NamePatterns": ["\\bNitro PDF (?:Pro|Professional)\\b", "\\bPDF-XChange Editor\\b", "\\bWondershare PDFelement\\b", "\\bSoda PDF(?: Desktop)?\\b", "\\bMaster PDF Editor\\b", "\\bIcecream PDF Editor\\b"],
+      "PublisherPatterns": ["\\bNitro Software\\b", "\\bTracker Software\\b", "\\bWondershare\\b", "\\bLULU Software\\b", "\\bCode Industry\\b", "\\bIcecream Apps\\b"],
+      "LicenseModel": "Commercial",
+      "OfficialUrl": "",
+      "LicenseDomains": ["(?:^|\\.)gonitro\\.com$", "(?:^|\\.)pdf-xchange\\.com$", "(?:^|\\.)wondershare\\.com$", "(?:^|\\.)sodapdf\\.com$", "(?:^|\\.)code-industry\\.net$", "(?:^|\\.)icecreamapps\\.com$"],
+      "UnauthorizedNamePatterns": ["\\b(?:Nitro[ ._-]*PDF|PDF-XChange|PDFelement|Soda[ ._-]*PDF|Master[ ._-]*PDF|Icecream[ ._-]*PDF)[ ._-]*(?:crack|patch|keygen|activator)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:NitroPDF|PDFXEdit|PDFelement|Soda PDF Desktop|MasterPDFEditor|icepdfeditor)\\.exe$"]
+    },
+    {
       "Id": "microsoft-office-commercial",
       "Vendor": "Microsoft",
       "NamePatterns": ["\\bMicrosoft 365 Apps\\b", "\\bMicrosoft Office\\b", "\\bMicrosoft Visio\\b", "\\bMicrosoft Project\\b"],
@@ -124,6 +136,18 @@
       "OfficialUrl": "https://code.visualstudio.com/",
       "LicenseDomains": [],
       "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "iobit-driver-booster",
+      "Category": "Utilities",
+      "Vendor": "IObit",
+      "NamePatterns": ["\\b(?:IObit[ ._-]*)?Driver Booster(?:[ ._-]*(?:Pro|PRO))?\\b"],
+      "PublisherPatterns": ["\\bIObit\\b"],
+      "LicenseModel": "Freemium",
+      "OfficialUrl": "https://www.iobit.com/en/driver-booster.php",
+      "LicenseDomains": ["(?:^|\\.)iobit\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bDriver[ ._-]*Booster[ ._-]*(?:crack|patch|keygen|activator|1[ ._-]*click)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)DriverBooster(?:Portable)?\\.exe$"]
     },
     {
       "Id": "windows-driver-component",
@@ -163,7 +187,9 @@
       "LicenseModel": "Trialware",
       "OfficialUrl": "https://www.rarlab.com/",
       "LicenseDomains": ["(?:^|\\.)rarlab\\.com$"],
-      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"]
+      "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)(?:WinRAR|Rar)\\.exe$"],
+      "RemediationAdapter": "WinRAR"
     },
     {
       "Id": "easeus-data-recovery",
@@ -363,6 +389,13 @@
       "OfficialUrl": "https://www.mathworks.com/products.html", "LicenseDomains": ["(?:^|\\.)mathworks\\.com$"],
       "UnauthorizedNamePatterns": ["\\bMATLAB[._ -]*(?:crack|patch|keygen)\\b", "\\blicen[cs]e_standalone\\.lic\\b"],
       "CriticalFilePatterns": ["(?:^|\\\\)(?:matlab|MathWorksServiceHost|lmutil)\\.exe$"], "LicenseProcessPatterns": ["^(?:MATLAB Web App Server|MathWorks Service Host|lmgrd)$"]
+    },
+    {
+      "Id": "wiris-mathtype", "Category": "Productivity/Education", "Vendor": "WIRIS",
+      "NamePatterns": ["\\bMathType\\b", "\\bDesign Science MathType\\b"], "PublisherPatterns": ["\\bWIRIS\\b", "\\bDesign Science\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.wiris.com/en/mathtype/", "LicenseDomains": ["(?:^|\\.)wiris\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bMathType[._ -]*(?:crack|patch|keygen|activator)\\b"],
+      "CriticalFilePatterns": ["(?:^|\\\\)MathType\\.exe$"]
     },
     {
       "Id": "ptc-engineering-commercial", "Category": "CAD/PLM", "Vendor": "PTC",
@@ -566,7 +599,7 @@
     },
     {
       "Id": "internet-download-manager", "Category": "Utilities", "Vendor": "Tonec",
-      "NamePatterns": ["\\bInternet Download Manager\\b"], "PublisherPatterns": ["\\bTonec\\b"], "LicenseModel": "Trialware", "OfficialUrl": "https://www.internetdownloadmanager.com/", "LicenseDomains": [],
+      "NamePatterns": ["\\bInternet Download Manager\\b", "^IDM(?:\\s+\\d+(?:\\.\\d+)*)?$"], "PublisherPatterns": ["\\bTonec\\b"], "LicenseModel": "Trialware", "OfficialUrl": "https://www.internetdownloadmanager.com/", "LicenseDomains": [],
       "UnauthorizedNamePatterns": ["\\bIDM[._ -]*(?:crack|patch|keygen|reset)\\b"]
     },
     {

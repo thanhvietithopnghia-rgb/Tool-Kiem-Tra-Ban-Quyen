@@ -1,6 +1,6 @@
 # Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0 — mã nguồn
 
-Release `4.8.0.0`, build `2026.08.10`, là bản **nâng cấp nhảy vọt, cải tiến chuyên sâu** và được phát hành trực tiếp từ v4.6. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.8.0.0`, build `2026.08.11`, là bản **nâng cấp nhảy vọt, cải tiến chuyên sâu** và được phát hành trực tiếp từ v4.6. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
 
 ## Điểm mới v4.8.0 — Nâng cấp nhẹ, cải tiến chuyên sâu
 
@@ -8,7 +8,7 @@ Release `4.8.0.0`, build `2026.08.10`, là bản **nâng cấp nhảy vọt, c�
 - `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.1.0`, 35 nhóm nội dung và hơn 270 từ khóa/cách hỏi. Cache/Online không tương thích bị từ chối fail-closed.
 - `Tool-SoftwareInventory.ps1` gộp record trùng theo định danh sản phẩm/hãng/dòng phiên bản, gồm cả bản vá cùng dòng và x86/x64; giữ mọi DiscoverySource, vị trí, kiến trúc, phân loại thành phần hệ thống và dùng `IntegrityCompromised` cho HashMismatch không kèm bằng chứng giấy phép trực tiếp.
 - Nút thắt gộp inventory được đổi sang descriptor tính một lần; Authenticode nhanh chạy theo lô tối đa bốn worker. Đối chứng cùng dữ liệu đạt 0 khác biệt, bước gộp 664→480 record giảm 118,33 giây xuống 11,05 giây và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
-- `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.3.0.0` với 73 quy tắc sản phẩm duy nhất.
+- `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.3.1.0` với 76 quy tắc sản phẩm duy nhất.
 - `kiem-tra-cau-hinh-ban-quyen.ps1` tách ứng dụng chính và phụ lục hệ thống, chia bảng đánh giá 11 cột thành hai bảng 6 cột, thêm liên kết nội bộ và xuất toàn bộ tệp trực tiếp vào một thư mục báo cáo chung với timestamp mili-giây.
 - `Tool-ReportExport.ps1` mở đầy đủ `<details>` khi in, lặp header, cân line-height/padding, tránh cắt hàng và tạo liên kết tương đối HTML → PDF.
 - `Tool-Enterprise.ps1` nhận `IP:cổng`, chẩn đoán Endpoint/TCP/Service/Protocol/Version, quét Neighbor/ARP + ICMP + TCP, dò đúng protocol/tool version và giữ outbox DPAPI để gửi lại.
@@ -27,7 +27,7 @@ Release `4.8.0.0`, build `2026.08.10`, là bản **nâng cấp nhảy vọt, c�
 - Đa ngôn ngữ `vi-VN`/`en-US` cho dashboard, menu, trung tâm doanh nghiệp, trình quản lý cục bộ Windows/Office và report shell; có English user guide.
 - Catalog Lifecycle 1.1 cho Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1, Office 2021/2024 và Microsoft 365 channels; có cảnh báo tuổi 30/45 ngày và chế độ chỉ đọc cho phiên bản tương lai chưa xác minh.
 - Catalog freshness gate 45 ngày và GitHub Actions kiểm tra hàng tuần.
-- Catalogue phần mềm hiện tại `1.3.0.0`: 73 quy tắc, gồm các nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering và nhiều ứng dụng phổ biến khác.
+- Catalogue phần mềm hiện tại `1.3.1.0`: 76 quy tắc, gồm IObit Driver Booster, WIRIS MathType, nhóm PDF editor thương mại, IDM và các nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering.
 - Dry Run cho khắc phục lập danh sách mục tiêu/hành động/backup/restorability mà không gọi lệnh thay đổi; thực hiện thật luôn chọn và xác nhận lại.
 - Data lifecycle schema 2.0 tách vùng ghi v4.6, migrate một lần qua staging đã kiểm tra SHA-256, commit có rollback và giữ v4.4/v4.5 nguyên vẹn.
 - HTML/PDF hiện đại, CSS tự chứa, CSP, offline safety validation và stylesheet A4.

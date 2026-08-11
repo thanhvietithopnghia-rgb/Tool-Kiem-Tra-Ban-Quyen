@@ -100,6 +100,8 @@ $wantHardware = $Mode -in @("All", "Hardware")
 $wantWindows = $Mode -in @("All", "Windows")
 $wantOffice = $Mode -in @("All", "Office")
 $wantSoftware = $Mode -in @("All", "Software")
+$strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*aio\b|\btsforge\b|\bohook\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
+$reportActivatorArtifactExtensions = @('.exe','.dll','.com','.scr','.cmd','.bat','.ps1','.vbs','.js','.msi','.zip','.rar','.7z','.jar')
 $crackFindings = @()
 $manualReviewFindings = @()
 $reportTitle = $modeInfo.Title
@@ -216,6 +218,10 @@ function ConvertTo-ReportRedactedObject {
     if (-not $RedactSensitive -or $null -eq $Value) { return $Value }
     $preserveVersionLike = [bool]($PropertyName -match '(?i)(?:version|phien ban|build|schema|date|ngay|sha|hash|thumbprint)' -or
         $PropertyName -match '(?i)^(?:name|software|product|application|title|ten phan mem)$')
+    $fullySensitiveProperty = [bool]($PropertyName -match '(?i)^(?:computername|machinename|username|user|serial|serialnumber|biosserial|productid|machineguid|uuid|kmsserver|keymanagementservicemachine|serveraddress|networkaddresses|mac|macaddress)$')
+    if ($fullySensitiveProperty -and ($Value -is [string] -or $Value -is [ValueType])) {
+        return Get-ReportText 'report.redaction.value'
+    }
     if ($Depth -gt 12) { return Protect-ReportText $Value -PreserveVersionLike:$preserveVersionLike }
     if ($Value -is [string]) { return Protect-ReportText $Value -PreserveVersionLike:$preserveVersionLike }
     if ($Value -is [Collections.IDictionary]) {
@@ -277,7 +283,7 @@ function Protect-ReportCell($row, [string]$column, $value) {
     if ($row -and $row.PSObject.Properties["Muc"]) { $rowLabel = [string]$row.PSObject.Properties["Muc"].Value }
     if ($column -match '(?i)^Serial$' -or
         $column -match '(?i)^(User|Nguoi dung|Author)$' -or
-        ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS)$')) {
+        ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS|Domain / Workgroup|KMS server)$')) {
         return Get-ReportText "report.redaction.value"
     }
     $preserveVersionLike = [bool]($column -match '(?i)(?:phien ban|version|build|ngay cai|install date|file version|schema|sha|hash)' -or
@@ -295,6 +301,170 @@ function Html($value, [switch]$PreserveVersionLike) {
 function Size-GB($bytes) {
     if ($null -eq $bytes -or $bytes -eq 0) { return "" }
     return "{0:N1} GB" -f ([double]$bytes / 1GB)
+}
+
+function ConvertFrom-ReportEdidText {
+    param([AllowNull()][object]$Value)
+    if ($null -eq $Value) { return '' }
+    try {
+        return ((@($Value) | Where-Object { [int]$_ -ne 0 } | ForEach-Object { [char][int]$_ }) -join '').Trim()
+    } catch { return '' }
+}
+
+function Get-ReportMonitorInventory {
+    $identityRows = @(Safe-Cim WmiMonitorID root/wmi)
+    $desktopRows = @(Safe-Cim Win32_DesktopMonitor)
+    $pnpRows = @(Safe-Cim Win32_PnPEntity | Where-Object {
+        [string]$_.PNPDeviceID -match '(?i)^DISPLAY\\' -or [string]$_.PNPClass -eq 'Monitor' -or [string]$_.Service -eq 'monitor'
+    })
+    $results = New-Object System.Collections.Generic.List[object]
+    $matchedPnpIds = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($identity in $identityRows) {
+        $instanceKey = ([string]$identity.InstanceName -replace '(?i)_\d+$','').Trim()
+        $pnp = @($pnpRows | Where-Object {
+            $pnpKey = ([string]$_.PNPDeviceID -replace '(?i)_\d+$','').Trim()
+            $instanceKey -and ($pnpKey.StartsWith($instanceKey, [StringComparison]::OrdinalIgnoreCase) -or
+                $instanceKey.StartsWith($pnpKey, [StringComparison]::OrdinalIgnoreCase))
+        } | Select-Object -First 1)
+        $desktop = @($desktopRows | Where-Object {
+            $desktopKey = ([string]$_.PNPDeviceID -replace '(?i)_\d+$','').Trim()
+            $instanceKey -and ($desktopKey.StartsWith($instanceKey, [StringComparison]::OrdinalIgnoreCase) -or
+                $instanceKey.StartsWith($desktopKey, [StringComparison]::OrdinalIgnoreCase))
+        } | Select-Object -First 1)
+        $name = ConvertFrom-ReportEdidText $identity.UserFriendlyName
+        $manufacturer = ConvertFrom-ReportEdidText $identity.ManufacturerName
+        $productCode = ConvertFrom-ReportEdidText $identity.ProductCodeID
+        if ([string]::IsNullOrWhiteSpace($name) -and $pnp.Count -gt 0) { $name = [string]$pnp[0].Name }
+        if ([string]::IsNullOrWhiteSpace($name) -and $desktop.Count -gt 0) { $name = [string]$desktop[0].Name }
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            $name = (@($manufacturer,$productCode) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join ' '
+        }
+        if ([string]::IsNullOrWhiteSpace($name)) { $name = Get-ReportText 'report.hardware.monitorUnknown' }
+        $pnpId = if ($pnp.Count -gt 0) { [string]$pnp[0].PNPDeviceID } elseif ($desktop.Count -gt 0) { [string]$desktop[0].PNPDeviceID } else { $instanceKey }
+        if ($pnpId) { [void]$matchedPnpIds.Add($pnpId) }
+        $results.Add([pscustomobject][ordered]@{
+            'Ten'=$name
+            'Serial'=(ConvertFrom-ReportEdidText $identity.SerialNumberID)
+            'Nam SX'=$(if ([int]$identity.YearOfManufacture -gt 0) { [int]$identity.YearOfManufacture } else { '' })
+            'Hang ID'=$(if ($manufacturer) { $manufacturer } elseif ($pnp.Count -gt 0) { [string]$pnp[0].Manufacturer } else { '' })
+        })
+    }
+
+    foreach ($pnp in $pnpRows) {
+        $pnpId = [string]$pnp.PNPDeviceID
+        if ($pnpId -and $matchedPnpIds.Contains($pnpId)) { continue }
+        $name = [string]$pnp.Name
+        if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$pnp.Caption }
+        if ([string]::IsNullOrWhiteSpace($name)) { $name = Get-ReportText 'report.hardware.monitorUnknown' }
+        $results.Add([pscustomobject][ordered]@{
+            'Ten'=$name; 'Serial'=''; 'Nam SX'=''; 'Hang ID'=[string]$pnp.Manufacturer
+        })
+    }
+    if ($results.Count -eq 0) {
+        foreach ($desktop in $desktopRows) {
+            $name = if ([string]::IsNullOrWhiteSpace([string]$desktop.Name)) { Get-ReportText 'report.hardware.monitorUnknown' } else { [string]$desktop.Name }
+            $results.Add([pscustomobject][ordered]@{
+                'Ten'=$name; 'Serial'=''; 'Nam SX'=''; 'Hang ID'=[string]$desktop.MonitorManufacturer
+            })
+        }
+    }
+    return @($results.ToArray() | Group-Object { "$($_.Ten)|$($_.Serial)|$($_.'Hang ID')" } | ForEach-Object { $_.Group[0] })
+}
+
+function Get-ReportWindowsLicenseChannel {
+    param([AllowNull()][object]$License)
+    if (-not $License) { return 'Unknown' }
+    $description = [string]$License.Description
+    if ($description -match '(?i)KMSCLIENT|VOLUME_KMS') { return 'KMS' }
+    if ($description -match '(?i)VOLUME_MAK|\bMAK\b') { return 'MAK' }
+    if ($description -match '(?i)RETAIL') { return 'Retail' }
+    if ($description -match '(?i)OEM') { return 'OEM' }
+    if ($description -match '(?i)SUBSCRIPTION') { return 'Subscription' }
+    return 'Unknown'
+}
+
+function Select-ReportPrimaryWindowsLicense {
+    param([AllowNull()][object[]]$Licenses)
+    return @($Licenses | Sort-Object `
+        @{Expression={ if ([int]$_.LicenseStatus -eq 1) { 2 } elseif ([int]$_.LicenseStatus -gt 1) { 1 } else { 0 } }; Descending=$true}, `
+        @{Expression={ if ([string]$_.Name -match '(?i)Windows.*edition' -and [string]$_.Name -notmatch '(?i)add-on') { 2 } else { 0 } }; Descending=$true}, `
+        @{Expression={ if ((Get-ReportWindowsLicenseChannel $_) -ne 'Unknown') { 1 } else { 0 } }; Descending=$true} |
+        Select-Object -First 1)
+}
+
+function Get-ReportActivatorFamilyCode {
+    param([AllowNull()][string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
+    if ($Text -match '(?i)\btsforge\b') { return 'TSforge' }
+    if ($Text -match '(?i)\bohook\b|spp[\s._-]*hook') { return 'OHook' }
+    if ($Text -match '(?i)\bmicrosoft[\s_-]+toolkit\b') { return 'MicrosoftToolkit' }
+    if ($Text -match '(?i)\bmassgrave\b|\bmas[\s._-]*aio\b|get\.activated\.win') { return 'MAS' }
+    if ($Text -match '(?i)kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl|aact') { return 'KmsActivator' }
+    if ($Text -match '(?i)hwidgen|digital[\s._-]*license[\s._-]*activation') { return 'DigitalLicenseActivator' }
+    if ($Text -match '(?i)sppextcomobj') { return 'SppHook' }
+    if ($Text -match '(?i)adobe[\s._-]*genp|ccmaker|amtlib') { return 'AdobeActivator' }
+    if ($Text -match '(?i)xf[\s._-]*adsk|x[\s._-]*force') { return 'AutodeskActivator' }
+    return 'OtherActivatorEvidence'
+}
+
+function Get-ReportActivatorArtifactFindings {
+    param(
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [switch]$IncludeFileSearch
+    )
+    $findings = New-Object System.Collections.Generic.List[object]
+    $addFinding = {
+        param([string]$Source, [string]$Name, [string]$Location, [string]$Level)
+        $findings.Add([pscustomobject][ordered]@{
+            'Nguon'=$Source; 'Dau hieu'=$Name; 'Vi tri'=$Location; 'Muc do'=$Level
+        })
+    }
+
+    foreach ($process in @(Get-Process -ErrorAction SilentlyContinue)) {
+        $processPath = ''
+        try { $processPath = [string]$process.Path } catch {}
+        if (((( [string]$process.ProcessName) + ' ' + $processPath) -match $Pattern)) {
+            & $addFinding 'Process' ([string]$process.ProcessName) $processPath 'Can kiem tra'
+        }
+    }
+    foreach ($service in @(Safe-Cim Win32_Service)) {
+        $serviceText = ([string]$service.Name) + ' ' + ([string]$service.DisplayName) + ' ' + ([string]$service.PathName)
+        if ($serviceText -match $Pattern) {
+            & $addFinding 'Service' ([string]$service.Name) ([string]$service.PathName) 'Can kiem tra'
+        }
+    }
+    foreach ($startupItem in @(Safe-Cim Win32_StartupCommand)) {
+        $startupText = ([string]$startupItem.Name) + ' ' + ([string]$startupItem.Command) + ' ' + ([string]$startupItem.Location)
+        if ($startupText -match $Pattern) {
+            & $addFinding 'Startup' ([string]$startupItem.Name) ([string]$startupItem.Command) 'Can kiem tra'
+        }
+    }
+    try {
+        if ($capabilityState.ScheduledTasksModule) {
+            foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+                (([string]$_.TaskName) + ' ' + ([string]$_.TaskPath) + ' ' + ([string]$_.Author)) -match $Pattern
+            } | Select-Object -First 80)) {
+                & $addFinding 'Scheduled task' ([string]$task.TaskName) ([string]$task.TaskPath) 'Can kiem tra'
+            }
+        }
+    } catch {}
+
+    if ($IncludeFileSearch -and (Get-Command Find-ToolPatternFilesParallel -ErrorAction SilentlyContinue)) {
+        $roots = @(
+            $env:ProgramData, $env:LOCALAPPDATA, $env:APPDATA,
+            [Environment]::GetFolderPath('Desktop'),
+            (Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads'),
+            $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432
+        ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Container) } | Select-Object -Unique
+        foreach ($path in @(Find-ToolPatternFilesParallel -Roots $roots -Pattern $Pattern -MaximumResults 80 -ThrottleLimit 4 -MaximumDepth 4 -PerRootTimeoutSeconds 5)) {
+            if (([IO.Path]::GetExtension([string]$path)).ToLowerInvariant() -notin $reportActivatorArtifactExtensions) { continue }
+            & $addFinding 'File scan' ([IO.Path]::GetFileName([string]$path)) ([string]$path) 'Dau hieu theo ten file'
+        }
+    }
+    return @($findings.ToArray() |
+        Group-Object { "$($_.'Nguon')|$($_.'Dau hieu')|$($_.'Vi tri')" } |
+        ForEach-Object { $_.Group[0] })
 }
 
 function Get-Sha256([string]$path) {
@@ -700,8 +870,8 @@ $summary = @(
     [pscustomobject]@{ "Muc"="He dieu hanh"; "Gia tri"="$($os.Caption) $($os.Version) build $($os.BuildNumber)" },
     [pscustomobject]@{ "Muc"="Kien truc"; "Gia tri"=$os.OSArchitecture },
     [pscustomobject]@{ "Muc"="Windows Product ID"; "Gia tri"=(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ProductId },
-    [pscustomobject]@{ "Muc"="Ngay cai Windows"; "Gia tri"=$os.InstallDate },
-    [pscustomobject]@{ "Muc"="Lan khoi dong cuoi"; "Gia tri"=$os.LastBootUpTime },
+    [pscustomobject]@{ "Muc"="Ngay cai Windows"; "Gia tri"=(ConvertTo-ToolSoftwareInstallDateText -Value $os.InstallDate) },
+    [pscustomobject]@{ "Muc"="Lan khoi dong cuoi"; "Gia tri"=$(if ($os.LastBootUpTime) { ([DateTime]$os.LastBootUpTime).ToString('yyyy-MM-dd HH:mm:ss') } else { '' }) },
     [pscustomobject]@{ "Muc"="Uptime"; "Gia tri"=$uptime },
     [pscustomobject]@{ "Muc"="Hang / Model"; "Gia tri"="$($cs.Manufacturer) $($cs.Model)" },
     [pscustomobject]@{ "Muc"="Domain / Workgroup"; "Gia tri"=$cs.Domain },
@@ -743,7 +913,8 @@ $licenseRows = @(
     [pscustomobject]@{ "Muc"="Trang thai kich hoat Windows"; "Gia tri"=$activationText }
 )
 $windowsLicenses = Safe-Cim SoftwareLicensingProduct | Where-Object {
-    $_.PartialProductKey -and $_.Name -match "Windows"
+    $_.PartialProductKey -and $_.Name -match "Windows" -and
+    (-not $_.ApplicationID -or [string]$_.ApplicationID -eq '55c92734-d682-4d71-983e-d6ec3f16059f')
 } | Sort-Object LicenseStatus -Descending
 foreach ($license in $windowsLicenses) {
     $method = "Khong xac dinh"
@@ -767,8 +938,14 @@ foreach ($license in $windowsLicenses) {
     if ($license.KeyManagementServicePort) {
         $licenseRows += [pscustomobject]@{ "Muc"="KMS port"; "Gia tri"=$license.KeyManagementServicePort }
     }
-    if ($license.GracePeriodRemaining) {
-        $licenseRows += [pscustomobject]@{ "Muc"="Grace con lai"; "Gia tri"="$($license.GracePeriodRemaining) phut" }
+    if ((Get-ReportWindowsLicenseChannel $license) -eq 'KMS' -and $license.PSObject.Properties['GracePeriodRemaining']) {
+        $graceMinutes = [int]$license.GracePeriodRemaining
+        $graceDays = [Math]::Round($graceMinutes / 1440.0, 1)
+        $graceExpiry = (Get-Date).AddMinutes($graceMinutes).ToString('yyyy-MM-dd HH:mm')
+        $licenseRows += [pscustomobject]@{
+            "Muc"=(Get-ReportText 'report.license.windows.kmsValidity')
+            "Gia tri"=(Get-ReportText 'report.license.windows.kmsValidityValue' @($graceMinutes, $graceDays, $graceExpiry))
+        }
     }
 }
 $windowsLicenseBody = Add-Table $licenseRows @("Muc","Gia tri")
@@ -816,7 +993,8 @@ foreach ($license in $officeCimLicenses) {
 }
 }
 
-$activeWindowsLicense = $windowsLicenses | Where-Object { $_.LicenseStatus -eq 1 } | Select-Object -First 1
+$activeWindowsLicense = Select-ReportPrimaryWindowsLicense -Licenses @($windowsLicenses | Where-Object { $_.LicenseStatus -eq 1 })
+$primaryWindowsLicense = if ($activeWindowsLicense) { $activeWindowsLicense } else { Select-ReportPrimaryWindowsLicense -Licenses $windowsLicenses }
 $windowsActivated = [bool]($null -ne $activeWindowsLicense)
 $windowsSummaryStatus = if ($activeWindowsLicense) {
     Get-ReportText "report.literal.469ed875460f4d9aac099f3638c114fd1f306336432eef0686c2d2798425b200"
@@ -825,12 +1003,15 @@ $windowsSummaryStatus = if ($activeWindowsLicense) {
 } else {
     Get-ReportText "report.literal.7328f6ec44c8cb946163ebcdea81773122962b30acc45ac7b4d0c112ad9d7f96"
 }
-$windowsSummaryChannel = if ($activeWindowsLicense) {
-    if ($activeWindowsLicense.Description -match "KMSCLIENT|VOLUME_KMS") { "KMS client / Volume KMS" }
-    elseif ($activeWindowsLicense.Description -match "VOLUME_MAK|MAK") { "Volume MAK" }
-    elseif ($activeWindowsLicense.Description -match "RETAIL") { "Retail" }
-    elseif ($activeWindowsLicense.Description -match "OEM") { "OEM" }
-    else { $activeWindowsLicense.Description }
+$windowsSummaryChannel = if ($primaryWindowsLicense) {
+    switch (Get-ReportWindowsLicenseChannel $primaryWindowsLicense) {
+        'KMS' { 'KMS client / Volume KMS' }
+        'MAK' { 'Volume MAK' }
+        'Retail' { 'Retail' }
+        'OEM' { 'OEM' }
+        'Subscription' { 'Subscription' }
+        default { [string]$primaryWindowsLicense.Description }
+    }
 } else {
     "Khong xac dinh"
 }
@@ -934,18 +1115,7 @@ $gpu = Safe-Cim Win32_VideoController | ForEach-Object {
 Add-Section "Đồ họa" (Add-Table $gpu @("Ten","RAM","Driver","Do phan giai","Trang thai"))
 
 $monitors = @()
-try {
-    $monitors = Safe-Cim WmiMonitorID root/wmi | ForEach-Object {
-        $name = ($_.UserFriendlyName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join ""
-        $serial = ($_.SerialNumberID | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join ""
-        [pscustomobject]@{
-            "Ten"=$name
-            "Serial"=$serial
-            "Nam SX"=$_.YearOfManufacture
-            "Hang ID"=$_.ManufacturerName
-        }
-    }
-} catch {}
+try { $monitors = @(Get-ReportMonitorInventory) } catch {}
 Add-Section "Màn hình" (Add-Table $monitors @("Ten","Serial","Nam SX","Hang ID"))
 
 $sound = Safe-Cim Win32_SoundDevice | ForEach-Object {
@@ -1036,11 +1206,21 @@ $hotfixes = Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -Fi
     [pscustomobject]@{
         "HotFix"=$_.HotFixID
         "Mo ta"=$_.Description
-        "Ngay cai"=$_.InstalledOn
+        "Ngay cai"=$(if ($_.InstalledOn) { ([DateTime]$_.InstalledOn).ToString('yyyy-MM-dd') } else { '' })
         "Nguoi cai"=$_.InstalledBy
     }
 }
 Add-Section "Ban cap nhat Windows gan day" (Add-Table $hotfixes @("HotFix","Mo ta","Ngay cai","Nguoi cai")) "Windows"
+}
+
+# Báo cáo Windows/Office riêng vẫn phải rà dấu vết activator đang hiện hữu.
+# Bản cũ chỉ chạy nhánh này trong báo cáo Phần mềm/Toàn bộ nên có thể hiển thị
+# kênh license nhưng bỏ qua MAS/OHook/TSforge/Toolkit còn nằm trên máy.
+if (($wantWindows -or $wantOffice) -and -not $wantSoftware) {
+    $crackFindings = @(Get-ReportActivatorArtifactFindings -Pattern $strongCrackPattern -IncludeFileSearch)
+    Add-Section "Dau hieu crack / activator / KMS" `
+        (Add-Table $crackFindings @("Nguon","Dau hieu","Vi tri","Muc do")) `
+        $(if ($wantWindows) { 'Windows' } else { 'Office' })
 }
 
 if ($wantSoftware) {
@@ -1114,7 +1294,6 @@ if ($wantSoftware) {
         Select-Object "Ten phan mem", "Phien ban", "Hang", "Ngay cai" |
         Sort-Object "Ten phan mem", "Phien ban" -Unique)
 
-    $strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[_-]?vl(?:_all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bmicrosoft toolkit\b|\bhwidgen\b|\bmassgrave\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
     $genericReviewPattern = "(?i)(\bactivator\b|\bactivation\b|\bpatch(?:er)?\b|\brepack\b|\bportable\b|\bbypass\b|\br2r\b|\bthuoc\b)"
     $legacySoftwareAudit = @($legacyApps | ForEach-Object {
         $name = $_."Ten phan mem"
@@ -1420,13 +1599,28 @@ if ($wantSoftware) {
             }
         }
     } catch {}
+    $installedProductRoots = @($softwareAssessments |
+        Where-Object {
+            -not [bool]$_.IsSystemComponent -and
+            -not [string]::IsNullOrWhiteSpace([string]$_.InstallLocation) -and
+            ([bool]$_.NeedsReview -or [string]$_.LicenseModel -notin @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime'))
+        } |
+        Sort-Object @{Expression={ if ([bool]$_.NeedsReview) { 0 } else { 1 } }}, Name |
+        ForEach-Object { [string]$_.InstallLocation } |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Container } |
+        Select-Object -Unique |
+        Select-Object -First 32)
     $scanRoots = @(
         [Environment]::GetFolderPath("Desktop"),
         [Environment]::GetFolderPath("MyDocuments"),
         "$env:USERPROFILE\Downloads",
-        "$env:ProgramData"
+        "$env:ProgramData",
+        $env:LOCALAPPDATA,
+        $env:APPDATA
+        $installedProductRoots
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
-    foreach ($path in @(Find-ToolPatternFilesParallel -Roots $scanRoots -Pattern $strongCrackPattern -MaximumResults 60)) {
+    foreach ($path in @(Find-ToolPatternFilesParallel -Roots $scanRoots -Pattern $strongCrackPattern -MaximumResults 120 -ThrottleLimit 4 -MaximumDepth 4 -PerRootTimeoutSeconds 5)) {
+        if (([IO.Path]::GetExtension([string]$path)).ToLowerInvariant() -notin $reportActivatorArtifactExtensions) { continue }
         $crackFindings += [pscustomobject]@{
             "Nguon" = "File scan"
             "Dau hieu" = [IO.Path]::GetFileName($path)
@@ -1901,13 +2095,51 @@ $summarySystemSection
 $timelineSnapshot = [pscustomobject][ordered]@{ Written=$false; Changed=$false; Changes=@(); Sequence=0; Error=[string]$timelineState.Error }
 if ($timelineState.Enabled) {
     try {
-        if ($Mode -eq "All") {
+        if ($Mode -in @("All", "Windows", "Office")) {
+            $windowsLicenseStatusCode = if ($primaryWindowsLicense) {
+                switch ([int]$primaryWindowsLicense.LicenseStatus) {
+                    1 { 'Licensed' }; 2 { 'OOBGrace' }; 3 { 'OOTGrace' }; 4 { 'NonGenuineGrace' }; 5 { 'Notification' }; 6 { 'ExtendedGrace' }; default { 'Unlicensed' }
+                }
+            } else { 'Unknown' }
+            $windowsChannelCode = Get-ReportWindowsLicenseChannel $primaryWindowsLicense
+            $windowsGraceMinutes = if ($primaryWindowsLicense -and $primaryWindowsLicense.PSObject.Properties['GracePeriodRemaining']) { [int]$primaryWindowsLicense.GracePeriodRemaining } else { -1 }
+            $kmsTrust = if ($windowsChannelCode -ne 'KMS') {
+                'NotKms'
+            } elseif (Test-ReportKmsServerApproved -Server ([string]$primaryWindowsLicense.KeyManagementServiceMachine) -ApprovedState $approvedKmsState) {
+                'ApprovedEnterpriseHost'
+            } elseif (-not [string]::IsNullOrWhiteSpace([string]$primaryWindowsLicense.KeyManagementServiceMachine) -and [bool]$approvedKmsState.Configured) {
+                'UnapprovedHost'
+            } else {
+                'EntitlementUnverified'
+            }
+            $activationProfile = if ($windowsChannelCode -eq 'KMS' -and $activationText -match '2038') {
+                'KMS38'
+            } elseif ($windowsChannelCode -eq 'KMS' -and $windowsGraceMinutes -gt 0 -and $windowsGraceMinutes -le 260640) {
+                'KMSRenewalUpTo180Days'
+            } elseif ($windowsChannelCode -eq 'KMS' -and $windowsGraceMinutes -eq 0) {
+                'KmsExpiredOrNotification'
+            } elseif ($windowsChannelCode -eq 'KMS') {
+                'KmsConfigured'
+            } else {
+                $windowsChannelCode
+            }
+            $activatorFamilies = @($crackFindings | ForEach-Object {
+                Get-ReportActivatorFamilyCode (([string]$_.DauHieu) + ' ' + ([string]$_.'Dau hieu') + ' ' + ([string]$_.ViTri) + ' ' + ([string]$_.'Vi tri'))
+            } | Where-Object { $_ } | Sort-Object -Unique)
             $timelineSnapshot = Save-ToolLicenseSnapshot -Source $reportModuleId -State ([pscustomobject][ordered]@{
-                WindowsStatus = [string]$windowsSummaryStatus
-                WindowsChannel = [string]$windowsSummaryChannel
-                OfficeStatus = [string]$officeSummaryStatus
+                WindowsStatus = $windowsLicenseStatusCode
+                WindowsChannel = $windowsChannelCode
+                WindowsLicenseId = $(if ($primaryWindowsLicense) { [string]$primaryWindowsLicense.ID } else { '' })
+                WindowsPartialKeyLast5 = $(if ($primaryWindowsLicense) { [string]$primaryWindowsLicense.PartialProductKey } else { '' })
+                WindowsGracePeriodMinutes = $windowsGraceMinutes
+                WindowsActivationProfile = $activationProfile
+                WindowsKmsTrust = $kmsTrust
+                OfficeStatus = $(if (-not $officeDetected) { 'NotDetected' } elseif ($officeActivated) { 'Licensed' } else { 'NotLicensed' })
+                OfficeChannel = $(if ($activeOfficeLicense) { [string]$activeOfficeLicense.Description } elseif ($officeStatusText -match '(?i)KMS') { 'KMS' } elseif ($clickToRun) { [string]$clickToRun.ProductReleaseIds } else { 'Unknown' })
                 OfficeDetected = [bool]$officeDetected
                 SuspiciousFindingCount = [int]@($crackFindings).Count
+                ActivatorEvidenceCurrent = [bool](@($activatorFamilies).Count -gt 0)
+                ActivatorEvidenceFamilies = @($activatorFamilies)
                 PluginHighOrCriticalCount = $pluginHighCount
             })
         } else {
@@ -1941,6 +2173,7 @@ $timelineSnapshotForExport = ConvertTo-ReportRedactedObject $timelineSnapshot
 $detailedInventory = [ordered]@{
     RenderedSectionCount = [int]$sectionCounter
     Assessment = @($assessmentRows)
+    ActivatorFindings = @($crackFindings)
 }
 if ($wantSoftware) {
     $detailedInventory.Software = [ordered]@{
@@ -1972,6 +2205,14 @@ if ($wantSoftware) {
     }
 }
 $detailedInventoryForExport = ConvertTo-ReportRedactedObject (ConvertTo-ReportLocalizedExportObject $detailedInventory)
+if ($detailedInventoryForExport.PSObject.Properties['ActivatorFindings']) {
+    $localizedActivatorFindings = $detailedInventoryForExport.ActivatorFindings
+    $detailedInventoryForExport.ActivatorFindings = if (@($crackFindings).Count -eq 0) {
+        [object[]]@()
+    } else {
+        [object[]]@($localizedActivatorFindings)
+    }
+}
 $summary = New-ToolReportEnvelope -ReportKind "InventoryAndLicense" -ToolVersion $ToolVersion -Data ([ordered]@{
     ToolName = $ToolName
     Capabilities = $capabilityState

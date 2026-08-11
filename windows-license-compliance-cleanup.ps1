@@ -133,14 +133,26 @@ function Set-ProtectedBackupAcl([string]$Path) {
     Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
 }
 
-function Test-ProtectedDirectoryAcl([string]$Path) {
+function Test-ProtectedDirectoryAcl {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$AllowCurrentUserForUserScope
+    )
     try {
         $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
         $acl = Get-Acl -LiteralPath $Path -ErrorAction Stop
         $ownerSid = (New-Object Security.Principal.NTAccount($acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value
-        if ($ownerSid -notin @("S-1-5-32-544", "S-1-5-18") -or -not $acl.AreAccessRulesProtected) { return $false }
+        $allowedOwners = @("S-1-5-32-544", "S-1-5-18")
         $allowedWriters = @("S-1-5-32-544", "S-1-5-18")
+        if ($AllowCurrentUserForUserScope -and [string]$env:TOOL_DATA_SCOPE -ne 'Machine') {
+            $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+            if (-not [string]::IsNullOrWhiteSpace($currentUserSid)) {
+                $allowedOwners += $currentUserSid
+                $allowedWriters += $currentUserSid
+            }
+        }
+        if ($ownerSid -notin $allowedOwners -or -not $acl.AreAccessRulesProtected) { return $false }
         $writeMask = [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::Modify -bor [Security.AccessControl.FileSystemRights]::FullControl -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
         foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
             if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and $allowedWriters -notcontains $rule.IdentityReference.Value -and (($rule.FileSystemRights -band $writeMask) -ne 0)) { return $false }
@@ -1211,24 +1223,38 @@ function Get-ThirdPartyHostsUpdate {
     $removedCount = 0
     foreach ($line in @($Lines)) {
         $commentIndex = ([string]$line).IndexOf('#')
-        $body = if ($commentIndex -ge 0) { ([string]$line).Substring(0, $commentIndex) } else { [string]$line }
         $comment = if ($commentIndex -ge 0) { ([string]$line).Substring($commentIndex) } else { '' }
-        if ($body -notmatch '^\s*(0\.0\.0\.0|127\.0\.0\.1|::1)\s+(.+?)\s*$') {
+        $mappings = @(Get-ToolSoftwareHostsLineMappings -Line ([string]$line))
+        if ($mappings.Count -eq 0) {
             $updatedLines.Add([string]$line)
             continue
         }
-        $address = [string]$matches[1]
-        $names = @(([string]$matches[2]) -split '\s+' | Where-Object { $_ })
-        $kept = New-Object System.Collections.Generic.List[string]
-        foreach ($name in $names) {
-            if ($targetSet.Contains(([string]$name).TrimEnd('.'))) { $removedCount++ } else { $kept.Add([string]$name) }
+        $rebuiltMappings = New-Object System.Collections.Generic.List[string]
+        $lineRemovedCount = 0
+        foreach ($mapping in $mappings) {
+            $kept = New-Object System.Collections.Generic.List[string]
+            foreach ($name in @($mapping.Targets)) {
+                if ($targetSet.Contains(([string]$name).TrimEnd('.'))) {
+                    $lineRemovedCount++
+                } else {
+                    $kept.Add([string]$name)
+                }
+            }
+            if ($kept.Count -gt 0) { $rebuiltMappings.Add(([string]$mapping.Address + "`t" + ($kept.ToArray() -join ' '))) }
         }
-        if ($kept.Count -gt 0) {
-            $rebuilt = $address + "`t" + ($kept.ToArray() -join ' ')
-            if ($comment) { $rebuilt += ' ' + $comment }
-            $updatedLines.Add($rebuilt)
+        if ($lineRemovedCount -eq 0) {
+            $updatedLines.Add([string]$line)
+            continue
+        }
+        $removedCount += $lineRemovedCount
+        if ($rebuiltMappings.Count -gt 0) {
+            for ($mappingIndex = 0; $mappingIndex -lt $rebuiltMappings.Count; $mappingIndex++) {
+                $rebuilt = [string]$rebuiltMappings[$mappingIndex]
+                if ($comment -and $mappingIndex -eq ($rebuiltMappings.Count - 1)) { $rebuilt += ' ' + $comment }
+                $updatedLines.Add($rebuilt)
+            }
         } elseif ($comment) {
-            $updatedLines.Add($comment)
+            $updatedLines.Add([string]$comment)
         }
     }
     return [pscustomobject][ordered]@{
@@ -1641,8 +1667,14 @@ function Add-ThirdPartyVerification {
     $checks = New-Object System.Collections.Generic.List[object]
     foreach ($check in @($Verification.ReadinessChecks)) { $checks.Add($check) }
     if ($remediationFindingCount -gt 0) {
+        $baseScopeWasReady = [bool]$Verification.ReadyForOfficialActivation
+        $thirdPartyBlockedConclusion = Get-CleanupText "cleanupReport.thirdParty.verification.blocked" @($remediationFindingCount, $candidateCount)
         $Verification.ReadyForOfficialActivation = $false
-        $Verification.Conclusion = ([string]$Verification.Conclusion + ' ' + (Get-CleanupText "cleanupReport.thirdParty.verification.blocked" @($remediationFindingCount, $candidateCount))).Trim()
+        $Verification.Conclusion = if ($baseScopeWasReady) {
+            [string]$thirdPartyBlockedConclusion
+        } else {
+            ([string]$Verification.Conclusion + ' ' + [string]$thirdPartyBlockedConclusion).Trim()
+        }
         $guidance = New-Object System.Collections.Generic.List[string]
         foreach ($step in @($Verification.HandlingGuidance | Where-Object { [string]$_ -ne (Get-CleanupText "cleanupReport.guidance.ready") })) { $guidance.Add([string]$step) }
         $guidance.Add((Get-CleanupText "cleanupReport.thirdParty.guidance" @($remediationFindingCount, $candidateCount, $autoEligibleCount, $unsupportedReviewCount)))
@@ -1665,20 +1697,46 @@ function Add-ThirdPartyVerification {
 }
 
 function Get-SelectedCleanupIds {
-    if ([string]::IsNullOrWhiteSpace($SelectionFile) -or -not (Test-Path -LiteralPath $SelectionFile -PathType Leaf)) {
-        return @()
-    }
+    $script:SelectionAccepted = $false
+    $script:SelectionErrorCode = 'SelectionFileMissing'
+    $script:SelectionErrorDetail = ''
+    if ([string]::IsNullOrWhiteSpace($SelectionFile) -or -not (Test-Path -LiteralPath $SelectionFile -PathType Leaf)) { return @() }
     try {
         $allowedRoot = if (-not [string]::IsNullOrWhiteSpace($env:TOOL_SECURE_RUNTIME_DIR)) { $env:TOOL_SECURE_RUNTIME_DIR } else { Join-Path $PSScriptRoot "runtime" }
-        if ($env:TOOL_SECURE_LAUNCH -ne "1" -or -not (Test-ProtectedDirectoryAcl $PSScriptRoot) -or -not (Test-ProtectedDirectoryAcl $allowedRoot)) { return @() }
+        if ($env:TOOL_SECURE_LAUNCH -ne "1") { throw 'SecureLaunchRequired' }
+        if (-not (Test-ProtectedDirectoryAcl -Path $PSScriptRoot -AllowCurrentUserForUserScope)) { throw 'ToolDirectoryAclInvalid' }
+        if (-not (Test-ProtectedDirectoryAcl -Path $allowedRoot -AllowCurrentUserForUserScope)) { throw 'RuntimeDirectoryAclInvalid' }
         $rootFull = ([IO.Path]::GetFullPath($allowedRoot)).TrimEnd('\') + '\'
         $selectionFull = [IO.Path]::GetFullPath($SelectionFile)
-        if (-not $selectionFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) { return @() }
+        if (-not $selectionFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) { throw 'SelectionFileOutsideRuntime' }
+        if (-not [string]::Equals(([IO.Path]::GetDirectoryName($selectionFull).TrimEnd('\') + '\'), $rootFull, [StringComparison]::OrdinalIgnoreCase)) { throw 'SelectionFileMustBeDirectChild' }
         $selectionItem = Get-Item -LiteralPath $selectionFull -Force -ErrorAction Stop
-        if (($selectionItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return @() }
-        $selection = Get-Content -LiteralPath $SelectionFile -Raw -ErrorAction Stop | ConvertFrom-Json
-        return @($selection.SelectedIds | ForEach-Object { ([string]$_).ToLowerInvariant() } | Where-Object { $_ } | Select-Object -Unique)
+        if (($selectionItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'SelectionFileReparsePointRejected' }
+        if ([int64]$selectionItem.Length -le 0 -or [int64]$selectionItem.Length -gt 262144) { throw 'SelectionFileSizeInvalid' }
+        $selection = Get-Content -LiteralPath $selectionFull -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ([string]$selection.SchemaVersion -ne '1.0') { throw 'SelectionSchemaInvalid' }
+        $requestId = [guid]::Empty
+        if (-not [guid]::TryParse([string]$selection.RequestId, [ref]$requestId) -or $requestId -eq [guid]::Empty) { throw 'SelectionRequestIdInvalid' }
+        if (-not [string]::Equals([string]$selection.ScanScope, [string]$ScanScope, [StringComparison]::OrdinalIgnoreCase)) { throw 'SelectionScopeMismatch' }
+        $createdAtUtc = [DateTimeOffset]::MinValue
+        if (-not [DateTimeOffset]::TryParse([string]$selection.CreatedAtUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$createdAtUtc)) { throw 'SelectionTimestampInvalid' }
+        $selectionAge = [DateTimeOffset]::UtcNow - $createdAtUtc.ToUniversalTime()
+        if ($selectionAge.TotalMinutes -lt -5 -or $selectionAge.TotalHours -gt 2) { throw 'SelectionExpired' }
+        $ids = @($selection.SelectedIds | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { $_ } | Select-Object -Unique)
+        if ($ids.Count -eq 0 -or $ids.Count -gt 2048 -or @($ids | Where-Object { $_.Length -gt 4096 }).Count -gt 0) { throw 'SelectionIdsInvalid' }
+        $script:SelectionAccepted = $true
+        $script:SelectionErrorCode = ''
+        $script:SelectionErrorDetail = ''
+        return $ids
     } catch {
+        $selectionError = [string]$_.Exception.Message
+        $knownSelectionErrors = @(
+            'SecureLaunchRequired','ToolDirectoryAclInvalid','RuntimeDirectoryAclInvalid','SelectionFileOutsideRuntime',
+            'SelectionFileMustBeDirectChild','SelectionFileReparsePointRejected','SelectionFileSizeInvalid','SelectionSchemaInvalid',
+            'SelectionRequestIdInvalid','SelectionScopeMismatch','SelectionTimestampInvalid','SelectionExpired','SelectionIdsInvalid'
+        )
+        $script:SelectionErrorCode = if ($knownSelectionErrors -contains $selectionError) { $selectionError } else { 'SelectionReadFailed' }
+        $script:SelectionErrorDetail = [string]$_.Exception.GetType().Name
         return @()
     }
 }
@@ -3505,6 +3563,10 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     PlannedActionCount = 0
     PlannedActions = @()
     SelectedCleanupIds = @()
+    SelectionAccepted = $false
+    SelectionErrorCode = 'NotRequested'
+    SelectionErrorDetail = ''
+    UnknownSelectedCleanupIdCount = 0
     BackupWouldBeCreated = $false
     CleanupItems = $cleanupItems
     SelectionRequired = [bool]($cleanupItems.Count -gt 0)
@@ -3518,23 +3580,54 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
 })
 Write-DecisionData -Path $DecisionFile -Data $decisionData
 $actions = New-Object System.Collections.Generic.List[string]
-$selectedCleanupIds = @(Get-SelectedCleanupIds)
+$script:SelectionAccepted = $false
+$script:SelectionErrorCode = $(if ($Remediate -and $DeepClean) { 'SelectionNotRead' } else { 'NotRequested' })
+$script:SelectionErrorDetail = ''
+$selectedCleanupIds = @($(if ($Remediate -and $DeepClean) { Get-SelectedCleanupIds }))
+$knownCleanupIdSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($cleanupItem in @($cleanupItems)) { [void]$knownCleanupIdSet.Add(([string]$cleanupItem.Id).ToLowerInvariant()) }
+$unknownSelectedCleanupIds = @($selectedCleanupIds | Where-Object { -not $knownCleanupIdSet.Contains([string]$_) })
+if ($script:SelectionAccepted -and $unknownSelectedCleanupIds.Count -gt 0) {
+    $script:SelectionAccepted = $false
+    $script:SelectionErrorCode = 'SelectionContainsUnknownIds'
+    $script:SelectionErrorDetail = [string]$unknownSelectedCleanupIds.Count
+    $selectedCleanupIds = @()
+}
 $backupDirectory = ""
 $plannedActions = @()
 $thirdPartyExecutionResults = @()
+$selectedThirdPartySnapshots = @()
+$selectedThirdPartyResolvedCount = 0
+$selectedThirdPartyRemainingCount = 0
 [int]$systemChangeCount = 0
+$finalDecisionCode = [string]$decision.DecisionCode
+$finalDecisionText = [string]$decision.Decision
+$finalCleanupConclusion = [string]$verification.Conclusion
+$finalReadyForOfficialActivation = [bool]$verification.ReadyForOfficialActivation
+$finalScopeReadyForOriginalState = [bool]$scopeReadyForOriginalState
 
 if ($Remediate) {
-    if ($env:TOOL_SECURE_LAUNCH -ne "1" -or -not (Test-ProtectedDirectoryAcl $PSScriptRoot)) {
+    if ($env:TOOL_SECURE_LAUNCH -ne "1" -or -not (Test-ProtectedDirectoryAcl -Path $PSScriptRoot -AllowCurrentUserForUserScope)) {
         $actions.Add((Get-CleanupText "cleanupReport.action.secureLaunchBlocked"))
     } elseif ([int]$verification.ScanWarningCount -gt 0) {
         $actions.Add((Get-CleanupText "cleanupReport.action.scanWarningBlocked"))
     } elseif (-not $DeepClean) {
         $actions.Add((Get-CleanupText "cleanupReport.action.selectionRequired" @($releaseVersion)))
-    } elseif ($selectedCleanupIds.Count -eq 0) {
+    } elseif (-not $script:SelectionAccepted -or $selectedCleanupIds.Count -eq 0) {
         $actions.Add((Get-CleanupText "cleanupReport.action.selectionMissing"))
+        if (-not [string]::IsNullOrWhiteSpace([string]$script:SelectionErrorCode)) {
+            $actions.Add((Get-CleanupText 'cleanupReport.action.selectionRejectedDetail' @([string]$script:SelectionErrorCode)))
+        }
     } elseif ($crackDetected) {
         $selectedCandidates = @($cleanupItems | Where-Object { $selectedCleanupIds -contains ([string]$_.Id).ToLowerInvariant() })
+        $selectedThirdPartySnapshots = @($selectedCandidates | Where-Object {
+            [string]$_.Type -eq 'Application' -and [string]$_.Kind -eq 'ThirdPartyLicenseReset'
+        } | ForEach-Object {
+            [pscustomobject][ordered]@{
+                Id=[string]$_.Id; TargetId=[string]$_.TargetId; VendorScope=[string]$_.VendorScope
+                Location=[string]$_.Location; Name=[string]$_.Name; ApplicationIds=@($_.ApplicationIds)
+            }
+        })
         $selectedWindowsActivationIds = @($selectedCandidates | Where-Object {
             $_.Kind -eq "WindowsKmsLicense" -and -not [string]::IsNullOrWhiteSpace([string]$_.TargetId)
         } | ForEach-Object { [string]$_.TargetId })
@@ -3627,9 +3720,35 @@ if ($Remediate) {
     $thirdPartyChangedCount = [int]@($thirdPartyExecutionResults | Where-Object { [bool]$_.Changed }).Count
     $thirdPartyFailedCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'Failed' }).Count
     $thirdPartyGuidanceOnlyCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'GuidanceOnly' }).Count
+    $remainingSelectedThirdPartyIds = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($snapshot in @($selectedThirdPartySnapshots)) {
+        $snapshotApplicationIds = @($snapshot.ApplicationIds | ForEach-Object { [string]$_ } | Where-Object { $_ })
+        $matchedPostCandidate = @($thirdPartyCandidates | Where-Object {
+            $sameId = [string]::Equals([string]$_.Id, [string]$snapshot.Id, [StringComparison]::OrdinalIgnoreCase)
+            $sameTarget = -not [string]::IsNullOrWhiteSpace([string]$snapshot.TargetId) -and
+                [string]::Equals([string]$_.TargetId, [string]$snapshot.TargetId, [StringComparison]::OrdinalIgnoreCase)
+            $applicationOverlap = [bool](@($_.ApplicationIds | Where-Object { $snapshotApplicationIds -contains [string]$_ }).Count -gt 0)
+            $sameScopedLocation = -not [string]::IsNullOrWhiteSpace([string]$snapshot.VendorScope) -and
+                [string]::Equals([string]$_.VendorScope, [string]$snapshot.VendorScope, [StringComparison]::OrdinalIgnoreCase) -and
+                [string]::Equals([string]$_.Location, [string]$snapshot.Location, [StringComparison]::OrdinalIgnoreCase)
+            $sameId -or $sameTarget -or $applicationOverlap -or $sameScopedLocation
+        } | Select-Object -First 1)
+        if ($matchedPostCandidate.Count -gt 0) { [void]$remainingSelectedThirdPartyIds.Add([string]$snapshot.Id) }
+    }
+    $selectedThirdPartyRemainingCount = [int]$remainingSelectedThirdPartyIds.Count
+    $selectedThirdPartyResolvedCount = [int]([Math]::Max(0, @($selectedThirdPartySnapshots).Count - $selectedThirdPartyRemainingCount))
+    foreach ($execution in @($thirdPartyExecutionResults)) {
+        $parentId = [string]$execution.ParentCandidateId
+        $postCheckStatus = if (-not [string]::IsNullOrWhiteSpace($parentId) -and $remainingSelectedThirdPartyIds.Contains($parentId)) { 'ResidualRemaining' } else { 'Resolved' }
+        $execution | Add-Member -NotePropertyName PostCheckStatus -NotePropertyValue $postCheckStatus -Force
+    }
     $postReadyForCurrentScope = [bool]$(if ($ScanScope -eq 'ThirdParty') { $scopeReadyForOriginalState } else { $verification.ReadyForOfficialActivation })
-    $postDecisionCode = if ($DryRun) {
+    $postDecisionCode = if (-not $DeepClean -or -not $script:SelectionAccepted) {
+        'SelectionRejected'
+    } elseif ($DryRun) {
         'DryRunCompleted'
+    } elseif ($thirdPartyFailedCount -gt 0) {
+        'RemediationFailed'
     } elseif ($selectedCleanupIds.Count -gt 0 -and $systemChangeCount -eq 0 -and $thirdPartyGuidanceOnlyCount -gt 0) {
         'NoAutomaticChange'
     } elseif ($postReadyForCurrentScope) {
@@ -3638,11 +3757,24 @@ if ($Remediate) {
         'ResidueRemaining'
     }
     $postDecisionText = switch ($postDecisionCode) {
+        'SelectionRejected' { Get-CleanupText 'cleanupReport.decision.selectionRejected' }
         'DryRunCompleted' { Get-CleanupText 'cleanupReport.dryRun.completed' }
+        'RemediationFailed' { Get-CleanupText 'cleanupReport.decision.remediationFailed' }
         'NoAutomaticChange' { Get-CleanupText 'cleanupReport.decision.noAutomaticChange' }
         'PostCheckPassed' { Get-CleanupText 'cleanupReport.decision.postCheckPassed' }
         default { Get-CleanupText 'cleanupReport.decision.residueRemaining' }
     }
+    $postConclusion = switch ($postDecisionCode) {
+        'SelectionRejected' { Get-CleanupText 'cleanupReport.action.selectionRejectedDetail' @([string]$script:SelectionErrorCode) }
+        'RemediationFailed' { Get-CleanupText 'cleanupReport.decision.remediationFailedDetail' @($thirdPartyFailedCount) }
+        default { [string]$verification.Conclusion }
+    }
+    $finalDecisionCode = [string]$postDecisionCode
+    $finalDecisionText = [string]$postDecisionText
+    $finalCleanupConclusion = [string]$postConclusion
+    $postExecutionAccepted = [bool]($postDecisionCode -notin @('SelectionRejected','RemediationFailed'))
+    $finalReadyForOfficialActivation = [bool]($verification.ReadyForOfficialActivation -and $postExecutionAccepted)
+    $finalScopeReadyForOriginalState = [bool]($scopeReadyForOriginalState -and $postExecutionAccepted)
     if (-not $DryRun) { $actions.Add((Get-CleanupText "cleanupReport.action.postCheck" @($verification.Conclusion))) }
     $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
         ScanScope = $ScanScope
@@ -3694,6 +3826,9 @@ if ($Remediate) {
         ThirdPartyChangedCount = $thirdPartyChangedCount
         ThirdPartyFailedCount = $thirdPartyFailedCount
         ThirdPartyGuidanceOnlyCount = $thirdPartyGuidanceOnlyCount
+        SelectedThirdPartyCandidateCount = [int]@($selectedThirdPartySnapshots).Count
+        SelectedThirdPartyResolvedCount = [int]$selectedThirdPartyResolvedCount
+        SelectedThirdPartyRemainingCount = [int]$selectedThirdPartyRemainingCount
         ApprovedOfficeKmsCount = [int]($officeKmsEntries.Count - $verification.UnapprovedOfficeKmsCount)
         ApprovedKmsServerFile = [string]$approvedKmsConfig.Path
         ApprovedKmsServerCount = [int]$approvedKmsConfig.Valid.Count
@@ -3701,9 +3836,9 @@ if ($Remediate) {
         ApprovedKmsConfigWarning = [string]$approvedKmsConfig.Warning
         DecisionCode = $postDecisionCode
         Decision = $postDecisionText
-        Reason = [string]$verification.Conclusion
-        ReadyForOfficialActivation = [bool]$verification.ReadyForOfficialActivation
-        ScopeReadyForOriginalState = [bool]$scopeReadyForOriginalState
+        Reason = [string]$postConclusion
+        ReadyForOfficialActivation = [bool]$finalReadyForOfficialActivation
+        ScopeReadyForOriginalState = [bool]$finalScopeReadyForOriginalState
         ReadinessReviewCount = [int]$verification.ReadinessReviewCount
         ScanWarningCount = [int]$verification.ScanWarningCount
         ScanWarnings = $verification.ScanWarnings
@@ -3718,12 +3853,16 @@ if ($Remediate) {
         PlannedActionCount = [int]@($plannedActions).Count
         PlannedActions = @($plannedActions)
         SelectedCleanupIds = @($selectedCleanupIds)
+        SelectionAccepted = [bool]$script:SelectionAccepted
+        SelectionErrorCode = [string]$script:SelectionErrorCode
+        SelectionErrorDetail = [string]$script:SelectionErrorDetail
+        UnknownSelectedCleanupIdCount = [int]$unknownSelectedCleanupIds.Count
         BackupWouldBeCreated = [bool](@($plannedActions | Where-Object { [bool]$_.BackupPlanned }).Count -gt 0)
         CleanupItems = $cleanupItems
         SelectionRequired = [bool]($cleanupItems.Count -gt 0)
         SelectedCleanupItemCount = [int]$selectedCleanupIds.Count
         BackupDirectory = [string]$backupDirectory
-        CleanupConclusion = [string]$verification.Conclusion
+        CleanupConclusion = [string]$postConclusion
         HandlingGuidance = $verification.HandlingGuidance
         NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$postProtectedLicense.Protected) -BackupDirectory $backupDirectory)
         ScopeNote = [string]$verification.ScopeNote
@@ -3733,7 +3872,10 @@ if ($Remediate) {
     Write-DecisionData -Path $DecisionFile -Data $decisionData
 }
 
-Write-Report -Path $reportPath -Products $products -Findings $findings -Decision $decision -Actions $actions -History $history -Verification $verification -ThirdPartyApplications $thirdPartyApplications -ThirdPartyEvidence $thirdPartyEvidence -ThirdPartyCandidates $thirdPartyCandidates -SoftwareDeepScanMetadata $softwareDeepScanMetadata
+$reportVerification = $verification.PSObject.Copy()
+$reportVerification.ReadyForOfficialActivation = [bool]$finalReadyForOfficialActivation
+$reportVerification.Conclusion = [string]$finalCleanupConclusion
+Write-Report -Path $reportPath -Products $products -Findings $findings -Decision $decision -Actions $actions -History $history -Verification $reportVerification -ThirdPartyApplications $thirdPartyApplications -ThirdPartyEvidence $thirdPartyEvidence -ThirdPartyCandidates $thirdPartyCandidates -SoftwareDeepScanMetadata $softwareDeepScanMetadata
 
 # Bộ tóm tắt máy đọc được và hash đi kèm giúp đối chiếu hậu kiểm mà không
 # thay đổi luồng xử lý v3.0. Không ghi product key đầy đủ vào JSON.
@@ -3755,13 +3897,22 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ThirdPartyChangedCount = [int]@($thirdPartyExecutionResults | Where-Object { [bool]$_.Changed }).Count
     ThirdPartyFailedCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'Failed' }).Count
     ThirdPartyGuidanceOnlyCount = [int]@($thirdPartyExecutionResults | Where-Object { [string]$_.Status -eq 'GuidanceOnly' }).Count
+    SelectedThirdPartyCandidateCount = [int]@($selectedThirdPartySnapshots).Count
+    SelectedThirdPartyResolvedCount = [int]$selectedThirdPartyResolvedCount
+    SelectedThirdPartyRemainingCount = [int]$selectedThirdPartyRemainingCount
     PlannedActionCount = [int]@($plannedActions).Count
     PlannedActions = @($plannedActions)
     SelectedCleanupIds = @($selectedCleanupIds)
+    SelectionAccepted = [bool]$script:SelectionAccepted
+    SelectionErrorCode = [string]$script:SelectionErrorCode
+    SelectionErrorDetail = [string]$script:SelectionErrorDetail
+    UnknownSelectedCleanupIdCount = [int]$unknownSelectedCleanupIds.Count
     BackupWouldBeCreated = [bool](@($plannedActions | Where-Object { [bool]$_.BackupPlanned }).Count -gt 0)
-    ReadyForOfficialActivation = [bool]$verification.ReadyForOfficialActivation
-    ScopeReadyForOriginalState = [bool](Test-CleanupScopeReady -Verification $verification -Scope $ScanScope)
-    CleanupConclusion = [string]$verification.Conclusion
+    DecisionCode = [string]$finalDecisionCode
+    Decision = [string]$finalDecisionText
+    ReadyForOfficialActivation = [bool]$finalReadyForOfficialActivation
+    ScopeReadyForOriginalState = [bool]$finalScopeReadyForOriginalState
+    CleanupConclusion = [string]$finalCleanupConclusion
     HandlingGuidance = $verification.HandlingGuidance
     ReadinessReviewCount = [int]$verification.ReadinessReviewCount
     ScanWarningCount = [int]$verification.ScanWarningCount

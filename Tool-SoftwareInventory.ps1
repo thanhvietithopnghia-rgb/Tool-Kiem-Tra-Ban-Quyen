@@ -1026,6 +1026,38 @@ function Get-ToolSoftwareKnownActivationState {
     return ''
 }
 
+function Get-ToolSoftwareHostsLineMappings {
+    param([AllowNull()][string]$Line)
+    $text = [string]$Line
+    $commentIndex = $text.IndexOf('#')
+    $body = if ($commentIndex -ge 0) { $text.Substring(0, $commentIndex) } else { $text }
+    $addressMatches = [regex]::Matches(
+        $body,
+        '(?:0\.0\.0\.0|127\.0\.0\.1|::1)(?=\s|$)',
+        [Text.RegularExpressions.RegexOptions]::IgnoreCase
+    )
+    if ($addressMatches.Count -eq 0 -or -not [string]::IsNullOrWhiteSpace($body.Substring(0, $addressMatches[0].Index))) { return @() }
+
+    $mappings = New-Object System.Collections.Generic.List[object]
+    for ($index = 0; $index -lt $addressMatches.Count; $index++) {
+        $addressMatch = $addressMatches[$index]
+        $valueStart = $addressMatch.Index + $addressMatch.Length
+        $valueEnd = if (($index + 1) -lt $addressMatches.Count) { $addressMatches[$index + 1].Index } else { $body.Length }
+        if ($valueEnd -le $valueStart) { continue }
+        $valueText = $body.Substring($valueStart, $valueEnd - $valueStart).Trim()
+        if ([string]::IsNullOrWhiteSpace($valueText)) { continue }
+        $targets = @($valueText -split '\s+' | ForEach-Object { ([string]$_).Trim().TrimEnd('.') } | Where-Object {
+            $_ -match '^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$'
+        } | Select-Object -Unique)
+        if ($targets.Count -eq 0) { continue }
+        $mappings.Add([pscustomobject][ordered]@{
+            Address=$addressMatch.Value.ToLowerInvariant()
+            Targets=$targets
+        })
+    }
+    return $mappings.ToArray()
+}
+
 function Get-ToolSoftwareBlockedHostEvidence {
     param([AllowNull()][object]$CatalogProduct)
     $evidence = New-Object System.Collections.Generic.List[object]
@@ -1039,13 +1071,13 @@ function Get-ToolSoftwareBlockedHostEvidence {
     try {
         $lines = [IO.File]::ReadAllLines($hostsPath)
         foreach ($line in $lines) {
-            $trimmed = ([string]$line).Split('#')[0].Trim()
-            if ($trimmed -notmatch '^(?:0\.0\.0\.0|127\.0\.0\.1|::1)\s+(.+)$') { continue }
-            $targets = @($matches[1] -split '\s+' | Where-Object { $_ })
-            foreach ($domainPattern in $licenseDomains) {
-                foreach ($target in $targets) {
-                    if ($target -match [string]$domainPattern) {
-                        $evidence.Add([pscustomobject][ordered]@{ Code='LicenseDomainBlocked'; Strength='Moderate'; Source='Hosts'; Detail=$target })
+            foreach ($mapping in @(Get-ToolSoftwareHostsLineMappings -Line ([string]$line))) {
+                $targets = @($mapping.Targets)
+                foreach ($domainPattern in $licenseDomains) {
+                    foreach ($target in $targets) {
+                        if ($target -match [string]$domainPattern) {
+                            $evidence.Add([pscustomobject][ordered]@{ Code='LicenseDomainBlocked'; Strength='Moderate'; Source='Hosts'; Detail=$target })
+                        }
                     }
                 }
             }

@@ -122,7 +122,7 @@ ERROR CODE: 0xC004F014
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
-    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyMsiUninstall','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange')) {
+    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyMsiUninstall','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Thiếu thành phần khắc phục phần mềm bên thứ ba: $requiredToken" }
     }
     if ($cleanup.Text -notmatch '(?s)ThirdPartyLicenseState.+?Restorable=\$false' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
@@ -156,7 +156,13 @@ ERROR CODE: 0xC004F014
             Invoke-Expression ("function script:" + $Name + " " + $functionAst.Body.Extent.Text)
         }
         function Get-CleanupText { param([string]$Key, [object[]]$Arguments=@()); return ($Key + ':' + (@($Arguments) -join '|')) }
-        foreach ($name in @('Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
+        $hostsParserAst = $softwareInventory.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ToolSoftwareHostsLineMappings'
+        }, $true)
+        if (-not $hostsParserAst) { throw 'Missing function: Get-ToolSoftwareHostsLineMappings' }
+        Invoke-Expression ('function script:Get-ToolSoftwareHostsLineMappings ' + $hostsParserAst.Body.Extent.Text)
+        foreach ($name in @('Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
             Import-CleanupFunctionForFixture $name
         }
         $broadRootFixture = [pscustomobject]@{ InstallLocation=$env:ProgramFiles; RepresentativePath='' }
@@ -178,6 +184,68 @@ ERROR CODE: 0xC004F014
             (@($hostsFixture.Lines) -join "`n") -notmatch '192\.168\.1\.10 intranet\.example\.test' -or
             (@($hostsFixture.Lines) -join "`n") -match '(?im)^\s*(?:0\.0\.0\.0|127\.0\.0\.1)\s+license\.example\.test') {
             Fail 'Fixture hosts chưa gỡ đúng domain đích hoặc đã làm mất mục không liên quan.'
+        }
+        $malformedHostsFixture = Get-ThirdPartyHostsUpdate -Lines @(
+            '0.0.0.0 adobe-license.example127.0.0.1 easeus-license.example # joined mappings'
+        ) -Targets @('adobe-license.example')
+        $malformedHostsText = @($malformedHostsFixture.Lines) -join "`n"
+        if ([int]$malformedHostsFixture.RemovedCount -ne 1 -or
+            $malformedHostsText -match 'adobe-license\.example' -or
+            $malformedHostsText -notmatch '(?im)^127\.0\.0\.1\s+easeus-license\.example' -or
+            $malformedHostsText -notmatch '# joined mappings') {
+            Fail 'Fixture hosts bị dính hai mapping chưa gỡ đúng domain đích hoặc làm mất mapping/comment còn lại.'
+        }
+
+        $selectionFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-Selection-Acl-Fixture-' + [guid]::NewGuid().ToString('N'))
+        $previousDataScope = [string]$env:TOOL_DATA_SCOPE
+        $previousSecureLaunch = [string]$env:TOOL_SECURE_LAUNCH
+        $previousRuntimeDirectory = [string]$env:TOOL_SECURE_RUNTIME_DIR
+        try {
+            [void][IO.Directory]::CreateDirectory($selectionFixtureRoot)
+            $administratorsSid = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')
+            $systemSid = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
+            $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+            $fixtureAcl = New-Object Security.AccessControl.DirectorySecurity
+            $fixtureAcl.SetAccessRuleProtection($true, $false)
+            $fixtureAcl.SetOwner($currentUserSid)
+            foreach ($sid in @($administratorsSid,$systemSid,$currentUserSid)) {
+                $fixtureAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl',$inheritance,'None','Allow')))
+            }
+            Set-Acl -LiteralPath $selectionFixtureRoot -AclObject $fixtureAcl -ErrorAction Stop
+            $env:TOOL_DATA_SCOPE = 'User'
+            if (-not (Test-ProtectedDirectoryAcl -Path $selectionFixtureRoot -AllowCurrentUserForUserScope) -or
+                (Test-ProtectedDirectoryAcl -Path $selectionFixtureRoot)) {
+                Fail 'ACL runtime theo người dùng chưa được cleanup chấp nhận đúng phạm vi hoặc bị chấp nhận khi không bật user-scope.'
+            }
+
+            $env:TOOL_SECURE_LAUNCH = '1'
+            $env:TOOL_SECURE_RUNTIME_DIR = $selectionFixtureRoot
+            $script:SelectionFile = Join-Path $selectionFixtureRoot 'selection.json'
+            $script:ScanScope = 'ThirdParty'
+            [pscustomobject][ordered]@{
+                SchemaVersion='1.0'; RequestId=[guid]::NewGuid().ToString('D')
+                CreatedAtUtc=[DateTimeOffset]::UtcNow.ToString('o'); SelectedIds=@('application|fixture'); ScanScope='ThirdParty'
+            } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:SelectionFile -Encoding UTF8
+            function script:Test-ProtectedDirectoryAcl { param([string]$Path,[switch]$AllowCurrentUserForUserScope); return $true }
+            $acceptedIds = @(Get-SelectedCleanupIds)
+            if (-not [bool]$script:SelectionAccepted -or $acceptedIds.Count -ne 1 -or $acceptedIds[0] -ne 'application|fixture') {
+                Fail 'SelectionFile hợp lệ vẫn bị tiến trình cleanup quyền quản trị làm rỗng.'
+            }
+            $tamperedSelection = Get-Content -LiteralPath $script:SelectionFile -Raw | ConvertFrom-Json
+            $tamperedSelection.ScanScope = 'All'
+            $tamperedSelection | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:SelectionFile -Encoding UTF8
+            if (@(Get-SelectedCleanupIds).Count -ne 0 -or [bool]$script:SelectionAccepted -or [string]$script:SelectionErrorCode -ne 'SelectionScopeMismatch') {
+                Fail 'SelectionFile sai phạm vi không bị từ chối fail-closed.'
+            }
+            Import-CleanupFunctionForFixture 'Test-ProtectedDirectoryAcl'
+        } finally {
+            $env:TOOL_DATA_SCOPE = $previousDataScope
+            $env:TOOL_SECURE_LAUNCH = $previousSecureLaunch
+            $env:TOOL_SECURE_RUNTIME_DIR = $previousRuntimeDirectory
+            if ($selectionFixtureRoot -and (Test-Path -LiteralPath $selectionFixtureRoot -PathType Container)) {
+                Remove-Item -LiteralPath $selectionFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
         $artifactFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-ThirdParty-Rescan-Fixture-' + [guid]::NewGuid().ToString('N'))
         $previousToolDataRoot = [string]$env:TOOL_DATA_ROOT
@@ -259,14 +327,15 @@ ERROR CODE: 0xC004F014
         }
         $standaloneVerificationFixture = [pscustomobject]@{
             ScanWarningCount=0; ThirdPartyCandidateCount=0; ReadyForOfficialActivation=$true
-            Conclusion=''; HandlingGuidance=@(); ReadinessChecks=@(); ScopeNote=''
+            Conclusion='READY-MARKER'; HandlingGuidance=@(); ReadinessChecks=@(); ScopeNote=''
         }
         $standaloneVerificationFixture = Add-ThirdPartyVerification -Verification $standaloneVerificationFixture `
             -ThirdPartyCandidates @($standaloneCandidates) -ThirdPartyApplications @()
         if ([int]$standaloneVerificationFixture.ThirdPartyRemediationFindingCount -ne 1 -or
             [bool]$standaloneVerificationFixture.ReadyForOfficialActivation -or
+            [string]$standaloneVerificationFixture.Conclusion -match 'READY-MARKER' -or
             (Test-CleanupScopeReady -Verification $standaloneVerificationFixture -Scope ThirdParty)) {
-            Fail 'Candidate tệp activator độc lập không chặn hậu kiểm trước khi được cách ly.'
+            Fail 'Candidate tệp activator độc lập không chặn hậu kiểm hoặc vẫn giữ kết luận ĐẠT mâu thuẫn trước khi được cách ly.'
         }
         $abbyyGuid = '{CEEB2A9C-3D5F-4E95-90BD-7EB73650105C}'
         $abbyyEvidence = @([pscustomobject]@{ Code='KnownUnauthorizedName'; Source='Identity'; Detail='by sandyd'; Strength='Strong' })

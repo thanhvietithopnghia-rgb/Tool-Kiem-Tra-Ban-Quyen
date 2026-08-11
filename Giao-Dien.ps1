@@ -3678,7 +3678,13 @@ function Start-CleanupDeep {
         $output = New-ToolReportRunDirectory -Category "KhacPhuc-XuLy"
         $script:cleanupResultFile = New-SecureRuntimePath "tool-license-deep-clean-result-"
         $script:cleanupSelectionFile = New-SecureRuntimePath "tool-license-deep-selection-"
-        [pscustomobject]@{ SelectedIds=@($selection.SelectedIds); ScanScope=$script:cleanupScanScope } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:cleanupSelectionFile -Encoding UTF8
+        [pscustomobject][ordered]@{
+            SchemaVersion='1.0'
+            RequestId=[guid]::NewGuid().ToString('D')
+            CreatedAtUtc=[DateTimeOffset]::UtcNow.ToString('o')
+            SelectedIds=@($selection.SelectedIds)
+            ScanScope=$script:cleanupScanScope
+        } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:cleanupSelectionFile -Encoding UTF8
         $privacyArgument = if ($script:cleanupRedactSensitive) { " -RedactSensitive" } else { "" }
         $dryRunArgument = if ($script:cleanupDryRunMode) { " -DryRun" } else { "" }
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$cleanupScript`" -OutputDir `"$output`" -Remediate -DeepClean$dryRunArgument -ApprovedKmsServerFile `"$approvedKmsFile`" -TreatUnapprovedKmsAsNonCompliant -DecisionFile `"$script:cleanupResultFile`" -SelectionFile `"$script:cleanupSelectionFile`" -ScanScope `"$script:cleanupScanScope`" -Culture `"$script:dashboardCulture`"$privacyArgument"
@@ -4287,6 +4293,13 @@ function Show-CleanupResultCenter {
     $body.Add((Get-DashboardText "cleanup.result.windowsKmsCount" @($Result.WindowsKmsCount)))
     $body.Add((Get-DashboardText "cleanup.result.officeKmsCount" @($Result.OfficeKmsCount)))
     $body.Add((Get-DashboardText "cleanup.result.thirdPartyCount" @($Result.ThirdPartyCandidateCount)))
+    if ($Result.PSObject.Properties['SelectedThirdPartyCandidateCount'] -and [int]$Result.SelectedThirdPartyCandidateCount -gt 0) {
+        $body.Add((Get-DashboardText 'cleanup.result.selectedThirdPartySummary' @(
+            [int]$Result.SelectedThirdPartyResolvedCount,
+            [int]$Result.SelectedThirdPartyCandidateCount,
+            [int]$Result.SelectedThirdPartyRemainingCount
+        )))
+    }
     $body.Add((Get-DashboardText "cleanup.result.historyCount" @($Result.HistoryFindingCount)))
     $body.Add((Get-DashboardText "cleanup.result.warningCount" @($Result.ScanWarningCount)))
     $body.Add((Get-DashboardText "cleanup.result.reviewCount" @($Result.ReadinessReviewCount)))
@@ -4307,13 +4320,15 @@ function Show-CleanupResultCenter {
         $body.Add("")
         $body.Add((Get-DashboardText 'cleanup.result.thirdPartyExecutionHeading'))
         foreach ($execution in @($thirdPartyExecutionResults | Select-Object -First 30)) {
-            $statusKey = switch ([string]$execution.Status) {
+            $statusKey = if ($execution.PSObject.Properties['PostCheckStatus'] -and [string]$execution.PostCheckStatus -eq 'ResidualRemaining') {
+                'cleanup.result.execution.residueRemaining'
+            } else { switch ([string]$execution.Status) {
                 'Succeeded' { 'cleanup.result.execution.succeeded' }
                 'SucceededNeedsVerification' { 'cleanup.result.execution.needsVerification' }
                 'Failed' { 'cleanup.result.execution.failed' }
                 'NoChange' { 'cleanup.result.execution.noChange' }
                 default { 'cleanup.result.execution.guidanceOnly' }
-            }
+            } }
             $executionStatus = Get-DashboardText $statusKey
             $executionTarget = if ([string]::IsNullOrWhiteSpace([string]$execution.Target)) { Get-DashboardText 'common.unknown' } else { [string]$execution.Target }
             $body.Add("- [$executionStatus] $([string]$execution.Name) - $executionTarget")
@@ -4502,7 +4517,10 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             Register-ToolReportPath -Path ([string]$result.ReportPath)
             Write-ProgressLog (Get-DashboardText "cleanup.report.readyOnDemand" @($result.ReportPath))
         }
-        $wasSafetyBlocked = [bool](@($result.Actions | Where-Object { [string]$_ -match '^ĐÃ KHÓA XỬ LÝ:' }).Count -gt 0)
+        $wasSafetyBlocked = [bool](
+            ($result.PSObject.Properties['DecisionCode'] -and [string]$result.DecisionCode -in @('SelectionRejected','RemediationFailed')) -or
+            @($result.Actions | Where-Object { [string]$_ -match '^(?:ĐÃ KHÓA XỬ LÝ:|REMEDIATION BLOCKED:)' }).Count -gt 0
+        )
         $systemChangeApplied = if ($result.PSObject.Properties['SystemChangeApplied']) { [bool]$result.SystemChangeApplied } else { $false }
         $confirmedActionCount = if ($result.PSObject.Properties['SystemChangeCount']) { [int]$result.SystemChangeCount } else { 0 }
         $timelineEventType = if ($completedDryRunMode) { 'LicenseCleanupDryRunCompleted' } else { 'LicenseCleanupCompleted' }

@@ -16,10 +16,11 @@ Tài liệu này mô tả kiến trúc phát hành `4.8.0.0`, dashboard schema `
 ```text
 Tool-Kiem-Tra-v4.8.exe
   ├─ kiểm tra OS/kiến trúc, chọn quyền chạy theo mode, mutex và Offline mặc định
-  ├─ giải nén 48 payload vào session được bảo vệ
+  ├─ giải nén 49 payload vào session được bảo vệ
   ├─ đối chiếu TOOL-SHA256SUMS.txt
   └─ chạy Windows PowerShell native với schema/environment cố định
        ├─ Giao-Dien.ps1                    dashboard schema 2.0
+       ├─ Tool-ElevatedBridge.ps1          cầu nối UAC khóa module/script/runtime và allowlist TOOL_*
        ├─ Tool-DataLifecycle.ps1           data schema 2.0 + migration transaction
        ├─ Tool-Capabilities.ps1            capability schema 1.1
        │   └─ Tool-Compatibility.ps1       catalog schema 1.0
@@ -39,7 +40,7 @@ Tool-Kiem-Tra-v4.8.exe
 
 ## Lớp launcher
 
-`Tool-Kiem-Tra-v4.6-OneFile.cs`:
+`Tool-Kiem-Tra-v4.8-OneFile.cs`:
 
 1. chạy `asInvoker` cho dashboard; mode không-GUI cần quyền cao tự relaunch bằng `runas` và GUI chỉ nâng quyền cho từng hành động cần thiết;
 2. từ chối Windows cũ hơn Windows 7 SP1;

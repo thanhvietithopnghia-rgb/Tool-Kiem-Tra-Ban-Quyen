@@ -101,8 +101,8 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
     foreach ($parseError in @($parseErrors)) { $failures.Add("Lỗi cú pháp $($script.Name): $($parseError.Message)") }
 }
 
-Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 46
-Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 85
+Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 47
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 86
 Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 23
 
 $manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.manifest'
@@ -133,6 +133,7 @@ foreach ($check in $versionChecks) {
 }
 
 $guiText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Giao-Dien.ps1') -Raw -Encoding UTF8
+$elevatedBridgeText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'Tool-ElevatedBridge.ps1') -Raw -Encoding UTF8
 $cleanupText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows-license-compliance-cleanup.ps1') -Raw -Encoding UTF8
 $backupText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows-license-backup.ps1') -Raw -Encoding UTF8
 $restoreText = Get-Content -LiteralPath (Join-Path $sourceDirectoryFull 'windows-license-restore.ps1') -Raw -Encoding UTF8
@@ -179,6 +180,13 @@ if ($guiText -notmatch 'introAssistantButton' -or $guiText -notmatch 'Show-ToolA
     $failures.Add('Dashboard v4.8 thiếu nút Trợ lý Tool hoặc tiêu đề xanh thích ứng cho 10 chức năng.')
 }
 if ($guiText -notmatch 'TOOL_SECURE_LAUNCH' -or $guiText -notmatch 'Test-ProtectedToolDirectoryAcl') { $failures.Add('Giao diện thiếu khóa secure-launch/ACL.') }
+if ($guiText -notmatch 'New-ToolElevatedBootstrapArguments' -or $guiText -notmatch 'Tool-ElevatedBridge\.ps1' -or
+    $elevatedBridgeText -notmatch 'Test-BridgeProtectedDirectoryAcl' -or
+    $elevatedBridgeText -notmatch 'ElevatedBridgeScriptBindingInvalid' -or
+    $elevatedBridgeText -notmatch "'cleanup\.deep'\s*=\s*'windows-license-compliance-cleanup\.ps1'" -or
+    $elevatedBridgeText -notmatch '\[EnvironmentVariableTarget\]::Process') {
+    $failures.Add('Thiếu cầu nối UAC đã khóa module/script/runtime và allowlist biến môi trường.')
+}
 if ($launcherText -notmatch 'RequiresAdministrator' -or $launcherText -notmatch 'RelaunchElevated' -or
     $launcherText -notmatch 'SpecialFolder\.LocalApplicationData' -or $launcherText -notmatch 'TOOL_DATA_SCOPE') {
     $failures.Add('Launcher thiếu dashboard user-scope hoặc nâng quyền theo nhu cầu.')
@@ -465,7 +473,7 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
 $payloadFiles = @(
     '00-Tool-Kiem-Tra.ico','approved-kms-servers.txt','HUONG-DAN.txt','USER-GUIDE-en-US.md','LICH-SU-PHIEN-BAN.txt','VERSION-HISTORY-en-US.md',
     'Giao-Dien.ps1','kiem-tra-cau-hinh-ban-quyen.ps1','Tool-Kiem-Tra-icon.svg','Tool-Kiem-Tra.cmd',
-    'Tool-Runtime.ps1','Tool-DataLifecycle.ps1','Tool-Compatibility.ps1','compatibility-catalog-v1.0.json','Tool-Capabilities.ps1',
+    'Tool-Runtime.ps1','Tool-ElevatedBridge.ps1','Tool-DataLifecycle.ps1','Tool-Compatibility.ps1','compatibility-catalog-v1.0.json','Tool-Capabilities.ps1',
     'Tool-ScanOptimization.ps1',
     'Tool-Logging.ps1','Tool-ModuleContract.ps1','Tool-UiTheme.ps1','Tool-Localization.ps1',
     'Tool-Strings.vi-VN.json','Tool-Strings.en-US.json','Tool-OfflinePolicy.ps1','Tool-Assistant.ps1','tool-assistant-knowledge-v1.1.json',
@@ -549,10 +557,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.11.'
         }
         if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-assistant-performance-catalog-report-enterprise-20260811') { throw 'Sai release label v4.8.0.0.' }
-        if ([int]$releaseManifest.PayloadCount -ne 48 -or [int]$releaseManifest.IntegrityFileCount -ne 46) { throw 'Sai số lượng payload/integrity.' }
+        if ([int]$releaseManifest.PayloadCount -ne 49 -or [int]$releaseManifest.IntegrityFileCount -ne 47) { throw 'Sai số lượng payload/integrity.' }
         $payloadCompression = $releaseManifest.PayloadCompression
         if ([string]$payloadCompression.Scheme -ne 'PerResourceDeflateOrRaw-v1' -or
-            ([int]$payloadCompression.DeflateCount + [int]$payloadCompression.RawCount) -ne 48 -or
+            ([int]$payloadCompression.DeflateCount + [int]$payloadCompression.RawCount) -ne 49 -or
             [int64]$payloadCompression.SourceBytes -le [int64]$payloadCompression.EmbeddedBytes -or
             [int64]$payloadCompression.SavedBytes -ne ([int64]$payloadCompression.SourceBytes - [int64]$payloadCompression.EmbeddedBytes) -or
             [double]$payloadCompression.SavingsPercent -lt 50.0 -or [double]$payloadCompression.SavingsPercent -ge 100.0) {
@@ -562,6 +570,8 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.StartupTheme -ne 'Light' -or [string]$releaseManifest.DarkMode -ne 'Optional per-session / WCAG-aware palette' -or
             [bool]$releaseManifest.QuickActionNumberLabels -or [int]$releaseManifest.DirectReportActionCount -ne 7 -or
             -not [bool]$releaseManifest.CleanupActionCenter -or -not [bool]$releaseManifest.AssuranceCenter -or
+            [string]$releaseManifest.ElevatedModuleEnvironmentBridge -notmatch 'Encoded allowlisted TOOL_\* contract' -or
+            [string]$releaseManifest.ElevatedModuleEnvironmentBridge -notmatch 'child exit-code propagation' -or
             [string]$releaseManifest.OfficeLicenseEnumeration -ne 'OSPP /dstatusall per SKU' -or
             [string]$releaseManifest.VersionHistoryPresentation -ne 'InToolModal' -or
             @($releaseManifest.UserPreferencePersistence).Count -ne 1 -or

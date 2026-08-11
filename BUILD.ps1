@@ -43,6 +43,7 @@ $payloadFiles = @(
     'Tool-Kiem-Tra-icon.svg',
     'Tool-Kiem-Tra.cmd',
     'Tool-Runtime.ps1',
+    'Tool-ElevatedBridge.ps1',
     'Tool-DataLifecycle.ps1',
     'Tool-Compatibility.ps1',
     'compatibility-catalog-v1.0.json',
@@ -93,6 +94,7 @@ $integrityFiles = @(
     'Tool-Kiem-Tra-icon.svg',
     'Tool-Kiem-Tra.cmd',
     'Tool-Runtime.ps1',
+    'Tool-ElevatedBridge.ps1',
     'Tool-DataLifecycle.ps1',
     'Tool-Compatibility.ps1',
     'compatibility-catalog-v1.0.json',
@@ -589,6 +591,7 @@ $releaseManifest = [ordered]@{
     SupportedOfficeFamilies = @($compatibilityMetadata.OfficeFamilyNames)
     CleanupActionCenter = $true
     AutomaticSafeCleanup = 'Registry allowlist plus decisive-evidence third-party scopes with a scope-locked safe plan; preview + confirmation + HMAC backup + UAC + post-verification'
+    ElevatedModuleEnvironmentBridge = 'Encoded allowlisted TOOL_* contract + schema/age/module/invocation validation + protected runtime restoration + child exit-code propagation'
     AssuranceCenter = $true
     Function5Compatibility = 'v4.3.0.3 title, primary tables, assessment and summary-card layout preserved'
     ThirdPartySoftwareInspection = 'All-source installed-software inventory + vendor-neutral bounded deep scan + conservative evidence scoring'
@@ -770,6 +773,7 @@ $infoLines = @(
     'Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.',
     'PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.',
     'Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.',
+    'Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.',
     "Payload nhung duoc toi uu $($payloadCompressionStats.Scheme): $($payloadCompressionStats.DeflateCount) Deflate, $($payloadCompressionStats.RawCount) raw; giam $($payloadCompressionStats.SavingsPercent)% ma van doi chieu SHA-256 sau giai nen.",
     'Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.',
     'Dashboard schema 2.0: WinForms hien dai, bang mau trung tinh, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.',

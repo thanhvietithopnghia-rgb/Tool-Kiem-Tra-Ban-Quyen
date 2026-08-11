@@ -389,6 +389,82 @@ ERROR CODE: 0xC004F014
 }
 
 if ($gui) {
+    try {
+        foreach ($functionName in @('Get-ToolElevatedEnvironmentSnapshot','New-ToolElevatedBootstrapArguments')) {
+            $functionAst = $gui.Ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+            }, $true)
+            if (-not $functionAst) { throw "Missing function: $functionName" }
+            Invoke-Expression ("function script:" + $functionName + " " + $functionAst.Body.Extent.Text)
+        }
+        if ([regex]::Matches($gui.Text, 'New-ToolElevatedBootstrapArguments\s+-BridgeScriptPath\s+\$elevatedBridgeScript\s+-TargetFilePath\s+\$toolPowerShellPath').Count -lt 2) {
+            Fail 'Luồng tiến trình quản trị chưa dùng cầu nối môi trường cho cả tác vụ theo dõi và tác vụ tách rời.'
+        }
+        $bridgeEnvironmentNames = @('TOOL_SECURE_LAUNCH','TOOL_SECURE_RUNTIME_DIR','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID','TOOL_DATA_SCOPE')
+        $previousBridgeEnvironment = [ordered]@{}
+        $bridgeFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-Elevated-Bridge-Fixture-' + [guid]::NewGuid().ToString('N'))
+        foreach ($name in $bridgeEnvironmentNames) {
+            $previousBridgeEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, [EnvironmentVariableTarget]::Process)
+        }
+        try {
+            $bridgePowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            if (-not (Test-Path -LiteralPath $bridgePowerShell -PathType Leaf)) { throw "Missing PowerShell: $bridgePowerShell" }
+            $bridgeRuntimeRoot = Join-Path $bridgeFixtureRoot 'runtime'
+            [void][IO.Directory]::CreateDirectory($bridgeFixtureRoot)
+            [void][IO.Directory]::CreateDirectory($bridgeRuntimeRoot)
+            $administratorsSid = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')
+            $systemSid = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
+            $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+            foreach ($protectedDirectory in @($bridgeFixtureRoot,$bridgeRuntimeRoot)) {
+                $fixtureAcl = New-Object Security.AccessControl.DirectorySecurity
+                $fixtureAcl.SetAccessRuleProtection($true, $false)
+                $fixtureAcl.SetOwner($currentUserSid)
+                foreach ($sid in @($administratorsSid,$systemSid,$currentUserSid)) {
+                    $fixtureAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl',$inheritance,'None','Allow')))
+                }
+                Set-Acl -LiteralPath $protectedDirectory -AclObject $fixtureAcl -ErrorAction Stop
+            }
+            $bridgeFixtureScript = Join-Path $bridgeFixtureRoot 'Tool-ElevatedBridge.ps1'
+            $cleanupFixtureScript = Join-Path $bridgeFixtureRoot 'windows-license-compliance-cleanup.ps1'
+            Copy-Item -LiteralPath (Join-Path $root 'Tool-ElevatedBridge.ps1') -Destination $bridgeFixtureScript -Force
+            Copy-Item -LiteralPath (Join-Path $root 'windows-license-compliance-cleanup.ps1') -Destination $cleanupFixtureScript -Force
+            $env:TOOL_SECURE_LAUNCH = '1'
+            $env:TOOL_SECURE_RUNTIME_DIR = $bridgeRuntimeRoot
+            $env:TOOL_DATA_SCOPE = 'User'
+            $env:TOOL_MODULE_ID = 'cleanup.scan'
+            $env:TOOL_MODULE_INVOCATION_ID = [guid]::NewGuid().ToString('N')
+            $bridgeChildArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$cleanupFixtureScript`" -BridgeEnvironmentProbe"
+            $bridgeArguments = New-ToolElevatedBootstrapArguments -BridgeScriptPath $bridgeFixtureScript -TargetFilePath $bridgePowerShell -TargetArguments $bridgeChildArguments -HiddenWindow $true
+
+            # Simulate the RunAs broker dropping/replacing the caller environment.
+            # The protected bridge must restore the captured values, not inherit these mutations.
+            $env:TOOL_SECURE_LAUNCH = '0'
+            $env:TOOL_MODULE_ID = 'wrong-module'
+            $bridgeProcess = Start-Process -FilePath $bridgePowerShell -ArgumentList $bridgeArguments -WindowStyle Hidden -Wait -PassThru
+            if (-not $bridgeProcess -or [int]$bridgeProcess.ExitCode -ne 0) {
+                Fail "Cầu nối UAC không khôi phục ngữ cảnh secure-launch cho tiến trình con (exit $([int]$bridgeProcess.ExitCode))."
+            }
+            $blockedWithoutSecureLaunch = $false
+            try {
+                [void](New-ToolElevatedBootstrapArguments -BridgeScriptPath $bridgeFixtureScript -TargetFilePath $bridgePowerShell -TargetArguments $bridgeChildArguments)
+            } catch {
+                $blockedWithoutSecureLaunch = [string]$_.Exception.Message -eq 'ElevatedBridgeSecureLaunchRequired'
+            }
+            if (-not $blockedWithoutSecureLaunch) { Fail 'Cầu nối UAC không fail-closed khi nguồn gọi thiếu secure launch.' }
+        } finally {
+            foreach ($name in $bridgeEnvironmentNames) {
+                [Environment]::SetEnvironmentVariable($name, $previousBridgeEnvironment[$name], [EnvironmentVariableTarget]::Process)
+            }
+            if ($bridgeFixtureRoot -and (Test-Path -LiteralPath $bridgeFixtureRoot -PathType Container)) {
+                Remove-Item -LiteralPath $bridgeFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    } catch {
+        Fail "Không chạy được fixture cầu nối UAC/secure launch: $($_.Exception.Message)"
+    }
+
     $integrityGuardAst = $gui.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-IntegrityForElevatedAction' }, $true)
     if (-not $integrityGuardAst) {
         Fail 'Không tìm thấy bộ khóa toàn vẹn cho thao tác quản trị.'

@@ -17,9 +17,21 @@
     [ValidateRange(20, 10000)][int]$DeepSoftwareScanMaximumSignatureChecks = 1400,
     [ValidateRange(20, 10000)][int]$DeepSoftwareScanMaximumHashChecks = 1000,
     [switch]$RepairScanSources,
+    [switch]$BridgeEnvironmentProbe,
     [ValidateSet("vi-VN", "en-US")]
     [string]$Culture = "vi-VN"
 )
+
+if ($BridgeEnvironmentProbe) {
+    $bridgeInvocationId = [guid]::Empty
+    $bridgeContextValid = $env:TOOL_SECURE_LAUNCH -eq '1' -and
+        -not [string]::IsNullOrWhiteSpace($env:TOOL_SECURE_RUNTIME_DIR) -and
+        [string]$env:TOOL_MODULE_ID -eq 'cleanup.scan' -and
+        [guid]::TryParse([string]$env:TOOL_MODULE_INVOCATION_ID, [ref]$bridgeInvocationId) -and
+        $bridgeInvocationId -ne [guid]::Empty
+    if ($bridgeContextValid) { exit 0 }
+    exit 23
+}
 
 if ($DryRun) {
     $Remediate = $true

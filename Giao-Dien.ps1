@@ -412,6 +412,7 @@ function Test-ProtectedToolDirectoryAcl([string]$path) {
 
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $reportScript = Join-Path $baseDir "kiem-tra-cau-hinh-ban-quyen.ps1"
+$elevatedBridgeScript = Join-Path $baseDir "Tool-ElevatedBridge.ps1"
 $cleanupScript = Join-Path $baseDir "windows-license-compliance-cleanup.ps1"
 $backupScript = Join-Path $baseDir "windows-license-backup.ps1"
 $restoreScript = Join-Path $baseDir "windows-license-restore.ps1"
@@ -429,7 +430,7 @@ $integrityManifest = Join-Path $baseDir "TOOL-SHA256SUMS.txt"
 $requiredIntegrityFiles = @(
     "00-Tool-Kiem-Tra.ico", "HUONG-DAN.txt", "USER-GUIDE-en-US.md", "LICH-SU-PHIEN-BAN.txt", "VERSION-HISTORY-en-US.md",
     "Giao-Dien.ps1", "kiem-tra-cau-hinh-ban-quyen.ps1", "Tool-Kiem-Tra-icon.svg",
-    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-DataLifecycle.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-Assistant.ps1", "tool-assistant-knowledge-v1.1.json", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-online-update.ps1", "Tool-UpdateManager.ps1", "windows-license-backup.ps1",
+    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-ElevatedBridge.ps1", "Tool-DataLifecycle.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-Assistant.ps1", "tool-assistant-knowledge-v1.1.json", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-online-update.ps1", "Tool-UpdateManager.ps1", "windows-license-backup.ps1",
     "Tool-ReportSchema.ps1", "Tool-ReportExport.ps1", "Tool-PluginEngine.ps1", "Tool-LicenseTimeline.ps1", "Tool-SafetyPolicy.ps1",
     "Tool-Enterprise.ps1", "Tool-EnterpriseHost.ps1", "Tool-EnterpriseAgent.ps1", "enterprise-license-manager.ps1",
     "windows-license-compliance-cleanup.ps1", "windows-license-restore.ps1",
@@ -2765,6 +2766,64 @@ function Get-ReadyToolModule([string]$moduleId, [bool]$elevatedLaunch) {
     return $availability.Descriptor
 }
 
+function Get-ToolElevatedEnvironmentSnapshot {
+    # ShellExecute/RunAs does not provide a caller-controlled environment block.
+    # Capture only the Tool contract variables that an elevated child is allowed
+    # to inherit, then restore them inside a short encoded bootstrap process.
+    $allowedNames = @(
+        'TOOL_APPROVED_KMS_FILE','TOOL_BUILD_ARCHITECTURE','TOOL_CAPABILITY_SCHEMA',
+        'TOOL_COMPATIBILITY_CATALOG','TOOL_COMPATIBILITY_SCHEMA','TOOL_CORRELATION_ID',
+        'TOOL_DASHBOARD_SCHEMA','TOOL_DATA_ROOT','TOOL_DATA_SCHEMA_VERSION','TOOL_DATA_SCOPE',
+        'TOOL_ENTERPRISE_NETWORK_ALLOWED','TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH','TOOL_ENTERPRISE_ROOT',
+        'TOOL_ENTERPRISE_SCHEMA','TOOL_EXPECTED_PROCESS_ARCHITECTURE','TOOL_LAUNCHER_PATH',
+        'TOOL_LAUNCHER_PID','TOOL_LAUNCH_MODE','TOOL_LEGACY_DATA_ROOT','TOOL_LOCALIZATION_SCHEMA',
+        'TOOL_LOG_PATH','TOOL_MODULE_CONTRACT_SCHEMA','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID',
+        'TOOL_OFFLINE_MODE','TOOL_OFFLINE_POLICY_SCHEMA','TOOL_OFFLINE_SETTINGS_PATH','TOOL_PLUGIN_DIR',
+        'TOOL_POWERSHELL_PATH','TOOL_REPORT_SCHEMA','TOOL_SAFETY_POLICY_SCHEMA','TOOL_SECURE_LAUNCH',
+        'TOOL_SECURE_RUNTIME_DIR','TOOL_SECURE_RUNTIME_FAILED','TOOL_TIMELINE_KEY_PATH','TOOL_TIMELINE_PATH',
+        'TOOL_TOOL_VERSION','TOOL_UI_CULTURE','TOOL_UI_CULTURE_SETTINGS_PATH','TOOL_UI_THEME',
+        'TOOL_UI_THEME_SETTINGS_PATH','TOOL_UPDATE_CACHE_ROOT'
+    )
+    $snapshot = [ordered]@{}
+    foreach ($name in $allowedNames) {
+        $value = [Environment]::GetEnvironmentVariable($name, [EnvironmentVariableTarget]::Process)
+        $snapshot[$name] = if ($null -eq $value) { $null } else { [string]$value }
+    }
+    if ([string]$snapshot['TOOL_SECURE_LAUNCH'] -ne '1') { throw 'ElevatedBridgeSecureLaunchRequired' }
+    if ([string]::IsNullOrWhiteSpace([string]$snapshot['TOOL_SECURE_RUNTIME_DIR'])) { throw 'ElevatedBridgeRuntimeMissing' }
+    if ([string]$snapshot['TOOL_MODULE_ID'] -notmatch '^[a-z0-9][a-z0-9._-]{0,127}$') { throw 'ElevatedBridgeModuleIdInvalid' }
+    $invocationId = [guid]::Empty
+    if (-not [guid]::TryParse([string]$snapshot['TOOL_MODULE_INVOCATION_ID'], [ref]$invocationId) -or $invocationId -eq [guid]::Empty) {
+        throw 'ElevatedBridgeInvocationIdInvalid'
+    }
+    return $snapshot
+}
+
+function New-ToolElevatedBootstrapArguments {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$BridgeScriptPath,
+        [Parameter(Mandatory = $true)][string]$TargetFilePath,
+        [Parameter(Mandatory = $true)][string]$TargetArguments,
+        [bool]$HiddenWindow = $false
+    )
+
+    if (-not (Test-Path -LiteralPath $BridgeScriptPath -PathType Leaf)) { throw 'ElevatedBridgeScriptMissing' }
+    if (-not (Test-Path -LiteralPath $TargetFilePath -PathType Leaf)) { throw 'ElevatedBridgeTargetMissing' }
+    $payload = [ordered]@{
+        SchemaVersion = '1.0'
+        CreatedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+        TargetFilePath = [IO.Path]::GetFullPath($TargetFilePath)
+        TargetArguments = [string]$TargetArguments
+        HiddenWindow = [bool]$HiddenWindow
+        Environment = Get-ToolElevatedEnvironmentSnapshot
+    }
+    $payloadJson = $payload | ConvertTo-Json -Depth 5 -Compress
+    $payloadBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payloadJson))
+    if ($payloadBase64.Length -gt 24000) { throw 'ElevatedBridgePayloadTooLarge' }
+    return "-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File `"$BridgeScriptPath`" -PayloadBase64 `"$payloadBase64`""
+}
+
 function Start-ToolModuleProcess {
     [CmdletBinding()]
     param(
@@ -2788,7 +2847,10 @@ function Start-ToolModuleProcess {
             ArgumentList = $Arguments
             PassThru = $true
         }
-        if ($Elevate) { $startParameters.Verb = "RunAs" }
+        if ($Elevate) {
+            $startParameters.ArgumentList = New-ToolElevatedBootstrapArguments -BridgeScriptPath $elevatedBridgeScript -TargetFilePath $toolPowerShellPath -TargetArguments $Arguments -HiddenWindow ([bool]$Hidden)
+            $startParameters.Verb = "RunAs"
+        }
         if ($Hidden) { $startParameters.WindowStyle = "Hidden" }
         $process = Start-Process @startParameters
         if (-not $process) { throw (Get-DashboardText "module.processMissing") }
@@ -2826,7 +2888,10 @@ function Start-DetachedToolModuleProcess {
         $env:TOOL_MODULE_ID = $descriptor.ModuleId
         $env:TOOL_MODULE_INVOCATION_ID = $invocation.InvocationId
         $startParameters = @{ FilePath=$toolPowerShellPath; ArgumentList=$Arguments; PassThru=$true }
-        if ($Elevate) { $startParameters.Verb = "RunAs" }
+        if ($Elevate) {
+            $startParameters.ArgumentList = New-ToolElevatedBootstrapArguments -BridgeScriptPath $elevatedBridgeScript -TargetFilePath $toolPowerShellPath -TargetArguments $Arguments
+            $startParameters.Verb = "RunAs"
+        }
         $process = Start-Process @startParameters
         if (-not $process) { throw (Get-DashboardText "module.processMissing") }
     } finally {

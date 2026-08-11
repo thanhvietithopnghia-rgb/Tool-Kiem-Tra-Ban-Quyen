@@ -238,7 +238,9 @@ Trên màn hình này có hai cách tiếp tục:
 
 Với máy lạ hoặc khi chưa chắc phạm vi tác động, nên chạy Dry Run trước, lưu báo cáo rồi mới quyết định có thực hiện thật hay không.
 
-Tùy bằng chứng, kế hoạch phần mềm khác có thể là cách ly đúng artifact, khôi phục đúng dòng hosts, Repair MSI, đặt lại thành phần cấp phép được hỗ trợ hoặc hướng dẫn gỡ/cài lại từ nguồn chính thức. Tác vụ gỡ/cài lại không được chọn tự động.
+Tùy bằng chứng, kế hoạch phần mềm khác có thể là cách ly đúng artifact, khôi phục đúng dòng hosts, gỡ đúng quy tắc Firewall outbound-block đã ghép với tệp thực thi, Repair MSI, đặt lại thành phần cấp phép được hỗ trợ hoặc hướng dẫn gỡ/cài lại từ nguồn chính thức. Firewall và tác vụ gỡ/cài lại không được chọn tự động; quy tắc Firewall đã gỡ không thể tự khôi phục.
+
+Sau hậu kiểm hoặc khi bấm Quét lại, danh sách xử lý chỉ hiện mục còn bằng chứng activator/can thiệp. Phần mềm chỉ ở trạng thái Chưa xác minh vẫn được giữ trong báo cáo kiểm kê để kiểm tra thủ công nhưng không bị coi là làm sạch thất bại. Tệp activator độc lập trong Downloads, Desktop hoặc TEMP chỉ được cách ly sau khi người dùng chọn đúng dòng và xác nhận; tệp trong kho backup/quarantine không bị quét ngược.
 
 Trong Trung tâm xử lý có thể dùng:
 

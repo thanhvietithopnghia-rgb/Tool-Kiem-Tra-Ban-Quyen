@@ -189,7 +189,9 @@ This screen offers two ways to proceed:
 
 On an unfamiliar computer or when impact is uncertain, run Dry Run first, retain its report, and review it before authorizing real execution.
 
-Depending on evidence, a third-party plan can quarantine an exact artifact, restore an exact hosts entry, run a verified MSI Repair, reset a supported licensing component, or direct the user to an official reinstall. Uninstall/reinstall plans are never selected automatically.
+Depending on evidence, a third-party plan can quarantine an exact artifact, restore an exact hosts entry, remove an exact application-correlated outbound-block Firewall rule, run a verified MSI Repair, reset a supported licensing component, or direct the user to an official reinstall. Firewall changes and uninstall/reinstall plans are never selected automatically; a removed Firewall rule is not automatically restorable.
+
+After post-verification or Recheck, the remediation list shows only current activator/tampering evidence. An application that is merely Unverified remains in the inventory report for manual review but is not treated as failed cleanup. A standalone activator file in Downloads, Desktop, or TEMP is quarantined only after its exact row is selected and confirmed; protected backup/quarantine paths are excluded from rescans.
 
 ### Choice 3 – Restore from backup
 
@@ -207,7 +209,7 @@ A backup from another computer, an edited backup, or incomplete data is rejected
 2. The tool scans everything and proposes only items with sufficient evidence and a tightly scoped safe plan.
 3. Review and confirm the proposal.
 4. The tool creates a backup, performs eligible actions, and runs a post-check.
-5. Unverified items, valid keys, event history, and software requiring uninstall/reinstall remain for manual review.
+5. Unverified items remain in the inventory report, while valid keys, event history, and software requiring uninstall/reinstall remain available for manual review; they are not re-added as active cleanup residue without current evidence.
 
 No automatic-safe item is not an error. It means the remaining findings require review or do not have enough evidence for an automatic change.
 

@@ -262,7 +262,7 @@ if ([string]::Equals(([IO.Path]::GetFullPath($scriptDirectory)).TrimEnd('\'), $s
 }
 
 # Tiền kiểm toàn bộ trước khi thực hiện bất kỳ thay đổi nào.
-$allowedTypes = @("RegistryValues", "Registry", "ScheduledTask", "Service", "File", "Folder", "Defender", "LicenseNotice")
+$allowedTypes = @("RegistryValues", "Registry", "ScheduledTask", "Service", "File", "Folder", "Defender", "LicenseNotice", "FirewallNotice")
 $resolvedPaths = @{}
 foreach ($item in $manifestItems) {
     if ($allowedTypes -notcontains [string]$item.Type) { Fail-Restore 29 (Get-RestoreText "restoreReport.unsupportedItem" @($item.Type)) }
@@ -273,7 +273,7 @@ foreach ($item in $manifestItems) {
             Fail-Restore 31 (Get-RestoreText "restoreReport.dataHashMismatch" @($item.Name))
         }
         $resolvedPaths[[string]$item.BackupPath] = $source
-    } elseif ([string]$item.Type -notin @("Defender", "LicenseNotice")) {
+    } elseif ([string]$item.Type -notin @("Defender", "LicenseNotice", "FirewallNotice")) {
         Fail-Restore 32 (Get-RestoreText "restoreReport.dataPathMissing" @($item.Type, $item.Name))
     }
 }

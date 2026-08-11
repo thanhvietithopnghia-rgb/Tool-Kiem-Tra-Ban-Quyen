@@ -1953,6 +1953,30 @@ function Get-ToolSoftwareAssessments {
             ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive)) -and
             [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
         }).Count
+        # NeedsReview is intentionally broad for the inventory report: an
+        # unknown commercial license still deserves a manual review.  The
+        # remediation screen needs a narrower signal, otherwise a product that
+        # was successfully cleaned immediately returns simply because its
+        # remaining binary is unsigned or its entitlement cannot be queried.
+        # Only evidence tied to an activation/tampering cleanup plan is allowed
+        # to keep an item in the queue. Integrity-only uncertainty remains in
+        # the audit report and is not silently treated as a licensing residue.
+        $remediationEvidenceCodes = @(
+            'LicenseDomainBlocked','UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
+            'ApplicationIfeoDebugger','ApplicationOutboundBlocked','SuspiciousApplicationAutorun',
+            'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','CriticalFileNotSigned',
+            'UnexpectedCoreFileSigner','KnownBadFileHash','KnownUnauthorizedName','CatalogUnauthorizedName'
+        )
+        $remediationEvidenceCount = @($uniqueEvidence | Where-Object {
+            $code = [string]$_.Code
+            $group = [string]$_.EvidenceGroup
+            return [bool](
+                $code -in $remediationEvidenceCodes -or
+                $code -match '^(?:KnownActivator|SuspiciousActivator)' -or
+                $group -in @('KnownActivator','KnownUnauthorizedPackage','KnownBadHash','ExecutionInterception',
+                    'LicenseConnectivity','ActivatorPersistence','ActivatorArtifact','ArtifactName','Persistence')
+            )
+        }).Count
         $knownActivationState = Get-ToolSoftwareKnownActivationState -Application $application -CatalogProduct $catalogProduct
         $statusCode = 'Unverified'
         $confidence = 'Low'
@@ -1980,8 +2004,13 @@ function Get-ToolSoftwareAssessments {
             $remediationAdapter -eq 'WinRAR' -and
             $knownActivationState -eq 'LocalLicensePresent'
         )
+        $cleanupFinding = [bool](
+            $knownLocalResetEligible -or
+            $statusCode -eq 'NonGenuine' -or
+            ($statusCode -eq 'Suspicious' -and $remediationEvidenceCount -gt 0)
+        )
         $manualEligible = [bool](
-            (($statusCode -in @('NonGenuine','Suspicious')) -or $knownLocalResetEligible) -and
+            $cleanupFinding -and
             $licenseModel -notin @('SystemComponent','Driver','Runtime')
         )
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
@@ -2022,7 +2051,8 @@ function Get-ToolSoftwareAssessments {
             @('ConclusiveEvidenceCount',[int]$conclusiveCount), @('StrongEvidenceCount',[int]$strongCount),
             @('ModerateEvidenceCount',[int]$moderateCount), @('WeakEvidenceCount',[int]$weakCount),
             @('DecisiveEvidenceCount',[int]$decisiveCount), @('IndependentStrongEvidenceGroupCount',[int]$strongEvidenceGroupCount),
-            @('TechnicalStatus',$statusCode), @('NeedsReview',$needsReview), @('ActivationStateProbe',$knownActivationState),
+            @('TechnicalStatus',$statusCode), @('NeedsReview',$needsReview), @('CleanupFinding',$cleanupFinding),
+            @('RemediationEvidenceCount',[int]$remediationEvidenceCount), @('ActivationStateProbe',$knownActivationState),
             @('DeepScanEnabled',[bool]$DeepScan), @('DeepScanStatus',[string]$deepResult.Status), @('DeepScanComplete',[bool]$deepResult.Complete),
             @('DeepScanRoots',@($deepResult.Roots)), @('DeepScanFilesEnumerated',[int]$deepResult.FilesEnumerated),
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),

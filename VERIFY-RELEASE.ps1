@@ -593,8 +593,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.InstallDateNormalization -notmatch 'yyyy-MM-dd' -or
             @($releaseManifest.MonitorNameSources).Count -ne 3 -or
             @($releaseManifest.ReportPrivacyChoice).Count -ne 3 -or
-            [string]$releaseManifest.TimelineCurrentStatePolicy -notmatch 'Latest observed state') {
-            throw 'Thiếu metadata hotfix quét thường/KMS/ngày cài/màn hình/riêng tư/timeline.'
+            [string]$releaseManifest.TimelineCurrentStatePolicy -notmatch 'Latest observed state' -or
+            [string]$releaseManifest.ThirdPartyPostCleanupQueuePolicy -notmatch 'requeues only current' -or
+            [string]$releaseManifest.ThirdPartyStandaloneArtifactPolicy -notmatch 'manual-only quarantine') {
+            throw 'Thiếu metadata hotfix quét thường/KMS/ngày cài/màn hình/riêng tư/timeline/quét lại phần mềm khác.'
         }
         if (-not [bool]$releaseManifest.RemediationDryRun -or
             [string]$releaseManifest.RemediationDryRunPolicy -notmatch 'no system changes' -or

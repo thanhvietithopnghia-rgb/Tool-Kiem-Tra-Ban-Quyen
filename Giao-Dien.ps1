@@ -3844,13 +3844,52 @@ function Complete-ScanSourceRepair {
     }
 }
 
+function Test-GuiThirdPartyCleanupFinding {
+    param($Application)
+    if (-not $Application) { return $false }
+    if ($Application.PSObject.Properties['CleanupFinding']) { return [bool]$Application.CleanupFinding }
+    return [bool]([string]$Application.AssessmentCode -in @('NonGenuine','Suspicious','IntegrityCompromised'))
+}
+
+function Get-GuiThirdPartyCleanupFindings {
+    param($Applications)
+    return @($Applications | Where-Object { Test-GuiThirdPartyCleanupFinding -Application $_ })
+}
+
+function Get-GuiThirdPartyStandaloneCleanupRows {
+    param($Candidates)
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($candidate in @($Candidates | Where-Object {
+        @($_.ApplicationIds).Count -eq 0 -and
+        @($_.PlanItems | Where-Object { [string]$_.Type -eq 'File' -and [string]$_.Kind -eq 'ThirdPartyUnauthorizedArtifact' }).Count -gt 0
+    })) {
+        $rows.Add([pscustomobject][ordered]@{
+            Id=('standalone:' + [string]$candidate.Id); Name=[string]$candidate.Name; Version=''; Publisher=''
+            LicenseModel='Unknown'; AssessmentCode='Suspicious'; TechnicalStatus=(Get-DashboardText 'report.software.status.suspicious')
+            Confidence='Medium'; Evidence=@($candidate.Evidence); NeedsReview=$true; CleanupFinding=$true
+            RemediationSupported=$true; CleanupCandidateId=[string]$candidate.Id
+            CleanupRemediationMode=[string]$candidate.RemediationMode; OfficialReferenceUrl=''
+        })
+    }
+    return $rows.ToArray()
+}
+
 function Show-ThirdPartyAssessmentResults {
     param($Scan)
 
-    $applications = @($Scan.ThirdPartyApplications)
-    if ($applications.Count -eq 0) {
+    $inventoryApplications = @($Scan.ThirdPartyApplications)
+    $standaloneRows = @(Get-GuiThirdPartyStandaloneCleanupRows -Candidates @($Scan.ThirdPartyCandidates))
+    $allApplications = @($inventoryApplications) + @($standaloneRows)
+    if ($allApplications.Count -eq 0) {
         [System.Windows.Forms.MessageBox]::Show(
             (Get-DashboardText "software.results.noApplications"),
+            (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
+        return [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
+    }
+    $applications = @(Get-GuiThirdPartyCleanupFindings -Applications $allApplications)
+    if ($applications.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show(
+            (Get-DashboardText "cleanup.scan.noThirdPartyResult" @($allApplications.Count)),
             (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
         return [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
     }
@@ -3881,11 +3920,11 @@ function Show-ThirdPartyAssessmentResults {
 
     $summary = New-Object System.Windows.Forms.Label
     $summary.Text = Get-DashboardText "software.results.summary" @(
+        $allApplications.Count,
         $applications.Count,
-        @($applications | Where-Object { [bool]$_.NeedsReview }).Count,
         @($applications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count,
         @($applications | Where-Object { [string]$_.AssessmentCode -eq 'Suspicious' }).Count,
-        @($applications | Where-Object { [string]$_.AssessmentCode -eq 'Unverified' }).Count)
+        @($allApplications | Where-Object { [string]$_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count)
     $summary.Font = $fontBold
     $summary.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
     $summary.Location = New-Object System.Drawing.Point(22, 52)
@@ -3944,9 +3983,9 @@ function Show-ThirdPartyAssessmentResults {
     }
     foreach ($application in $applications) {
         $candidateId = if ($application.PSObject.Properties['CleanupCandidateId']) { [string]$application.CleanupCandidateId } else { '' }
-        $actionable = [bool](-not [string]::IsNullOrWhiteSpace($candidateId) -and [bool]$application.RemediationSupported -and [bool]$application.NeedsReview)
+        $actionable = [bool](-not [string]::IsNullOrWhiteSpace($candidateId) -and [bool]$application.RemediationSupported -and (Test-GuiThirdPartyCleanupFinding -Application $application))
         $evidenceText = @($application.Evidence | ForEach-Object {
-            $detail = [string]$_.Detail
+            $detail = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) { [string]$_.Location } else { [string]$_.Detail }
             if ([string]::IsNullOrWhiteSpace($detail)) { [string]$_.Code } else { "$([string]$_.Code): $detail" }
         }) -join '; '
         if ([string]::IsNullOrWhiteSpace($evidenceText)) { $evidenceText = Get-DashboardText "software.results.noEvidence" }
@@ -3960,7 +3999,7 @@ function Show-ThirdPartyAssessmentResults {
                 'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
                 default { Get-DashboardText "software.results.action.guidedRepair" }
             }
-        } elseif ([bool]$application.NeedsReview) {
+        } elseif (Test-GuiThirdPartyCleanupFinding -Application $application) {
             Get-DashboardText "software.results.action.officialRepair"
         } else {
             Get-DashboardText "software.results.action.none"
@@ -4119,9 +4158,14 @@ function Complete-CleanupScan {
             if ([bool]$assessmentChoice.Proceed) {
                 Start-CleanupDeep -CleanupItems $scopedCleanupItems -SuggestedIds @($assessmentChoice.SelectedCandidateIds)
             } else {
+                $remainingThirdPartyCount = if ($scan.PSObject.Properties['ThirdPartyRemediationFindingCount']) {
+                    [int]$scan.ThirdPartyRemediationFindingCount
+                } else {
+                    [int]$scan.ThirdPartyCandidateCount
+                }
                 $status.Text = Get-DashboardText "software.results.closedStatus" @(
                     [int]$scan.ThirdPartyApplicationCount,
-                    [int]$scan.ThirdPartyNeedsReviewCount)
+                    $remainingThirdPartyCount)
                 $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
                 Write-ProgressLog (Get-DashboardText "software.results.closedLog")
             }

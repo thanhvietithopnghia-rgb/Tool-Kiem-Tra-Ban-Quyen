@@ -611,9 +611,11 @@ $releaseManifest = [ordered]@{
     DeepSoftwareScanScoring = 'NonGenuine requires decisive evidence or two independent strong groups; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
     DeepSoftwareScanBudgetPolicy = 'Bounded time/depth/files/signatures/hashes; weighted budgeting prioritizes paid/trial/evidence-bearing software while reserving coverage for unknown/free applications'
     DeepSoftwareScanCatalogTrust = 'Online-cache rules cannot create decisive hash/name evidence unless byte-identical to the bundled catalog'
-    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR bounded local rarreg.key reset','Generic exact-artifact/hosts cleanup + validated MSI Repair + manual official-reinstall fallback')
-    ThirdPartyAutomaticResetPolicy = 'Verified decisive evidence + scope-locked safe action + complete scan sources; uninstall/reinstall is manual-only'
+    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR bounded local rarreg.key reset','Generic exact-artifact/hosts cleanup + exact application-scoped firewall cleanup + validated MSI Repair + manual official-reinstall fallback')
+    ThirdPartyAutomaticResetPolicy = 'Verified decisive evidence + scope-locked safe action + complete scan sources; firewall changes and uninstall/reinstall are manual-only'
     ThirdPartyBackupPolicy = 'HMAC-protected inventory and quarantine; unauthorized activators and licensing tokens are non-restorable'
+    ThirdPartyPostCleanupQueuePolicy = 'Post-verification requeues only current activator/tampering evidence; inventory-only Unverified state remains reportable but is not remediation residue'
+    ThirdPartyStandaloneArtifactPolicy = 'Exact-path activator files in user Downloads/Desktop/TEMP are manual-only quarantine candidates; protected backup/quarantine roots are excluded'
     RemediationDryRun = $true
     RemediationDryRunPolicy = 'Simulation lists exact targets/actions/backup/restorability and performs no system changes; real execution requires a new item confirmation'
     DetailedInventoryExport = $true
@@ -819,6 +821,7 @@ $infoLines = @(
     'Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.',
     'WinRAR co dau do rarreg.key: sau khi go license cuc bo, quet lai xac nhan Unactivated thay vi dua vao viec chuong trinh van mo duoc.',
     'Khac phuc phan mem ben thu ba ghi ket qua tung hanh dong va chi bao thanh cong khi he thong thuc su thay doi; huong dan don thuan khong con bi tinh la da sua.',
+    'Sau hau kiem, hang doi phan mem khac chi con bang chung activator/can thiep; Unverified don thuan khong quay lai, tep activator doc lap co candidate cach ly thu cong va kho backup bi loai tru.',
     'HashMismatch duoc tach thanh IntegrityCompromised: tep bi sua/hong nhung khong tu ket luan quyen su dung khong chinh hang.',
     'Phan mem he thong/mac dinh an khoi bang chinh, co link mo phu luc trong HTML va hien day du trong PDF/JSON chi tiet.',
     'Moi bao cao nam truc tiep trong Desktop\BaoCao-Tool-Kiem-Tra, khong tao thu muc con; ten tep co mili-giay va HTML link dung PDF.',

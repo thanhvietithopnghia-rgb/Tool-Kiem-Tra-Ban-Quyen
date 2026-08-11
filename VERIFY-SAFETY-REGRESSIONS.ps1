@@ -163,7 +163,7 @@ ERROR CODE: 0xC004F014
         }, $true)
         if (-not $hostsParserAst) { throw 'Missing function: Get-ToolSoftwareHostsLineMappings' }
         Invoke-Expression ('function script:Get-ToolSoftwareHostsLineMappings ' + $hostsParserAst.Body.Extent.Text)
-        foreach ($name in @('Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
+        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
             Import-CleanupFunctionForFixture $name
         }
         $broadRootFixture = [pscustomobject]@{ InstallLocation=$env:ProgramFiles; RepresentativePath='' }
@@ -199,6 +199,7 @@ ERROR CODE: 0xC004F014
 
         $selectionFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-Selection-Acl-Fixture-' + [guid]::NewGuid().ToString('N'))
         $previousDataScope = [string]$env:TOOL_DATA_SCOPE
+        $previousDataOwnerSid = [string]$env:TOOL_DATA_OWNER_SID
         $previousSecureLaunch = [string]$env:TOOL_SECURE_LAUNCH
         $previousRuntimeDirectory = [string]$env:TOOL_SECURE_RUNTIME_DIR
         try {
@@ -215,10 +216,19 @@ ERROR CODE: 0xC004F014
             }
             Set-Acl -LiteralPath $selectionFixtureRoot -AclObject $fixtureAcl -ErrorAction Stop
             $env:TOOL_DATA_SCOPE = 'User'
+            $env:TOOL_DATA_OWNER_SID = $currentUserSid.Value
+            Set-ProtectedBackupAcl -Path $selectionFixtureRoot -AllowCurrentUserForUserScope
             if (-not (Test-ProtectedDirectoryAcl -Path $selectionFixtureRoot -AllowCurrentUserForUserScope) -or
                 (Test-ProtectedDirectoryAcl -Path $selectionFixtureRoot)) {
                 Fail 'ACL runtime theo người dùng chưa được cleanup chấp nhận đúng phạm vi hoặc bị chấp nhận khi không bật user-scope.'
             }
+            $ownerAcl = Get-Acl -LiteralPath $selectionFixtureRoot -ErrorAction Stop
+            $ownerRuleCount = @($ownerAcl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object {
+                $_.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and
+                $_.IdentityReference.Value -eq $currentUserSid.Value -and
+                ($_.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -ne 0
+            }).Count
+            if ($ownerRuleCount -lt 1) { Fail 'ACL parent user-scope không giữ quyền FullControl cho SID người dùng ban đầu.' }
 
             $env:TOOL_SECURE_LAUNCH = '1'
             $env:TOOL_SECURE_RUNTIME_DIR = $selectionFixtureRoot
@@ -242,6 +252,7 @@ ERROR CODE: 0xC004F014
             Import-CleanupFunctionForFixture 'Test-ProtectedDirectoryAcl'
         } finally {
             $env:TOOL_DATA_SCOPE = $previousDataScope
+            $env:TOOL_DATA_OWNER_SID = $previousDataOwnerSid
             $env:TOOL_SECURE_LAUNCH = $previousSecureLaunch
             $env:TOOL_SECURE_RUNTIME_DIR = $previousRuntimeDirectory
             if ($selectionFixtureRoot -and (Test-Path -LiteralPath $selectionFixtureRoot -PathType Container)) {
@@ -385,7 +396,7 @@ ERROR CODE: 0xC004F014
             Fail 'Dry Run chưa công bố đúng hành động Firewall manual-only, không tự khôi phục.'
         }
     } catch {
-        Fail "Không chạy được fixture khắc phục tổng quát/ABBYY: $($_.Exception.Message)"
+        Fail "Không chạy được fixture khắc phục tổng quát/ABBYY: $($_.Exception.Message) | $($_.ScriptStackTrace)"
     }
 }
 
@@ -407,7 +418,7 @@ if ($gui) {
         if ([regex]::Matches($gui.Text, 'New-ToolElevatedBootstrapArguments\s+-BridgeScriptPath\s+\$elevatedBridgeScript\s+-TargetFilePath\s+\$toolPowerShellPath').Count -lt 2) {
             Fail 'Luồng tiến trình quản trị chưa dùng cầu nối môi trường cho cả tác vụ theo dõi và tác vụ tách rời.'
         }
-        $bridgeEnvironmentNames = @('TOOL_SECURE_LAUNCH','TOOL_SECURE_RUNTIME_DIR','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID','TOOL_DATA_SCOPE')
+        $bridgeEnvironmentNames = @('TOOL_SECURE_LAUNCH','TOOL_SECURE_RUNTIME_DIR','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID','TOOL_DATA_SCOPE','TOOL_DATA_OWNER_SID')
         $previousBridgeEnvironment = [ordered]@{}
         $bridgeFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-Elevated-Bridge-Fixture-' + [guid]::NewGuid().ToString('N'))
         foreach ($name in $bridgeEnvironmentNames) {
@@ -439,6 +450,7 @@ if ($gui) {
             $env:TOOL_SECURE_LAUNCH = '1'
             $env:TOOL_SECURE_RUNTIME_DIR = $bridgeRuntimeRoot
             $env:TOOL_DATA_SCOPE = 'User'
+            $env:TOOL_DATA_OWNER_SID = $currentUserSid.Value
             $env:TOOL_MODULE_ID = 'cleanup.scan'
             $env:TOOL_MODULE_INVOCATION_ID = [guid]::NewGuid().ToString('N')
             $bridgeChildArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$cleanupFixtureScript`" -BridgeEnvironmentProbe"
@@ -468,7 +480,7 @@ if ($gui) {
             }
         }
     } catch {
-        Fail "Không chạy được fixture cầu nối UAC/secure launch: $($_.Exception.Message)"
+        Fail "Không chạy được fixture cầu nối UAC/secure launch: $($_.Exception.Message) | $($_.ScriptStackTrace)"
     }
 
     $integrityGuardAst = $gui.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Confirm-IntegrityForElevatedAction' }, $true)

@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Globalization;
+using Microsoft.Win32;
 using System.Reflection;
+using System.Security;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
@@ -146,8 +148,12 @@ namespace ThanhViet.ToolKiemTra
             EnterpriseServer,
             EnterpriseAgent,
             EnterpriseAgentForce,
-            LocalLicenseManager
+            LocalLicenseManager,
+            RepairUserDataAcl
         }
+
+        private static string RepairUserDataBase = String.Empty;
+        private static SecurityIdentifier RepairUserSid;
 
         [STAThread]
         private static int Main(string[] args)
@@ -174,6 +180,14 @@ namespace ThanhViet.ToolKiemTra
                 return 12;
             if (RequiresAdministrator(mode) && !IsAdministrator())
                 return RelaunchElevated(mode);
+            if (mode == LaunchMode.RepairUserDataAcl)
+                return RepairUserDataAccess();
+            if (mode == LaunchMode.Gui)
+            {
+                int userDataResult = EnsureGuiUserDataAccess();
+                if (userDataResult != 0)
+                    return userDataResult;
+            }
 
             bool createdNew;
             using (Mutex singleInstance = new Mutex(true, GetMutexName(mode), out createdNew))
@@ -220,6 +234,22 @@ namespace ThanhViet.ToolKiemTra
         {
             if (args == null || args.Length == 0 || String.Equals(args[0], "--gui", StringComparison.OrdinalIgnoreCase))
                 return LaunchMode.Gui;
+            if (args.Length == 3 && String.Equals(args[0], "--repair-user-data-acl", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    byte[] dataBaseBytes = Convert.FromBase64String(args[1]);
+                    if (dataBaseBytes.Length == 0 || dataBaseBytes.Length > 4096)
+                        throw new ArgumentException(L("launcher.invalidArguments"));
+                    RepairUserDataBase = new UTF8Encoding(false, true).GetString(dataBaseBytes);
+                    RepairUserSid = new SecurityIdentifier(args[2]);
+                    if (String.IsNullOrWhiteSpace(RepairUserDataBase) || RepairUserSid == null || !RepairUserSid.IsAccountSid())
+                        throw new ArgumentException(L("launcher.invalidArguments"));
+                    return LaunchMode.RepairUserDataAcl;
+                }
+                catch (ArgumentException) { throw; }
+                catch { throw new ArgumentException(L("launcher.invalidArguments")); }
+            }
             if (args.Length != 1)
                 throw new ArgumentException(L("launcher.invalidArguments"));
             if (String.Equals(args[0], "--enterprise-ui", StringComparison.OrdinalIgnoreCase))
@@ -262,6 +292,12 @@ namespace ThanhViet.ToolKiemTra
                 case LaunchMode.EnterpriseAgent: return "--enterprise-agent";
                 case LaunchMode.EnterpriseAgentForce: return "--enterprise-agent-force";
                 case LaunchMode.LocalLicenseManager: return "--local-license-manager";
+                case LaunchMode.RepairUserDataAcl:
+                    if (String.IsNullOrWhiteSpace(RepairUserDataBase) || RepairUserSid == null)
+                        throw new InvalidOperationException(L("launcher.invalidArguments"));
+                    return "--repair-user-data-acl \"" +
+                        Convert.ToBase64String(new UTF8Encoding(false).GetBytes(RepairUserDataBase)) + "\" \"" +
+                        RepairUserSid.Value + "\"";
                 default: return "--gui";
             }
         }
@@ -297,6 +333,121 @@ namespace ThanhViet.ToolKiemTra
             {
                 ShowMessage(mode, L("launcher.elevationFailed", ex.Message), MessageBoxIcon.Error);
                 return 5;
+            }
+        }
+
+        private static string NormalizeDirectoryPath(string path)
+        {
+            return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        private static bool IsExpectedUserDataBase(string dataBase, SecurityIdentifier userSid)
+        {
+            if (String.IsNullOrWhiteSpace(dataBase) || userSid == null || !userSid.IsAccountSid())
+                return false;
+
+            string actual = NormalizeDirectoryPath(dataBase);
+            using (WindowsIdentity currentIdentity = WindowsIdentity.GetCurrent())
+            {
+                if (currentIdentity.User != null && currentIdentity.User.Equals(userSid))
+                {
+                    string currentLocalData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    return !String.IsNullOrWhiteSpace(currentLocalData) &&
+                        String.Equals(actual, NormalizeDirectoryPath(currentLocalData), StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            using (RegistryKey profileKey = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + userSid.Value,
+                false))
+            {
+                if (profileKey == null)
+                    return false;
+                string profilePath = profileKey.GetValue("ProfileImagePath", String.Empty, RegistryValueOptions.DoNotExpandEnvironmentNames) as string;
+                if (String.IsNullOrWhiteSpace(profilePath))
+                    return false;
+                profilePath = Environment.ExpandEnvironmentVariables(profilePath);
+                string expected = NormalizeDirectoryPath(Path.Combine(profilePath, "AppData", "Local"));
+                return String.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private static void PrepareGuiUserDataDirectories(string dataBase, SecurityIdentifier userSid)
+        {
+            if (!IsExpectedUserDataBase(dataBase, userSid))
+                throw new SecurityException(L("launcher.userDataRepairTargetInvalid"));
+            string productRoot = Path.Combine(dataBase, "ThanhViet-Tool-Kiem-Tra");
+            string protectedRoot = Path.Combine(productRoot, "v4.6");
+            CreateProtectedDirectory(productRoot, false, userSid);
+            CreateProtectedDirectory(protectedRoot, false, userSid);
+        }
+
+        private static int EnsureGuiUserDataAccess()
+        {
+            string dataBase = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            SecurityIdentifier userSid = WindowsIdentity.GetCurrent().User;
+            if (String.IsNullOrWhiteSpace(dataBase) || userSid == null)
+            {
+                ShowMessage(LaunchMode.Gui, L("launcher.userDataRepairTargetInvalid"), MessageBoxIcon.Error);
+                return 14;
+            }
+
+            try
+            {
+                PrepareGuiUserDataDirectories(dataBase, userSid);
+                return 0;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                RepairUserDataBase = dataBase;
+                RepairUserSid = userSid;
+                int repairResult = RelaunchElevated(LaunchMode.RepairUserDataAcl);
+                if (repairResult != 0)
+                    return repairResult;
+                try
+                {
+                    PrepareGuiUserDataDirectories(dataBase, userSid);
+                    return 0;
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage(LaunchMode.Gui, L("launcher.userDataRepairFailed", ex.Message), MessageBoxIcon.Error);
+                    return 14;
+                }
+            }
+            catch (SecurityException)
+            {
+                RepairUserDataBase = dataBase;
+                RepairUserSid = userSid;
+                int repairResult = RelaunchElevated(LaunchMode.RepairUserDataAcl);
+                if (repairResult != 0)
+                    return repairResult;
+                try
+                {
+                    PrepareGuiUserDataDirectories(dataBase, userSid);
+                    return 0;
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage(LaunchMode.Gui, L("launcher.userDataRepairFailed", ex.Message), MessageBoxIcon.Error);
+                    return 14;
+                }
+            }
+        }
+
+        private static int RepairUserDataAccess()
+        {
+            try
+            {
+                if (!IsAdministrator())
+                    throw new SecurityException(L("launcher.elevationFailed", "Administrator token required."));
+                PrepareGuiUserDataDirectories(RepairUserDataBase, RepairUserSid);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                ShowMessage(LaunchMode.RepairUserDataAcl, L("launcher.userDataRepairFailed", ex.Message), MessageBoxIcon.Error);
+                return 14;
             }
         }
 
@@ -358,7 +509,8 @@ namespace ThanhViet.ToolKiemTra
 
         private static bool IsInteractiveMode(LaunchMode mode)
         {
-            return mode == LaunchMode.Gui || mode == LaunchMode.EnterpriseUi || mode == LaunchMode.LocalLicenseManager;
+            return mode == LaunchMode.Gui || mode == LaunchMode.EnterpriseUi ||
+                mode == LaunchMode.LocalLicenseManager || mode == LaunchMode.RepairUserDataAcl;
         }
 
         private static void ShowMessage(LaunchMode mode, string message, MessageBoxIcon icon)
@@ -647,6 +799,8 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_DATA_ROOT"] = protectedRoot;
                 startInfo.EnvironmentVariables["TOOL_LEGACY_DATA_ROOT"] = legacyRoot;
                 startInfo.EnvironmentVariables["TOOL_DATA_SCOPE"] = machineScope ? "Machine" : "User";
+                SecurityIdentifier dataOwnerSid = WindowsIdentity.GetCurrent().User;
+                startInfo.EnvironmentVariables["TOOL_DATA_OWNER_SID"] = dataOwnerSid == null ? String.Empty : dataOwnerSid.Value;
                 startInfo.EnvironmentVariables["TOOL_DATA_SCHEMA_VERSION"] = "2.0";
                 startInfo.EnvironmentVariables["TOOL_SECURE_RUNTIME_DIR"] = Path.Combine(tempDirectory, "runtime");
                 startInfo.EnvironmentVariables["TOOL_SECURE_LAUNCH"] = "1";
@@ -800,6 +954,11 @@ namespace ThanhViet.ToolKiemTra
 
         private static void CreateProtectedDirectory(string directory, bool machineScope)
         {
+            CreateProtectedDirectory(directory, machineScope, null);
+        }
+
+        private static void CreateProtectedDirectory(string directory, bool machineScope, SecurityIdentifier requestedUser)
+        {
             if (Directory.Exists(directory) &&
                 (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
                 throw new InvalidDataException(L("launcher.protectedDirectoryReparse", directory));
@@ -811,7 +970,9 @@ namespace ThanhViet.ToolKiemTra
 
             SecurityIdentifier administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
             SecurityIdentifier system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
-            SecurityIdentifier currentUser = WindowsIdentity.GetCurrent().User;
+            SecurityIdentifier currentUser = requestedUser ?? WindowsIdentity.GetCurrent().User;
+            if (!machineScope && currentUser == null)
+                throw new SecurityException(L("launcher.userDataRepairTargetInvalid"));
             DirectorySecurity security = new DirectorySecurity();
             security.SetAccessRuleProtection(true, false);
             security.SetOwner(machineScope ? administrators : currentUser);

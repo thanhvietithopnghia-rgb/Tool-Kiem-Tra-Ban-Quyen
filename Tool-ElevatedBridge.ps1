@@ -70,7 +70,7 @@ try {
     $allowedEnvironmentNames = @(
         'TOOL_APPROVED_KMS_FILE','TOOL_BUILD_ARCHITECTURE','TOOL_CAPABILITY_SCHEMA',
         'TOOL_COMPATIBILITY_CATALOG','TOOL_COMPATIBILITY_SCHEMA','TOOL_CORRELATION_ID',
-        'TOOL_DASHBOARD_SCHEMA','TOOL_DATA_ROOT','TOOL_DATA_SCHEMA_VERSION','TOOL_DATA_SCOPE',
+        'TOOL_DASHBOARD_SCHEMA','TOOL_DATA_OWNER_SID','TOOL_DATA_ROOT','TOOL_DATA_SCHEMA_VERSION','TOOL_DATA_SCOPE',
         'TOOL_ENTERPRISE_NETWORK_ALLOWED','TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH','TOOL_ENTERPRISE_ROOT',
         'TOOL_ENTERPRISE_SCHEMA','TOOL_EXPECTED_PROCESS_ARCHITECTURE','TOOL_LAUNCHER_PATH',
         'TOOL_LAUNCHER_PID','TOOL_LAUNCH_MODE','TOOL_LEGACY_DATA_ROOT','TOOL_LOCALIZATION_SCHEMA',
@@ -90,6 +90,12 @@ try {
     if ([string]$environmentValues['TOOL_SECURE_LAUNCH'] -ne '1') { throw 'ElevatedBridgeSecureLaunchRequired' }
     $dataScope = [string]$environmentValues['TOOL_DATA_SCOPE']
     if ($dataScope -notin @('User','Machine')) { throw 'ElevatedBridgeDataScopeInvalid' }
+    if ($dataScope -eq 'User') {
+        try {
+            $dataOwnerSid = New-Object Security.Principal.SecurityIdentifier([string]$environmentValues['TOOL_DATA_OWNER_SID'])
+            if (-not $dataOwnerSid.IsAccountSid()) { throw 'ElevatedBridgeDataOwnerSidInvalid' }
+        } catch { throw 'ElevatedBridgeDataOwnerSidInvalid' }
+    }
     $moduleId = [string]$environmentValues['TOOL_MODULE_ID']
     $invocationId = [guid]::Empty
     if (-not [guid]::TryParse([string]$environmentValues['TOOL_MODULE_INVOCATION_ID'], [ref]$invocationId) -or $invocationId -eq [guid]::Empty) {

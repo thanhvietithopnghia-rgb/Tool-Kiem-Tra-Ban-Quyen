@@ -133,16 +133,36 @@ function Ensure-Dir {
     }
 }
 
-function Set-ProtectedBackupAcl([string]$Path) {
+function Get-ToolDataOwnerSid {
+    if ([string]$env:TOOL_DATA_SCOPE -ne 'User') { return $null }
+    $configuredSid = [string]$env:TOOL_DATA_OWNER_SID
+    if (-not [string]::IsNullOrWhiteSpace($configuredSid)) {
+        try {
+            $sid = New-Object Security.Principal.SecurityIdentifier($configuredSid)
+            if ($sid.IsAccountSid()) { return $sid }
+        } catch {}
+    }
+    return [Security.Principal.WindowsIdentity]::GetCurrent().User
+}
+
+function Set-ProtectedBackupAcl {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$AllowCurrentUserForUserScope
+    )
     $administrators = New-Object Security.Principal.SecurityIdentifier("S-1-5-32-544")
     $system = New-Object Security.Principal.SecurityIdentifier("S-1-5-18")
+    $dataOwnerSid = if ($AllowCurrentUserForUserScope) { Get-ToolDataOwnerSid } else { $null }
     $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
     $acl = New-Object Security.AccessControl.DirectorySecurity
     $acl.SetAccessRuleProtection($true, $false)
-    $acl.SetOwner($administrators)
+    $acl.SetOwner($(if ($dataOwnerSid) { $dataOwnerSid } else { $administrators }))
     $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($administrators, "FullControl", $inheritance, "None", "Allow")))
     $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($system, "FullControl", $inheritance, "None", "Allow")))
-    Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
+    if ($dataOwnerSid) {
+        $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($dataOwnerSid, "FullControl", $inheritance, "None", "Allow")))
+    }
+    [IO.Directory]::SetAccessControl([IO.Path]::GetFullPath($Path), $acl)
 }
 
 function Test-ProtectedDirectoryAcl {
@@ -157,11 +177,11 @@ function Test-ProtectedDirectoryAcl {
         $ownerSid = (New-Object Security.Principal.NTAccount($acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value
         $allowedOwners = @("S-1-5-32-544", "S-1-5-18")
         $allowedWriters = @("S-1-5-32-544", "S-1-5-18")
-        if ($AllowCurrentUserForUserScope -and [string]$env:TOOL_DATA_SCOPE -ne 'Machine') {
-            $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-            if (-not [string]::IsNullOrWhiteSpace($currentUserSid)) {
-                $allowedOwners += $currentUserSid
-                $allowedWriters += $currentUserSid
+        if ($AllowCurrentUserForUserScope -and [string]$env:TOOL_DATA_SCOPE -eq 'User') {
+            $dataOwnerSid = Get-ToolDataOwnerSid
+            if ($dataOwnerSid) {
+                $allowedOwners += $dataOwnerSid.Value
+                $allowedWriters += $dataOwnerSid.Value
             }
         }
         if ($ownerSid -notin $allowedOwners -or -not $acl.AreAccessRulesProtected) { return $false }
@@ -183,14 +203,21 @@ function Get-SecureBackupRoot {
     $versionRoot = [IO.Path]::GetFullPath($versionRoot)
     $productRoot = Split-Path -Parent $versionRoot
     $backupRoot = Join-Path $versionRoot "backups"
-    foreach ($path in @($productRoot, $versionRoot, $backupRoot)) {
+    $userScope = [bool]([string]$env:TOOL_DATA_SCOPE -eq 'User')
+    foreach ($path in @($productRoot, $versionRoot)) {
         if (Test-Path -LiteralPath $path) {
             $existing = Get-Item -LiteralPath $path -Force -ErrorAction Stop
             if (-not $existing.PSIsContainer -or ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-CleanupText "backupReport.invalidRoot" @($path)) }
         } else { Ensure-Dir $path }
-        Set-ProtectedBackupAcl $path
-        if (-not (Test-ProtectedDirectoryAcl $path)) { throw (Get-CleanupText "backupReport.invalidAcl" @($path)) }
+        Set-ProtectedBackupAcl -Path $path -AllowCurrentUserForUserScope:$userScope
+        if (-not (Test-ProtectedDirectoryAcl -Path $path -AllowCurrentUserForUserScope:$userScope)) { throw (Get-CleanupText "backupReport.invalidAcl" @($path)) }
     }
+    if (Test-Path -LiteralPath $backupRoot) {
+        $existing = Get-Item -LiteralPath $backupRoot -Force -ErrorAction Stop
+        if (-not $existing.PSIsContainer -or ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw (Get-CleanupText "backupReport.invalidRoot" @($backupRoot)) }
+    } else { Ensure-Dir $backupRoot }
+    Set-ProtectedBackupAcl -Path $backupRoot
+    if (-not (Test-ProtectedDirectoryAcl -Path $backupRoot)) { throw (Get-CleanupText "backupReport.invalidAcl" @($backupRoot)) }
     return $backupRoot
 }
 

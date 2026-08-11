@@ -193,6 +193,25 @@ if ($launcherText -notmatch 'RequiresAdministrator' -or $launcherText -notmatch 
     $launcherText -notmatch 'SpecialFolder\.LocalApplicationData' -or $launcherText -notmatch 'TOOL_DATA_SCOPE') {
     $failures.Add('Launcher thiếu dashboard user-scope hoặc nâng quyền theo nhu cầu.')
 }
+if ($launcherText -notmatch '--repair-user-data-acl' -or
+    $launcherText -notmatch 'EnsureGuiUserDataAccess' -or
+    $launcherText -notmatch 'IsExpectedUserDataBase' -or
+    $launcherText -notmatch 'ProfileList' -or
+    $launcherText -notmatch 'TOOL_DATA_OWNER_SID') {
+    $failures.Add('Launcher thiếu tự phục hồi ACL user-scope có UAC hoặc khóa đích theo SID/profile.')
+}
+if ($guiText -notmatch 'TOOL_DATA_OWNER_SID' -or $elevatedBridgeText -notmatch 'TOOL_DATA_OWNER_SID' -or
+    $elevatedBridgeText -notmatch 'ElevatedBridgeDataOwnerSidInvalid') {
+    $failures.Add('Cầu nối UAC chưa giữ và xác thực SID sở hữu dữ liệu user-scope.')
+}
+foreach ($aclScript in @($cleanupText, $backupText)) {
+    if ($aclScript -notmatch 'Get-ToolDataOwnerSid' -or
+        $aclScript -notmatch 'Set-ProtectedBackupAcl\s+-Path\s+\$path\s+-AllowCurrentUserForUserScope:\$userScope' -or
+        $aclScript -notmatch 'Set-ProtectedBackupAcl\s+-Path\s+\$backupRoot') {
+        $failures.Add('Luồng backup/cleanup còn nguy cơ khóa parent user-scope hoặc chưa giữ backup root chỉ cho quản trị viên.')
+        break
+    }
+}
 if ($guiText -notmatch 'Verb\s*=\s*"RunAs"' -or $guiText -notmatch 'ArgumentList\s+"--enterprise-ui"\s+-Verb\s+RunAs') {
     $failures.Add('Cập nhật/Mục 8 chưa yêu cầu quyền quản trị theo từng thao tác.')
 }

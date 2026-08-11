@@ -2397,6 +2397,8 @@
   "launcher.protectedDirectoryReparse": "A protected directory cannot be a junction/symlink: {0}",
   "launcher.singleInstance": "This function is already running. Wait for the current process to finish.",
   "launcher.toolStartFailed": "Computer Configuration and Software License Check Tool v4.8.0.0 could not be started.\r\n\r\n{0}",
+  "launcher.userDataRepairFailed": "The Tool could not restore access to its data directory.\r\n\r\n{0}",
+  "launcher.userDataRepairTargetInvalid": "The Tool data directory path or owner account is invalid.",
   "launcher.unsupportedArgument": "Unsupported argument: {0}",
   "launcher.windowsOnly": "This executable supports Windows only.",
   "launcher.windowsVersionRequired": "This executable requires Windows 7 SP1 or later.\r\n\r\nWindows XP/Vista no longer provides the system components required for safe operation.",

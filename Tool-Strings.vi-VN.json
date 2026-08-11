@@ -2397,6 +2397,8 @@
   "launcher.protectedDirectoryReparse": "Từ chối thư mục bảo vệ là junction/symlink: {0}",
   "launcher.singleInstance": "Chức năng này đang chạy. Hãy chờ tiến trình hiện tại hoàn tất.",
   "launcher.toolStartFailed": "Không thể khởi động Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0.0.\r\n\r\n{0}",
+  "launcher.userDataRepairFailed": "Không thể tự khôi phục quyền truy cập thư mục dữ liệu của Tool.\r\n\r\n{0}",
+  "launcher.userDataRepairTargetInvalid": "Đường dẫn hoặc tài khoản sở hữu thư mục dữ liệu của Tool không hợp lệ.",
   "launcher.unsupportedArgument": "Tham số không được hỗ trợ: {0}",
   "launcher.windowsOnly": "Bản EXE này chỉ hỗ trợ Windows.",
   "launcher.windowsVersionRequired": "Bản EXE này cần Windows 7 SP1 hoặc mới hơn.\r\n\r\nWindows XP/Vista không còn đủ thành phần hệ thống để chạy an toàn.",

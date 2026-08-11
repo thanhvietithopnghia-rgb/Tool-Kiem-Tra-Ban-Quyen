@@ -2773,7 +2773,7 @@ function Get-ToolElevatedEnvironmentSnapshot {
     $allowedNames = @(
         'TOOL_APPROVED_KMS_FILE','TOOL_BUILD_ARCHITECTURE','TOOL_CAPABILITY_SCHEMA',
         'TOOL_COMPATIBILITY_CATALOG','TOOL_COMPATIBILITY_SCHEMA','TOOL_CORRELATION_ID',
-        'TOOL_DASHBOARD_SCHEMA','TOOL_DATA_ROOT','TOOL_DATA_SCHEMA_VERSION','TOOL_DATA_SCOPE',
+        'TOOL_DASHBOARD_SCHEMA','TOOL_DATA_OWNER_SID','TOOL_DATA_ROOT','TOOL_DATA_SCHEMA_VERSION','TOOL_DATA_SCOPE',
         'TOOL_ENTERPRISE_NETWORK_ALLOWED','TOOL_ENTERPRISE_NETWORK_SETTINGS_PATH','TOOL_ENTERPRISE_ROOT',
         'TOOL_ENTERPRISE_SCHEMA','TOOL_EXPECTED_PROCESS_ARCHITECTURE','TOOL_LAUNCHER_PATH',
         'TOOL_LAUNCHER_PID','TOOL_LAUNCH_MODE','TOOL_LEGACY_DATA_ROOT','TOOL_LOCALIZATION_SCHEMA',
@@ -2791,6 +2791,12 @@ function Get-ToolElevatedEnvironmentSnapshot {
     }
     if ([string]$snapshot['TOOL_SECURE_LAUNCH'] -ne '1') { throw 'ElevatedBridgeSecureLaunchRequired' }
     if ([string]::IsNullOrWhiteSpace([string]$snapshot['TOOL_SECURE_RUNTIME_DIR'])) { throw 'ElevatedBridgeRuntimeMissing' }
+    if ([string]$snapshot['TOOL_DATA_SCOPE'] -eq 'User') {
+        try {
+            $dataOwnerSid = New-Object Security.Principal.SecurityIdentifier([string]$snapshot['TOOL_DATA_OWNER_SID'])
+            if (-not $dataOwnerSid.IsAccountSid()) { throw 'ElevatedBridgeDataOwnerSidInvalid' }
+        } catch { throw 'ElevatedBridgeDataOwnerSidInvalid' }
+    }
     if ([string]$snapshot['TOOL_MODULE_ID'] -notmatch '^[a-z0-9][a-z0-9._-]{0,127}$') { throw 'ElevatedBridgeModuleIdInvalid' }
     $invocationId = [guid]::Empty
     if (-not [guid]::TryParse([string]$snapshot['TOOL_MODULE_INVOCATION_ID'], [ref]$invocationId) -or $invocationId -eq [guid]::Empty) {

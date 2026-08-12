@@ -20,7 +20,7 @@ function Get-Sha256Hex([string]$Path) {
     } finally { $stream.Dispose() }
 }
 
-function Test-HashManifest([string]$ManifestPath, [string]$RootPath, [int]$ExpectedCount) {
+function Test-HashManifest([string]$ManifestPath, [string]$RootPath, [int]$ExpectedCount, [switch]$AllowRelativePaths) {
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
         $failures.Add("Thiếu manifest: $ManifestPath")
         return
@@ -33,11 +33,19 @@ function Test-HashManifest([string]$ManifestPath, [string]$RootPath, [int]$Expec
             continue
         }
         $name = $matches[2].Trim()
-        if ([IO.Path]::GetFileName($name) -ne $name -or -not $seen.Add($name)) {
+        $normalizedName = $name.Replace('/', '\')
+        $rootFull = [IO.Path]::GetFullPath($RootPath).TrimEnd('\') + '\'
+        $path = [IO.Path]::GetFullPath((Join-Path $RootPath $normalizedName))
+        $unsafeName = if ($AllowRelativePaths) {
+            [IO.Path]::IsPathRooted($name) -or $normalizedName -match '(^|\\)\.\.(\\|$)' -or
+            -not $path.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)
+        } else {
+            [IO.Path]::GetFileName($name) -ne $name
+        }
+        if ($unsafeName -or -not $seen.Add($normalizedName)) {
             $failures.Add("Tên tệp không an toàn hoặc bị lặp trong manifest: $name")
             continue
         }
-        $path = Join-Path $RootPath $name
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             $failures.Add("Manifest tham chiếu tệp bị thiếu: $name")
             continue
@@ -103,6 +111,7 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
 
 Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 47
 Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 86
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-PACKAGE-SHA256SUMS.txt') $sourceDirectoryFull 89 -AllowRelativePaths
 Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 23
 
 $manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.manifest'
@@ -118,7 +127,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 $versionChecks = @(
     @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8\.0"' },
     @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.8\.0\.0"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.11"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.12"' },
     @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.8"' },
     @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8"' },
     @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyVersion\("4\.8\.0\.0"\)' },
@@ -574,10 +583,13 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.11') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.11.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.12') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.12.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-assistant-performance-catalog-report-enterprise-20260811') { throw 'Sai release label v4.8.0.0.' }
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-rc1-20260812' -or
+            [string]$releaseManifest.ReleaseStatus -ne 'ReleaseCandidate') {
+            throw 'Release phải giữ nhãn RC cho tới khi hoàn tất ma trận E2E Production.'
+        }
         if ([int]$releaseManifest.PayloadCount -ne 49 -or [int]$releaseManifest.IntegrityFileCount -ne 47) { throw 'Sai số lượng payload/integrity.' }
         $payloadCompression = $releaseManifest.PayloadCompression
         if ([string]$payloadCompression.Scheme -ne 'PerResourceDeflateOrRaw-v1' -or

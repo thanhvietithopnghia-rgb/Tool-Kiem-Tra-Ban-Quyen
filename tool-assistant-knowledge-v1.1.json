@@ -172,8 +172,8 @@
       "TitleVi": "Cảnh báo SmartScreen/antivirus",
       "TitleEn": "SmartScreen or antivirus warning",
       "Keywords": ["virus", "antivirus", "defender", "smartscreen", "unknown publisher", "chu ky so", "ky so", "signpath"],
-      "AnswerVi": "Bản chưa ký số có thể bị SmartScreen hoặc antivirus cảnh báo vì nhà phát hành chưa được xác minh và tệp chưa có uy tín tải xuống. Không nên tắt Defender. Hướng xử lý đúng là phát hành từ nguồn chính thức, công bố SHA-256 và dùng chữ ký Authenticode đáng tin cậy khi có.",
-      "AnswerEn": "An unsigned build may trigger SmartScreen or antivirus because the publisher is unverified and the file lacks download reputation. Do not disable Defender. Use the official source, published SHA-256 and a trusted Authenticode signature when available."
+      "AnswerVi": "Bản v4.8 có chữ ký Authenticode tự ký miễn phí để nhận biết tệp bị sửa, nhưng chứng thư không được Windows tin cậy công khai nên SmartScreen vẫn có thể cảnh báo như tệp chưa ký. Không tắt Defender; hãy dùng nguồn chính thức, đối chiếu SHA-256 và xem chứng thư bằng Get-AuthenticodeSignature.",
+      "AnswerEn": "v4.8 carries a free self-signed Authenticode signature for tamper detection, but the certificate is not publicly trusted, so SmartScreen may still warn as it does for an unsigned file. Do not disable Defender; use the official source, compare SHA-256, and inspect the certificate with Get-AuthenticodeSignature."
     },
     {
       "Id": "manual-review",

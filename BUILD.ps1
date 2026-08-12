@@ -15,8 +15,8 @@ Set-StrictMode -Version 2.0
 
 $productVersion = '4.8'
 $releaseVersion = '4.8.0.0'
-$releaseBuildDate = '2026.08.11'
-$releaseLabel = "$releaseVersion-assistant-performance-catalog-report-enterprise-20260811"
+$releaseBuildDate = '2026.08.12'
+$releaseLabel = "$releaseVersion-rc1-20260812"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -333,6 +333,28 @@ foreach ($name in $sourceFiles) {
     (New-Object Text.UTF8Encoding($false))
 )
 
+# Manifest này bao phủ toàn bộ gói mã nguồn bàn giao, kể cả tài liệu và workflow
+# nằm trong thư mục con. Loại trừ chính manifest để tránh tham chiếu vòng, cùng
+# các thư mục làm việc/build không thuộc gói phát hành.
+$sourcePackageManifestPath = Join-Path $sourceDirectory 'SOURCE-PACKAGE-SHA256SUMS.txt'
+$sourcePackageRootPrefix = [IO.Path]::GetFullPath($sourceDirectory).TrimEnd('\') + '\'
+$sourcePackageFiles = @(Get-ChildItem -LiteralPath $sourceDirectory -Recurse -File -Force | Where-Object {
+    $_.FullName -ne $sourcePackageManifestPath -and
+    $_.FullName -notmatch '\\(?:\.git|dist|test)(?:\\|$)'
+} | Sort-Object { $_.FullName.Substring($sourcePackageRootPrefix.Length) })
+$sourcePackageManifestLines = @(
+    "# SHA-256 cua toan bo goi ma nguon v$productVersion.0; khong tu liet ke tep manifest nay."
+)
+foreach ($file in $sourcePackageFiles) {
+    $relativePath = $file.FullName.Substring($sourcePackageRootPrefix.Length)
+    $sourcePackageManifestLines += "$(Get-Sha256Hex $file.FullName)  $relativePath"
+}
+[IO.File]::WriteAllLines(
+    $sourcePackageManifestPath,
+    $sourcePackageManifestLines,
+    (New-Object Text.UTF8Encoding($false))
+)
+
 Write-Host '[3/8] Chuẩn bị thư mục đầu ra...'
 if (-not (Test-Path -LiteralPath $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory | Out-Null }
 $compiler = Find-CSharpCompiler
@@ -532,6 +554,7 @@ $releaseManifest = [ordered]@{
     ReleaseVersion = $releaseVersion
     ReleaseBuildDate = $releaseBuildDate
     ReleaseLabel = $releaseLabel
+    ReleaseStatus = 'ReleaseCandidate'
     PrimaryFileName = "Tool-Kiem-Tra-v$productVersion.exe"
     RuntimeArchitecture = 'Auto: x64 on Windows 64-bit; x86 on Windows 32-bit'
     Artifacts = $manifestArtifacts
@@ -728,28 +751,39 @@ $releaseManifest = [ordered]@{
 $primaryArtifact = @($artifactResults.ToArray())[0]
 $primaryArtifactPath = Join-Path $OutputDirectory $primaryArtifact.FileName
 $updateSignerThumbprints = @()
-$updateAuthenticodeRequired = [bool]($primaryArtifact.AuthenticodeStatus -eq 'Valid' -and -not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint))
+# Chữ ký tự ký chỉ có trạng thái Valid trên máy đã cài chứng thư tin cậy. Không
+# bắt buộc máy người dùng phải tin chứng thư này; updater công khai vẫn khóa URL,
+# kích thước và SHA-256. Chỉ bật pinning khi dùng chứng thư phát hành công khai.
+$updateAuthenticodeRequired = [bool](
+    $primaryArtifact.AuthenticodeStatus -eq 'Valid' -and
+    -not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint) -and
+    [string]$primaryArtifact.AuthenticodeSigner -notmatch '(?i)Self-Signed'
+)
 if ($updateAuthenticodeRequired) { $updateSignerThumbprints = @(([string]$primaryArtifact.AuthenticodeThumbprint).Replace(' ', '').ToUpperInvariant()) }
 $applicationUpdateManifest = [ordered]@{
     SchemaVersion = '1.0'
     Channel = 'stable'
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
-    PublishedAtUtc = '2026-08-11T00:00:00Z'
+    PublishedAtUtc = '2026-08-12T00:00:00Z'
     Title = [ordered]@{
-        'vi-VN' = 'v4.8.0 - Nâng cấp nhảy vọt, cải tiến chuyên sâu'
-        'en-US' = 'v4.8.0 - A leap-forward upgrade with in-depth improvements'
+        'vi-VN' = 'v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn'
+        'en-US' = 'v4.8.0 - Faster, clearer, and safer'
     }
     Changes = [ordered]@{
         'vi-VN' = @(
-            'v4.8 là bản nâng cấp nhảy vọt, cải tiến chuyên sâu, phát hành trực tiếp từ v4.6.',
-            'Hướng dẫn sử dụng chỉ trình bày cách dùng tính năng, cách đọc kết quả và nguyên tắc an toàn.',
-            'Xem đầy đủ nội dung cải tiến, sửa lỗi và đối chứng hiệu năng trong LICH-SU-PHIEN-BAN.txt.'
+            'Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.',
+            'Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.',
+            'Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.',
+            'Khắc phục có Dry Run, backup và hậu kiểm; Tool không tự gỡ ứng dụng.',
+            'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
         )
         'en-US' = @(
-            'v4.8 is a leap-forward upgrade with in-depth improvements, released directly from v4.6.',
-            'The user guide now covers feature use, result interpretation, and safe operating practices only.',
-            'See VERSION-HISTORY-en-US.md for the complete improvements, fixes, and performance validation.'
+            'The interface is clearer; the Redacted report button no longer clips or fades on hover.',
+            'Scans are faster, recognize more software, and present results more clearly.',
+            'Reports protect sensitive data better, and known PDF clipping cases are fixed.',
+            'Remediation includes Dry Run, backup, and post-verification; the Tool never uninstalls applications.',
+            'Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0.'
         )
     }
     ReleasePageUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v$releaseVersion"
@@ -762,11 +796,26 @@ $applicationUpdateManifest = [ordered]@{
 [IO.File]::WriteAllText((Join-Path $OutputDirectory 'update-manifest-v1.json'), ($applicationUpdateManifest | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($false)))
 
 $infoName = 'THONG-TIN-PHAT-HANH-v4.8.txt'
+$authenticodeInfo = if (-not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint)) {
+    "Authenticode signer: $($primaryArtifact.AuthenticodeSigner); thumbprint $($primaryArtifact.AuthenticodeThumbprint); status $($primaryArtifact.AuthenticodeStatus)."
+} else {
+    'Authenticode: NotSigned.'
+}
+$authenticodeTrustInfo = if ([string]$primaryArtifact.AuthenticodeStatus -eq 'Valid' -and [string]$primaryArtifact.AuthenticodeSigner -match 'Self-Signed') {
+    'Chu ky Authenticode tu ky duoc may build xac minh Valid sau khi cai chung thu tin cay cho Current User; may la van can cai chung thu hoac co the bao Unknown publisher/SmartScreen.'
+} elseif ([string]$primaryArtifact.AuthenticodeStatus -eq 'Valid') {
+    'Chu ky Authenticode duoc Windows tren may build xac minh Valid; SmartScreen van co the can danh tieng cho tep moi.'
+} elseif (-not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint)) {
+    'Chu ky tu ky mien phi chi giup nhan biet tep bi sua; khong duoc Windows tin cay cong khai va khong loai bo canh bao SmartScreen tren may la.'
+} else {
+    'Tep chua co chu ky Authenticode; chi tai tu GitHub chinh thuc va doi chieu SHA-256.'
+}
 $infoLines = @(
     "PHAN MEM KIEM TRA BAN QUYEN v$releaseVersion - HO TRO CA NHAN VA DOANH NGHIEP",
     "Release version: $releaseVersion",
     "Release build date: $releaseBuildDate",
     "Release label: $releaseLabel",
+    'Release status: ReleaseCandidate (chua Final/Production cho toi khi dat ma tran E2E).',
     "Tep chay duy nhat: Tool-Kiem-Tra-v$productVersion.exe",
     "SHA-256: $($primaryArtifact.Sha256)",
     'AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.',
@@ -843,7 +892,8 @@ $infoLines = @(
     'PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.',
     'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.6.md.',
     'Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; catalog hien tai theo doi Windows 10 22H2 va Windows 11 23H2/24H2/25H2/26H1.',
-    'Tep phat hanh khong ky so co the bi SmartScreen/antivirus danh gia theo heuristic; khong khuyen nghi tat bao ve, chi tai tu GitHub chinh thuc va doi chieu SHA-256.',
+    $authenticodeInfo,
+    $authenticodeTrustInfo,
     'Khong the vuot AppLocker, WDAC, SmartScreen, antivirus hoac chinh sach doanh nghiep.'
 )
 [IO.File]::WriteAllLines((Join-Path $OutputDirectory $infoName), $infoLines, (New-Object Text.UTF8Encoding($false)))

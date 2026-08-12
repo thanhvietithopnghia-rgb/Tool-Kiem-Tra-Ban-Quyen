@@ -1,6 +1,6 @@
-# Tool Kiểm Tra v4.8 – Bản nâng cấp nhảy vọt, cải tiến chuyên sâu
+# Tool Kiểm Tra v4.8 – Nhanh hơn, dễ dùng hơn, an toàn hơn
 
-Phiên bản v4.8.0 là bản **nâng cấp nhảy vọt, cải tiến chuyên sâu** và được phát hành trực tiếp từ v4.6. Bản mới tạo ra thay đổi rõ rệt về giao diện, Trợ lý Tool, tốc độ quét, chất lượng mã nguồn, catalogue nhận diện, độ chặt chẽ của kết luận, báo cáo HTML/PDF và Máy chủ/Máy trạm. Tool vẫn giữ nguyên bản sắc kiểm tra cấu hình, bản quyền và tuân thủ, cùng các ranh giới Offline, khắc phục có kiểm soát, UAC theo nhu cầu và cập nhật có xác minh.
+v4.8 tập trung vào ba điều người dùng dễ nhận thấy: thao tác rõ hơn, quét nhanh hơn và khắc phục an toàn hơn. Tool vẫn kiểm tra cấu hình, Windows, Office và phần mềm; mặc định Offline và chỉ thay đổi hệ thống sau khi người dùng chọn, xác nhận và tạo backup.
 
 Bản cập nhật dùng Catalog Lifecycle 1.1 để nhận diện Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1; Office 2021/2024, Microsoft 365 Apps và phần mềm khác từ nhiều nguồn cài đặt. Catalog cảnh báo tuổi 30/45 ngày; phiên bản Microsoft chưa biết chuyển sang chỉ đọc và yêu cầu rà soát thay vì bị kết luận sai. Giao diện Dashboard 2.0 hỗ trợ Sáng/Tối, tự tối ưu theo DPI và chỉ kết nối online khi người dùng đồng ý.
 
@@ -8,44 +8,19 @@ Offline vẫn là mặc định: công cụ không kết nối mạng khi chưa 
 
 Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
 
-Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.11**
+Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.12**
 
 Tác giả và phát triển: **Thanh Việt**
 
 ## Điểm chính
 
-- Vùng trao đổi dữ liệu quản trị được kiểm tra theo ACL hiện tại trước mỗi thao tác quyền cao; Tool không còn chặn nhầm do cờ lỗi cũ nhưng vẫn khóa an toàn nếu quyền thư mục thực sự không hợp lệ.
-- Một tệp EXE AnyCPU, tự chạy đúng kiến trúc x64 hoặc x86.
-- Giao diện WinForms dùng bảng màu trung tính, giảm chữ đậm/cỡ chữ, tăng khoảng đệm icon, ghi nhớ Sáng/Tối, tiếng Việt/English và tự co giãn theo DPI.
-- Ghi nhớ ngôn ngữ; Light/Dark dùng trong phiên. Mỗi lần mở luôn trở về Offline, không tự khôi phục Online từ phiên trước.
-- **Trợ lý Tool** ở bên trái nút Giới thiệu, hoạt động độc lập trên mỗi máy với tri thức schema 1.1 và báo cáo cục bộ; khung chat/bong bóng gọn với màu hỏi–đáp riêng, trả lời ngay trong đúng lượt Gửi/Enter, hiểu viết tắt/lỗi gõ/câu nhiều ý, khóa gửi trùng và kiểm thử hơn 270 từ khóa/cách hỏi. Online chỉ tải kho tri thức tương thích sau khi người dùng cho phép mạng trong phiên.
-- Cảnh báo khi chạy trong máy ảo hoặc Remote Desktop mà không khóa chức năng.
-- Có nút **Sao chép toàn bộ log**, **Mở thư mục báo cáo** và lịch sử phiên bản hiển thị ngay trong Tool.
-- Quét nhiều bản Office và nhiều nguồn tệp song song có giới hạn để tăng tốc trên máy nhiều ổ đĩa.
-- Quét sâu phổ quát từng phần mềm phát hiện được: phân bổ ngân sách chữ ký có trọng số nhưng vẫn giữ độ phủ cho mọi nhóm, kiểm tra nhiều EXE/DLL, hash xấu đã biết, artifact, hosts, firewall, IFEO, dịch vụ và autorun; mọi giới hạn và độ phủ đều được ghi vào báo cáo.
-- Tăng tốc quét sâu bằng cache thư mục con, bộ liệt kê .NET và nhóm luồng Authenticode dùng lại; hồ sơ chữ ký 6/3/1 ưu tiên phần mềm có rủi ro nhưng vẫn giữ ít nhất một lượt cho ứng dụng có tệp đại diện.
-- Tối ưu nút thắt gộp inventory và kiểm tra chữ ký theo lô tối đa bốn worker mà không giảm nguồn quét/kết quả; bài đối chứng cùng dữ liệu cho 0 khác biệt và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
-- Catalogue phần mềm `1.3.1.0` có 76 quy tắc; bổ sung IObit Driver Booster, WIRIS MathType, nhóm PDF editor thương mại và tên ngắn IDM, gộp kết quả trùng từ Registry/Appx/shortcut, bản vá cùng dòng và x86/x64 nhưng vẫn giữ nguồn/vị trí/kiến trúc, đồng thời tách thành phần hệ thống/mặc định vào phụ lục chi tiết.
-- `HashMismatch` tạo trạng thái `IntegrityCompromised`, không tự suy diễn giấy phép không chính hãng nếu chưa có bằng chứng cấp phép trực tiếp.
-- **Dry Run** cho khắc phục: lập kế hoạch chi tiết và báo cáo nhưng không tạo restore point/backup, không dừng, xóa hoặc sửa hệ thống; thực hiện thật phải chọn và xác nhận lại.
-- Khắc phục phần mềm bên thứ ba ghi kết quả từng hành động và chỉ báo thành công khi có thay đổi thật; hướng dẫn cài lại đơn thuần không còn bị tính là đã sửa. WinRAR được kiểm tra `rarreg.key`, nên quét lại sau khi bỏ giấy phép cục bộ có thể xác nhận `Unactivated` dù chương trình vẫn mở ở chế độ dùng thử.
-- Hàng đợi làm sạch phần mềm khác nay tách khỏi kiểm kê: sau hậu kiểm chỉ các mục còn bằng chứng activator/can thiệp mới xuất hiện lại; trạng thái `Unverified` đơn thuần vẫn có trong báo cáo nhưng không bị coi là tồn dư. Tệp activator độc lập trong Downloads/Desktop/TEMP có thể được chọn cách ly thủ công theo đúng đường dẫn, còn kho backup/quarantine bị loại khỏi lần quét sau. Kế hoạch Adobe/Autodesk cũng mang theo đúng dòng hosts và quy tắc Firewall outbound-block đã ghép với tệp thực thi; thay đổi Firewall luôn manual-only và không tự khôi phục.
-- Báo cáo Windows/Office riêng vẫn rà MAS, TSforge, OHook, KMS tool và Microsoft Toolkit; kênh KMS không còn biến mất khi Windows ở trạng thái Notification, đồng thời hiển thị số phút/ngày và thời điểm hết chu kỳ KMS tối đa 180 ngày.
-- Quét Phần mềm thường rà thêm thư mục cài đặt thương mại có giới hạn độ sâu/thời gian thay vì chỉ dựa vào Download; ngày cài được chuẩn hóa `yyyy-MM-dd`.
-- DataSchema `2.0` dùng vùng ghi v4.6 riêng; migration từ v4.4/v4.5 được staging, kiểm tra SHA-256, commit có rollback và không xóa dữ liệu cũ.
-- Kiểm tra phiên bản mới chỉ khi Online đã được cho phép. Khi có bản mới, Tool đưa ra ba lựa chọn **Cập nhật ngay**, **Để sau**, **Bỏ qua lần này**; không có service nền, telemetry hoặc cập nhật im lặng.
-- Cập nhật ngay tải EXE từ GitHub HTTPS cố định, xác minh kích thước/SHA-256/chữ ký nếu bắt buộc, backup bản cũ và rollback nếu bản mới không khởi động.
-- Mười chức năng có tiêu đề màu xanh thống nhất, mô tả trung tính và tự căn icon/chữ theo DPI, chiều rộng và Light/Dark.
-- Khu vực hoạt động để trống khi khởi động; khi có tác vụ mới hiển thị tiến độ, thời gian, nhật ký và nút **Dừng**.
-- Nút mạng hiển thị trạng thái hiện tại **Offline/Online**; tooltip giải thích rõ thao tác chuyển chế độ và Tool chỉ dùng mạng sau khi người dùng chủ động bật.
-- Kiểm tra mặc định chỉ đọc; thao tác thay đổi hệ thống yêu cầu quyền quản trị, xem trước, lựa chọn, xác nhận và backup.
-- Dashboard mở bằng quyền người dùng thường; UAC chỉ được yêu cầu theo nhu cầu cho thay đổi hệ thống, cập nhật và quản trị doanh nghiệp.
-- Kết luận Windows/Office tách kích hoạt khỏi quyền sử dụng; dữ liệu cấp phép không đọc được ghi **CHƯA XÁC ĐỊNH** và không chứng minh hợp lệ/không hợp lệ. Cảnh báo can thiệp cần bằng chứng trực tiếp.
-- Mọi gói báo cáo nằm trực tiếp trong một thư mục chung `Desktop\BaoCao-Tool-Kiem-Tra`; tên tệp có timestamp mili-giây, HTML liên kết đúng PDF, bảng rộng được tách và phần mềm hệ thống nằm trong phụ lục mở khi cần.
-- Tên màn hình dùng fallback EDID, `Win32_DesktopMonitor` và PnP; hộp riêng tư có ba nút rõ ràng **Bản đã che thông tin**, **Bản đầy đủ nội bộ**, **Hủy**. Timeline tách trạng thái quan sát hiện tại khỏi các sự kiện lịch sử vẫn phải được giữ lại để kiểm toán.
-- Máy chủ/Máy trạm nhận `IP:cổng`, tự dò máy chủ khi ô địa chỉ trống, chẩn đoán từng lớp địa chỉ/TCP/dịch vụ/protocol/phiên bản và quét LAN bằng ARP/ICMP/TCP; máy chủ chỉ báo đã chạy sau heartbeat/chẩn đoán, agent chỉ báo đã gửi sau kết quả xác nhận; báo cáo mất kết nối được bảo vệ và xếp hàng gửi lại.
-- JSON/XML và manifest SHA-256 phục vụ tích hợp, lưu trữ và đối chiếu.
-- Không telemetry, không kiểm tra cập nhật khi Offline và không dùng mô hình AI trực tuyến khi chạy.
+- **Dễ dùng:** giao diện Sáng/Tối, Việt/Anh và tự co giãn theo DPI; đã sửa nút **Bản đã che thông tin** bị cắt chữ hoặc mờ khi rê chuột.
+- **Nhanh hơn:** tối ưu quét và kiểm kê nhưng giữ nguyên phạm vi kiểm tra; catalogue hiện có 76 quy tắc nhận diện phần mềm.
+- **Báo cáo rõ hơn:** HTML dùng để xem nhanh, PDF chứa chi tiết; người dùng có thể che dữ liệu nhạy cảm trước khi chia sẻ.
+- **Khắc phục an toàn:** có Dry Run, backup, chọn từng mục, UAC khi cần và kiểm tra lại kết quả; Tool không tự gỡ ứng dụng.
+- **Kết luận thận trọng:** tệp bị sửa không tự đồng nghĩa phần mềm không chính hãng; kết quả chưa đủ bằng chứng được ghi rõ là chưa xác minh.
+- **Offline mặc định:** không telemetry, không cập nhật ngầm và không gửi dữ liệu máy lên mạng khi chưa được phép.
+- **Một tệp EXE:** tự chạy đúng x64/x86; có chữ ký Authenticode tự ký miễn phí để phát hiện tệp bị sửa, nhưng vẫn có thể bị SmartScreen cảnh báo trên máy lạ.
 
 ## Mười chức năng
 
@@ -54,7 +29,7 @@ Tác giả và phát triển: **Thanh Việt**
 3. **Bản quyền Windows** — trạng thái kích hoạt, edition, kênh cấp phép, PartialProductKey và KMS nếu có.
 4. **Bản quyền Microsoft Office** — Office 2021/2024/LTSC, Microsoft 365 Apps, Click-to-Run, SKU và OSPP.
 5. **Phần mềm & dấu hiệu can thiệp** — kiểm kê mọi nguồn cài đặt được hỗ trợ và quét sâu có giới hạn cho từng ứng dụng, gồm nhiều tệp thực thi/DLL, chữ ký số, hash, artifact, hosts, firewall, IFEO, tự động chạy, dịch vụ, tác vụ và bằng chứng kỹ thuật kích hoạt bị can thiệp.
-6. **Khắc phục KMS/Activator** — chọn Quét toàn bộ, Windows & Office hoặc Phần mềm khác; có Dry Run không thay đổi hệ thống và luồng thực yêu cầu chọn/xác nhận lại. Mọi mục Không chính hãng/Nghi vấn đều chọn thủ công được; tự động chỉ chạy kế hoạch an toàn đã khóa phạm vi, còn gỡ/cài lại chính thức luôn cần xác nhận riêng và backup có kiểm chứng.
+6. **Khắc phục KMS/Activator** — chế độ Online, Dry Run và thực hiện thật đều có ba ô tích **Windows, Office, Phần mềm khác**; có thể chọn một hoặc nhiều phạm vi và chỉ quét/xử lý đúng mục đã chọn. Mọi mục Không chính hãng/Nghi vấn đều chọn thủ công được; tự động chỉ chạy kế hoạch an toàn đã khóa phạm vi, còn gỡ/cài lại chính thức luôn cần xác nhận riêng và backup có kiểm chứng.
 7. **Khôi phục key OEM** — kiểm tra key firmware và chỉ áp dụng khi người dùng xác nhận edition phù hợp.
 8. **Quản lý giấy phép hợp lệ** — quản lý Windows/Office cục bộ hoặc máy chủ/máy trạm trong LAN được cho phép.
 9. **Kiểm tra chuyên sâu** — quét sâu và điều tra forensics dành cho quản trị viên.
@@ -155,7 +130,7 @@ Kho dự án: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quye
 
 Bản mới nhất: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-Chỉ tải từ kho chính thức, đối chiếu phiên bản và SHA-256 trước khi dùng. Bản chưa ký số có thể bị SmartScreen/antivirus cảnh báo heuristic do cấu trúc một-EXE, payload PowerShell và từ khóa KMS/activator; không tắt phần mềm bảo vệ, hãy quét lại và gửi mẫu false-positive cho hãng bảo mật nếu hash/nguồn đã được xác minh.
+Chỉ tải từ kho chính thức và đối chiếu SHA-256 trước khi dùng. Bản v4.8 có chữ ký Authenticode tự ký miễn phí; chữ ký này giúp phát hiện tệp bị sửa nhưng không được Windows tin cậy công khai, nên SmartScreen/antivirus vẫn có thể cảnh báo. Không tắt phần mềm bảo vệ; hãy quét lại và gửi mẫu false-positive cho hãng bảo mật nếu nguồn cùng hash đã được xác minh.
 
 - Zalo: `0978 005 017`
 - Email: `thanhvietit.hopnghia@gmail.com`

@@ -212,6 +212,49 @@ function Get-ToolUiButtonPalette {
     }
 }
 
+function Get-ToolUiPrimaryActionPalette {
+    param([ValidateSet("Light", "Dark")][string]$Mode = (Get-ToolUiTheme))
+
+    if ($Mode -eq "Dark") {
+        return [pscustomobject][ordered]@{
+            Back    = [Drawing.Color]::FromArgb(126, 174, 255)
+            Fore    = [Drawing.Color]::FromArgb(18, 26, 38)
+            Border  = [Drawing.Color]::FromArgb(154, 192, 255)
+            Hover   = [Drawing.Color]::FromArgb(154, 192, 255)
+            Pressed = [Drawing.Color]::FromArgb(104, 154, 235)
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        Back    = [Drawing.Color]::FromArgb(18, 59, 116)
+        Fore    = [Drawing.Color]::White
+        Border  = [Drawing.Color]::FromArgb(12, 46, 92)
+        Hover   = [Drawing.Color]::FromArgb(27, 78, 145)
+        Pressed = [Drawing.Color]::FromArgb(12, 46, 92)
+    }
+}
+
+function Set-ToolUiPrimaryActionButtonVisual {
+    param(
+        [Parameter(Mandatory = $true)][Windows.Forms.Button]$Button,
+        [ValidateSet("Light", "Dark")][string]$Mode = (Get-ToolUiTheme)
+    )
+
+    # Giữ icon/spacing chung, sau đó áp palette CTA có tương phản ổn định ở cả
+    # trạng thái thường, hover và nhấn. Việc chỉ đổi BackColor/ForeColor khiến
+    # WinForms giữ MouseOverBackColor cũ và có thể làm chữ trắng bị nhòe/mất.
+    Set-ToolUiActionButtonVisual -Button $Button -Mode $Mode
+    $visual = Get-ToolUiPrimaryActionPalette -Mode $Mode
+    $Button.UseVisualStyleBackColor = $false
+    $Button.FlatStyle = [Windows.Forms.FlatStyle]::Flat
+    $Button.BackColor = $visual.Back
+    $Button.ForeColor = $visual.Fore
+    $Button.FlatAppearance.BorderColor = $visual.Border
+    $Button.FlatAppearance.BorderSize = 1
+    $Button.FlatAppearance.MouseOverBackColor = $visual.Hover
+    $Button.FlatAppearance.MouseDownBackColor = $visual.Pressed
+}
+
 function New-ToolUiActionIconBitmap {
     param(
         [Parameter(Mandatory = $true)][string]$Role,

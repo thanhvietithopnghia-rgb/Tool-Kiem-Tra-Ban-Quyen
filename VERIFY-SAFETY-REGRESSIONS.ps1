@@ -123,7 +123,7 @@ ERROR CODE: 0xC004F014
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
-    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyMsiUninstall','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed')) {
+    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed','softwareUninstallBlocked','PolicyBlocked','BlockApplicationUninstall')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Thiếu thành phần khắc phục phần mềm bên thứ ba: $requiredToken" }
     }
     if ($cleanup.Text -notmatch '(?s)ThirdPartyLicenseState.+?Restorable=\$false' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
@@ -137,9 +137,12 @@ ERROR CODE: 0xC004F014
     }
     if ($cleanup.Text -notmatch 'Get-ToolNativeSystemPath\s+"msiexec\.exe"' -or
         $cleanup.Text -notmatch [regex]::Escape("-Arguments @('/fa', `$productCode, '/qn', '/norestart')") -or
-        $cleanup.Text -notmatch [regex]::Escape("-Arguments @('/x', `$productCode, '/qn', '/norestart')") -or
         $cleanup.Text -notmatch [regex]::Escape("Kind='ThirdPartyHostsEntry'; Restorable=`$true")) {
-        Fail 'Fallback tổng quát chưa khóa msiexec vào đường dẫn hệ thống/product code hoặc chưa cho phép hoàn tác hosts.'
+        Fail 'Fallback tổng quát chưa khóa MSI Repair vào đường dẫn hệ thống/product code hoặc chưa cho phép hoàn tác hosts.'
+    }
+    if ($cleanup.Text -match [regex]::Escape("-Arguments @('/x', `$productCode") -or
+        $cleanup.Text -match 'ThirdPartyMsiUninstall') {
+        Fail 'Tool còn nhánh gỡ ứng dụng MSI; chính sách chỉ cho loại bỏ crack/activator đã bị vi phạm.'
     }
     if ($cleanup.Text -notmatch '\$decisive\s*=\s*\[bool\]\(-not \$FolderOnly -and \$KnownSpecific -and \$Active\)' -or
         $cleanup.Text -notmatch 'GetExtension\(\$text\).+?\.exe.+?\.jar' -or
@@ -163,7 +166,7 @@ ERROR CODE: 0xC004F014
         }, $true)
         if (-not $hostsParserAst) { throw 'Missing function: Get-ToolSoftwareHostsLineMappings' }
         Invoke-Expression ('function script:Get-ToolSoftwareHostsLineMappings ' + $hostsParserAst.Body.Extent.Text)
-        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
+        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Test-CleanupScanScopeIncludes','Get-CleanupRecordComponentScope','Test-CleanupRecordMatchesScope','Get-ScopedCleanupCandidates','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
             Import-CleanupFunctionForFixture $name
         }
         $broadRootFixture = [pscustomobject]@{ InstallLocation=$env:ProgramFiles; RepresentativePath='' }
@@ -330,7 +333,7 @@ ERROR CODE: 0xC004F014
         }
         $verificationFixture = Add-ThirdPartyVerification -Verification $verificationFixture -ThirdPartyCandidates @() -ThirdPartyApplications @(
             [pscustomobject]@{ AssessmentCode='Unverified'; NeedsReview=$true; CleanupFinding=$false; RemediationSupported=$false }
-        )
+        ) -Included
         if ([int]$verificationFixture.ThirdPartyNeedsReviewCount -ne 1 -or
             [int]$verificationFixture.ThirdPartyRemediationFindingCount -ne 0 -or
             -not [bool]$verificationFixture.ReadyForOfficialActivation -or
@@ -342,7 +345,7 @@ ERROR CODE: 0xC004F014
             Conclusion='READY-MARKER'; HandlingGuidance=@(); ReadinessChecks=@(); ScopeNote=''
         }
         $standaloneVerificationFixture = Add-ThirdPartyVerification -Verification $standaloneVerificationFixture `
-            -ThirdPartyCandidates @($standaloneCandidates) -ThirdPartyApplications @()
+            -ThirdPartyCandidates @($standaloneCandidates) -ThirdPartyApplications @() -Included
         if ([int]$standaloneVerificationFixture.ThirdPartyRemediationFindingCount -ne 1 -or
             [bool]$standaloneVerificationFixture.ReadyForOfficialActivation -or
             [string]$standaloneVerificationFixture.Conclusion -match 'READY-MARKER' -or
@@ -359,8 +362,10 @@ ERROR CODE: 0xC004F014
         if ($candidates.Count -ne 1 -or [string]$candidates[0].RemediationMode -ne 'ManualOfficialReinstall' -or [bool]$candidates[0].AutoEligible -or @($candidates[0].ApplicationIds).Count -ne 2) {
             Fail 'Fixture ABBYY chưa được gom thành một candidate chọn thủ công, không tự gỡ.'
         }
-        if (@($candidates[0].PlanItems | Where-Object { $_.Type -eq 'Uninstall' -and $_.Kind -eq 'ThirdPartyMsiUninstall' -and $_.Location -eq $abbyyGuid }).Count -ne 1) {
-            Fail 'Fixture ABBYY thiếu fallback gỡ MSI bằng product code đã xác thực.'
+        if (@($candidates[0].PlanItems | Where-Object { $_.Type -eq 'Uninstall' }).Count -ne 0 -or
+            @($candidates[0].PlanItems | Where-Object { $_.Type -eq 'Repair' }).Count -ne 0 -or
+            @($candidates[0].PlanItems | Where-Object { $_.Type -eq 'Guidance' }).Count -ne 1) {
+            Fail 'Fixture ABBYY đóng gói trái phép còn kế hoạch gỡ/Repair ứng dụng thay vì chỉ hướng dẫn cài lại thủ công.'
         }
 
         $repairGuid = '{11111111-2222-3333-4444-555555555555}'
@@ -389,18 +394,123 @@ ERROR CODE: 0xC004F014
             @($dryRunPlan | Where-Object { $_.ActionCode -eq 'QuarantineFile' -and $_.Target -eq 'C:\Fixture\fixture.dll' }).Count -ne 1) {
             Fail 'Dry Run chưa lập đúng kế hoạch restore point/backup/hành động chi tiết.'
         }
+        $blockedUninstallCandidate = New-CleanupItem -Type 'Uninstall' -Kind 'FixtureApplicationUninstall' -Name 'Fixture App' -Location '{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}' -Detail 'fixture'
+        $blockedUninstallPlan = @(Get-DryRunRemediationPlan -Candidates @($blockedUninstallCandidate) -SelectedIds @([string]$blockedUninstallCandidate.Id))
+        $blockedAction = @($blockedUninstallPlan | Where-Object { $_.ActionCode -eq 'BlockApplicationUninstall' })
+        if ($blockedAction.Count -ne 1 -or [bool]$blockedAction[0].ChangesSystem) {
+            Fail 'Dry Run không chặn fail-closed kế hoạch gỡ ứng dụng.'
+        }
         $dryRunFirewallCandidate = New-CleanupItem -Type 'Firewall' -Kind 'ThirdPartyFirewallBlock' -Name 'Fixture outbound block' -Location 'C:\Fixture\Example.exe' -Detail 'fixture'
         $dryRunFirewallPlan = @(Get-DryRunRemediationPlan -Candidates @($dryRunFirewallCandidate) -SelectedIds @([string]$dryRunFirewallCandidate.Id))
         if ($dryRunFirewallPlan.Count -ne 3 -or
             @($dryRunFirewallPlan | Where-Object { $_.ActionCode -eq 'RemoveScopedFirewallBlock' -and -not [bool]$_.Restorable }).Count -ne 1) {
             Fail 'Dry Run chưa công bố đúng hành động Firewall manual-only, không tự khôi phục.'
         }
+
+        $scopeCandidates = @(
+            (New-CleanupItem -Type 'Registry' -Kind 'SppNoGenTicketPolicy' -Name 'win' -Location 'HKLM:\Fixture\Windows' -Detail 'fixture' -ComponentScope 'Windows'),
+            (New-CleanupItem -Type 'License' -Kind 'OfficeKmsLicense' -Name 'office' -Location 'C:\Fixture\OSPP.VBS' -Detail 'fixture' -ComponentScope 'Office'),
+            (New-CleanupItem -Type 'File' -Kind 'ThirdPartyUnauthorizedArtifact' -Name 'software' -Location 'C:\Fixture\Software\patch.dll' -Detail 'fixture' -ComponentScope 'ThirdParty'),
+            (New-CleanupItem -Type 'Service' -Kind 'ActivatorService' -Name 'shared' -Location 'C:\Fixture\activator.exe' -Detail 'fixture' -ComponentScope 'Shared')
+        )
+        $scopeExpectations = [ordered]@{
+            Windows=@('shared','win')
+            Office=@('office','shared')
+            ThirdParty=@('software')
+            WindowsOffice=@('office','shared','win')
+            WindowsThirdParty=@('shared','software','win')
+            OfficeThirdParty=@('office','shared','software')
+            All=@('office','shared','software','win')
+        }
+        foreach ($scopeName in $scopeExpectations.Keys) {
+            $scoped = @(Get-ScopedCleanupCandidates -CleanupItems $scopeCandidates -Scope $scopeName)
+            $actualNames = @($scoped | ForEach-Object { [string]$_.Name } | Sort-Object)
+            $expectedNames = @($scopeExpectations[$scopeName] | Sort-Object)
+            if (($actualNames -join '|') -ne ($expectedNames -join '|')) {
+                Fail "Phạm vi $scopeName lọc sai: thực tế=$($actualNames -join ','), mong đợi=$($expectedNames -join ',')."
+            }
+            $scopePlan = @(Get-DryRunRemediationPlan -Candidates $scoped -SelectedIds @($scoped | ForEach-Object { [string]$_.Id }) -SkipRestorePoint)
+            $plannedCandidateIds = @($scopePlan | Where-Object { [string]$_.CandidateId -notin @('signed-backup-bundle','system-restore-point') } | ForEach-Object { [string]$_.CandidateId } | Sort-Object -Unique)
+            $expectedCandidateIds = @($scoped | ForEach-Object { [string]$_.Id } | Sort-Object -Unique)
+            if (($plannedCandidateIds -join '|') -ne ($expectedCandidateIds -join '|')) {
+                Fail "Dry Run phạm vi $scopeName không lập đúng hành động cho từng mục đã lọc."
+            }
+        }
+
+        $readyBase = [pscustomobject]@{
+            ScanWarningCount=0; ActiveActivatorFindingCount=0; ConfigurationResidueCount=0
+            UnapprovedWindowsKmsCount=0; UnapprovedOfficeKmsCount=0; ThirdPartyRemediationFindingCount=0
+        }
+        if (-not (Test-CleanupScopeReady -Verification $readyBase -Scope 'All')) { Fail 'Trạng thái sạch của cả ba phạm vi bị báo sai.' }
+        $windowsBlocked = $readyBase.PSObject.Copy(); $windowsBlocked.UnapprovedWindowsKmsCount = 1
+        if (Test-CleanupScopeReady -Verification $windowsBlocked -Scope 'Windows') { Fail 'Windows KMS còn tồn tại nhưng phạm vi Windows vẫn báo sẵn sàng.' }
+        if (-not (Test-CleanupScopeReady -Verification $windowsBlocked -Scope 'Office')) { Fail 'Lỗi chỉ thuộc Windows đã chặn nhầm phạm vi Office.' }
+        $officeBlocked = $readyBase.PSObject.Copy(); $officeBlocked.UnapprovedOfficeKmsCount = 1
+        if (Test-CleanupScopeReady -Verification $officeBlocked -Scope 'Office') { Fail 'Office KMS còn tồn tại nhưng phạm vi Office vẫn báo sẵn sàng.' }
+        if (-not (Test-CleanupScopeReady -Verification $officeBlocked -Scope 'Windows')) { Fail 'Lỗi chỉ thuộc Office đã chặn nhầm phạm vi Windows.' }
+        $softwareBlocked = $readyBase.PSObject.Copy(); $softwareBlocked.ThirdPartyRemediationFindingCount = 1
+        if (Test-CleanupScopeReady -Verification $softwareBlocked -Scope 'ThirdParty') { Fail 'Phần mềm còn phát hiện cần xử lý nhưng phạm vi phần mềm vẫn báo sẵn sàng.' }
+        if (-not (Test-CleanupScopeReady -Verification $softwareBlocked -Scope 'WindowsOffice')) { Fail 'Lỗi chỉ thuộc phần mềm đã chặn nhầm Windows/Office.' }
     } catch {
         Fail "Không chạy được fixture khắc phục tổng quát/ABBYY: $($_.Exception.Message) | $($_.ScriptStackTrace)"
     }
 }
 
 if ($gui) {
+    try {
+        $scopeMapperAst = $gui.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertTo-CleanupScanScope'
+        }, $true)
+        if (-not $scopeMapperAst) { throw 'Missing ConvertTo-CleanupScanScope' }
+        Invoke-Expression ("function script:ConvertTo-CleanupScanScope " + $scopeMapperAst.Body.Extent.Text)
+        $scopeMappingCases = @(
+            @($false,$false,$false,''), @($true,$false,$false,'Windows'), @($false,$true,$false,'Office'),
+            @($false,$false,$true,'ThirdParty'), @($true,$true,$false,'WindowsOffice'),
+            @($true,$false,$true,'WindowsThirdParty'), @($false,$true,$true,'OfficeThirdParty'), @($true,$true,$true,'All')
+        )
+        foreach ($mappingCase in $scopeMappingCases) {
+            $mapped = ConvertTo-CleanupScanScope -Windows ([bool]$mappingCase[0]) -Office ([bool]$mappingCase[1]) -ThirdParty ([bool]$mappingCase[2])
+            if ([string]$mapped -ne [string]$mappingCase[3]) {
+                Fail "Ánh xạ hộp tích phạm vi sai: $($mappingCase[0]),$($mappingCase[1]),$($mappingCase[2]) -> $mapped."
+            }
+        }
+
+        $checklistAst = $gui.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Show-CleanupScopeChecklist'
+        }, $true)
+        if (-not $checklistAst -or $checklistAst.Extent.Text -notmatch 'System\.Windows\.Forms\.CheckBox' -or
+            $checklistAst.Extent.Text -notmatch 'Name="Windows";\s*TextKey="cleanup\.scope\.scanWindows"' -or
+            $checklistAst.Extent.Text -notmatch 'Name="Office";\s*TextKey="cleanup\.scope\.scanOffice"' -or
+            $checklistAst.Extent.Text -notmatch 'Name="ThirdParty";\s*TextKey="cleanup\.scope\.scanThirdParty"') {
+            Fail 'Hộp chọn khắc phục chưa có đủ ba ô tích Windows, Office và phần mềm khác.'
+        }
+
+        $onlineStartAst = $gui.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Start-SoftwareCatalogOnlineUpdate'
+        }, $true)
+        $onlineCompleteAst = $gui.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Complete-SoftwareCatalogOnlineUpdate'
+        }, $true)
+        $cleanupScreenAst = $gui.Ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Show-CleanupFunctionScreen'
+        }, $true)
+        if (-not $onlineStartAst -or $onlineStartAst.Extent.Text -notmatch '\[string\]\$ScanScope' -or
+            $onlineStartAst.Extent.Text -notmatch '\$script:softwareCatalogAutoScanScope\s*=\s*\$ScanScope' -or
+            -not $onlineCompleteAst -or $onlineCompleteAst.Extent.Text -notmatch 'Start-Cleanup\s+-ScanScope\s+\$requestedScanScope' -or
+            -not $cleanupScreenAst -or $cleanupScreenAst.Extent.Text -notmatch '"Online"' -or
+            $cleanupScreenAst.Extent.Text -notmatch 'Show-LicenseScopeChooser\s+-Mode\s+\$scopeMode' -or
+            $cleanupScreenAst.Extent.Text -notmatch 'Start-SoftwareCatalogOnlineUpdate\s+-ScanScope\s+\$selectedScope') {
+            Fail 'Luồng Online chưa dùng cùng hộp ba phạm vi và chưa giữ lựa chọn đến bước quét.'
+        }
+    } catch {
+        Fail "Không chạy được fixture ánh xạ ba ô tích phạm vi: $($_.Exception.Message)"
+    }
+
     try {
         if (-not $elevatedBridge -or
             $elevatedBridge.Text -notmatch '(?s)ProcessStartInfo.+?UseShellExecute\s*=\s*\$false.+?EnvironmentVariables\[\$name\].+?\$child\.Start\(\).+?WaitForExit\(\)' -or
@@ -544,7 +654,7 @@ if ($gui) {
     if ($gui.Text -notmatch 'Start-CleanupDeep\s+-CleanupItems.+-AutomaticSafeMode' -or $gui.Text -notmatch 'Confirm-AutomaticSafeCleanup') {
         Fail 'Luồng tự động chưa bắt buộc xem trước/xác nhận bằng bộ lọc an toàn.'
     }
-    foreach ($requiredToken in @('Show-LicenseScopeChooser','cleanup.scope.scanAll','cleanup.scope.scanWindowsOffice','cleanup.scope.scanThirdParty','Start-CleanupBackup -Scope $selectedScope','Start-CleanupRestore -Scope $selectedScope','cleanup.report.readyOnDemand','progress.slowTask')) {
+    foreach ($requiredToken in @('Show-LicenseScopeChooser','Show-CleanupScopeChecklist','cleanup.scope.scanWindows','cleanup.scope.scanOffice','cleanup.scope.scanThirdParty','Start-CleanupBackup -Scope $selectedScope','Start-CleanupRestore -Scope $selectedScope','cleanup.report.readyOnDemand','progress.slowTask')) {
         if ($gui.Text -notmatch [regex]::Escape($requiredToken)) { Fail "GUI thiếu luồng phạm vi hoặc bảo vệ chống treo: $requiredToken" }
     }
     foreach ($requiredToken in @('Show-ThirdPartyAssessmentResults','Get-GuiThirdPartyCleanupFindings','Get-GuiThirdPartyStandaloneCleanupRows','ThirdPartyRemediationFindingCount','software.online.button','Start-SoftwareCatalogOnlineUpdate','status.chooseTask')) {

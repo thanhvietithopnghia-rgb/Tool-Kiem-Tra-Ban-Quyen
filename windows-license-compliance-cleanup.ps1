@@ -10,7 +10,7 @@
     [switch]$RedactSensitive,
     [string]$DecisionFile = "",
     [string]$SelectionFile = "",
-    [ValidateSet("All", "WindowsOffice", "ThirdParty")]
+    [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
     [string]$ScanScope = "All",
     [switch]$SkipDeepSoftwareScan,
     [ValidateRange(15, 900)][int]$DeepSoftwareScanTimeoutSeconds = 180,
@@ -1338,13 +1338,13 @@ function Get-ThirdPartyGenericRemediationPlan {
     $hasTamperedBinary = [bool](@($allEvidence | Where-Object { [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch','KnownBadFileHash','PaidBinaryNotSigned','ExpectedSignedFileNotSigned','UnexpectedCoreFileSigner') }).Count -gt 0)
     $displayName = @($Applications | Sort-Object @{Expression={ if ([string]$_.SourceKind -eq 'Registry') { 0 } else { 1 } }} | ForEach-Object { [string]$_.Name } | Where-Object { $_ } | Select-Object -First 1)
     if ($displayName.Count -eq 0) { $displayName = @((Get-CleanupText 'common.unknown')) }
+    # Không bao giờ gỡ ứng dụng để xử lý bản quyền. Với gói đóng lại/không
+    # chính thức, MSI Repair cũng không an toàn vì nguồn sửa chữa có thể tiếp
+    # tục chứa tệp đã can thiệp. Trường hợp đó chỉ được hướng dẫn cài lại thủ
+    # công từ nguồn chính thức; Tool chỉ tự Repair khi gói không bị nhận diện
+    # là bản phân phối trái phép và có bằng chứng tệp nhị phân bị sửa.
     if ($productCode) {
-        if ($hasUnauthorizedDistribution) {
-            $plan.Add([pscustomobject][ordered]@{
-                Type='Uninstall'; Kind='ThirdPartyMsiUninstall'; Name=[string]$displayName[0]; Location=$productCode
-                Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.uninstallRepack'); Restorable=$false
-            })
-        } elseif ($hasTamperedBinary) {
+        if (-not $hasUnauthorizedDistribution -and $hasTamperedBinary) {
             $plan.Add([pscustomobject][ordered]@{
                 Type='Repair'; Kind='ThirdPartyMsiRepair'; Name=[string]$displayName[0]; Location=$productCode
                 Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.msiRepair'); Restorable=$false
@@ -1382,7 +1382,7 @@ function Get-ThirdPartyLicenseCandidates {
         $plan = @(Get-ThirdPartyRemediationPlan -RemediationAdapter $adapter -EvidenceScope $vendorScope -Evidence $vendorEvidence -Applications $vendorApps)
         if ($plan.Count -eq 0) { continue }
         $licenseStateCount = @($plan | Where-Object { [string]$_.Kind -eq 'ThirdPartyLicenseState' }).Count
-        $manualOnlyPlanCount = @($plan | Where-Object { [string]$_.Type -in @('Firewall','Uninstall') }).Count
+        $manualOnlyPlanCount = @($plan | Where-Object { [string]$_.Type -eq 'Firewall' }).Count
         $applicationNames = @($vendorApps | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
         $familyName = if ($adapter -in @('Adobe','Autodesk')) {
             Get-CleanupText ("cleanupReport.thirdParty.family." + $adapter.ToLowerInvariant())
@@ -1396,7 +1396,7 @@ function Get-ThirdPartyLicenseCandidates {
             -Detail (Get-CleanupText "cleanupReport.thirdParty.candidateDetailExtended" @($vendorApps.Count, $strongEvidenceCount, $manualOnlyCount, $licenseStateCount)) `
             -DefaultSelected $false -VendorScope $vendorScope -AutoEligible:([bool]($licenseStateCount -gt 0 -and $manualOnlyPlanCount -eq 0 -and @($vendorApps | Where-Object { [bool]$_.AutoEligible }).Count -gt 0)) `
             -ApplicationNames $applicationNames -ApplicationIds @($vendorApps | ForEach-Object { [string]$_.Id }) `
-            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode ([string]$adapterDefinition.Mode)
+            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode ([string]$adapterDefinition.Mode) -ComponentScope 'ThirdParty'
         $candidates.Add($candidate)
     }
 
@@ -1422,10 +1422,10 @@ function Get-ThirdPartyLicenseCandidates {
                 [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch','KnownBadFileHash','KnownActivatorArtifact'))
         }).Count
         $hasRepair = [bool](@($plan | Where-Object { [string]$_.Type -eq 'Repair' }).Count -gt 0)
-        $hasUninstall = [bool](@($plan | Where-Object { [string]$_.Type -eq 'Uninstall' }).Count -gt 0)
         $hasFirewallChange = [bool](@($plan | Where-Object { [string]$_.Type -eq 'Firewall' }).Count -gt 0)
         $hasSafeAutomaticAction = [bool](@($plan | Where-Object { [string]$_.Type -in @('File','Hosts','Repair') }).Count -gt 0)
-        $mode = if ($hasUninstall) { 'ManualOfficialReinstall' } elseif ($hasRepair) { 'AutomaticOfficialRepair' } elseif ($hasSafeAutomaticAction) { 'ArtifactCleanup' } else { 'GuidedOfficialRepair' }
+        $hasUnauthorizedDistribution = [bool](@($allEvidence | Where-Object { [string]$_.Code -in @('KnownUnauthorizedName','CatalogUnauthorizedName') }).Count -gt 0)
+        $mode = if ($hasUnauthorizedDistribution) { 'ManualOfficialReinstall' } elseif ($hasRepair) { 'AutomaticOfficialRepair' } elseif ($hasSafeAutomaticAction) { 'ArtifactCleanup' } else { 'GuidedOfficialRepair' }
         $displayName = if ($applicationNames.Count -le 1) { [string]$applicationNames[0] } else { ([string]$applicationNames[0] + ' (+' + ($applicationNames.Count - 1) + ')') }
         $location = @($groupApplications | ForEach-Object { Get-ThirdPartyNormalizedInstallRoot -Application $_ } | Where-Object { $_ } | Select-Object -First 1)
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $displayName `
@@ -1433,8 +1433,8 @@ function Get-ThirdPartyLicenseCandidates {
             -TargetId $(if ($applicationIds.Count -gt 0) { [string]$applicationIds[0] } else { [guid]::NewGuid().ToString('N') }) `
             -Detail (Get-CleanupText 'cleanupReport.thirdParty.candidateDetailGeneric' @($applicationNames.Count, $strongEvidenceCount, @($plan).Count, $mode)) `
             -DefaultSelected $false -VendorScope ([string]$groupApplications[0].VendorScope) `
-            -AutoEligible:([bool]($decisiveEvidenceCount -gt 0 -and $hasSafeAutomaticAction -and -not $hasUninstall -and -not $hasFirewallChange)) `
-            -ApplicationNames $applicationNames -ApplicationIds $applicationIds -Evidence $allEvidence -PlanItems $plan -RemediationMode $mode
+            -AutoEligible:([bool]($decisiveEvidenceCount -gt 0 -and $hasSafeAutomaticAction -and -not $hasUnauthorizedDistribution -and -not $hasFirewallChange)) `
+            -ApplicationNames $applicationNames -ApplicationIds $applicationIds -Evidence $allEvidence -PlanItems $plan -RemediationMode $mode -ComponentScope 'ThirdParty'
         $candidates.Add($candidate)
     }
 
@@ -1462,7 +1462,7 @@ function Get-ThirdPartyLicenseCandidates {
             -Detail (Get-CleanupText 'cleanupReport.thirdParty.candidateDetailStandalone' @($artifactName)) `
             -DefaultSelected $false -VendorScope 'Uncorrelated' -AutoEligible:$false `
             -ApplicationNames @($artifactName) -ApplicationIds @() -Evidence @($artifactGroup.Group) `
-            -PlanItems @($planItem) -RemediationMode 'ArtifactCleanup'
+            -PlanItems @($planItem) -RemediationMode 'ArtifactCleanup' -ComponentScope 'ThirdParty'
         $candidates.Add($candidate)
     }
     return $candidates.ToArray()
@@ -1486,6 +1486,56 @@ function Connect-ThirdPartyApplicationsToCandidates {
     }
 }
 
+function Test-CleanupScanScopeIncludes {
+    param(
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
+        [string]$Scope,
+        [ValidateSet("Windows", "Office", "ThirdParty")]
+        [string]$Component
+    )
+
+    switch ($Component) {
+        "Windows" { return [bool]($Scope -in @("All", "Windows", "WindowsOffice", "WindowsThirdParty")) }
+        "Office" { return [bool]($Scope -in @("All", "Office", "WindowsOffice", "OfficeThirdParty")) }
+        "ThirdParty" { return [bool]($Scope -in @("All", "ThirdParty", "WindowsThirdParty", "OfficeThirdParty")) }
+    }
+    return $false
+}
+
+function Get-CleanupRecordComponentScope {
+    param($Record)
+
+    if ($null -eq $Record) { return "Shared" }
+    if ($Record.PSObject.Properties['ComponentScope']) {
+        $explicitScope = [string]$Record.ComponentScope
+        if ($explicitScope -in @("Windows", "Office", "ThirdParty", "Shared")) { return $explicitScope }
+    }
+
+    $type = [string]$Record.Type
+    $kind = [string]$Record.Kind
+    $text = (([string]$Record.Name) + " " + ([string]$Record.Location) + " " + ([string]$Record.Detail)).Trim()
+    if ($type -eq "Application" -or $kind -match '^ThirdParty') { return "ThirdParty" }
+    if ($kind -eq "OfficeKmsLicense" -or $text -match '(?i)OfficeSoftwareProtectionPlatform|\bospp(?:svc|\.vbs)?\b|\bOffice\s+KMS\b') { return "Office" }
+    if ($kind -eq "WindowsKmsLicense" -or $kind -eq "SppNoGenTicketPolicy" -or
+        $text -match '(?i)Windows NT\\CurrentVersion\\SoftwareProtectionPlatform|\bsppsvc\b|\bSppExtComObj\b|\bNoGenTicket\b') { return "Windows" }
+    return "Shared"
+}
+
+function Test-CleanupRecordMatchesScope {
+    param(
+        $Record,
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
+        [string]$Scope
+    )
+
+    $componentScope = Get-CleanupRecordComponentScope -Record $Record
+    if ($componentScope -eq "Shared") {
+        return [bool]((Test-CleanupScanScopeIncludes -Scope $Scope -Component "Windows") -or
+            (Test-CleanupScanScopeIncludes -Scope $Scope -Component "Office"))
+    }
+    return Test-CleanupScanScopeIncludes -Scope $Scope -Component $componentScope
+}
+
 function New-CleanupItem {
     param(
         [string]$Type,
@@ -1501,7 +1551,8 @@ function New-CleanupItem {
         [string[]]$ApplicationIds = @(),
         $Evidence = @(),
         $PlanItems = @(),
-        [string]$RemediationMode = ''
+        [string]$RemediationMode = '',
+        [string]$ComponentScope = ''
     )
     $id = (($Type + "|" + $Kind + "|" + $Name + "|" + $Location).ToLowerInvariant())
     return [pscustomobject]@{
@@ -1520,6 +1571,7 @@ function New-CleanupItem {
         Evidence = @($Evidence)
         PlanItems = @($PlanItems)
         RemediationMode = $RemediationMode
+        ComponentScope = $ComponentScope
     }
 }
 
@@ -1532,7 +1584,8 @@ function Get-DeepCleanupCandidates {
         if ($type -in @("Process", "Service", "ScheduledTask", "Folder")) {
             $kind = if ($type -eq "ScheduledTask") { "ActivatorTask" } else { "Activator$type" }
             $items.Add((New-CleanupItem -Type $type -Kind $kind -Name ([string]$finding.Name) `
-                -Location ([string]$finding.Location) -Detail ([string]$finding.Action)))
+                -Location ([string]$finding.Location) -Detail ([string]$finding.Action) `
+                -ComponentScope (Get-CleanupRecordComponentScope -Record $finding)))
         }
     }
 
@@ -1546,7 +1599,8 @@ function Get-DeepCleanupCandidates {
             if ($server -and -not (Test-ApprovedKms $server)) {
                 $items.Add((New-CleanupItem -Type "Registry" -Kind "KmsOverride" `
                     -Name (Get-CleanupText "cleanupReport.candidate.unapprovedKms") -Location $path `
-                    -Detail (Get-CleanupText "cleanupReport.candidate.unapprovedKmsDetail" @($server))))
+                    -Detail (Get-CleanupText "cleanupReport.candidate.unapprovedKmsDetail" @($server)) `
+                    -ComponentScope $(if ($path -match 'OfficeSoftwareProtectionPlatform') { 'Office' } else { 'Windows' })))
             }
         } catch {}
     }
@@ -1557,7 +1611,7 @@ function Get-DeepCleanupCandidates {
         if ([int]$policy.NoGenTicket -eq 1) {
             $items.Add((New-CleanupItem -Type "Registry" -Kind "SppNoGenTicketPolicy" `
                 -Name "Policy SPP NoGenTicket=1" -Location $policyPath `
-                -Detail (Get-CleanupText "cleanupReport.candidate.noGenTicketDetail")))
+                -Detail (Get-CleanupText "cleanupReport.candidate.noGenTicketDetail") -ComponentScope 'Windows'))
         }
     } catch {}
 
@@ -1568,7 +1622,8 @@ function Get-DeepCleanupCandidates {
             if ($valueText -match "(?i)(\bdebugger\b|\bverifierdlls\b|kms|activator|hook\.dll|sppextcomobj(?:hook|patcher))") {
                 $items.Add((New-CleanupItem -Type "Registry" -Kind "IfeoHook" `
                     -Name "IFEO hook: $imageName" -Location $path `
-                    -Detail (Get-CleanupText "cleanupReport.candidate.ifeoDetail")))
+                    -Detail (Get-CleanupText "cleanupReport.candidate.ifeoDetail") `
+                    -ComponentScope $(if ($imageName -eq 'osppsvc.exe') { 'Office' } else { 'Windows' })))
             }
         } catch {}
     }
@@ -1580,7 +1635,7 @@ function Get-DeepCleanupCandidates {
         if (Test-Path -LiteralPath $hookPath -PathType Leaf) {
             $items.Add((New-CleanupItem -Type "File" -Kind "HookFile" `
                 -Name (Split-Path $hookPath -Leaf) -Location $hookPath `
-                -Detail (Get-CleanupText "cleanupReport.candidate.hookFileDetail")))
+                -Detail (Get-CleanupText "cleanupReport.candidate.hookFileDetail") -ComponentScope 'Windows'))
         }
     }
 
@@ -1590,7 +1645,7 @@ function Get-DeepCleanupCandidates {
             if ([string]$excludedPath -match $script:StrictActivatorPattern) {
                 $items.Add((New-CleanupItem -Type "Defender" -Kind "ExclusionPath" `
                     -Name (Get-CleanupText "cleanupReport.candidate.defenderExclusion") -Location ([string]$excludedPath) `
-                    -Detail (Get-CleanupText "cleanupReport.candidate.defenderExclusionDetail")))
+                    -Detail (Get-CleanupText "cleanupReport.candidate.defenderExclusionDetail") -ComponentScope 'Shared'))
             }
         }
     } catch {}
@@ -1611,7 +1666,7 @@ function Get-AllCleanupCandidates {
             -Name ([string]$product.Name) `
             -Location ("KMS=" + [string]$product.KeyManagementServiceMachine + "; PartialKey=" + [string]$product.PartialProductKey) `
             -TargetId ([string]$product.ID) `
-            -Detail (Get-CleanupText "cleanupReport.candidate.windowsKmsDetail")))
+            -Detail (Get-CleanupText "cleanupReport.candidate.windowsKmsDetail") -ComponentScope 'Windows'))
     }
 
     $unapprovedOfficeEntries = @($OfficeEntries | Where-Object { -not (Test-ApprovedKms ([string]$_.Server)) })
@@ -1623,7 +1678,8 @@ function Get-AllCleanupCandidates {
             -Name ("Office KMS $last5Label - " + [string]$entry.LicenseName) `
             -Location ([string]$entry.Path) `
             -TargetId $targetId `
-            -Detail (Get-CleanupText "cleanupReport.candidate.officeKmsDetail" @([string]$entry.SkuId, [string]$entry.LicenseStatus, $serverLabel))))
+            -Detail (Get-CleanupText "cleanupReport.candidate.officeKmsDetail" @([string]$entry.SkuId, [string]$entry.LicenseStatus, $serverLabel)) `
+            -ComponentScope 'Office'))
     }
 
     foreach ($thirdPartyCandidate in @($ThirdPartyCandidates)) { $items.Add($thirdPartyCandidate) }
@@ -1634,55 +1690,44 @@ function Get-AllCleanupCandidates {
 function Get-ScopedCleanupCandidates {
     param(
         $CleanupItems,
-        [ValidateSet("All", "WindowsOffice", "ThirdParty")][string]$Scope = "All"
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
+        [string]$Scope = "All"
     )
 
-    $items = @($CleanupItems)
-    switch ($Scope) {
-        "WindowsOffice" {
-            return @($items | Where-Object {
-                [string]$_.Type -ne "Application" -and [string]$_.Kind -notmatch '^ThirdParty'
-            })
-        }
-        "ThirdParty" {
-            return @($items | Where-Object {
-                [string]$_.Type -eq "Application" -and [string]$_.Kind -eq "ThirdPartyLicenseReset"
-            })
-        }
-        default { return $items }
-    }
+    return @($CleanupItems | Where-Object { Test-CleanupRecordMatchesScope -Record $_ -Scope $Scope })
 }
 
 function Test-CleanupScopeReady {
     param(
         $Verification,
-        [ValidateSet("All", "WindowsOffice", "ThirdParty")][string]$Scope = "All"
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
+        [string]$Scope = "All"
     )
 
     if ([int]$Verification.ScanWarningCount -gt 0) { return $false }
-    switch ($Scope) {
-        "WindowsOffice" {
-            return [bool](
-                [int]$Verification.ActiveActivatorFindingCount -eq 0 -and
-                [int]$Verification.ConfigurationResidueCount -eq 0 -and
-                [int]$Verification.UnapprovedWindowsKmsCount -eq 0 -and
-                [int]$Verification.UnapprovedOfficeKmsCount -eq 0
-            )
+    $includesWindows = Test-CleanupScanScopeIncludes -Scope $Scope -Component "Windows"
+    $includesOffice = Test-CleanupScanScopeIncludes -Scope $Scope -Component "Office"
+    $includesThirdParty = Test-CleanupScanScopeIncludes -Scope $Scope -Component "ThirdParty"
+    if (($includesWindows -or $includesOffice) -and (
+        [int]$Verification.ActiveActivatorFindingCount -ne 0 -or
+        [int]$Verification.ConfigurationResidueCount -ne 0)) { return $false }
+    if ($includesWindows -and [int]$Verification.UnapprovedWindowsKmsCount -ne 0) { return $false }
+    if ($includesOffice -and [int]$Verification.UnapprovedOfficeKmsCount -ne 0) { return $false }
+    if ($includesThirdParty) {
+        $findingCount = if ($Verification.PSObject.Properties['ThirdPartyRemediationFindingCount']) {
+            [int]$Verification.ThirdPartyRemediationFindingCount
+        } elseif ($Verification.PSObject.Properties['ThirdPartyNeedsReviewCount']) {
+            [int]$Verification.ThirdPartyNeedsReviewCount
+        } else {
+            [int]$Verification.ThirdPartyCandidateCount
         }
-        "ThirdParty" {
-            $findingCount = if ($Verification.PSObject.Properties['ThirdPartyRemediationFindingCount']) {
-                [int]$Verification.ThirdPartyRemediationFindingCount
-            } else {
-                [int]$Verification.ThirdPartyCandidateCount
-            }
-            return [bool]($findingCount -eq 0)
-        }
-        default { return [bool]$Verification.ReadyForOfficialActivation }
+        if ($findingCount -ne 0) { return $false }
     }
+    return $true
 }
 
 function Add-ThirdPartyVerification {
-    param($Verification, $ThirdPartyCandidates, $ThirdPartyApplications = @())
+    param($Verification, $ThirdPartyCandidates, $ThirdPartyApplications = @(), [switch]$Included)
     $candidateCount = [int]@($ThirdPartyCandidates).Count
     $autoEligibleCount = [int]@($ThirdPartyCandidates | Where-Object { [bool]$_.AutoEligible }).Count
     $reviewCount = [int]@($ThirdPartyApplications | Where-Object { [bool]$_.NeedsReview }).Count
@@ -1703,6 +1748,7 @@ function Add-ThirdPartyVerification {
     $Verification | Add-Member -NotePropertyName ThirdPartyNeedsReviewCount -NotePropertyValue $reviewCount -Force
     $Verification | Add-Member -NotePropertyName ThirdPartyRemediationFindingCount -NotePropertyValue $remediationFindingCount -Force
     $Verification | Add-Member -NotePropertyName ThirdPartyUnsupportedReviewCount -NotePropertyValue $unsupportedReviewCount -Force
+    if (-not $Included) { return $Verification }
     $checks = New-Object System.Collections.Generic.List[object]
     foreach ($check in @($Verification.ReadinessChecks)) { $checks.Add($check) }
     if ($remediationFindingCount -gt 0) {
@@ -1853,7 +1899,10 @@ function Get-ActivationConfigurationResidues {
             $item = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
             $server = [string]$item.KeyManagementServiceName
             if ($server -and -not (Test-ApprovedKms $server)) {
-                $residues.Add([pscustomobject]@{ Type="KMSConfig"; Name=(Get-CleanupText "cleanupReport.residue.unapprovedKms"); Location=$path; Value=$server })
+                $residues.Add([pscustomobject]@{
+                    Type="KMSConfig"; Name=(Get-CleanupText "cleanupReport.residue.unapprovedKms"); Location=$path; Value=$server
+                    ComponentScope=$(if ($path -match 'OfficeSoftwareProtectionPlatform') { 'Office' } else { 'Windows' })
+                })
             }
         } catch {}
     }
@@ -1864,7 +1913,10 @@ function Get-ActivationConfigurationResidues {
             $item = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
             $valueText = ($item | Out-String)
             if ($valueText -match "(?i)(\bdebugger\b|\bverifierdlls\b|kms|activator|hook\.dll|sppextcomobj(?:hook|patcher))") {
-                $residues.Add([pscustomobject]@{ Type="IFEO"; Name=$imageName; Location=$path; Value=(Protect-HistoryText $valueText) })
+                $residues.Add([pscustomobject]@{
+                    Type="IFEO"; Name=$imageName; Location=$path; Value=(Protect-HistoryText $valueText)
+                    ComponentScope=$(if ($imageName -eq 'osppsvc.exe') { 'Office' } else { 'Windows' })
+                })
             }
         } catch {}
     }
@@ -1874,7 +1926,7 @@ function Get-ActivationConfigurationResidues {
         (Join-Path $env:windir "SysWOW64\SppExtComObjHook.dll")
     )) {
         if (Test-Path -LiteralPath $dllPath) {
-            $residues.Add([pscustomobject]@{ Type="HookFile"; Name="SppExtComObjHook.dll"; Location=$dllPath; Value=(Get-CleanupText "cleanupReport.residue.hookFile") })
+            $residues.Add([pscustomobject]@{ Type="HookFile"; Name="SppExtComObjHook.dll"; Location=$dllPath; Value=(Get-CleanupText "cleanupReport.residue.hookFile"); ComponentScope='Windows' })
         }
     }
 
@@ -1882,7 +1934,7 @@ function Get-ActivationConfigurationResidues {
         $preference = Get-MpPreference -ErrorAction Stop
         foreach ($excludedPath in @($preference.ExclusionPath)) {
             if ([string]$excludedPath -match $script:StrictActivatorPattern) {
-                $residues.Add([pscustomobject]@{ Type="DefenderExclusion"; Name=(Get-CleanupText "cleanupReport.residue.defenderExclusion"); Location=[string]$excludedPath; Value=(Get-CleanupText "cleanupReport.residue.removeExclusion") })
+                $residues.Add([pscustomobject]@{ Type="DefenderExclusion"; Name=(Get-CleanupText "cleanupReport.residue.defenderExclusion"); Location=[string]$excludedPath; Value=(Get-CleanupText "cleanupReport.residue.removeExclusion"); ComponentScope='Shared' })
             }
         }
     } catch {}
@@ -1891,7 +1943,7 @@ function Get-ActivationConfigurationResidues {
     try {
         $policy = Get-ItemProperty -LiteralPath $policyPath -ErrorAction Stop
         if ([int]$policy.NoGenTicket -eq 1) {
-            $residues.Add([pscustomobject]@{ Type="SPPPolicy"; Name="NoGenTicket=1"; Location=$policyPath; Value=(Get-CleanupText "cleanupReport.residue.noGenTicket") })
+            $residues.Add([pscustomobject]@{ Type="SPPPolicy"; Name="NoGenTicket=1"; Location=$policyPath; Value=(Get-CleanupText "cleanupReport.residue.noGenTicket"); ComponentScope='Windows' })
         }
     } catch {}
     return $residues
@@ -1950,21 +2002,27 @@ function Get-ActivationReadinessDiagnostics {
 function Get-CleanupVerification {
     param(
         $Products, $Findings, $OfficeEntries, $History,
-        [ValidateSet('All','WindowsOffice','ThirdParty')][string]$Scope = 'All'
+        [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')]
+        [string]$Scope = 'All'
     )
-    $includeWindowsOffice = [bool]($Scope -ne 'ThirdParty')
-    $unapprovedWindows = @($Products | Where-Object {
+    $includeWindows = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Windows'
+    $includeOffice = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Office'
+    $includeWindowsOffice = [bool]($includeWindows -or $includeOffice)
+    $unapprovedWindows = @($Products | Where-Object { $includeWindows -and
         (Get-LicenseChannel $_) -eq "KMS" -and -not (Test-ApprovedKms ([string]$_.KeyManagementServiceMachine))
     })
-    $unapprovedOffice = @($OfficeEntries | Where-Object { -not (Test-ApprovedKms ([string]$_.Server)) })
-    $residues = @($(if ($includeWindowsOffice) { Get-ActivationConfigurationResidues }))
-    $blockerCount = [int]($unapprovedWindows.Count + $unapprovedOffice.Count + @($Findings).Count + $residues.Count)
+    $unapprovedOffice = @($OfficeEntries | Where-Object { $includeOffice -and -not (Test-ApprovedKms ([string]$_.Server)) })
+    $scopedFindings = @($Findings | Where-Object { Test-CleanupRecordMatchesScope -Record $_ -Scope $Scope })
+    $residues = @($(if ($includeWindowsOffice) {
+        Get-ActivationConfigurationResidues | Where-Object { Test-CleanupRecordMatchesScope -Record $_ -Scope $Scope }
+    }))
+    $blockerCount = [int]($unapprovedWindows.Count + $unapprovedOffice.Count + $scopedFindings.Count + $residues.Count)
     $scanWarnings = @($script:ScanWarnings | Select-Object -Unique)
     $ready = [bool]($blockerCount -eq 0 -and $scanWarnings.Count -eq 0)
-    $protected = if ($includeWindowsOffice) { Get-ProtectedLicenseInfo -Products $Products } else {
+    $protected = if ($includeWindows) { Get-ProtectedLicenseInfo -Products $Products } else {
         [pscustomobject]@{ Protected=$false; Channel=(Get-CleanupText 'common.unknown'); Reason=(Get-CleanupText 'cleanupReport.protected.none') }
     }
-    $readiness = @($(if ($includeWindowsOffice) { Get-ActivationReadinessDiagnostics }))
+    $readiness = @($(if ($includeWindows) { Get-ActivationReadinessDiagnostics }))
     $readinessReviewCount = @($readiness | Where-Object { $_.StatusCode -in @("Review", "Unverified") }).Count
     $conclusion = if ($scanWarnings.Count -gt 0) {
         Get-CleanupText "cleanupReport.verification.inconclusive"
@@ -1989,7 +2047,7 @@ function Get-CleanupVerification {
         })
         $handlingGuidance.Add((Get-CleanupText "cleanupReport.guidance.officeKms" @($officeLabels -join '; ')))
     }
-    if (@($Findings).Count -gt 0) {
+    if ($scopedFindings.Count -gt 0) {
         $handlingGuidance.Add((Get-CleanupText "cleanupReport.guidance.activeActivator"))
     }
     if ($residues.Count -gt 0) {
@@ -2006,7 +2064,7 @@ function Get-CleanupVerification {
     }
     return [pscustomobject]@{
         ReadyForOfficialActivation = $ready
-        ActiveActivatorFindingCount = [int]@($Findings).Count
+        ActiveActivatorFindingCount = [int]$scopedFindings.Count
         UnapprovedWindowsKmsCount = [int]$unapprovedWindows.Count
         UnapprovedOfficeKmsCount = [int]$unapprovedOffice.Count
         ConfigurationResidueCount = [int]$residues.Count
@@ -2031,7 +2089,9 @@ function Get-CleanupNextActions {
         $Verification,
         $CleanupItems,
         [bool]$ProtectedLicense,
-        [string]$BackupDirectory = ""
+        [string]$BackupDirectory = "",
+        [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')]
+        [string]$Scope = 'All'
     )
 
     $next = New-Object System.Collections.Generic.List[object]
@@ -2040,7 +2100,7 @@ function Get-CleanupNextActions {
         $next.Add([pscustomobject]@{ Code="RepairScanSources"; Label=(Get-CleanupText "cleanupReport.next.repairScan"); Detail=(Get-CleanupText "cleanupReport.next.repairScanDetail"); CandidateCount=0 })
         $next.Add([pscustomobject]@{ Code="Recheck"; Label=(Get-CleanupText "cleanupReport.next.recheck"); Detail=(Get-CleanupText "cleanupReport.next.recheckBeforeChange"); CandidateCount=0 })
     } elseif ([bool]$Verification.ReadyForOfficialActivation) {
-        if (-not $ProtectedLicense) {
+        if ((Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Windows') -and -not $ProtectedLicense) {
             $next.Add([pscustomobject]@{ Code="OpenLicenseManager"; Label=(Get-CleanupText "cleanupReport.next.officialActivation"); Detail=(Get-CleanupText "cleanupReport.next.officialActivationDetail"); CandidateCount=0 })
         }
         $next.Add([pscustomobject]@{ Code="Recheck"; Label=(Get-CleanupText "cleanupReport.next.postCheck"); Detail=(Get-CleanupText "cleanupReport.next.postCheckDetail"); CandidateCount=0 })
@@ -2695,7 +2755,7 @@ function Invoke-DeepCleanupV35 {
         foreach ($planItem in @($applicationCandidate.PlanItems)) {
             $child = New-CleanupItem -Type ([string]$planItem.Type) -Kind ([string]$planItem.Kind) `
                 -Name ([string]$planItem.Name) -Location ([string]$planItem.Location) -Detail ([string]$planItem.Detail) `
-                -TargetId ([string]$applicationCandidate.TargetId) -VendorScope ([string]$applicationCandidate.VendorScope)
+                -TargetId ([string]$applicationCandidate.TargetId) -VendorScope ([string]$applicationCandidate.VendorScope) -ComponentScope 'ThirdParty'
             $restorable = $true
             if ($planItem.PSObject.Properties['Restorable']) { $restorable = [bool]$planItem.Restorable }
             $child | Add-Member -NotePropertyName Restorable -NotePropertyValue $restorable -Force
@@ -2705,6 +2765,16 @@ function Invoke-DeepCleanupV35 {
         $actions.Add((Get-CleanupText "cleanupReport.thirdParty.action.planExpanded" @($applicationCandidate.Name, @($applicationCandidate.PlanItems).Count)))
     }
     $selected = @($expanded.ToArray() | Group-Object Id | ForEach-Object { $_.Group[0] })
+
+    # Chính sách bất biến: Tool chỉ loại bỏ crack/activator và trạng thái kích
+    # hoạt lậu; tuyệt đối không gỡ ứng dụng. Chốt này bảo vệ cả trường hợp một
+    # kế hoạch cũ hoặc thay đổi tương lai vô tình sinh Type=Uninstall.
+    $blockedApplicationUninstalls = @($selected | Where-Object { [string]$_.Type -eq 'Uninstall' })
+    foreach ($candidate in $blockedApplicationUninstalls) {
+        $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.softwareUninstallBlocked' @($candidate.Name)))
+        Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'PolicyBlocked' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.action.softwareUninstallBlocked' @($candidate.Name))
+    }
+    $selected = @($selected | Where-Object { [string]$_.Type -ne 'Uninstall' })
 
     $deepStamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
     $quarantine = ""
@@ -3266,26 +3336,6 @@ function Invoke-DeepCleanupV35 {
         }
     }
 
-    foreach ($candidate in @($selected | Where-Object { [string]$_.Type -eq 'Uninstall' -and [string]$_.Kind -eq 'ThirdPartyMsiUninstall' })) {
-        try {
-            $productCode = ([string]$candidate.Location).Trim().ToUpperInvariant()
-            if ($productCode -notmatch '^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$') { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiScopeRejected') }
-            Add-RestoreItem ([pscustomobject]@{
-                Type='UninstallNotice'; Name=[string]$candidate.Name; OriginalPath=$productCode
-                BackupPath=''; Kind=[string]$candidate.Kind; Restorable=$false
-            })
-            $result = Invoke-CleanupNativeCommandWithTimeout -FilePath $nativeMsiExecPath -Arguments @('/x', $productCode, '/qn', '/norestart') -TimeoutSeconds 300
-            if ($result.TimedOut) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiTimedOut' @(300)) }
-            if ([int]$result.ExitCode -notin @(0, 1605, 3010)) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiExitCode' @($result.ExitCode, $result.Output)) }
-            $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiUninstallCompleted' @($candidate.Name, $result.ExitCode)))
-            $systemChangeCount++
-            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Succeeded' -Changed $true -Message ([string]$candidate.Detail)
-        } catch {
-            $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiUninstallFailed' @($candidate.Name, $_.Exception.Message)))
-            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
-        }
-    }
-
     foreach ($candidate in @($selected | Where-Object { [string]$_.Type -eq 'Guidance' -and [string]$_.Kind -eq 'ThirdPartyOfficialSource' })) {
         $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.officialSourceRequired' @($candidate.Name, $(if ($candidate.Location) { [string]$candidate.Location } else { Get-CleanupText 'common.unknown' }))))
         Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'GuidanceOnly' -Changed $false -Message ([string]$candidate.Detail)
@@ -3365,12 +3415,14 @@ $reportComputer = if ($RedactSensitive) { Get-CleanupText "report.file.redactedT
 $reportPath = Join-Path $OutputDir ((Get-CleanupText "cleanupReport.file.cleanupPrefix") + "_${reportComputer}_$stamp.txt")
 
 $script:WindowsLicenseSourceNote = ""
-$includeWindowsOfficeScan = [bool]($ScanScope -ne 'ThirdParty')
-$includeThirdPartyScan = [bool]($ScanScope -ne 'WindowsOffice')
+$includeWindowsScan = Test-CleanupScanScopeIncludes -Scope $ScanScope -Component 'Windows'
+$includeOfficeScan = Test-CleanupScanScopeIncludes -Scope $ScanScope -Component 'Office'
+$includeWindowsOfficeScan = [bool]($includeWindowsScan -or $includeOfficeScan)
+$includeThirdPartyScan = Test-CleanupScanScopeIncludes -Scope $ScanScope -Component 'ThirdParty'
 $deepSoftwareScanEnabled = [bool]($includeThirdPartyScan -and -not $SkipDeepSoftwareScan)
-$products = @($(if ($includeWindowsOfficeScan) { Get-WindowsLicenseProducts }))
+$products = @($(if ($includeWindowsScan) { Get-WindowsLicenseProducts }))
 $findings = @($(if ($includeWindowsOfficeScan) { Get-ActivatorFindings }))
-$officeKmsEntries = @($(if ($includeWindowsOfficeScan) { Get-OfficeKmsEntries }))
+$officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries }))
 $installedApplications = @($(if ($includeThirdPartyScan) { Get-InstalledSoftwareInventory }))
 $softwareCatalog = if ($includeThirdPartyScan) { Get-ToolSoftwareLicenseCatalog -PreferCache } else { $null }
 $thirdPartyEvidence = @($(if ($includeThirdPartyScan) { Get-ThirdPartyStrongEvidence -Applications $installedApplications -Catalog $softwareCatalog }))
@@ -3394,7 +3446,9 @@ $script:SensitiveKmsHosts = @(
     @($officeKmsEntries | ForEach-Object { [string]$_.Server })
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique
 $history = @($(if ($includeWindowsOfficeScan) { Get-InvalidActivationHistory }))
-$configurationResidues = @($(if ($includeWindowsOfficeScan) { Get-ActivationConfigurationResidues }))
+$configurationResidues = @($(if ($includeWindowsOfficeScan) {
+    Get-ActivationConfigurationResidues | Where-Object { Test-CleanupRecordMatchesScope -Record $_ -Scope $ScanScope }
+}))
 $unapprovedOfficeKmsEntries = @($officeKmsEntries | Where-Object { -not (Test-ApprovedKms ([string]$_.Server)) })
 $decision = if ($includeWindowsOfficeScan) { Get-ComplianceDecision -Products $products -Findings $findings } else {
     [pscustomobject]@{
@@ -3422,7 +3476,7 @@ function Expand-SelectedCleanupCandidates {
         foreach ($planItem in @($candidate.PlanItems)) {
             $child = New-CleanupItem -Type ([string]$planItem.Type) -Kind ([string]$planItem.Kind) `
                 -Name ([string]$planItem.Name) -Location ([string]$planItem.Location) -Detail ([string]$planItem.Detail) `
-                -TargetId ([string]$candidate.TargetId) -VendorScope ([string]$candidate.VendorScope)
+                -TargetId ([string]$candidate.TargetId) -VendorScope ([string]$candidate.VendorScope) -ComponentScope 'ThirdParty'
             $restorable = $true
             if ($planItem.PSObject.Properties['Restorable']) { $restorable = [bool]$planItem.Restorable }
             $child | Add-Member -NotePropertyName Restorable -NotePropertyValue $restorable -Force
@@ -3483,7 +3537,7 @@ function Get-DryRunRemediationPlan {
             'Hosts' { $actionCode='BackupAndRemoveHostsEntry'; $action=Get-CleanupText 'cleanupReport.dryRun.action.cleanHosts'; $changesSystem=$true; $backupPlanned=$true; $restorable=$true }
             'Firewall' { $actionCode='RemoveScopedFirewallBlock'; $action=Get-CleanupText 'cleanupReport.dryRun.action.removeFirewallBlock'; $changesSystem=$true; $backupPlanned=$true; $restorable=$false }
             'Repair' { $actionCode='RepairMsiProduct'; $action=Get-CleanupText 'cleanupReport.dryRun.action.repairMsi'; $changesSystem=$true }
-            'Uninstall' { $actionCode='UninstallMsiProduct'; $action=Get-CleanupText 'cleanupReport.dryRun.action.uninstallMsi'; $changesSystem=$true }
+            'Uninstall' { $actionCode='BlockApplicationUninstall'; $action=Get-CleanupText 'cleanupReport.thirdParty.action.softwareUninstallBlocked' @($candidate.Name); $changesSystem=$false }
             'License' {
                 if ($kind -eq 'WindowsKmsLicense') { $actionCode='RemoveWindowsKmsLicense'; $action=Get-CleanupText 'cleanupReport.dryRun.action.removeWindowsKms' }
                 elseif ($kind -eq 'OfficeKmsLicense') { $actionCode='RemoveOfficeKmsLicense'; $action=Get-CleanupText 'cleanupReport.dryRun.action.removeOfficeKms' }
@@ -3507,7 +3561,7 @@ if ($thirdPartyCandidateCount -gt 0 -and -not [bool]$decision.ShouldRemediate) {
     $decision.Decision = Get-CleanupText "cleanupReport.thirdParty.decision"
     $decision.Reason = Get-CleanupText "cleanupReport.thirdParty.reason" @($thirdPartyCandidateCount)
 }
-$protectedLicense = if ($includeWindowsOfficeScan) { Get-ProtectedLicenseInfo -Products $products } else {
+$protectedLicense = if ($includeWindowsScan) { Get-ProtectedLicenseInfo -Products $products } else {
     [pscustomobject]@{ Protected=$false; Channel=(Get-CleanupText 'common.unknown'); Reason=(Get-CleanupText 'cleanupReport.protected.none') }
 }
 $activeLicensedProduct = $products | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
@@ -3529,7 +3583,7 @@ $unapprovedWindowsConfigResidues = @($configurationResidues | Where-Object {
 })
 $cleanupWindowsKmsConfiguration = [bool]($unapprovedWindowsKms -or $unapprovedWindowsConfigResidues.Count -gt 0)
 $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history -Scope $ScanScope
-$verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications
+$verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
 $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
 $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
     ScanScope = $ScanScope
@@ -3613,7 +3667,7 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     BackupDirectory = ""
     CleanupConclusion = [string]$verification.Conclusion
     HandlingGuidance = $verification.HandlingGuidance
-    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$protectedLicense.Protected))
+    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$protectedLicense.Protected) -Scope $ScanScope)
     ScopeNote = [string]$verification.ScopeNote
     ReportPath = [string]$reportPath
 })
@@ -3725,9 +3779,9 @@ if ($Remediate) {
     Reset-ScanCaches
     $script:ScanWarnings.Clear()
     $script:WindowsLicenseSourceNote = ""
-    $products = @($(if ($includeWindowsOfficeScan) { Get-WindowsLicenseProducts }))
+    $products = @($(if ($includeWindowsScan) { Get-WindowsLicenseProducts }))
     $findings = @($(if ($includeWindowsOfficeScan) { Get-ActivatorFindings }))
-    $officeKmsEntries = @($(if ($includeWindowsOfficeScan) { Get-OfficeKmsEntries }))
+    $officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries }))
     $installedApplications = @($(if ($includeThirdPartyScan) { Get-InstalledSoftwareInventory }))
     $softwareCatalog = if ($includeThirdPartyScan) { Get-ToolSoftwareLicenseCatalog -PreferCache } else { $null }
     $thirdPartyEvidence = @($(if ($includeThirdPartyScan) { Get-ThirdPartyStrongEvidence -Applications $installedApplications -Catalog $softwareCatalog }))
@@ -3748,9 +3802,9 @@ if ($Remediate) {
     $cleanupItems = @(Get-ScopedCleanupCandidates -CleanupItems $allCleanupItems -Scope $ScanScope)
     $history = @($(if ($includeWindowsOfficeScan) { Get-InvalidActivationHistory }))
     $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history -Scope $ScanScope
-    $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications
+    $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
     $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
-    $postProtectedLicense = if ($includeWindowsOfficeScan) { Get-ProtectedLicenseInfo -Products $products } else {
+    $postProtectedLicense = if ($includeWindowsScan) { Get-ProtectedLicenseInfo -Products $products } else {
         [pscustomobject]@{ Protected=$false; Channel=(Get-CleanupText 'common.unknown'); Reason=(Get-CleanupText 'cleanupReport.protected.none') }
     }
     $postActiveProduct = $products | Where-Object { [int]$_.LicenseStatus -eq 1 } | Select-Object -First 1
@@ -3781,7 +3835,7 @@ if ($Remediate) {
         $postCheckStatus = if (-not [string]::IsNullOrWhiteSpace($parentId) -and $remainingSelectedThirdPartyIds.Contains($parentId)) { 'ResidualRemaining' } else { 'Resolved' }
         $execution | Add-Member -NotePropertyName PostCheckStatus -NotePropertyValue $postCheckStatus -Force
     }
-    $postReadyForCurrentScope = [bool]$(if ($ScanScope -eq 'ThirdParty') { $scopeReadyForOriginalState } else { $verification.ReadyForOfficialActivation })
+    $postReadyForCurrentScope = [bool]$scopeReadyForOriginalState
     $postDecisionCode = if (-not $DeepClean -or -not $script:SelectionAccepted) {
         'SelectionRejected'
     } elseif ($DryRun) {
@@ -3903,7 +3957,7 @@ if ($Remediate) {
         BackupDirectory = [string]$backupDirectory
         CleanupConclusion = [string]$postConclusion
         HandlingGuidance = $verification.HandlingGuidance
-        NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$postProtectedLicense.Protected) -BackupDirectory $backupDirectory)
+        NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$postProtectedLicense.Protected) -BackupDirectory $backupDirectory -Scope $ScanScope)
         ScopeNote = [string]$verification.ScopeNote
         ReportPath = [string]$reportPath
         Actions = @($actions)
@@ -3997,7 +4051,7 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ThirdPartyEvidence = @($thirdPartyEvidence)
     HistoryFindingCount = [int]$verification.HistoryFindingCount
     CleanupItems = @($cleanupItems)
-    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$decisionData.ProtectedLicense) -BackupDirectory $backupDirectory)
+    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$decisionData.ProtectedLicense) -BackupDirectory $backupDirectory -Scope $ScanScope)
     ApprovedKmsServerFile = Protect-CleanupReportText ([string]$approvedKmsConfig.Path)
     ApprovedKmsServerCount = [int]$approvedKmsConfig.Valid.Count
     InvalidApprovedKmsCount = [int]$approvedKmsConfig.Invalid.Count

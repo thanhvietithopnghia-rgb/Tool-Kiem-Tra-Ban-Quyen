@@ -22,7 +22,7 @@ This guide explains how to use the Tool's features on a Windows computer. Releas
 5. Ensure the system drive and Desktop have enough free space for backups and report packages.
 6. Keep Offline enabled unless you intentionally need a catalog update or authorized LAN management.
 
-An unsigned single-file EXE may receive a SmartScreen or antivirus heuristic warning because it extracts PowerShell payloads, inspects KMS/activator traces, and contains an updater. That warning does not by itself prove malware, but it must not be ignored. Download only from the official GitHub repository `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, compare SHA-256 with `TOOL-SHA256SUMS.txt`, inspect `Get-AuthenticodeSignature`, scan with Microsoft Defender, and submit the sample to the antivirus vendor when a false positive is suspected. Do not disable Defender or SmartScreen to run the tool. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
+The single-file EXE carries a free self-signed Authenticode signature for tamper detection. This is not a publicly trusted Windows certificate and does not remove SmartScreen warnings. Download only from the official GitHub repository `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, compare SHA-256, inspect the certificate with `Get-AuthenticodeSignature`, and scan with Microsoft Defender. Do not disable Defender or SmartScreen. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
 
 ## How to run the Tool
 
@@ -171,13 +171,14 @@ The backup does not store complete keys or tokens and cannot be used to restore 
 
 ### Choice 2 – Manual inspection and remediation
 
-This screen offers two ways to proceed:
+This screen offers three ways to proceed; all three open the same Windows, Office, and Other software checkboxes:
 
+- **Online:** after explicit consent, the Tool downloads the allowed comparison catalog and scans only the selected scopes; it does not upload the software inventory or machine data.
 - **Dry Run — no system changes:** choose the scope and individual items normally, then review the exact file/Registry/service/task targets, intended actions, reasons, backup plan, and restorability. It scans and writes a report only; it does not create a restore point or backup, stop a process/service, delete a file, or edit system state.
 - **Inspect and return to original state:** follows the real workflow below. Choosing **Execute for real** after a Dry Run always reopens item selection and requires confirmation again; a simulated plan is never executed automatically.
 
 1. Select Inspect and return to original state.
-2. Choose Scan all, Scan Windows and Office, or Scan other software.
+2. Select one or more scopes—Windows, Office, and Other software—then choose Continue.
 3. Wait for the read-only scan to complete; no change occurs yet.
 4. If WMI/CIM, licensing services, or Task Scheduler are incomplete, use Quick repair scan sources and scan again.
 5. Review application name, item type, evidence, confidence, and action plan.

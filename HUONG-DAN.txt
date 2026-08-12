@@ -22,7 +22,7 @@ Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng
 5. Đảm bảo còn đủ dung lượng trên ổ hệ thống và Desktop để lưu backup, gói báo cáo và dữ liệu kiểm tra.
 6. Mặc định nên giữ Offline. Chỉ bật Online khi cần cập nhật danh mục nhận diện hoặc dùng chức năng quản lý trong mạng nội bộ.
 
-Tệp một-EXE chưa ký số có thể bị SmartScreen hoặc antivirus chấm điểm theo hành vi vì nó tự giải nén PowerShell, kiểm tra dấu vết KMS/activator và có mô-đun cập nhật. Cảnh báo đó chưa tự chứng minh là virus, nhưng cũng không nên bỏ qua. Chỉ tải từ trang GitHub chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, đối chiếu SHA-256 với `TOOL-SHA256SUMS.txt`, kiểm tra `Get-AuthenticodeSignature`, quét lại bằng Microsoft Defender và gửi mẫu cho hãng antivirus nếu nghi false positive. Không tắt Defender/SmartScreen để chạy Tool; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
+Tệp một-EXE có chữ ký Authenticode tự ký miễn phí để nhận biết tệp bị sửa, nhưng chữ ký này không phải chứng thư được Windows tin cậy công khai và không loại bỏ cảnh báo SmartScreen. Chỉ tải từ trang GitHub chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, đối chiếu SHA-256, xem chứng thư bằng `Get-AuthenticodeSignature` và quét lại bằng Microsoft Defender. Không tắt Defender/SmartScreen; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
 
 ## Cách chạy Tool
 
@@ -220,13 +220,14 @@ Backup không lưu product key/token đầy đủ và không được dùng đ�
 
 ### Lựa chọn 2 – Kiểm tra và khắc phục thủ công
 
-Trên màn hình này có hai cách tiếp tục:
+Trên màn hình này có ba cách tiếp tục; cả ba đều mở cùng ba ô tích Windows, Office và Phần mềm khác:
 
+- **Kết nối online:** sau khi người dùng đồng ý, Tool tải danh mục đối chiếu được phép rồi chỉ quét các phạm vi đã tích; không tải danh sách phần mềm hoặc dữ liệu máy lên mạng.
 - **Chạy thử – không thay đổi hệ thống:** chọn phạm vi và từng mục như bình thường, sau đó xem kế hoạch gồm tệp/Registry/service/task sẽ xử lý, hành động dự kiến, lý do, backup và khả năng hoàn tác. Chế độ này chỉ quét và tạo báo cáo; không tạo restore point, không tạo backup, không dừng tiến trình/dịch vụ, không xóa hay sửa dữ liệu.
 - **Kiểm tra và đưa về trạng thái gốc:** thực hiện luồng thật bên dưới. Nếu chọn **Thực hiện thật** sau Dry Run, công cụ luôn mở lại danh sách và yêu cầu xác nhận lần nữa; kế hoạch mô phỏng không tự động được thi hành.
 
 1. Chọn Kiểm tra và đưa về trạng thái gốc.
-2. Chọn Quét toàn bộ, Quét Windows và Office hoặc Quét phần mềm khác.
+2. Tích một hoặc nhiều mục: Windows, Office, Phần mềm khác; sau đó chọn Tiếp tục.
 3. Chờ bước quét chỉ đọc hoàn tất; ở bước này máy chưa bị thay đổi.
 4. Nếu công cụ báo nguồn WMI/CIM, dịch vụ cấp phép hoặc Task Scheduler chưa đầy đủ, dùng Sửa nhanh nguồn quét rồi quét lại.
 5. Khi danh sách xuất hiện, đọc tên ứng dụng, loại mục, bằng chứng, mức tin cậy và kế hoạch xử lý.

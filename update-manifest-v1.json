@@ -3,27 +3,31 @@
     "Channel":  "stable",
     "LatestVersion":  "4.8.0.0",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-11T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-12T00:00:00Z",
     "Title":  {
-                  "vi-VN":  "v4.8.0 - Nâng cấp nhảy vọt, cải tiến chuyên sâu",
-                  "en-US":  "v4.8.0 - A leap-forward upgrade with in-depth improvements"
+                  "vi-VN":  "v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn",
+                  "en-US":  "v4.8.0 - Faster, clearer, and safer"
               },
     "Changes":  {
                     "vi-VN":  [
-                                  "v4.8 là bản nâng cấp nhảy vọt, cải tiến chuyên sâu, phát hành trực tiếp từ v4.6.",
-                                  "Hướng dẫn sử dụng chỉ trình bày cách dùng tính năng, cách đọc kết quả và nguyên tắc an toàn.",
-                                  "Xem đầy đủ nội dung cải tiến, sửa lỗi và đối chứng hiệu năng trong LICH-SU-PHIEN-BAN.txt."
+                                  "Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.",
+                                  "Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.",
+                                  "Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.",
+                                  "Khắc phục có Dry Run, backup và hậu kiểm; Tool không tự gỡ ứng dụng.",
+                                  "Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0."
                               ],
                     "en-US":  [
-                                  "v4.8 is a leap-forward upgrade with in-depth improvements, released directly from v4.6.",
-                                  "The user guide now covers feature use, result interpretation, and safe operating practices only.",
-                                  "See VERSION-HISTORY-en-US.md for the complete improvements, fixes, and performance validation."
+                                  "The interface is clearer; the Redacted report button no longer clips or fades on hover.",
+                                  "Scans are faster, recognize more software, and present results more clearly.",
+                                  "Reports protect sensitive data better, and known PDF clipping cases are fixed.",
+                                  "Remediation includes Dry Run, backup, and post-verification; the Tool never uninstalls applications.",
+                                  "Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0."
                               ]
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe",
-    "DownloadSha256":  "5D895A777997656AC20CAE75D2DD03078B5EC81A2495EBD2FC081670D3301526",
-    "DownloadSize":  822784,
+    "DownloadSha256":  "C48893478A71CD0B72D09E985324A652DC8D36362B91710DADA6F45BF6A387F8",
+    "DownloadSize":  861104,
     "AuthenticodeRequired":  false,
     "SignerThumbprints":  [
 

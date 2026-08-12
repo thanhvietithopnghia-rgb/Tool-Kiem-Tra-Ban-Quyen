@@ -75,7 +75,11 @@ if ($guiAst) {
 
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
 Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.0"' 'Dashboard chưa dùng release 4.8.0.0.'
-Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.11"' 'Dashboard chưa dùng ngày build 2026.08.11.'
+Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.12"' 'Dashboard chưa dùng ngày build 2026.08.12.'
+Assert-SourcePattern $text '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4\.8\.0\.0"' 'Nút Giới thiệu chưa dùng URL cố định của tag v4.8.0.0.'
+if ($text -match '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest"') {
+    Add-Failure 'Nút Giới thiệu vẫn dùng releases/latest và có thể chuyển sang phiên bản khác.'
+}
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'
 Assert-SourcePattern $text 'AutoScaleMode\]::Dpi' 'Dashboard thiếu DPI scaling.'
@@ -138,8 +142,10 @@ $themeText = Get-Content -LiteralPath (Join-Path $root 'Tool-UiTheme.ps1') -Raw 
 foreach ($themePattern in @(
     'function\s+Get-ToolUiButtonRole',
     'function\s+Get-ToolUiButtonPalette',
+    'function\s+Get-ToolUiPrimaryActionPalette',
     'function\s+New-ToolUiActionIconBitmap',
     'function\s+Set-ToolUiActionButtonVisual',
+    'function\s+Set-ToolUiPrimaryActionButtonVisual',
     'function\s+Get-ToolUiButtonRequiredWidth',
     'function\s+Set-ToolUiFlowButtonSpacing',
     '[$]Button\.UseMnemonic\s*=\s*[$]false',
@@ -155,7 +161,9 @@ foreach ($buttonMode in @('Light','Dark')) {
     foreach ($buttonTone in @('Primary','Success','Warning','Danger','Purple','Teal','Neutral')) {
         $buttonPalette = Get-ToolUiButtonPalette -Tone $buttonTone -Mode $buttonMode
         $buttonContrast = Get-ToolUiContrastRatio -Foreground $buttonPalette.Fore -Background $buttonPalette.Back
+        $buttonHoverContrast = Get-ToolUiContrastRatio -Foreground $buttonPalette.Fore -Background $buttonPalette.Hover
         if ($buttonContrast -lt 4.5) { Add-Failure "Màu nút $buttonMode/$buttonTone không đạt tương phản 4.5:1: $buttonContrast" }
+        if ($buttonHoverContrast -lt 4.5) { Add-Failure "Màu hover nút $buttonMode/$buttonTone không đạt tương phản 4.5:1: $buttonHoverContrast" }
     }
 }
 $fitViCatalog = Get-Content -LiteralPath (Join-Path $root 'Tool-Strings.vi-VN.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -190,6 +198,56 @@ try {
 } finally {
     $fitFont.Dispose()
     $fitPanel.Dispose()
+}
+$privacyFont = New-Object Drawing.Font('Segoe UI', 9.1, [Drawing.FontStyle]::Regular)
+$privacyBoldFont = New-Object Drawing.Font('Segoe UI', 9.1, [Drawing.FontStyle]::Bold)
+try {
+    foreach ($privacyCase in @(
+        @('Light', $fitViCatalog),
+        @('Dark', $fitViCatalog),
+        @('Light', $fitEnCatalog),
+        @('Dark', $fitEnCatalog)
+    )) {
+        $privacyHost = New-Object Windows.Forms.Panel
+        $privacyHost.Size = New-Object Drawing.Size(650, 54)
+        $privacyButtons = @()
+        $privacySpecs = @(
+            @('report.privacy.redactedButton', 28, 212, $privacyBoldFont),
+            @('report.privacy.internalButton', 252, 220, $privacyFont),
+            @('report.privacy.cancelButton', 484, 138, $privacyFont)
+        )
+        foreach ($privacySpec in $privacySpecs) {
+            $privacyButton = New-Object Windows.Forms.Button
+            $privacyButton.Text = [string]$privacyCase[1].PSObject.Properties[[string]$privacySpec[0]].Value
+            $privacyButton.Location = New-Object Drawing.Point([int]$privacySpec[1], 6)
+            $privacyButton.Size = New-Object Drawing.Size([int]$privacySpec[2], 42)
+            $privacyButton.Font = $privacySpec[3]
+            $privacyHost.Controls.Add($privacyButton)
+            $privacyButtons += $privacyButton
+        }
+        Set-ToolWindowTheme -Root $privacyHost -Mode ([string]$privacyCase[0])
+        Set-ToolUiPrimaryActionButtonVisual -Button $privacyButtons[0] -Mode ([string]$privacyCase[0])
+        foreach ($privacyButton in $privacyButtons) {
+            if ($privacyButton.Width -lt (Get-ToolUiButtonRequiredWidth -Button $privacyButton) -or
+                $privacyButton.Right -gt $privacyHost.ClientSize.Width) {
+                Add-Failure "Nút riêng tư '$($privacyButton.Text)' bị cắt ở chế độ $([string]$privacyCase[0])."
+            }
+        }
+        foreach ($privacyBackground in @(
+            $privacyButtons[0].BackColor,
+            $privacyButtons[0].FlatAppearance.MouseOverBackColor,
+            $privacyButtons[0].FlatAppearance.MouseDownBackColor
+        )) {
+            $privacyContrast = Get-ToolUiContrastRatio -Foreground $privacyButtons[0].ForeColor -Background $privacyBackground
+            if ($privacyContrast -lt 4.5) {
+                Add-Failure "Nút riêng tư chính bị mờ ở chế độ $([string]$privacyCase[0]); tương phản chỉ còn $privacyContrast."
+            }
+        }
+        $privacyHost.Dispose()
+    }
+} finally {
+    $privacyBoldFont.Dispose()
+    $privacyFont.Dispose()
 }
 $cleanupFooterFont = New-Object Drawing.Font('Segoe UI', 8.5, [Drawing.FontStyle]::Regular)
 try {
@@ -304,16 +362,18 @@ foreach ($advancedKey in @('advanced.deep.title','advanced.forensics.title')) {
 if ([string]$viCatalog.'cleanup.menu.title' -ne 'Khắc phục KMS/Activator Windows, Office và đưa phần mềm về trạng thái gốc' -or [string]$enCatalog.'cleanup.menu.title' -ne 'Remediate Windows/Office KMS/Activator and return software to an original state') {
     Add-Failure 'Tiêu đề cửa sổ khắc phục vẫn còn nhãn chức năng đánh số cũ.'
 }
-if ([string]$viCatalog.'cleanup.menu.cleanupFullTitle' -ne 'Kiểm tra và gỡ bỏ Windows, Office và phần mềm về trạng thái gốc' -or
-    [string]$viCatalog.'cleanup.scope.scanAll' -notmatch '^Quét toàn bộ' -or
-    [string]$viCatalog.'cleanup.scope.scanWindowsOffice' -notmatch '^Quét Windows và Office' -or
+if ([string]$viCatalog.'cleanup.menu.cleanupFullTitle' -ne 'Kiểm tra và loại bỏ kích hoạt lậu khỏi Windows, Office và phần mềm' -or
+    [string]$viCatalog.'cleanup.scope.scanWindows' -notmatch '^Windows' -or
+    [string]$viCatalog.'cleanup.scope.scanOffice' -notmatch '^Office' -or
     [string]$viCatalog.'cleanup.scope.scanThirdParty' -notmatch '^Quét phần mềm khác') {
-    Add-Failure 'Luồng khắc phục chưa có đúng tên mới và ba phạm vi quét theo yêu cầu.'
+    Add-Failure 'Luồng khắc phục chưa có đúng tên mới và ba ô tích phạm vi theo yêu cầu.'
 }
 Assert-SourcePattern $text 'function\s+Show-LicenseScopeChooser' 'Khắc phục thiếu hộp chọn phạm vi dùng chung.'
-Assert-SourcePattern $text 'Scope="All";\s*TextKey="cleanup\.scope\.scanAll"' 'Khắc phục thiếu lựa chọn Quét toàn bộ.'
-Assert-SourcePattern $text 'Scope="WindowsOffice";\s*TextKey="cleanup\.scope\.scanWindowsOffice"' 'Khắc phục thiếu lựa chọn Quét Windows và Office.'
-Assert-SourcePattern $text 'Scope="ThirdParty";\s*TextKey="cleanup\.scope\.scanThirdParty"' 'Khắc phục thiếu lựa chọn Quét phần mềm khác.'
+Assert-SourcePattern $text 'function\s+Show-CleanupScopeChecklist' 'Khắc phục thiếu hộp ba ô tích phạm vi.'
+Assert-SourcePattern $text 'Name="Windows";\s*TextKey="cleanup\.scope\.scanWindows"' 'Khắc phục thiếu ô tích Windows.'
+Assert-SourcePattern $text 'Name="Office";\s*TextKey="cleanup\.scope\.scanOffice"' 'Khắc phục thiếu ô tích Office.'
+Assert-SourcePattern $text 'Name="ThirdParty";\s*TextKey="cleanup\.scope\.scanThirdParty"' 'Khắc phục thiếu ô tích Phần mềm khác.'
+Assert-SourcePattern $text 'Start-SoftwareCatalogOnlineUpdate\s+-ScanScope\s+[$]selectedScope' 'Kết nối Online chưa dùng cùng phạm vi người dùng đã tích.'
 Assert-SourcePattern $text 'Start-CleanupBackup\s+-Scope\s+[$]selectedScope' 'Backup chưa nhận phạm vi người dùng chọn.'
 Assert-SourcePattern $text 'Start-CleanupRestore\s+-Scope\s+[$]selectedScope' 'Khôi phục chưa nhận phạm vi người dùng chọn.'
 Assert-SourcePattern $text 'Start-Cleanup\s+-ScanScope\s+[$]selectedScope' 'Quét khắc phục chưa nhận phạm vi người dùng chọn.'

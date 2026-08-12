@@ -3,7 +3,7 @@
 $toolVersion = "4.8.0"
 $dashboardSchemaVersion = "2.0"
 $releaseVersion = "4.8.0.0"
-$releaseBuildDate = "2026.08.11"
+$releaseBuildDate = "2026.08.12"
 $toolDisplayVersion = "v$toolVersion"
 $releaseDisplayName = "v$releaseVersion"
 
@@ -973,6 +973,7 @@ $cleanupDryRunMode = $false
 $cleanupScanScope = "All"
 $softwareCatalogUpdateResultFile = ""
 $softwareCatalogAutoScan = $false
+$softwareCatalogAutoScanScope = "ThirdParty"
 $applicationUpdateResultFile = ""
 $availableApplicationUpdate = $null
 $applicationUpdateProcess = $null
@@ -1629,7 +1630,8 @@ function Show-ProductIntroduction {
     $overviewPage.Padding = New-Object System.Windows.Forms.Padding(4)
     [void]$detailTabs.TabPages.Add($overviewPage)
 
-    $officialReleaseUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest"
+    # Giữ URL của nút Giới thiệu ổn định khi cập nhật đè cùng phiên bản.
+    $officialReleaseUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0"
     $aboutBox = New-Object System.Windows.Forms.RichTextBox
     $aboutBox.Dock = "Fill"
     $aboutBox.ReadOnly = $true
@@ -2937,32 +2939,29 @@ function Show-ReportPrivacyChooser {
     $redactedButton = New-Object System.Windows.Forms.Button
     $redactedButton.Text = Get-ToolText -Key 'report.privacy.redactedButton' -Culture $script:dashboardCulture
     $redactedButton.Location = New-Object System.Drawing.Point(28, 188)
-    $redactedButton.Size = New-Object System.Drawing.Size(190, 42)
+    $redactedButton.Size = New-Object System.Drawing.Size(212, 42)
     $redactedButton.Font = $fontBold
     $redactedButton.Add_Click({ $dialog.Tag = 'Redacted'; $dialog.Close() })
     $dialog.Controls.Add($redactedButton)
 
     $internalButton = New-Object System.Windows.Forms.Button
     $internalButton.Text = Get-ToolText -Key 'report.privacy.internalButton' -Culture $script:dashboardCulture
-    $internalButton.Location = New-Object System.Drawing.Point(230, 188)
-    $internalButton.Size = New-Object System.Drawing.Size(190, 42)
+    $internalButton.Location = New-Object System.Drawing.Point(252, 188)
+    $internalButton.Size = New-Object System.Drawing.Size(220, 42)
     $internalButton.Add_Click({ $dialog.Tag = 'Internal'; $dialog.Close() })
     $dialog.Controls.Add($internalButton)
 
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = Get-ToolText -Key 'report.privacy.cancelButton' -Culture $script:dashboardCulture
-    $cancelButton.Location = New-Object System.Drawing.Point(432, 188)
-    $cancelButton.Size = New-Object System.Drawing.Size(190, 42)
+    $cancelButton.Location = New-Object System.Drawing.Point(484, 188)
+    $cancelButton.Size = New-Object System.Drawing.Size(138, 42)
     $cancelButton.Add_Click({ $dialog.Tag = 'Cancel'; $dialog.Close() })
     $dialog.Controls.Add($cancelButton)
     $dialog.AcceptButton = $redactedButton
     $dialog.CancelButton = $cancelButton
 
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
-    $palette = Get-ToolUiPalette -Mode $script:dashboardTheme
-    $redactedButton.BackColor = $palette.Primary
-    $redactedButton.ForeColor = if ($script:dashboardTheme -eq 'Dark') { [Drawing.Color]::FromArgb(18, 26, 38) } else { [Drawing.Color]::White }
-    foreach ($button in @($redactedButton,$internalButton,$cancelButton)) { $button.FlatStyle = 'Flat' }
+    Set-ToolUiPrimaryActionButtonVisual -Button $redactedButton -Mode $script:dashboardTheme
     [void]$dialog.ShowDialog($form)
     $choice = [string]$dialog.Tag
     $dialog.Dispose()
@@ -2999,9 +2998,11 @@ function Start-Report([string]$mode, [string]$displayName) {
 }
 
 function Get-CleanupScopeLabel {
-    param([ValidateSet("All", "WindowsOffice", "ThirdParty", "Windows", "Office")][string]$Scope)
+    param([ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")][string]$Scope)
     $key = switch ($Scope) {
         "WindowsOffice" { "cleanup.scope.windowsOffice" }
+        "WindowsThirdParty" { "cleanup.scope.windowsThirdParty" }
+        "OfficeThirdParty" { "cleanup.scope.officeThirdParty" }
         "ThirdParty" { "cleanup.scope.thirdParty" }
         "Windows" { "cleanup.scope.windows" }
         "Office" { "cleanup.scope.office" }
@@ -3010,17 +3011,66 @@ function Get-CleanupScopeLabel {
     return Get-DashboardText $key
 }
 
+function ConvertTo-CleanupScanScope {
+    param([bool]$Windows, [bool]$Office, [bool]$ThirdParty)
+
+    $selectionKey = "{0}{1}{2}" -f [int]$Windows, [int]$Office, [int]$ThirdParty
+    switch ($selectionKey) {
+        "100" { return "Windows" }
+        "010" { return "Office" }
+        "001" { return "ThirdParty" }
+        "110" { return "WindowsOffice" }
+        "101" { return "WindowsThirdParty" }
+        "011" { return "OfficeThirdParty" }
+        "111" { return "All" }
+        default { return "" }
+    }
+}
+
+function Test-GuiCleanupScopeIncludes {
+    param(
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")][string]$Scope,
+        [ValidateSet("Windows", "Office", "ThirdParty")][string]$Component
+    )
+
+    switch ($Component) {
+        "Windows" { return [bool]($Scope -in @("All", "Windows", "WindowsOffice", "WindowsThirdParty")) }
+        "Office" { return [bool]($Scope -in @("All", "Office", "WindowsOffice", "OfficeThirdParty")) }
+        "ThirdParty" { return [bool]($Scope -in @("All", "ThirdParty", "WindowsThirdParty", "OfficeThirdParty")) }
+    }
+    return $false
+}
+
+function Get-GuiCleanupItemComponentScope {
+    param($CleanupItem)
+
+    if ($CleanupItem.PSObject.Properties['ComponentScope']) {
+        $explicitScope = [string]$CleanupItem.ComponentScope
+        if ($explicitScope -in @("Windows", "Office", "ThirdParty", "Shared")) { return $explicitScope }
+    }
+    $type = [string]$CleanupItem.Type
+    $kind = [string]$CleanupItem.Kind
+    $text = (([string]$CleanupItem.Name) + " " + ([string]$CleanupItem.Location) + " " + ([string]$CleanupItem.Detail)).Trim()
+    if ($type -eq "Application" -or $kind -match '^ThirdParty') { return "ThirdParty" }
+    if ($kind -eq "OfficeKmsLicense" -or $text -match '(?i)OfficeSoftwareProtectionPlatform|\bospp(?:svc|\.vbs)?\b|\bOffice\s+KMS\b') { return "Office" }
+    if ($kind -eq "WindowsKmsLicense" -or $kind -eq "SppNoGenTicketPolicy" -or
+        $text -match '(?i)Windows NT\\CurrentVersion\\SoftwareProtectionPlatform|\bsppsvc\b|\bSppExtComObj\b|\bNoGenTicket\b') { return "Windows" }
+    return "Shared"
+}
+
 function Get-GuiScopedCleanupItems {
     param(
         $CleanupItems,
-        [ValidateSet("All", "WindowsOffice", "ThirdParty")][string]$Scope = "All"
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")][string]$Scope = "All"
     )
-    $items = @($CleanupItems)
-    switch ($Scope) {
-        "WindowsOffice" { return @($items | Where-Object { [string]$_.Type -ne "Application" -and [string]$_.Kind -notmatch '^ThirdParty' }) }
-        "ThirdParty" { return @($items | Where-Object { [string]$_.Type -eq "Application" -and [string]$_.Kind -eq "ThirdPartyLicenseReset" }) }
-        default { return $items }
-    }
+    return @($CleanupItems | Where-Object {
+        $componentScope = Get-GuiCleanupItemComponentScope -CleanupItem $_
+        if ($componentScope -eq "Shared") {
+            return [bool]((Test-GuiCleanupScopeIncludes -Scope $Scope -Component "Windows") -or
+                (Test-GuiCleanupScopeIncludes -Scope $Scope -Component "Office"))
+        }
+        return Test-GuiCleanupScopeIncludes -Scope $Scope -Component $componentScope
+    })
 }
 
 function Start-Cleanup {
@@ -3028,7 +3078,7 @@ function Start-Cleanup {
         [switch]$ReuseSessionSettings,
         [switch]$AutoSafeMode,
         [switch]$DryRunMode,
-        [ValidateSet("All", "WindowsOffice", "ThirdParty")][string]$ScanScope = "All"
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")][string]$ScanScope = "All"
     )
     if (-not (Test-Path -LiteralPath $cleanupScript)) {
         $script:cleanupAutoSafeMode = $false
@@ -3042,7 +3092,9 @@ function Start-Cleanup {
         $script:cleanupScanScope = $ScanScope
         $script:cleanupAutoSafeMode = [bool]$AutoSafeMode
         $script:cleanupDryRunMode = [bool]$DryRunMode
-        if ($script:cleanupScanScope -ne "ThirdParty" -and -not (Confirm-KmsApprovalConfiguration)) {
+        if (((Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "Windows") -or
+            (Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "Office")) -and
+            -not (Confirm-KmsApprovalConfiguration)) {
             $script:cleanupAutoSafeMode = $false
             $status.Text = Get-DashboardText "cleanup.kmsCancelled"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
@@ -3083,6 +3135,13 @@ function Start-Cleanup {
 }
 
 function Start-SoftwareCatalogOnlineUpdate {
+    param(
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
+        [string]$ScanScope = "ThirdParty"
+    )
+
+    $script:softwareCatalogAutoScan = $false
+    $script:softwareCatalogAutoScanScope = "ThirdParty"
     $consent = [System.Windows.Forms.MessageBox]::Show(
         (Get-DashboardText "software.online.consentMessage"),
         (Get-DashboardText "software.online.consentTitle"),
@@ -3097,8 +3156,10 @@ function Start-SoftwareCatalogOnlineUpdate {
     try {
         Start-ProgressDisplay (Get-DashboardText "software.online.action") (Get-DashboardText "software.online.connecting") $false
         Write-ProgressLog (Get-DashboardText "software.online.privacyLog")
+        Write-ProgressLog (Get-DashboardText "cleanup.scan.scopeLog" @((Get-CleanupScopeLabel -Scope $ScanScope)))
         $script:softwareCatalogUpdateResultFile = New-SecureRuntimePath "tool-software-catalog-update-"
         $script:softwareCatalogAutoScan = $true
+        $script:softwareCatalogAutoScanScope = $ScanScope
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$softwareCatalogUpdateScript`" -ResultFile `"$script:softwareCatalogUpdateResultFile`" -ConsentGranted -Culture `"$script:dashboardCulture`""
         [void](Start-ToolModuleProcess -ModuleId "software.catalog.update" -Arguments $arguments -Action (Get-DashboardText "software.online.action") -Hidden)
         $status.Text = Get-DashboardText "software.online.running"
@@ -3107,6 +3168,7 @@ function Start-SoftwareCatalogOnlineUpdate {
         $timer.Start()
     } catch {
         $script:softwareCatalogAutoScan = $false
+        $script:softwareCatalogAutoScanScope = "ThirdParty"
         if ($script:softwareCatalogUpdateResultFile -and (Test-Path -LiteralPath $script:softwareCatalogUpdateResultFile -PathType Leaf)) {
             Remove-Item -LiteralPath $script:softwareCatalogUpdateResultFile -Force -ErrorAction SilentlyContinue
         }
@@ -3119,7 +3181,12 @@ function Start-SoftwareCatalogOnlineUpdate {
 function Complete-SoftwareCatalogOnlineUpdate {
     Set-ButtonsEnabled $true
     $shouldScan = [bool]$script:softwareCatalogAutoScan
+    $requestedScanScope = [string]$script:softwareCatalogAutoScanScope
+    if ($requestedScanScope -notin @("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")) {
+        $requestedScanScope = "ThirdParty"
+    }
     $script:softwareCatalogAutoScan = $false
+    $script:softwareCatalogAutoScanScope = "ThirdParty"
     $result = $null
     try {
         if (-not $script:softwareCatalogUpdateResultFile -or -not (Test-Path -LiteralPath $script:softwareCatalogUpdateResultFile -PathType Leaf)) {
@@ -3142,7 +3209,7 @@ function Complete-SoftwareCatalogOnlineUpdate {
         [System.Windows.Forms.MessageBox]::Show(
             (Get-DashboardText "software.online.successMessage" @($result.CatalogVersion, $result.ProductRuleCount)),
             (Get-DashboardText "software.online.successTitle"), "OK", "Information") | Out-Null
-        if ($shouldScan) { Start-Cleanup -ScanScope "ThirdParty" }
+        if ($shouldScan) { Start-Cleanup -ScanScope $requestedScanScope }
         return
     }
 
@@ -3157,7 +3224,7 @@ function Complete-SoftwareCatalogOnlineUpdate {
         [System.Windows.Forms.MessageBoxIcon]::Warning,
         [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
     if ($shouldScan -and $fallback -eq [System.Windows.Forms.DialogResult]::Yes) {
-        Start-Cleanup -ScanScope "ThirdParty"
+        Start-Cleanup -ScanScope $requestedScanScope
     }
 }
 
@@ -3565,7 +3632,7 @@ function Confirm-AutomaticSafeCleanup {
 function Show-DeepCleanupSelection {
     param(
         $CleanupItems,
-        [ValidateSet("All", "WindowsOffice", "ThirdParty")][string]$ScanScope = "All",
+        [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")][string]$ScanScope = "All",
         [string[]]$SuggestedIds = @()
     )
     $items = @(Get-GuiScopedCleanupItems -CleanupItems $CleanupItems -Scope $ScanScope)
@@ -4201,7 +4268,7 @@ function Complete-CleanupScan {
         $scan = Get-Content -LiteralPath $script:cleanupDecisionFile -Raw | ConvertFrom-Json
         Remove-Item -LiteralPath $script:cleanupDecisionFile -Force -ErrorAction SilentlyContinue
         $script:cleanupDecisionFile = ""
-        if ($scan.PSObject.Properties['ScanScope'] -and [string]$scan.ScanScope -in @("All", "WindowsOffice", "ThirdParty")) {
+        if ($scan.PSObject.Properties['ScanScope'] -and [string]$scan.ScanScope -in @("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")) {
             $script:cleanupScanScope = [string]$scan.ScanScope
         }
         $scopedCleanupItems = @(Get-GuiScopedCleanupItems -CleanupItems @($scan.CleanupItems) -Scope $script:cleanupScanScope)
@@ -4274,9 +4341,9 @@ function Complete-CleanupScan {
                 return
             }
 
-            $licenseNote = if ($script:cleanupScanScope -ne "ThirdParty" -and [bool]$scan.ProtectedLicense) {
+            $licenseNote = if ((Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "Windows") -and [bool]$scan.ProtectedLicense) {
                 Get-DashboardText "cleanup.scan.protectedNote" @($scan.ProtectedChannel, $scan.ProtectedReason)
-            } elseif ($script:cleanupScanScope -ne "ThirdParty") {
+            } elseif (Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "Windows") {
                 Get-DashboardText "cleanup.scan.unprotectedNote"
             } else {
                 ""
@@ -4576,7 +4643,7 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
         $result = Get-Content -LiteralPath $script:cleanupResultFile -Raw | ConvertFrom-Json
         Remove-Item -LiteralPath $script:cleanupResultFile -Force -ErrorAction SilentlyContinue
         $script:cleanupResultFile = ""
-        if ($result.PSObject.Properties['ScanScope'] -and [string]$result.ScanScope -in @("All", "WindowsOffice", "ThirdParty")) {
+        if ($result.PSObject.Properties['ScanScope'] -and [string]$result.ScanScope -in @("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")) {
             $script:cleanupScanScope = [string]$result.ScanScope
         }
         $result.CleanupItems = @(Get-GuiScopedCleanupItems -CleanupItems @($result.CleanupItems) -Scope $script:cleanupScanScope)
@@ -5617,16 +5684,128 @@ function Complete-CleanupRestore {
     }
 }
 
+function Show-CleanupScopeChecklist {
+    $scopeDialog = New-Object System.Windows.Forms.Form
+    $scopeDialog.Text = Get-DashboardText "cleanup.scope.dialogTitle"
+    $scopeDialog.StartPosition = "CenterParent"
+    $scopeDialog.FormBorderStyle = "Sizable"
+    $scopeDialog.MaximizeBox = $false
+    $scopeDialog.MinimizeBox = $false
+    $scopeDialog.ShowInTaskbar = $false
+    $scopeDialog.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
+    $workArea = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
+    $dialogWidth = [Math]::Max(680, [Math]::Min(820, $workArea.Width - 70))
+    $dialogHeight = [Math]::Max(430, [Math]::Min(470, $workArea.Height - 70))
+    $scopeDialog.MinimumSize = New-Object System.Drawing.Size([Math]::Min(680, $dialogWidth), [Math]::Min(430, $dialogHeight))
+    $scopeDialog.ClientSize = New-Object System.Drawing.Size($dialogWidth, $dialogHeight)
+    $scopeDialog.BackColor = [System.Drawing.Color]::FromArgb(244, 246, 249)
+    $scopeDialog.Font = $fontNormal
+    $scopeDialog.Tag = ""
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = "Fill"
+    $layout.Padding = New-Object System.Windows.Forms.Padding(18, 12, 18, 12)
+    $layout.ColumnCount = 1
+    $layout.RowCount = 6
+    [void]$layout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 58)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 66)))
+    foreach ($unused in 1..3) {
+        [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 68)))
+    }
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    $scopeDialog.Controls.Add($layout)
+
+    $heading = New-Object System.Windows.Forms.Label
+    $heading.Text = Get-DashboardText "cleanup.scope.cleanupHeading"
+    $heading.Dock = "Fill"
+    $heading.Font = $fontTitle
+    $heading.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
+    $heading.TextAlign = "MiddleCenter"
+    $layout.Controls.Add($heading, 0, 0)
+
+    $hint = New-Object System.Windows.Forms.Label
+    $hint.Text = Get-DashboardText "cleanup.scope.cleanupHint"
+    $hint.Dock = "Fill"
+    $hint.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
+    $hint.TextAlign = "MiddleLeft"
+    $layout.Controls.Add($hint, 0, 1)
+
+    $checkDefinitions = @(
+        [pscustomobject]@{ Name="Windows"; TextKey="cleanup.scope.scanWindows" },
+        [pscustomobject]@{ Name="Office"; TextKey="cleanup.scope.scanOffice" },
+        [pscustomobject]@{ Name="ThirdParty"; TextKey="cleanup.scope.scanThirdParty" }
+    )
+    $scopeChecks = @{}
+    [int]$rowIndex = 2
+    foreach ($definition in $checkDefinitions) {
+        $scopeCheck = New-Object System.Windows.Forms.CheckBox
+        $scopeCheck.Name = "cleanupScope$([string]$definition.Name)"
+        $scopeCheck.Text = Get-DashboardText ([string]$definition.TextKey)
+        $scopeCheck.Tag = [string]$definition.Name
+        $scopeCheck.Dock = "Fill"
+        $scopeCheck.Margin = New-Object System.Windows.Forms.Padding(16, 5, 16, 5)
+        $scopeCheck.Padding = New-Object System.Windows.Forms.Padding(16, 0, 12, 0)
+        $scopeCheck.Font = $fontBold
+        $scopeCheck.TextAlign = "MiddleLeft"
+        $scopeCheck.CheckAlign = "MiddleLeft"
+        $scopeCheck.AutoCheck = $true
+        $scopeCheck.ThreeState = $false
+        $scopeChecks[[string]$definition.Name] = $scopeCheck
+        $layout.Controls.Add($scopeCheck, 0, $rowIndex)
+        $rowIndex++
+    }
+
+    $footer = New-Object System.Windows.Forms.FlowLayoutPanel
+    $footer.Dock = "Fill"
+    $footer.FlowDirection = "RightToLeft"
+    $footer.WrapContents = $false
+    $footer.Padding = New-Object System.Windows.Forms.Padding(0, 8, 8, 0)
+    $layout.Controls.Add($footer, 0, 5)
+
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = Get-DashboardText "common.back"
+    $cancelButton.Font = $fontBold
+    $cancelButton.Size = New-Object System.Drawing.Size(132, 38)
+    $cancelButton.Add_Click({ $scopeDialog.Close() })
+    $scopeDialog.CancelButton = $cancelButton
+    $footer.Controls.Add($cancelButton)
+
+    $continueButton = New-Object System.Windows.Forms.Button
+    $continueButton.Text = Get-DashboardText "common.continue"
+    $continueButton.Font = $fontBold
+    $continueButton.Size = New-Object System.Drawing.Size(156, 38)
+    $continueButton.Enabled = $false
+    $continueButton.BackColor = [System.Drawing.Color]::FromArgb(234, 242, 255)
+    $continueButton.Add_Click({
+        $scopeDialog.Tag = ConvertTo-CleanupScanScope `
+            -Windows ([bool]$scopeChecks['Windows'].Checked) `
+            -Office ([bool]$scopeChecks['Office'].Checked) `
+            -ThirdParty ([bool]$scopeChecks['ThirdParty'].Checked)
+        if (-not [string]::IsNullOrWhiteSpace([string]$scopeDialog.Tag)) { $scopeDialog.Close() }
+    })
+    $footer.Controls.Add($continueButton)
+    $scopeDialog.AcceptButton = $continueButton
+
+    $updateContinueState = {
+        $continueButton.Enabled = [bool]($scopeChecks['Windows'].Checked -or $scopeChecks['Office'].Checked -or $scopeChecks['ThirdParty'].Checked)
+    }
+    foreach ($scopeCheck in $scopeChecks.Values) { $scopeCheck.Add_CheckedChanged($updateContinueState) }
+
+    Set-ToolWindowTheme -Root $scopeDialog -Mode $script:dashboardTheme
+    $scopeDialog.Add_Shown({ $scopeChecks['Windows'].Focus() })
+    [void]$scopeDialog.ShowDialog($form)
+    $scope = [string]$scopeDialog.Tag
+    $scopeDialog.Dispose()
+    return $scope
+}
+
 function Show-LicenseScopeChooser {
     param([ValidateSet("Cleanup", "Backup", "Restore")][string]$Mode)
 
-    $options = if ($Mode -eq "Cleanup") {
-        @(
-            [pscustomobject]@{ Scope="All"; TextKey="cleanup.scope.scanAll" },
-            [pscustomobject]@{ Scope="WindowsOffice"; TextKey="cleanup.scope.scanWindowsOffice" },
-            [pscustomobject]@{ Scope="ThirdParty"; TextKey="cleanup.scope.scanThirdParty" }
-        )
-    } elseif ($Mode -eq "Backup") {
+    if ($Mode -eq "Cleanup") { return Show-CleanupScopeChecklist }
+
+    $options = if ($Mode -eq "Backup") {
         @(
             [pscustomobject]@{ Scope="All"; TextKey="cleanup.scope.backupAll" },
             [pscustomobject]@{ Scope="Windows"; TextKey="cleanup.scope.backupWindows" },
@@ -5857,11 +6036,7 @@ function Show-CleanupFunctionScreen {
     [void]$screen.ShowDialog($form)
     $choice = [string]$screen.Tag
     $screen.Dispose()
-    if ($choice -eq "Online") {
-        Start-SoftwareCatalogOnlineUpdate
-        return $true
-    }
-    if ($choice -notin @("Action", "DryRun")) { return $false }
+    if ($choice -notin @("Action", "DryRun", "Online")) { return $false }
 
     if ($Mode -eq "AutoCleanup") {
         Start-Cleanup -AutoSafeMode -ScanScope "All"
@@ -5870,7 +6045,8 @@ function Show-CleanupFunctionScreen {
     $scopeMode = if ($Mode -eq "Cleanup") { "Cleanup" } elseif ($Mode -eq "Backup") { "Backup" } else { "Restore" }
     $selectedScope = Show-LicenseScopeChooser -Mode $scopeMode
     if ([string]::IsNullOrWhiteSpace($selectedScope)) { return $false }
-    if ($Mode -eq "Backup") { Start-CleanupBackup -Scope $selectedScope }
+    if ($Mode -eq "Cleanup" -and $choice -eq "Online") { Start-SoftwareCatalogOnlineUpdate -ScanScope $selectedScope }
+    elseif ($Mode -eq "Backup") { Start-CleanupBackup -Scope $selectedScope }
     elseif ($Mode -eq "Cleanup") { Start-Cleanup -ScanScope $selectedScope -DryRunMode:([bool]($choice -eq 'DryRun')) }
     elseif ($Mode -eq "Restore") { Start-CleanupRestore -Scope $selectedScope }
     return $true

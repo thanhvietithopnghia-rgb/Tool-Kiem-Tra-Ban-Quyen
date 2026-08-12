@@ -1,8 +1,8 @@
 # Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0 — mã nguồn
 
-Release `4.8.0.0`, build `2026.08.11`, là bản **nâng cấp nhảy vọt, cải tiến chuyên sâu** và được phát hành trực tiếp từ v4.6. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.8.0.0`, build `2026.08.12`, tập trung vào tốc độ, khả năng sử dụng và an toàn; bản hiện tại được cập nhật đè mà không tạo phiên bản mới. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
 
-## Điểm mới v4.8.0 — Nâng cấp nhẹ, cải tiến chuyên sâu
+## Điểm mới v4.8.0 — Nhanh hơn, dễ dùng hơn, an toàn hơn
 
 - `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng; bộ định tuyến chuẩn hóa viết tắt/lỗi gõ, xử lý nhiều ý định và tạo lời dẫn/từ chối biến đổi theo ngữ cảnh.
 - `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.1.0`, 35 nhóm nội dung và hơn 270 từ khóa/cách hỏi. Cache/Online không tương thích bị từ chối fail-closed.

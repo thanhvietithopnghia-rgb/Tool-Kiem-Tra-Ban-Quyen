@@ -76,9 +76,9 @@ if ($guiAst) {
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
 Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.0"' 'Dashboard chưa dùng release 4.8.0.0.'
 Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.13"' 'Dashboard chưa dùng ngày build 2026.08.13.'
-Assert-SourcePattern $text '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4\.8\.0\.0"' 'Nút Giới thiệu chưa dùng URL cố định của tag v4.8.0.0.'
-if ($text -match '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest"') {
-    Add-Failure 'Nút Giới thiệu vẫn dùng releases/latest và có thể chuyển sang phiên bản khác.'
+Assert-SourcePattern $text '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases"' 'Nút Giới thiệu chưa dùng trang Releases cố định, nơi luôn hiển thị bản mới nhất ở đầu.'
+if ($text -match '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/(?:latest|tag/)') {
+    Add-Failure 'Nút Giới thiệu đang trỏ tới alias/tag riêng thay vì trang Releases cố định.'
 }
 Assert-SourcePattern $text 'System\.Windows\.Forms' 'Dashboard không còn nền WinForms.'
 Assert-SourcePattern $text 'System\.Drawing' 'Dashboard thiếu System.Drawing.'

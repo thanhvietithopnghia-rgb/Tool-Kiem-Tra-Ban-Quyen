@@ -1614,7 +1614,7 @@ function Show-ProductIntroduction {
     $overviewPage.Padding = New-Object System.Windows.Forms.Padding(4)
     [void]$detailTabs.TabPages.Add($overviewPage)
 
-    $officialReleaseUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0"
+    $officialReleaseUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases"
     $aboutBox = New-Object System.Windows.Forms.RichTextBox
     $aboutBox.Dock = "Fill"
     $aboutBox.ReadOnly = $true

@@ -129,7 +129,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.8.exe | Format-List Status,StatusMe
 
 Kho dự án: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen>
 
-Bản mới nhất: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+Các bản phát hành (bản mới nhất hiển thị ở đầu): <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases>
 
 Chỉ tải từ kho chính thức và đối chiếu SHA-256 trước khi dùng. Bản v4.8 có chữ ký Authenticode tự ký miễn phí; chữ ký này giúp phát hiện tệp bị sửa nhưng không được Windows tin cậy công khai, nên SmartScreen/antivirus vẫn có thể cảnh báo. Không tắt phần mềm bảo vệ; hãy quét lại và gửi mẫu false-positive cho hãng bảo mật nếu nguồn cùng hash đã được xác minh.
 

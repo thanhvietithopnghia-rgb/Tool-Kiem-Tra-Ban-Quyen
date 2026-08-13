@@ -101,7 +101,6 @@ try {
     $loggingState = Initialize-ToolLogging -Component "GUI" -ToolVersion $toolVersion
     $timelineState = Initialize-ToolLicenseTimeline -ToolVersion $toolVersion
     $nativeNotepadPath = Get-ToolNativeSystemPath "notepad.exe"
-    # explorer.exe belongs to the Windows root, not System32/Sysnative.
     $nativeExplorerPath = Get-ToolWindowsPath "explorer.exe"
     if (-not (Test-Path -LiteralPath $nativeExplorerPath -PathType Leaf)) {
         throw (Get-DashboardText "startup.explorerMissing" @($nativeExplorerPath))
@@ -500,8 +499,6 @@ $form.Font = $fontNormal
 $form.AutoScroll = $false
 $form.AutoScrollMargin = New-Object System.Drawing.Size(0, 0)
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
-# Mỗi lần mở ứng dụng đều bắt đầu bằng giao diện sáng. Người dùng vẫn có thể
-# chuyển sang Dark trong phiên hiện tại bằng thanh công cụ hoặc hộp Cài đặt.
 $script:dashboardTheme = "Light"
 $env:TOOL_UI_THEME = $script:dashboardTheme
 $script:toolUiPalette = Get-ToolUiPalette -Mode $script:dashboardTheme
@@ -952,9 +949,6 @@ $elapsedLabel.Visible = $false
 $progressBar.Visible = $false
 $progressLog.Visible = $false
 
-# Kích thước cuối chỉ được chốt ở sự kiện Shown, sau khi WinForms đã áp dụng
-# DPI. Nếu tính trước AutoScale, control bị phóng lên nhưng cửa sổ vẫn giữ kích
-# thước cũ và phần nhật ký/nút dưới cùng sẽ bị cắt như ở bản 4.0 ban đầu.
 $form.AutoScrollMinSize = New-Object System.Drawing.Size(0, ($progressLog.Bottom + 16))
 
 $activeProcess = $null
@@ -1012,9 +1006,6 @@ $script:executionEnvironmentWarningShown = $false
 function New-ToolReportRunDirectory {
     param([AllowNull()][string]$Category = "BaoCao")
 
-    # Tat ca ket qua cua Tool dung chung mot thu muc de nguoi dung khong phai
-    # mo tung thu muc con cho moi lan quet. Ten tep do tung module tao da gom
-    # loai bao cao, ten may va moc thoi gian nen van tach biet, khong ghi de.
     if (-not (Test-Path -LiteralPath $reportRoot -PathType Container)) {
         New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
     }
@@ -1260,8 +1251,6 @@ function Update-MainLayout {
         $ultraCompactHeight = [bool]($form.ClientSize.Height -lt 640)
         $progressExpanded = [bool]$script:hasTaskActivity
 
-        # Vỏ Fluent nhẹ: sidebar chỉ hiện khi đủ chiều rộng; phần nội dung vẫn
-        # giữ đầy đủ chức năng trên màn hình nhỏ và Windows DPI cao.
         $sidebarPanel.Visible = [bool]($sidebarWidth -gt 0)
         if ($sidebarPanel.Visible) {
             $sidebarPanel.Left = 0
@@ -1296,9 +1285,6 @@ function Update-MainLayout {
         $title.Left = $headerTextLeft
         $title.Top = 7
 
-        # Ở cửa sổ hẹp, các nút trên thanh công cụ chỉ giữ đúng chiều rộng cần
-        # cho chữ và icon. Phần diện tích thu hồi được dành cho tiêu đề đầy đủ;
-        # nếu vẫn chưa đủ (DPI cao), Set-DashboardHeaderTitleFont tiếp tục co chữ.
         $compactHeaderToolbar = -not $showHeaderBrand
         $buttonSafety = if ($compactHeaderToolbar) { 10 } else { 14 }
         $themeButton.Width = [Math]::Max(
@@ -1423,7 +1409,6 @@ function Update-MainLayout {
         $visibleRowCount = [Math]::Max(1, [Math]::Ceiling($visibleButtons.Count / 2.0))
         $availableButtonHeight = $buttonPanel.ClientSize.Height - 42 - (($visibleRowCount - 1) * $rowGap) - $buttonPanelBottomPadding
         $calculatedTileHeight = [Math]::Floor($availableButtonHeight / $visibleRowCount)
-        # Không dùng thanh cuộn ở cửa sổ chính; tile co theo DPI và luôn có tooltip.
         $minimumTileHeight = if ($ultraCompactHeight) { 42 } elseif ($compactHeight) { 46 } else { 50 }
         $tileHeight = [Math]::Max($minimumTileHeight, [Math]::Min(78, $calculatedTileHeight))
         for ($buttonIndex = 0; $buttonIndex -lt $visibleButtons.Count; $buttonIndex++) {
@@ -1457,7 +1442,6 @@ function Update-MainLayout {
             Set-ModernRoundedRegion -Control $button -Radius 10
         }
 
-        # Bảng Hoạt động giữ trạng thái, tiến trình và các lệnh báo cáo ở một nơi.
         $activityPanelCaption.Left = 16
         $activityPanelCaption.Top = 14
         $activityPanelCaption.Width = $activityPanel.ClientSize.Width - 32
@@ -1630,7 +1614,6 @@ function Show-ProductIntroduction {
     $overviewPage.Padding = New-Object System.Windows.Forms.Padding(4)
     [void]$detailTabs.TabPages.Add($overviewPage)
 
-    # Giữ URL của nút Giới thiệu ổn định khi cập nhật đè cùng phiên bản.
     $officialReleaseUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0"
     $aboutBox = New-Object System.Windows.Forms.RichTextBox
     $aboutBox.Dock = "Fill"
@@ -2117,8 +2100,6 @@ function Get-DashboardTilePalette {
         [switch]$Hover
     )
 
-    # Một bề mặt trung tính cho toàn bộ tác vụ giúp mắt bám theo vị trí thay vì
-    # phải giải mã quá nhiều mảng màu. Mức cảnh báo vẫn nằm ở icon/tooltip.
     $dark = [bool]($Mode -eq "Dark")
     return [pscustomobject]@{
         BackColor = if ($dark) {
@@ -2469,8 +2450,6 @@ function Get-Sha256([string]$path) {
 }
 
 function Test-ToolIntegrity {
-    # approved-kms-servers.txt được loại khỏi manifest vì đây là tệp cấu hình
-    # do quản trị viên được phép sửa. Mọi thao tác có quyền cao đều kiểm tra lại.
     if (-not (Test-Path -LiteralPath $integrityManifest)) {
         return [pscustomobject]@{ Checked=$false; Valid=$false; Message=(Get-DashboardText "integrity.manifestMissing") }
     }
@@ -2542,8 +2521,6 @@ function Confirm-IntegrityForElevatedAction([string]$actionName) {
         ) | Out-Null
         return $false
     }
-    # Trạng thái ACL hiện tại mới là căn cứ bảo mật. Không chặn nhầm chỉ vì một
-    # lần ghi ACL dư thừa trước đó bị antivirus/chính sách hệ thống từ chối.
     $env:TOOL_SECURE_RUNTIME_FAILED = "0"
     $freshResult = Test-ToolIntegrity
     if ($freshResult.Valid) { return $true }
@@ -2769,9 +2746,6 @@ function Get-ReadyToolModule([string]$moduleId, [bool]$elevatedLaunch) {
 }
 
 function Get-ToolElevatedEnvironmentSnapshot {
-    # ShellExecute/RunAs does not provide a caller-controlled environment block.
-    # Capture only the Tool contract variables that an elevated child is allowed
-    # to inherit, then restore them inside a short encoded bootstrap process.
     $allowedNames = @(
         'TOOL_APPROVED_KMS_FILE','TOOL_BUILD_ARCHITECTURE','TOOL_CAPABILITY_SCHEMA',
         'TOOL_COMPATIBILITY_CATALOG','TOOL_COMPATIBILITY_SCHEMA','TOOL_CORRELATION_ID',
@@ -3589,10 +3563,6 @@ function Invoke-PendingApplicationUpdateWork {
 function Get-AutomaticSafeCleanupItems {
     param($CleanupItems)
 
-    # Chế độ tự động chỉ nhận Registry allowlist hoặc ứng dụng bên thứ ba có
-    # bằng chứng mạnh và kế hoạch an toàn đã khóa phạm vi. Kế hoạch có thể là
-    # adapter hãng, cách ly artifact chính xác, sửa hosts chính xác hoặc Repair
-    # MSI bằng product code đã xác thực. Gỡ/cài lại luôn phải chọn thủ công.
     return @($CleanupItems | Where-Object {
         $type = [string]$_.Type
         $kind = [string]$_.Kind
@@ -4605,8 +4575,6 @@ function Show-CleanupResultCenter {
         $actionButton.Text = [string]$next.Label
         $actionButton.AutoSize = $true
         $actionButton.MinimumSize = New-Object System.Drawing.Size(108, 34)
-        # Cho phép nhãn hành động dài (đặc biệt ở en-US) giãn đủ sau khi
-        # giao diện chung thêm icon và padding. Thanh nút đã có AutoScroll.
         $actionButton.MaximumSize = New-Object System.Drawing.Size(280, 34)
         $actionButton.Tag = [string]$next.Code
         if ([string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager')) {
@@ -4964,8 +4932,6 @@ function Open-LicenseManager {
             (Get-ToolText -Key "status.enterprise.opening" -Culture $script:dashboardCulture) `
             (Get-ToolText -Key "status.enterprise.elevation" -Culture $script:dashboardCulture) `
             $false
-        # Truyền theme hiện tại qua tiến trình UAC; cửa sổ enterprise cũng đọc
-        # thiết lập đã lưu nếu Windows tạo môi trường tiến trình mới.
         $env:TOOL_UI_THEME = $script:dashboardTheme
         $launcherPath = [string]$env:TOOL_LAUNCHER_PATH
         if ($env:TOOL_SECURE_LAUNCH -eq "1" -and -not [string]::IsNullOrWhiteSpace($launcherPath) -and (Test-Path -LiteralPath $launcherPath -PathType Leaf)) {
@@ -5145,8 +5111,6 @@ function Open-ToolEmbeddedDocument {
         Start-ProgressDisplay $documentAction (Get-ToolText -Key $ExportingDetailKey -Culture $script:dashboardCulture) $false
         [System.Windows.Forms.Application]::DoEvents()
 
-        # Tên ổn định theo phiên bản/ngôn ngữ giúp mở lại tức thì. Toàn bộ HTML,
-        # PDF và checksum tài liệu nằm chung trong thư mục báo cáo của Tool.
         $documentRendererRevision = "2"
         $sourceHash = Get-ToolSha256Hex -Path $SourceFile
         $documentDirectory = Join-Path $reportRoot "TaiLieu"
@@ -5221,8 +5185,6 @@ section p{margin:6px 0}section li{margin:4px 0}section ul,section ol{padding-lef
             [IO.File]::WriteAllLines($manifestPath, $initialHashLines, (New-Object Text.UTF8Encoding($false)))
         }
 
-        # Mở HTML ngay sau khi có tệp hợp lệ. Tạo PDF diễn ra sau đó nên người
-        # dùng không còn phải chờ Edge/Chrome/Word trước khi đọc hướng dẫn.
         [void](Open-ToolHtmlReport -Path $htmlPath)
         $status.Text = Get-ToolText -Key $ExportedKey -Culture $script:dashboardCulture -FormatArguments @([IO.Path]::GetFileName($htmlPath))
         $status.ForeColor = [System.Drawing.Color]::DarkGreen
@@ -5983,9 +5945,6 @@ function Show-CleanupFunctionScreen {
     }
     $screenLayout.Controls.Add($footer, 0, 2)
 
-    # In Cleanup mode the shared theme grows each button to its measured text +
-    # icon width. Starting all four controls from the same compact width avoids
-    # carrying oversized legacy widths into the single-row footer.
     $compactCleanupButtonWidth = 90
 
     $backButton = New-Object System.Windows.Forms.Button
@@ -6024,9 +5983,6 @@ function Show-CleanupFunctionScreen {
 
     Set-ToolWindowTheme -Root $screen -Mode $script:dashboardTheme
     if ($Mode -eq "Cleanup") {
-        # Recalculate only the gaps after localization/DPI styling has measured
-        # the buttons. This keeps the leftmost Online button inside the viewport
-        # and removes the unnecessary horizontal scrollbar.
         Set-ToolUiFlowButtonSpacing -Panel $footer -PreferredSideMargin 3
         $footer.Add_SizeChanged({
             param($sender, $eventArgs)
@@ -6309,8 +6265,6 @@ function Show-AssuranceCenter {
     $dialog.CancelButton = $close
     $dialog.Controls.Add($close)
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
-    # Set-ToolWindowTheme dat mau chung cho Label. Khoi phuc mau tieu de chinh
-    # sau khi ap theme de Trung tam bao cao dong bo voi cac cua so chuc nang.
     $heading.ForeColor = $script:baseUiPalette.Primary
     $descriptionLabel.ForeColor = $script:baseUiPalette.Text
     [void]$dialog.ShowDialog($form)
@@ -6539,8 +6493,6 @@ Add-MenuButton 8 "menu.8.title" "menu.8.description" 7 { Open-LicenseManager } $
 Add-MenuButton 9 "menu.9.title" "menu.9.description" 8 { Show-AdvancedScanMenu } $false
 Add-MenuButton 10 "menu.10.title" "menu.10.description" 9 { Show-AssuranceCenter } $false
 
-# Mục Báo cáo hiển thị trực tiếp đủ bảy chức năng con. Tác vụ nhanh phía
-# Tổng quan vẫn giữ nguyên đủ mười nút và toàn bộ handler cũ.
 Add-ReportMenuButton "Certificate" "assurance.certificate" "dashboard.report.certificate.description" 0 "Shield"
 Add-ReportMenuButton "PluginAudit" "assurance.pluginAudit" "dashboard.report.pluginAudit.description" 1 "Software"
 Add-ReportMenuButton "Timeline" "assurance.timeline" "dashboard.report.timeline.description" 2 "DeepScan"
@@ -6553,9 +6505,6 @@ Set-DashboardTheme -Mode $script:dashboardTheme
 $form.Add_Shown({
     Fit-MainWindowToWorkingArea
     Update-MainLayout
-    # Bounds được đổi ngay trong Shown có thể chưa cập nhật ClientSize cho tới
-    # lượt message-pump kế tiếp. Chạy lại một lần sau đó để mọi panel/card dùng
-    # đúng chiều rộng thật của màn hình, tránh giữ tọa độ 1480 px rồi tràn phải.
     [void]$form.BeginInvoke([System.Action]{ Update-MainLayout })
     Show-ExecutionEnvironmentWarning
     $updateTimer.Start()

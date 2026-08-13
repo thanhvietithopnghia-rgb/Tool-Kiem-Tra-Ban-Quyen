@@ -1,11 +1,16 @@
 ﻿$script:ToolAssistantSchemaVersion = "1.1"
 $script:ToolAssistantToolVersion = "4.8.0.0"
-$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.2.0"
+$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.3.0"
 $script:ToolAssistantKnowledgeFileName = "tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json"
+$script:ToolAssistantKnowledgeSignatureFileName = "tool-assistant-knowledge-v1.1.json.p7s"
+$script:ToolAssistantKnowledgeSignatureUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json.p7s"
+$script:ToolAssistantSignerCertificateSha256 = "90857DC1698CDDEAF7C405F5991992E6615D28299A78C7D1445A1B504F8044C3"
 $script:ToolAssistantMaxKnowledgeBytes = 2097152
+$script:ToolAssistantMaxSignatureBytes = 65536
 $script:ToolAssistantMaxReportBytes = 10485760
 $script:ToolAssistantDocumentCache = @{}
+$script:ToolAssistantAutoSyncAttempted = $false
 
 function Get-ToolAssistantMetadata {
     return [pscustomobject][ordered]@{
@@ -16,18 +21,24 @@ function Get-ToolAssistantMetadata {
         PaidApiRequired = $false
         CodexRequired = $false
         DefaultNetworkMode = "Offline"
-        OnlineTransfer = "DownloadOnlyKnowledgeJson"
+        OnlineTransfer = "DownloadOnlySignedKnowledgePackage"
         ReportUpload = $false
+        QuestionUpload = $false
         AutomaticRemediation = $false
         PortableEveryMachine = $true
         CentralServerRequired = $false
-        KnowledgeStorage = "BundledAndPerUserLocalCache"
+        KnowledgeStorage = "BundledAndSignedPerUserLocalCache"
         ReportContextSource = "CurrentDeviceLocalReportOnly"
         CoverageMode = "KnowledgePlusBundledDocumentation"
         ContextAwareFollowUp = $true
         ContextualOutOfScope = $true
         KnowledgeCompatibilityEnforced = $true
+        KnowledgeUpdateVerification = "DetachedCmsSha256PinnedCertificate"
+        KnowledgeRollbackProtection = $true
+        UnboundedSelfTraining = $false
+        ExternalTopicLearning = $false
         KnowledgeFileName = $script:ToolAssistantKnowledgeFileName
+        KnowledgeSignatureFileName = $script:ToolAssistantKnowledgeSignatureFileName
     }
 }
 
@@ -44,8 +55,6 @@ function ConvertTo-ToolAssistantSearchKey {
     }
     $plain = $builder.ToString().Replace([char]0x0111, 'd').Replace([char]0x0110, 'D').ToLowerInvariant()
     $key = ([regex]::Replace($plain, '[^a-z0-9]+', ' ')).Trim()
-    # Mo rong viet tat va loi go pho bien theo token doc lap, khong sua ten
-    # san pham hay ma loi nam ben trong mot chuoi dai hon.
     $replacements = [ordered]@{
         'k'='khong'; 'ko'='khong'; 'kh'='khong'; 'dc'='duoc'; 'dk'='duoc'
         'tl'='tra loi'; 'pm'='phan mem'; 'bc'='bao cao'; 'csdl'='co so du lieu'
@@ -76,6 +85,12 @@ function Get-ToolAssistantCachePath {
     return Join-Path $directory $script:ToolAssistantKnowledgeFileName
 }
 
+function Get-ToolAssistantCacheSignaturePath {
+    $directory = Get-ToolAssistantCacheDirectory
+    if ([string]::IsNullOrWhiteSpace($directory)) { return "" }
+    return Join-Path $directory $script:ToolAssistantKnowledgeSignatureFileName
+}
+
 function Test-ToolAssistantKnowledge {
     param([AllowNull()][object]$Knowledge)
 
@@ -89,32 +104,81 @@ function Test-ToolAssistantKnowledge {
         $toolVersion = [Version]$script:ToolAssistantToolVersion
         $minimumToolVersion = [Version]([string]$Knowledge.ToolVersionMin)
         $maximumToolVersion = [Version]([string]$Knowledge.ToolVersionMax)
+        $releasedWithToolVersion = [Version]([string]$Knowledge.ReleasedWithToolVersion)
         if ($toolVersion -lt $minimumToolVersion -or $toolVersion -gt $maximumToolVersion) { return $false }
-        if ([string]$Knowledge.ReleasedWithToolVersion -ne $script:ToolAssistantToolVersion) { return $false }
+        if ($releasedWithToolVersion -lt $minimumToolVersion -or $releasedWithToolVersion -gt $maximumToolVersion) { return $false }
     } catch { return $false }
+    $updatedAt = [DateTime]::MinValue
+    if (-not [DateTime]::TryParse(
+        [string]$Knowledge.UpdatedAtUtc,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind,
+        [ref]$updatedAt)) { return $false }
+    if ($updatedAt.ToUniversalTime() -gt [DateTime]::UtcNow.AddDays(2)) { return $false }
     $entries = @($Knowledge.Entries)
-    if ($entries.Count -lt 20 -or $entries.Count -gt 300) { return $false }
+    if ($entries.Count -lt 20 -or $entries.Count -gt 500) { return $false }
     $seen = @{}
     foreach ($entry in $entries) {
         $id = [string]$entry.Id
         if ([string]::IsNullOrWhiteSpace($id) -or $id -notmatch '^[a-z0-9-]{2,64}$' -or $seen.ContainsKey($id)) { return $false }
+        if ([string]::IsNullOrWhiteSpace([string]$entry.TitleVi) -or [string]::IsNullOrWhiteSpace([string]$entry.TitleEn)) { return $false }
         if ([string]::IsNullOrWhiteSpace([string]$entry.AnswerVi) -or [string]::IsNullOrWhiteSpace([string]$entry.AnswerEn)) { return $false }
+        if ([string]$entry.TitleVi -match '[\x00-\x08\x0B\x0C\x0E-\x1F]' -or [string]$entry.TitleEn -match '[\x00-\x08\x0B\x0C\x0E-\x1F]') { return $false }
+        if ([string]$entry.AnswerVi -match '[\x00-\x08\x0B\x0C\x0E-\x1F]' -or [string]$entry.AnswerEn -match '[\x00-\x08\x0B\x0C\x0E-\x1F]') { return $false }
+        if (([string]$entry.AnswerVi).Length -gt 6000 -or ([string]$entry.AnswerEn).Length -gt 6000) { return $false }
         if (@($entry.Keywords).Count -lt 2 -or @($entry.Keywords).Count -gt 80) { return $false }
         if ([string]$entry.AnswerVi -match '(?i)<script|powershell\s+-|cmd\.exe|javascript:') { return $false }
         if ([string]$entry.AnswerEn -match '(?i)<script|powershell\s+-|cmd\.exe|javascript:') { return $false }
+        foreach ($keyword in @($entry.Keywords)) {
+            if ([string]::IsNullOrWhiteSpace([string]$keyword) -or ([string]$keyword).Length -gt 160 -or [string]$keyword -match '[\x00-\x1F]') { return $false }
+        }
         $seen[$id] = $true
     }
     return $true
 }
 
-function Read-ToolAssistantKnowledgeFile {
-    param([Parameter(Mandatory = $true)][string]$Path)
+function Get-ToolAssistantSha256Hex {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($algorithm.ComputeHash($Bytes))).Replace('-', '') }
+    finally { $algorithm.Dispose() }
+}
+
+function Test-ToolAssistantKnowledgeSignature {
+    param(
+        [Parameter(Mandatory = $true)][byte[]]$ContentBytes,
+        [Parameter(Mandatory = $true)][byte[]]$SignatureBytes
+    )
 
     try {
-        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
-        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
-        if ($item.Length -le 16 -or $item.Length -gt $script:ToolAssistantMaxKnowledgeBytes) { return $null }
-        $knowledge = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        if ($ContentBytes.Length -le 16 -or $ContentBytes.Length -gt $script:ToolAssistantMaxKnowledgeBytes) { return $false }
+        if ($SignatureBytes.Length -le 64 -or $SignatureBytes.Length -gt $script:ToolAssistantMaxSignatureBytes) { return $false }
+        Add-Type -AssemblyName System.Security -ErrorAction Stop
+        $contentInfo = New-Object Security.Cryptography.Pkcs.ContentInfo -ArgumentList (,$ContentBytes)
+        $signedCms = New-Object Security.Cryptography.Pkcs.SignedCms -ArgumentList @($contentInfo, $true)
+        $signedCms.Decode($SignatureBytes)
+        if ($signedCms.SignerInfos.Count -ne 1) { return $false }
+        $signerInfo = $signedCms.SignerInfos[0]
+        if ($null -eq $signerInfo.Certificate -or $signerInfo.DigestAlgorithm.Value -ne '2.16.840.1.101.3.4.2.1') { return $false }
+        if ($signerInfo.Certificate.PublicKey.Oid.Value -ne '1.2.840.113549.1.1.1') { return $false }
+        if ((Get-ToolAssistantSha256Hex -Bytes $signerInfo.Certificate.RawData) -ne $script:ToolAssistantSignerCertificateSha256) { return $false }
+        $signedCms.CheckSignature($true)
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function ConvertFrom-ToolAssistantKnowledgeBytes {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+
+    try {
+        if ($Bytes.Length -le 16 -or $Bytes.Length -gt $script:ToolAssistantMaxKnowledgeBytes) { return $null }
+        $utf8 = New-Object Text.UTF8Encoding -ArgumentList @($false, $true)
+        $json = $utf8.GetString($Bytes)
+        if ($json.Length -gt 0 -and $json[0] -eq [char]0xFEFF) { $json = $json.Substring(1) }
+        $knowledge = $json | ConvertFrom-Json -ErrorAction Stop
         if (-not (Test-ToolAssistantKnowledge -Knowledge $knowledge)) { return $null }
         return $knowledge
     } catch {
@@ -122,13 +186,50 @@ function Read-ToolAssistantKnowledgeFile {
     }
 }
 
-function Get-ToolAssistantKnowledge {
-    $cachePath = Get-ToolAssistantCachePath
-    if (-not [string]::IsNullOrWhiteSpace($cachePath)) {
-        $cached = Read-ToolAssistantKnowledgeFile -Path $cachePath
-        if ($cached) { return $cached }
+function Read-ToolAssistantKnowledgeFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$SignaturePath = '',
+        [switch]$RequireSignature
+    )
+
+    try {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        if ($item.Length -le 16 -or $item.Length -gt $script:ToolAssistantMaxKnowledgeBytes) { return $null }
+        $bytes = [IO.File]::ReadAllBytes($item.FullName)
+        if ($RequireSignature) {
+            if ([string]::IsNullOrWhiteSpace($SignaturePath) -or -not (Test-Path -LiteralPath $SignaturePath -PathType Leaf)) { return $null }
+            $signatureItem = Get-Item -LiteralPath $SignaturePath -Force -ErrorAction Stop
+            if ($signatureItem.Length -le 64 -or $signatureItem.Length -gt $script:ToolAssistantMaxSignatureBytes) { return $null }
+            $signatureBytes = [IO.File]::ReadAllBytes($signatureItem.FullName)
+            if (-not (Test-ToolAssistantKnowledgeSignature -ContentBytes $bytes -SignatureBytes $signatureBytes)) { return $null }
+        }
+        return ConvertFrom-ToolAssistantKnowledgeBytes -Bytes $bytes
+    } catch {
+        return $null
     }
-    return Read-ToolAssistantKnowledgeFile -Path (Join-Path $PSScriptRoot $script:ToolAssistantKnowledgeFileName)
+}
+
+function Get-ToolAssistantKnowledge {
+    $best = Read-ToolAssistantKnowledgeFile -Path (Join-Path $PSScriptRoot $script:ToolAssistantKnowledgeFileName)
+    $bestVersion = if ($best) { [Version]([string]$best.KnowledgeVersion) } else { [Version]'0.0' }
+    $cachePath = Get-ToolAssistantCachePath
+    $signaturePath = Get-ToolAssistantCacheSignaturePath
+    if (-not [string]::IsNullOrWhiteSpace($cachePath) -and -not [string]::IsNullOrWhiteSpace($signaturePath)) {
+        $cachePairs = @(
+            [pscustomobject]@{ Knowledge=$cachePath; Signature=$signaturePath },
+            [pscustomobject]@{ Knowledge=($cachePath + '.previous'); Signature=($signaturePath + '.previous') }
+        )
+        foreach ($pair in $cachePairs) {
+            $cached = Read-ToolAssistantKnowledgeFile -Path $pair.Knowledge -SignaturePath $pair.Signature -RequireSignature
+            if ($cached -and [Version]([string]$cached.KnowledgeVersion) -gt $bestVersion) {
+                $best = $cached
+                $bestVersion = [Version]([string]$cached.KnowledgeVersion)
+            }
+        }
+    }
+    return $best
 }
 
 function Get-ToolAssistantSyncText {
@@ -143,10 +244,105 @@ function Get-ToolAssistantSyncText {
         "InvalidAddress" { if ($english) { return "The synchronization address is invalid." }; return "Địa chỉ đồng bộ không hợp lệ." }
         "TooLarge" { if ($english) { return "The knowledge file exceeds the safety limit." }; return "Tệp tri thức vượt giới hạn an toàn." }
         "InvalidKnowledge" { if ($english) { return "The knowledge file has an invalid structure or unsafe content." }; return "Tệp tri thức không đúng cấu trúc hoặc chứa nội dung không an toàn." }
+        "InvalidSignature" { if ($english) { return "The knowledge package signature is invalid or not from the pinned publisher." }; return "Chữ ký gói tri thức không hợp lệ hoặc không đúng nhà phát hành đã khóa." }
+        "Downgrade" { if ($english) { return "An older knowledge package was rejected." }; return "Đã từ chối gói tri thức cũ hơn để chống hạ phiên bản." }
+        "Current" { if ($english) { return "Tool Assistant already has the latest signed compatible knowledge." }; return "Trợ lý đang dùng bộ tri thức tương thích có chữ ký mới nhất." }
         "NoDataFolder" { if ($english) { return "The user data folder could not be determined." }; return "Không xác định được thư mục dữ liệu người dùng." }
-        "Updated" { if ($english) { return "Tool Assistant knowledge has been synchronized." }; return "Đã đồng bộ bộ tri thức Trợ lý Tool." }
+        "Updated" { if ($english) { return "Tool Assistant knowledge has been securely synchronized." }; return "Đã đồng bộ an toàn bộ tri thức Trợ lý Tool." }
         "Failed" { if ($english) { return "Synchronization failed; Tool Assistant continues with local knowledge." }; return "Không đồng bộ được; Trợ lý tiếp tục dùng bộ tri thức cục bộ." }
         default { return $Key }
+    }
+}
+
+function Read-ToolAssistantFixedOnlineBytes {
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('Knowledge','Signature')][string]$Kind,
+        [Parameter(Mandatory = $true)][int]$MaximumBytes
+    )
+
+    $address = if ($Kind -eq 'Knowledge') { $script:ToolAssistantKnowledgeUrl } else { $script:ToolAssistantKnowledgeSignatureUrl }
+    $expectedPath = if ($Kind -eq 'Knowledge') {
+        '/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json'
+    } else {
+        '/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json.p7s'
+    }
+    $uri = New-Object Uri($address)
+    if ($uri.Scheme -ne 'https' -or $uri.DnsSafeHost -ne 'raw.githubusercontent.com' -or
+        $uri.AbsolutePath -ne $expectedPath -or -not $uri.IsDefaultPort -or
+        -not [string]::IsNullOrWhiteSpace($uri.UserInfo) -or
+        -not [string]::IsNullOrWhiteSpace($uri.Query) -or
+        -not [string]::IsNullOrWhiteSpace($uri.Fragment)) {
+        throw 'InvalidAddress'
+    }
+    $request = [Net.HttpWebRequest]::Create($uri)
+    $request.Method = 'GET'
+    $request.Timeout = 8000
+    $request.ReadWriteTimeout = 8000
+    $request.AllowAutoRedirect = $false
+    $request.UserAgent = "ThanhViet-Tool-Kiem-Tra/$($script:ToolAssistantToolVersion)"
+    $response = $request.GetResponse()
+    try {
+        if ([int]$response.StatusCode -ne 200) { throw "HTTP $([int]$response.StatusCode)" }
+        if ($response.ContentLength -gt $MaximumBytes) { throw 'TooLarge' }
+        $input = $response.GetResponseStream()
+        $memory = New-Object IO.MemoryStream
+        try {
+            $buffer = New-Object byte[] 8192
+            while (($read = $input.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                if (($memory.Length + $read) -gt $MaximumBytes) { throw 'TooLarge' }
+                $memory.Write($buffer, 0, $read)
+            }
+            return $memory.ToArray()
+        } finally {
+            $memory.Dispose()
+            $input.Dispose()
+        }
+    } finally {
+        $response.Dispose()
+    }
+}
+
+function Save-ToolAssistantSignedKnowledgeCache {
+    param(
+        [Parameter(Mandatory = $true)][byte[]]$KnowledgeBytes,
+        [Parameter(Mandatory = $true)][byte[]]$SignatureBytes
+    )
+
+    $directory = Get-ToolAssistantCacheDirectory
+    if ([string]::IsNullOrWhiteSpace($directory)) { throw 'NoDataFolder' }
+    if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
+    $cachePath = Get-ToolAssistantCachePath
+    $signaturePath = Get-ToolAssistantCacheSignaturePath
+    $temporaryId = [Guid]::NewGuid().ToString('N')
+    $temporaryKnowledge = Join-Path $directory ('.assistant-knowledge-' + $temporaryId + '.tmp')
+    $temporarySignature = Join-Path $directory ('.assistant-signature-' + $temporaryId + '.tmp')
+    $previousKnowledge = $cachePath + '.previous'
+    $previousSignature = $signaturePath + '.previous'
+    try {
+        [IO.File]::WriteAllBytes($temporaryKnowledge, $KnowledgeBytes)
+        [IO.File]::WriteAllBytes($temporarySignature, $SignatureBytes)
+        if (-not (Read-ToolAssistantKnowledgeFile -Path $temporaryKnowledge -SignaturePath $temporarySignature -RequireSignature)) {
+            throw 'InvalidSignature'
+        }
+        if (Read-ToolAssistantKnowledgeFile -Path $cachePath -SignaturePath $signaturePath -RequireSignature) {
+            Copy-Item -LiteralPath $cachePath -Destination $previousKnowledge -Force
+            Copy-Item -LiteralPath $signaturePath -Destination $previousSignature -Force
+        }
+        Move-Item -LiteralPath $temporarySignature -Destination $signaturePath -Force
+        Move-Item -LiteralPath $temporaryKnowledge -Destination $cachePath -Force
+        if (-not (Read-ToolAssistantKnowledgeFile -Path $cachePath -SignaturePath $signaturePath -RequireSignature)) {
+            throw 'InvalidSignature'
+        }
+    } catch {
+        if (Read-ToolAssistantKnowledgeFile -Path $previousKnowledge -SignaturePath $previousSignature -RequireSignature) {
+            Copy-Item -LiteralPath $previousKnowledge -Destination $cachePath -Force
+            Copy-Item -LiteralPath $previousSignature -Destination $signaturePath -Force
+        }
+        throw
+    } finally {
+        foreach ($temporaryPath in @($temporaryKnowledge, $temporarySignature)) {
+            if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) { Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue }
+        }
     }
 }
 
@@ -160,34 +356,22 @@ function Sync-ToolAssistantKnowledge {
         return [pscustomobject]@{ Success=$false; Updated=$false; Code="Offline"; Message=(Get-ToolAssistantSyncText -Key "Offline" -Culture $Culture) }
     }
     try {
-        $uri = New-Object Uri($script:ToolAssistantKnowledgeUrl)
-        if ($uri.Scheme -ne "https" -or $uri.Host -ne "raw.githubusercontent.com" -or
-            $uri.AbsolutePath -ne "/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json") {
-            throw (Get-ToolAssistantSyncText -Key "InvalidAddress" -Culture $Culture)
+        $knowledgeBytes = Read-ToolAssistantFixedOnlineBytes -Kind Knowledge -MaximumBytes $script:ToolAssistantMaxKnowledgeBytes
+        $signatureBytes = Read-ToolAssistantFixedOnlineBytes -Kind Signature -MaximumBytes $script:ToolAssistantMaxSignatureBytes
+        if (-not (Test-ToolAssistantKnowledgeSignature -ContentBytes $knowledgeBytes -SignatureBytes $signatureBytes)) {
+            throw (Get-ToolAssistantSyncText -Key 'InvalidSignature' -Culture $Culture)
         }
-        $request = [Net.HttpWebRequest]::Create($uri)
-        $request.Method = "GET"
-        $request.Timeout = 8000
-        $request.ReadWriteTimeout = 8000
-        $request.AllowAutoRedirect = $false
-        $request.UserAgent = "ThanhViet-Tool-Kiem-Tra/$($script:ToolAssistantToolVersion)"
-        $response = $request.GetResponse()
-        try {
-            if ($response.ContentLength -gt $script:ToolAssistantMaxKnowledgeBytes) { throw (Get-ToolAssistantSyncText -Key "TooLarge" -Culture $Culture) }
-            $reader = New-Object IO.StreamReader($response.GetResponseStream(), (New-Object Text.UTF8Encoding($false)), $true)
-            try { $json = $reader.ReadToEnd() } finally { $reader.Dispose() }
-        } finally {
-            $response.Dispose()
+        $knowledge = ConvertFrom-ToolAssistantKnowledgeBytes -Bytes $knowledgeBytes
+        if (-not $knowledge) { throw (Get-ToolAssistantSyncText -Key 'InvalidKnowledge' -Culture $Culture) }
+        $current = Get-ToolAssistantKnowledge
+        $remoteVersion = [Version]([string]$knowledge.KnowledgeVersion)
+        $currentVersion = if ($current) { [Version]([string]$current.KnowledgeVersion) } else { [Version]'0.0' }
+        if ($remoteVersion -lt $currentVersion) { throw (Get-ToolAssistantSyncText -Key 'Downgrade' -Culture $Culture) }
+        if ($remoteVersion -eq $currentVersion) {
+            return [pscustomobject]@{ Success=$true; Updated=$false; Code='Current'; KnowledgeVersion=$remoteVersion.ToString(); Message=(Get-ToolAssistantSyncText -Key 'Current' -Culture $Culture) }
         }
-        if ([Text.Encoding]::UTF8.GetByteCount($json) -gt $script:ToolAssistantMaxKnowledgeBytes) { throw (Get-ToolAssistantSyncText -Key "TooLarge" -Culture $Culture) }
-        $knowledge = $json | ConvertFrom-Json -ErrorAction Stop
-        if (-not (Test-ToolAssistantKnowledge -Knowledge $knowledge)) { throw (Get-ToolAssistantSyncText -Key "InvalidKnowledge" -Culture $Culture) }
-        $directory = Get-ToolAssistantCacheDirectory
-        if ([string]::IsNullOrWhiteSpace($directory)) { throw (Get-ToolAssistantSyncText -Key "NoDataFolder" -Culture $Culture) }
-        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-        $cachePath = Get-ToolAssistantCachePath
-        [IO.File]::WriteAllText($cachePath, $json, (New-Object Text.UTF8Encoding($false)))
-        return [pscustomobject]@{ Success=$true; Updated=$true; Code="Updated"; Message=(Get-ToolAssistantSyncText -Key "Updated" -Culture $Culture) }
+        Save-ToolAssistantSignedKnowledgeCache -KnowledgeBytes $knowledgeBytes -SignatureBytes $signatureBytes
+        return [pscustomobject]@{ Success=$true; Updated=$true; Code='Updated'; KnowledgeVersion=$remoteVersion.ToString(); Message=(Get-ToolAssistantSyncText -Key 'Updated' -Culture $Culture) }
     } catch {
         $failure = Get-ToolAssistantSyncText -Key "Failed" -Culture $Culture
         return [pscustomobject]@{ Success=$false; Updated=$false; Code="SyncFailed"; Message="$failure $($_.Exception.Message)" }
@@ -245,7 +429,8 @@ function Test-ToolAssistantRelatedQuery {
         [AllowNull()][string]$PreviousQuestion
     )
 
-    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|backup|sao luu|khoi phuc|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|kich hoat|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc)\b') { return $true }
+    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|backup|sao luu|khoi phuc|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|kich hoat|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc|tri thuc|kien thuc|hoc hoi|dung luong exe|dung luong file exe|cache tri thuc|goi tri thuc)\b') { return $true }
+    if ($QueryKey -match '^(?:chua du bang chung|thieu bang chung|du bang chung chua)$') { return $true }
     if ($QueryKey -match '^(?:phien ban|version|do ai phat trien|ai phat trien|tac gia|ngay phat hanh|ngay build|tom tat|noi dung chinh|muc dich|nguyen tac|cong nghe|yeu cau he thong|cach chay|cach cai|tai o dau)\b') { return $true }
     if (-not [string]::IsNullOrWhiteSpace([string]$PreviousQuestion) -and (Test-ToolAssistantFollowUpQuery -QueryKey $QueryKey)) {
         $previousKey = ConvertTo-ToolAssistantSearchKey -Value $PreviousQuestion
@@ -664,8 +849,6 @@ function Add-ToolAssistantNaturalLead {
     )
 
     if ([string]::IsNullOrWhiteSpace($Answer)) { return $Answer }
-    # A fixed lead on every turn makes a local knowledge answer sound repetitive.
-    # Keep short/direct answers clean and vary the lead only for longer questions.
     $questionText = [string]$Question
     if ($questionText.Trim().Length -lt 42) { return $Answer }
     $leads = if ($Culture -eq 'en-US') {
@@ -716,6 +899,9 @@ function Get-ToolAssistantAnswer {
         return Get-ToolAssistantFallbackAnswer -Kind Missing -Question $Question -Culture $Culture
     }
     $toolRelated = Test-ToolAssistantRelatedQuery -QueryKey $originalQueryKey -PreviousQuestion $PreviousQuestion
+    if (-not $toolRelated) {
+        return Get-ToolAssistantFallbackAnswer -Kind Outside -Question $Question -Culture $Culture
+    }
     $resolved = Resolve-ToolAssistantEntry -QueryKey $queryKey -Knowledge $Knowledge
     $bestEntry = $resolved.Entry
     $contentTokens = @($queryKey -split ' ' | Where-Object { $_.Length -ge 2 -and $_ -notin @('co','la','gi','duoc','khong','the','nao','hay','va') })
@@ -772,9 +958,9 @@ function Get-ToolAssistantUiText {
         "ConnectOnline" { if ($english) { return "Connect Online" }; return "Kết nối Online" }
         "OnlineConnected" { if ($english) { return "Online connected" }; return "Đã Online" }
         "ConnectOnlineTip" { if ($english) { return "Allow network access for this session so Tool Assistant can synchronize knowledge. Restarting the tool returns to Offline." }; return "Cho phép mạng trong phiên này để Trợ lý đồng bộ tri thức. Mở lại Tool vẫn trở về Offline." }
-        "OnlineConnectedTip" { if ($english) { return "Online is allowed for this session. Use Sync knowledge to download the fixed project knowledge file." }; return "Online đã được cho phép trong phiên này. Dùng Đồng bộ tri thức để tải tệp tri thức cố định của dự án." }
-        "SyncTip" { if ($english) { return "Downloads only the Tool Assistant knowledge file; questions and reports are not sent." }; return "Chỉ tải tệp tri thức của Trợ lý; không gửi câu hỏi hoặc báo cáo." }
-        "OnlineEnabled" { if ($english) { return "Online is now allowed for this session. You can synchronize Tool Assistant knowledge." }; return "Đã cho phép Online trong phiên này. Bạn có thể đồng bộ tri thức Trợ lý Tool." }
+        "OnlineConnectedTip" { if ($english) { return "Online is allowed for this session. Signed Tool knowledge can now be synchronized." }; return "Online đã được cho phép trong phiên này. Tool có thể đồng bộ gói tri thức đã ký." }
+        "SyncTip" { if ($english) { return "Downloads only the signed Tool knowledge package; questions, reports and device data are never sent." }; return "Chỉ tải gói tri thức Tool đã ký; không gửi câu hỏi, báo cáo hoặc dữ liệu máy." }
+        "OnlineEnabled" { if ($english) { return "Online is now allowed for this session. Signed Tool knowledge will be checked." }; return "Đã cho phép Online trong phiên này. Tool sẽ kiểm tra gói tri thức đã ký." }
         "OnlineNotEnabled" { if ($english) { return "Online was not enabled. Tool Assistant continues with local knowledge." }; return "Chưa bật Online. Trợ lý tiếp tục dùng tri thức cục bộ." }
         "Close" { if ($english) { return "Close" }; return "Đóng" }
         "Welcome" { if ($english) { return "I understand questions related to Tool Kiem Tra and answer from its local knowledge, documentation, and current report data. Ask in your own words." }; return "Trợ lý hiểu các câu hỏi liên quan đến Tool Kiểm Tra và trả lời từ kho tri thức, tài liệu cùng dữ liệu báo cáo hiện có. Bạn cứ hỏi theo cách tự nhiên." }
@@ -851,9 +1037,6 @@ function Complete-ToolAssistantConversationLayout {
     $chat = $State.Chat
     if ($null -eq $chat -or $chat.IsDisposed) { return }
     try {
-        # Force FlowLayoutPanel to calculate its virtual height before scrolling.
-        # The same routine is also called by a one-shot UI timer after the current
-        # Click/KeyDown handler returns, which avoids depending on another input.
         $chat.SuspendLayout()
         try { Resize-ToolAssistantChatBubbles -State $State }
         finally { $chat.ResumeLayout($true) }
@@ -876,8 +1059,6 @@ function Complete-ToolAssistantConversationLayout {
         $chat.Update()
 
         if ($chat.IsHandleCreated) {
-            # IsSubmitting remains true while DoEvents runs, so Send/Enter cannot
-            # re-enter the answer pipeline while the current response is painted.
             [Windows.Forms.Application]::DoEvents()
             $chat.PerformLayout()
             if ($null -ne $LatestControl -and -not $LatestControl.IsDisposed) {
@@ -893,7 +1074,6 @@ function Complete-ToolAssistantConversationLayout {
             $chat.Update()
         }
     } catch {
-        # Rendering recovery must not discard an answer that was already produced.
     }
 }
 
@@ -905,9 +1085,6 @@ function Update-ToolAssistantConversationUi {
 
     Complete-ToolAssistantConversationLayout -State $State -LatestControl $LatestControl
 
-    # WinForms may postpone FlowLayoutPanel scrolling until the event handler has
-    # returned. Restart a one-shot UI timer so the newest answer is laid out and
-    # painted on the next message-pump turn without waiting for another question.
     if ($State.PSObject.Properties['PendingRevealControl']) { $State.PendingRevealControl = $LatestControl }
     if (-not $State.PSObject.Properties['RevealQueued']) {
         $State | Add-Member -NotePropertyName RevealQueued -NotePropertyValue $false
@@ -933,7 +1110,6 @@ function Update-ToolAssistantConversationUi {
             $State.RenderTimer.Stop()
             $State.RenderTimer.Start()
         } catch [ObjectDisposedException] {
-            # The assistant window is already closing; there is nothing left to repaint.
         }
     }
 }
@@ -1099,8 +1275,9 @@ function Update-ToolAssistantConnectionUi {
     if ($State.PSObject.Properties['ToolTip'] -and $null -ne $State.ToolTip) {
         $State.ToolTip.SetToolTip($State.ModeLabel, [string]$State.ModeLabel.Text)
     }
-    $State.OnlineButton.Enabled = -not $online
-    $State.SyncButton.Enabled = $online
+    $syncBusy = [bool]($State.PSObject.Properties['SyncInProgress'] -and $State.SyncInProgress)
+    $State.OnlineButton.Enabled = -not $online -and -not $syncBusy
+    $State.SyncButton.Enabled = $online -and -not $syncBusy
     $State.ToolTip.SetToolTip($State.OnlineButton, (Get-ToolAssistantUiText $(if ($online) { "OnlineConnectedTip" } else { "ConnectOnlineTip" }) $State.Culture))
     $State.ToolTip.SetToolTip($State.SyncButton, (Get-ToolAssistantUiText "SyncTip" $State.Culture))
 }
@@ -1135,6 +1312,23 @@ function Set-ToolAssistantInputFrameState {
     $State.InputFrame.Invalidate($true)
 }
 
+function Invoke-ToolAssistantKnowledgeSyncUi {
+    param([Parameter(Mandatory = $true)][object]$State)
+
+    if (-not [bool]$State.OnlineMode -or [bool]$State.SyncInProgress) { return $false }
+    $State.SyncInProgress = $true
+    Update-ToolAssistantConnectionUi -State $State
+    try {
+        $result = Sync-ToolAssistantKnowledge -OnlineMode $true -Culture ([string]$State.Culture)
+        if ($result.Success) { $State.Knowledge = Get-ToolAssistantKnowledge }
+        [void](Add-ToolAssistantChatMessage -State $State -Role Assistant -Message ([string]$result.Message))
+        return [bool]$result.Success
+    } finally {
+        $State.SyncInProgress = $false
+        Update-ToolAssistantConnectionUi -State $State
+    }
+}
+
 function Enable-ToolAssistantOnline {
     param([Parameter(Mandatory = $true)][object]$State)
 
@@ -1147,6 +1341,8 @@ function Enable-ToolAssistantOnline {
         $State.OnlineMode = $true
         Update-ToolAssistantConnectionUi -State $State
         [void](Add-ToolAssistantChatMessage -State $State -Role Assistant -Message (Get-ToolAssistantUiText "OnlineEnabled" $State.Culture))
+        $script:ToolAssistantAutoSyncAttempted = $true
+        [void](Invoke-ToolAssistantKnowledgeSyncUi -State $State)
         return $true
     }
     [void](Add-ToolAssistantChatMessage -State $State -Role Assistant -Message (Get-ToolAssistantUiText "OnlineNotEnabled" $State.Culture))
@@ -1193,9 +1389,6 @@ function Show-ToolAssistantWindow {
     $assistantToolTip.InitialDelay = 350
     $assistantToolTip.ReshowDelay = 100
 
-    # A row-based host prevents the Fill chat area from extending underneath the
-    # bottom composer. The previous Dock/z-order layout could hide the newest
-    # message until another input forced a layout pass.
     $assistantLayout = New-Object Windows.Forms.TableLayoutPanel
     $assistantLayout.Dock = 'Fill'
     $assistantLayout.ColumnCount = 1
@@ -1357,6 +1550,7 @@ function Show-ToolAssistantWindow {
         ModeLabel = $mode
         OnlineButton = $online
         SyncButton = $sync
+        SyncInProgress = $false
         ToolTip = $assistantToolTip
         PrimaryColor = $primary
         TextColor = $text
@@ -1433,10 +1627,7 @@ function Show-ToolAssistantWindow {
     $sync.Tag = $assistantState
     $sync.Add_Click({
         param($sender, $eventArgs)
-        $state = $sender.Tag
-        $result = Sync-ToolAssistantKnowledge -OnlineMode ([bool]$state.OnlineMode) -Culture ([string]$state.Culture)
-        if ($result.Success) { $state.Knowledge = Get-ToolAssistantKnowledge }
-        [void](Add-ToolAssistantChatMessage -State $state -Role Assistant -Message ([string]$result.Message))
+        [void](Invoke-ToolAssistantKnowledgeSyncUi -State $sender.Tag)
     })
     $online.Tag = $assistantState
     $online.Add_Click({
@@ -1477,6 +1668,10 @@ function Show-ToolAssistantWindow {
         Set-ToolAssistantInputFrameState -State $assistantState -Focused $true
         Complete-ToolAssistantConversationLayout -State $assistantState -LatestControl $assistantState.PendingRevealControl
         $input.Focus()
+        if ([bool]$assistantState.OnlineMode -and -not [bool]$script:ToolAssistantAutoSyncAttempted) {
+            $script:ToolAssistantAutoSyncAttempted = $true
+            [void](Invoke-ToolAssistantKnowledgeSyncUi -State $assistantState)
+        }
     }.GetNewClosure())
     if ($Owner) { [void]$dialog.ShowDialog($Owner) } else { [void]$dialog.ShowDialog() }
     $renderTimer.Stop()

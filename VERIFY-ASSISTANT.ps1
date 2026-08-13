@@ -9,7 +9,7 @@ function Add-AssistantVerificationError([string]$Message) {
     $script:errors.Add($Message)
 }
 
-foreach ($name in @('Tool-Assistant.ps1','tool-assistant-knowledge-v1.1.json','Tool-OfflinePolicy.ps1','Giao-Dien.ps1','Tool-Strings.vi-VN.json','Tool-Strings.en-US.json')) {
+foreach ($name in @('Tool-Assistant.ps1','tool-assistant-knowledge-v1.1.json','tool-assistant-knowledge-v1.1.json.p7s','SIGN-ASSISTANT-KNOWLEDGE.ps1','Tool-OfflinePolicy.ps1','Giao-Dien.ps1','Tool-Strings.vi-VN.json','Tool-Strings.en-US.json')) {
     if (-not (Test-Path -LiteralPath (Join-Path $SourceDirectory $name) -PathType Leaf)) {
         Add-AssistantVerificationError "Missing required assistant file: $name"
     }
@@ -18,8 +18,31 @@ if ($errors.Count -eq 0) {
     . (Join-Path $SourceDirectory 'Tool-Assistant.ps1')
     $knowledge = Get-ToolAssistantKnowledge
     if (-not (Test-ToolAssistantKnowledge -Knowledge $knowledge)) { Add-AssistantVerificationError 'Knowledge validation failed.' }
-    $legacyKnowledge = ((Get-Content -LiteralPath (Join-Path $SourceDirectory 'tool-assistant-knowledge-v1.1.json') -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.2\.0"', '"KnowledgeVersion": "1.1.0"') | ConvertFrom-Json
+    $knowledgePath = Join-Path $SourceDirectory 'tool-assistant-knowledge-v1.1.json'
+    $signaturePath = Join-Path $SourceDirectory 'tool-assistant-knowledge-v1.1.json.p7s'
+    $knowledgeBytes = [IO.File]::ReadAllBytes($knowledgePath)
+    $signatureBytes = [IO.File]::ReadAllBytes($signaturePath)
+    if (-not (Test-ToolAssistantKnowledgeSignature -ContentBytes $knowledgeBytes -SignatureBytes $signatureBytes)) {
+        Add-AssistantVerificationError 'Bundled knowledge detached signature validation failed.'
+    }
+    if (-not (Read-ToolAssistantKnowledgeFile -Path $knowledgePath -SignaturePath $signaturePath -RequireSignature)) {
+        Add-AssistantVerificationError 'Signed knowledge reader rejected the published package.'
+    }
+    $tamperedBytes = New-Object byte[] $knowledgeBytes.Length
+    [Array]::Copy($knowledgeBytes, $tamperedBytes, $knowledgeBytes.Length)
+    $tamperedBytes[[Math]::Max(0, $tamperedBytes.Length - 2)] = $tamperedBytes[[Math]::Max(0, $tamperedBytes.Length - 2)] -bxor 1
+    if (Test-ToolAssistantKnowledgeSignature -ContentBytes $tamperedBytes -SignatureBytes $signatureBytes) {
+        Add-AssistantVerificationError 'Detached signature accepted tampered knowledge bytes.'
+    }
+    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.0"', '"KnowledgeVersion": "1.2.0"') | ConvertFrom-Json
     if (Test-ToolAssistantKnowledge -Knowledge $legacyKnowledge) { Add-AssistantVerificationError 'An obsolete cached knowledge file was not rejected.' }
+    $compatibleFutureKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
+    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.1'
+    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-13T05:16:00Z'
+    $compatibleFutureKnowledge.ReleasedWithToolVersion = '4.8.0.1'
+    if (-not (Test-ToolAssistantKnowledge -Knowledge $compatibleFutureKnowledge)) {
+        Add-AssistantVerificationError 'A newer signed-compatible knowledge version cannot evolve independently of the EXE.'
+    }
     if (@($knowledge.Entries).Count -lt 20) { Add-AssistantVerificationError 'Knowledge coverage is below 20 entries.' }
     $metadata = Get-ToolAssistantMetadata
     if ([bool]$metadata.PaidApiRequired) { Add-AssistantVerificationError 'Assistant must not require a paid API.' }
@@ -29,9 +52,15 @@ if ($errors.Count -eq 0) {
     if (-not [bool]$metadata.PortableEveryMachine -or [bool]$metadata.CentralServerRequired) {
         Add-AssistantVerificationError 'Assistant must run independently on every device without a central server.'
     }
-    if ([string]$metadata.KnowledgeStorage -ne 'BundledAndPerUserLocalCache' -or
+    if ([string]$metadata.KnowledgeStorage -ne 'BundledAndSignedPerUserLocalCache' -or
         [string]$metadata.ReportContextSource -ne 'CurrentDeviceLocalReportOnly') {
         Add-AssistantVerificationError 'Assistant local knowledge/report scope metadata is invalid.'
+    }
+    if ([string]$metadata.OnlineTransfer -ne 'DownloadOnlySignedKnowledgePackage' -or
+        [string]$metadata.KnowledgeUpdateVerification -ne 'DetachedCmsSha256PinnedCertificate' -or
+        -not [bool]$metadata.KnowledgeRollbackProtection -or [bool]$metadata.QuestionUpload -or
+        [bool]$metadata.UnboundedSelfTraining -or [bool]$metadata.ExternalTopicLearning) {
+        Add-AssistantVerificationError 'Signed knowledge, privacy, rollback, or bounded-learning metadata is invalid.'
     }
     if ([string]$metadata.CoverageMode -ne 'KnowledgePlusBundledDocumentation' -or
         -not [bool]$metadata.ContextAwareFollowUp -or -not [bool]$metadata.ContextualOutOfScope) {
@@ -152,6 +181,17 @@ if ($errors.Count -eq 0) {
     }
     if ($relatedUnknown -match 'không liên quan đến Tool|không thuộc Tool Kiểm Tra|ngoài phạm vi Tool') {
         Add-AssistantVerificationError 'A Tool-related question was incorrectly rejected as out of scope.'
+    }
+    $scopeInjectionKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
+    $scopeInjectionKnowledge.Entries[0].Keywords = @($scopeInjectionKnowledge.Entries[0].Keywords) + @('cach nau bun bo hue')
+    $scopeGuardedAnswer = Get-ToolAssistantAnswer -Question 'cách nấu bún bò huế' -Culture 'vi-VN' -Knowledge $scopeInjectionKnowledge
+    if ($scopeGuardedAnswer -notmatch 'ngoài phạm vi Tool') {
+        Add-AssistantVerificationError 'A high-scoring injected keyword bypassed the Tool-only scope gate.'
+    }
+
+    $learningAnswer = Get-ToolAssistantAnswer -Question 'trợ lý học hỏi liên tục mà không tăng dung lượng exe như thế nào' -Culture 'vi-VN' -Knowledge $knowledge
+    if ($learningAnswer -notmatch 'cache rời' -or $learningAnswer -notmatch 'không làm tăng EXE' -or $learningAnswer -notmatch 'không được gửi đi') {
+        Add-AssistantVerificationError 'The signed external-knowledge architecture is not explained accurately.'
     }
 
     $pluginAnswer = Get-ToolAssistantAnswer -Question 'cách cài plugin json chỉ đọc' -Culture 'vi-VN' -Knowledge $knowledge
@@ -350,7 +390,7 @@ if ($errors.Count -eq 0) {
         Add-AssistantVerificationError 'Dashboard does not pass the current-session Online callback to Tool Assistant.'
     }
     $assistantSource = Get-Content -LiteralPath (Join-Path $SourceDirectory 'Tool-Assistant.ps1') -Raw -Encoding UTF8
-    foreach ($requiredToken in @('$send.Tag = $assistantState','Queue-ToolAssistantQuestion -State $sender.Tag','$eventArgs.Handled = $true','BeginInvoke','SubmissionQueued','ConnectOnline','ConnectOnlineTip','Update-ToolAssistantConnectionUi','Update-ToolAssistantConversationUi','Complete-ToolAssistantConversationLayout','Set-ToolAssistantHeaderBounds','Set-ToolAssistantInputFrameState','InputIdleBorderColor','UserBubbleBorderColor','AssistantBubbleBorderColor','RenderTimer','PendingRevealControl','RevealQueued','[Windows.Forms.Application]::DoEvents()','Windows.Forms.FlowLayoutPanel','Windows.Forms.TableLayoutPanel','Role User','Role Assistant','IsSubmitting','SendButton.Enabled','Expand-ToolAssistantContextQuery','Test-ToolAssistantRelatedQuery','Get-ToolAssistantDocumentAnswer','LastQuestionText','KnowledgePlusBundledDocumentation')) {
+    foreach ($requiredToken in @('$send.Tag = $assistantState','Queue-ToolAssistantQuestion -State $sender.Tag','$eventArgs.Handled = $true','BeginInvoke','SubmissionQueued','ConnectOnline','ConnectOnlineTip','Update-ToolAssistantConnectionUi','Update-ToolAssistantConversationUi','Complete-ToolAssistantConversationLayout','Set-ToolAssistantHeaderBounds','Set-ToolAssistantInputFrameState','InputIdleBorderColor','UserBubbleBorderColor','AssistantBubbleBorderColor','RenderTimer','PendingRevealControl','RevealQueued','[Windows.Forms.Application]::DoEvents()','Windows.Forms.FlowLayoutPanel','Windows.Forms.TableLayoutPanel','Role User','Role Assistant','IsSubmitting','SendButton.Enabled','Expand-ToolAssistantContextQuery','Test-ToolAssistantRelatedQuery','Get-ToolAssistantDocumentAnswer','LastQuestionText','KnowledgePlusBundledDocumentation','Test-ToolAssistantKnowledgeSignature','DetachedCmsSha256PinnedCertificate','Save-ToolAssistantSignedKnowledgeCache','remoteVersion -lt $currentVersion','Invoke-ToolAssistantKnowledgeSyncUi')) {
         if (-not $assistantSource.Contains($requiredToken)) { Add-AssistantVerificationError "Assistant UI interaction token missing: $requiredToken" }
     }
     if ($assistantSource.Contains('New-Object Windows.Forms.RichTextBox')) {
@@ -392,5 +432,5 @@ if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
     exit 1
 }
-Write-Host 'VERIFY-ASSISTANT: 0 errors (390+ phrasings + broad Tool scope + bundled-doc fallback + context follow-up + contextual boundary + immediate bubbles + duplicate lock + Send/Enter + live Online state).' -ForegroundColor Green
+Write-Host 'VERIFY-ASSISTANT: 0 errors (400+ phrasings + signed external knowledge + rollback protection + Tool-only scope + local privacy + context follow-up + immediate bubbles + Send/Enter + live Online state).' -ForegroundColor Green
 exit 0

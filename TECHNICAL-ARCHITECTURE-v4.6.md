@@ -26,8 +26,9 @@ Tool-Kiem-Tra-v4.8.exe
        │   └─ Tool-Compatibility.ps1       catalog schema 1.0
        ├─ Tool-Localization.ps1            localization schema 1.0
        ├─ Tool-OfflinePolicy.ps1           offline policy schema 1.0
-       ├─ Tool-Assistant.ps1               hỏi đáp tri thức cục bộ schema 1.1, định tuyến tự nhiên
-       │   └─ tool-assistant-knowledge-v1.1.json (Tool min/max + knowledge 1.2.0)
+       ├─ Tool-Assistant.ps1               hỏi đáp cục bộ schema 1.1, phạm vi Tool + cache có chữ ký
+       │   ├─ tool-assistant-knowledge-v1.1.json (Tool min/max + knowledge 1.3.0)
+       │   └─ cache người dùng JSON + CMS .p7s (ngoài EXE, chống hạ phiên bản)
        ├─ Tool-UpdateManager.ps1           update manifest schema 1.0 + verified swap/rollback
        ├─ Tool-SoftwareInventory.ps1       inventory/deep scan schema 1.0
        │   └─ software-license-catalog-v1.0.json  catalog 1.2
@@ -153,7 +154,7 @@ Mỗi descriptor gồm:
 - điều kiện: `RequiredCapabilities`;
 - ánh xạ `ExitCodeMap`.
 
-`NetworkScope=LocalOnly` là offline-capable. `license.manager` chỉ mở giao diện chứa đủ ba chức năng nên là `LocalOnly`; `enterprise.server` và `enterprise.agent` khai báo `Lan`. `software.catalog.update` khai báo `Internet`; trình cập nhật ứng dụng và đồng bộ tri thức Trợ lý cũng đi qua Offline gate riêng, chỉ dùng HTTPS GET tới host/path allowlist và không thay đổi mặc định Offline của lần mở sau.
+`NetworkScope=LocalOnly` là offline-capable. `license.manager` chỉ mở giao diện chứa đủ ba chức năng nên là `LocalOnly`; `enterprise.server` và `enterprise.agent` khai báo `Lan`. `software.catalog.update` khai báo `Internet`; trình cập nhật ứng dụng và đồng bộ tri thức Trợ lý cũng đi qua Offline gate riêng, chỉ dùng HTTPS GET tới host/path allowlist và không thay đổi mặc định Offline của lần mở sau. Đồng bộ Trợ lý tải đúng hai byte-stream cố định (JSON và `.p7s`), giới hạn lần lượt 2 MiB/64 KiB, không redirect, xác minh detached CMS SHA-256 bằng fingerprint SHA-256 của chứng thư RSA đã ghim, rồi mới kiểm tra schema/phạm vi/phiên bản và cài cache có rollback. Không có POST, telemetry hoặc mô hình tự huấn luyện từ Internet.
 
 ## Báo cáo
 

@@ -48,7 +48,7 @@ Không cần mở mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật
 - Nút Mở thư mục báo cáo mở nơi chứa kết quả mới nhất.
 - Nút Dừng chỉ dùng khi tác vụ kéo dài bất thường. Nếu dừng giữa lúc khắc phục, hãy giữ backup và quét lại trước khi làm tiếp.
 - Công tắc Offline/Online chỉ cấp quyền dùng mạng trong phiên hiện tại; bật Online không tự gửi dữ liệu và không tự chạy quét. Mở lại Tool luôn trở về Offline.
-- Nút **Trợ lý Tool** nằm bên trái **Giới thiệu**. Nhập câu hỏi rồi bấm **Gửi** hoặc nhấn **Enter**; dùng `Shift+Enter` nếu cần xuống dòng. Khi đang xử lý, Tool tạm khóa ô nhập và nút Gửi để tránh gửi trùng. Nút **Kết nối Online** có chú thích khi rê chuột, chỉ cấp quyền mạng cho phiên hiện tại; sau đó nút Đồng bộ tri thức mới được bật.
+- Nút **Trợ lý Tool** nằm bên trái **Giới thiệu**. Nhập câu hỏi rồi bấm **Gửi** hoặc nhấn **Enter**; dùng `Shift+Enter` nếu cần xuống dòng. Khi đang xử lý, Tool tạm khóa ô nhập và nút Gửi để tránh gửi trùng. Nút **Kết nối Online** chỉ cấp quyền mạng cho phiên hiện tại và tự kiểm tra gói tri thức mới; **Đồng bộ tri thức** cho phép kiểm tra lại thủ công.
 
 ## Trợ lý Tool
 
@@ -61,7 +61,7 @@ Trợ lý hiểu và trả lời mọi câu hỏi liên quan đến Tool trong p
 
 Trợ lý kết hợp kho tri thức có cấu trúc, tài liệu HDSD nhúng và dữ liệu báo cáo hiện có; bộ định tuyến ưu tiên tên chức năng, mã lỗi và cụm từ cụ thể trước từ khóa chung. Trợ lý xử lý cách diễn đạt tự nhiên, câu không dấu, viết tắt, lỗi gõ và câu nhiều ý. Câu có liên quan đến Tool nhưng thiếu dữ liệu sẽ được nói rõ là chưa đủ thông tin; chỉ nội dung thật sự không liên quan mới được báo ngoài phạm vi, với cách diễn đạt phù hợp từng ngữ cảnh thay vì lặp một câu cố định.
 
-Trợ lý vẫn dùng được khi Offline. Online chỉ cho phép đồng bộ kho tri thức tương thích sau khi người dùng chủ động cấp quyền mạng.
+Trợ lý vẫn dùng được khi Offline trên mọi máy bằng bộ tri thức nền và dữ liệu báo cáo cục bộ của chính máy đó. Sau khi người dùng chủ động cấp quyền Online, Tool chỉ tải `tool-assistant-knowledge-v1.1.json` cùng chữ ký CMS rời từ hai đường dẫn GitHub đã khóa. Tool kiểm tra chữ ký nhà phát hành, SHA-256, lược đồ, đúng phạm vi Tool, kích thước, dải phiên bản và chống hạ phiên bản trước khi thay cache; bản hợp lệ trước đó được giữ để khôi phục. Câu hỏi, báo cáo, inventory, đường dẫn, khóa và token không được gửi đi. Phần tri thức cập nhật nằm trong `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\assistant`, không được nhúng thêm vào EXE; chỉ thư mục cache cục bộ tăng theo giới hạn 2 MiB.
 
 ## Quy trình sử dụng được khuyến nghị
 

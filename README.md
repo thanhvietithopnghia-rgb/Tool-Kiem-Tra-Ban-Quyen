@@ -19,7 +19,7 @@ Tác giả và phát triển: **Thanh Việt**
 - **Báo cáo rõ hơn:** HTML dùng để xem nhanh, PDF chứa chi tiết; người dùng có thể che dữ liệu nhạy cảm trước khi chia sẻ.
 - **Khắc phục an toàn:** có Dry Run, backup, chọn từng mục, UAC khi cần và kiểm tra lại kết quả; Tool không tự gỡ ứng dụng.
 - **Kết luận thận trọng:** tệp bị sửa không tự đồng nghĩa phần mềm không chính hãng; kết quả chưa đủ bằng chứng được ghi rõ là chưa xác minh.
-- **Trợ lý hiểu toàn phạm vi Tool:** trả lời mọi câu hỏi liên quan theo kho tri thức, HDSD nhúng và báo cáo hiện có — từ phiên bản/tác giả/tóm tắt đến mục đích, cách dùng, lỗi và trạng thái của mọi chức năng. Trợ lý giữ ngữ cảnh câu hỏi tiếp theo, không dùng một danh sách câu mẫu cố định và chỉ báo ngoài phạm vi khi nội dung thật sự không liên quan.
+- **Trợ lý hiểu toàn phạm vi Tool:** trả lời mọi câu hỏi liên quan theo kho tri thức, HDSD nhúng và báo cáo hiện có — từ phiên bản/tác giả/tóm tắt đến mục đích, cách dùng, lỗi và trạng thái của mọi chức năng. Kho tri thức mới được lưu ngoài EXE, chỉ đồng bộ sau khi người dùng bật Online, phải có chữ ký nhà phát hành hợp lệ và không thể hạ phiên bản; câu hỏi, báo cáo và dữ liệu máy không được tải lên. Trợ lý giữ ngữ cảnh câu hỏi tiếp theo và khóa nội dung ngoài phạm vi Tool.
 - **Offline mặc định:** không telemetry, không cập nhật ngầm và không gửi dữ liệu máy lên mạng khi chưa được phép.
 - **Một tệp EXE:** tự chạy đúng x64/x86; có chữ ký Authenticode tự ký miễn phí để phát hiện tệp bị sửa, nhưng vẫn có thể bị SmartScreen cảnh báo trên máy lạ.
 

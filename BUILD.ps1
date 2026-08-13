@@ -17,6 +17,7 @@ $productVersion = '4.8'
 $releaseVersion = '4.8.0.0'
 $releaseBuildDate = '2026.08.13'
 $releaseLabel = "$releaseVersion-rc1-20260813"
+$maximumInPlaceExecutableBytes = 875440
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -168,6 +169,8 @@ $sourceFiles = @(
     'VERIFY-DATA-LIFECYCLE.ps1'
     'VERIFY-APPLICATION-UPDATE.ps1'
     'VERIFY-ASSISTANT.ps1'
+    'SIGN-ASSISTANT-KNOWLEDGE.ps1'
+    'tool-assistant-knowledge-v1.1.json.p7s'
     'SIGN-RELEASE.ps1'
     'VERIFY-AUTHENTICODE.ps1'
     $peHardeningName
@@ -267,6 +270,8 @@ $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }
     'VERIFY-DATA-LIFECYCLE.ps1',
     'VERIFY-APPLICATION-UPDATE.ps1',
     'VERIFY-ASSISTANT.ps1',
+    'SIGN-ASSISTANT-KNOWLEDGE.ps1',
+    'tool-assistant-knowledge-v1.1.json.p7s',
     'SIGN-RELEASE.ps1',
     'VERIFY-AUTHENTICODE.ps1',
     $peHardeningName,
@@ -489,6 +494,10 @@ try {
     if ($RequireAuthenticode -and $signature.Status -ne 'Valid') {
         throw "Artefact chưa có chữ ký Authenticode hợp lệ: $($signature.Status)"
     }
+    $artifactLength = [int64](Get-Item -LiteralPath $outputPath).Length
+    if ($artifactLength -gt $maximumInPlaceExecutableBytes) {
+        throw "EXE vượt dung lượng bản v4.8 đang phát hành: $artifactLength / $maximumInPlaceExecutableBytes byte."
+    }
     [void]$artifactResults.Add([pscustomobject]@{
         FileName = $target.OutputName
         Architecture = 'AnyCPU'
@@ -513,7 +522,7 @@ foreach ($sidecar in @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
     'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json'
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s'
 )) {
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $sidecar) -Destination (Join-Path $OutputDirectory $sidecar) -Force
 }
@@ -685,13 +694,19 @@ $releaseManifest = [ordered]@{
         CodexRequired = [bool]$assistantMetadata.CodexRequired
         OnlineTransfer = [string]$assistantMetadata.OnlineTransfer
         ReportUpload = [bool]$assistantMetadata.ReportUpload
+        QuestionUpload = [bool]$assistantMetadata.QuestionUpload
         AutomaticRemediation = [bool]$assistantMetadata.AutomaticRemediation
         PortableEveryMachine = [bool]$assistantMetadata.PortableEveryMachine
         CentralServerRequired = [bool]$assistantMetadata.CentralServerRequired
         KnowledgeStorage = [string]$assistantMetadata.KnowledgeStorage
         ReportContextSource = [string]$assistantMetadata.ReportContextSource
         KnowledgeCompatibilityEnforced = [bool]$assistantMetadata.KnowledgeCompatibilityEnforced
+        KnowledgeUpdateVerification = [string]$assistantMetadata.KnowledgeUpdateVerification
+        KnowledgeRollbackProtection = [bool]$assistantMetadata.KnowledgeRollbackProtection
+        UnboundedSelfTraining = [bool]$assistantMetadata.UnboundedSelfTraining
+        ExternalTopicLearning = [bool]$assistantMetadata.ExternalTopicLearning
         KnowledgeFileName = [string]$assistantMetadata.KnowledgeFileName
+        KnowledgeSignatureFileName = [string]$assistantMetadata.KnowledgeSignatureFileName
         ImmediateResponseRender = $true
     }
     ReportExportSchemaVersion = [string]$reportExportMetadata.SchemaVersion
@@ -772,7 +787,7 @@ $applicationUpdateManifest = [ordered]@{
     }
     Changes = [ordered]@{
         'vi-VN' = @(
-            'Trợ lý hiểu mọi câu hỏi liên quan đến Tool theo tri thức, HDSD, báo cáo hiện có và ngữ cảnh lượt trước; câu ngoài phạm vi được trả lời theo từng chủ đề.',
+            'Trợ lý dùng kho tri thức rời có chữ ký, chống hạ phiên bản và tự đồng bộ sau khi người dùng bật Online; EXE không chứa phần tri thức tăng thêm.',
             'Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.',
             'Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.',
             'Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.',
@@ -780,7 +795,7 @@ $applicationUpdateManifest = [ordered]@{
             'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
         )
         'en-US' = @(
-            'Tool Assistant handles every Tool-related question supported by local knowledge, guides, report context, and the previous turn; unrelated-topic boundaries adapt to context.',
+            'Tool Assistant uses a detached signed knowledge cache with rollback protection and syncs after the user enables Online; growing knowledge is kept outside the EXE.',
             'The interface is clearer; the Redacted report button no longer clips or fades on hover.',
             'Scans are faster, recognize more software, and present results more clearly.',
             'Reports protect sensitive data better, and known PDF clipping cases are fixed.',
@@ -865,11 +880,11 @@ $infoLines = @(
     'Bao cao HTML la ban tong quan gon, khong con bang dai; chi giu cau hinh chinh, ket luan, canh bao va nut mo PDF day du.',
     'PDF la ban chi tiet A4 gom toan bo bang cau hinh, phan mem, bang chung va du lieu ky thuat; moi lan xuat van gom HTML/PDF/JSON/XML/checksum trong mot thu muc va chi tu mo HTML.',
     'Ket luan ban quyen tach ro trang thai kich hoat voi quyen su dung; du lieu cap phep khong doc duoc ghi CHUA XAC DINH va khong tu chung minh hop le/khong hop le.',
-    'Tro ly Tool chuyen biet dung tri thuc cuc bo, khong tu khac phuc va khong tai bao cao len mang; Online chi tai JSON tri thuc tu host co dinh.',
+    'Tro ly Tool dung tri thuc cuc bo, khong tu khac phuc va khong tai cau hoi/bao cao/du lieu may len mang; Online chi tai JSON va chu ky CMS tu hai path GitHub co dinh.',
     'Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.',
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
-    'Tro ly schema 1.1 / knowledge 1.2.0 co 58 nhom va 429 tu khoa/cach hoi; hieu moi cau lien quan Tool theo tri thuc, HDSD nhung, bao cao hien co va ngu canh luot truoc; ngoai pham vi duoc dien dat theo chu de.',
+    'Tro ly schema 1.1 / knowledge 1.3.0 co 58 nhom va 436 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va khong lam tang EXE qua 875440 byte.',
     'Catalogue phan mem 1.3.1.0 co 76 quy tac; bo sung IObit Driver Booster, WIRIS MathType va nhom PDF editor thuong mai; sua nhan nham Driver Booster thanh driver he thong va nhan ten ngan IDM.',
     'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',
@@ -905,7 +920,7 @@ $releaseHashFiles = @($targets.OutputName) + @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
     'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
 )
 $releaseHashLines = @("# SHA-256 goi phat hanh Tool-Kiem-Tra v$productVersion.")
 foreach ($name in $releaseHashFiles) {

@@ -13,7 +13,7 @@ FileVersion: **4.8.0.0** · Build **2026.08.13**
 - **Checks and remediation:** Online and Dry Run now share three checkboxes—**Windows, Office, and Other software**. One or more scopes can be selected, and only those scopes are scanned or handled. Preview, confirmation, backup, and post-verification remain mandatory.
 - **Scanning and performance:** faster inventory and assessment, a 76-rule catalog, and more cautious result classification.
 - **Reports:** fixes clipped/missing PDF lines, simplifies layout, and supports redacted reports for sharing.
-- **Assistant and connectivity:** understands every Tool-related question supported by 58 structured topics, bundled guides, report data, and prior-turn context; fixes version/developer/feature-7 routing, varies unrelated-topic boundaries by context, and improves Server/Workstation diagnostics and report retry handling.
+- **Assistant and connectivity:** understands every Tool-related question supported by 58 structured topics, bundled guides, report data, and prior-turn context. Knowledge `1.3.0` uses detached JSON plus a CMS SHA-256 signature, a pinned publisher certificate, downgrade protection, and a previous-cache fallback; it checks after explicit Online consent, keeps growing knowledge outside the EXE, uploads no questions/reports/device data, and enforces Tool-only scope.
 - **Safety and privacy:** Offline by default, networking and updates only with consent, elevation only when needed, and no telemetry or silent updates.
 
 ## v4.6 — August 6, 2026

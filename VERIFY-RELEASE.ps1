@@ -110,9 +110,9 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
 }
 
 Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 47
-Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 86
-Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-PACKAGE-SHA256SUMS.txt') $sourceDirectoryFull 89 -AllowRelativePaths
-Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 23
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 88
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-PACKAGE-SHA256SUMS.txt') $sourceDirectoryFull 91 -AllowRelativePaths
+Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 24
 
 $manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.manifest'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
@@ -230,7 +230,8 @@ if ($guiText -notmatch 'function\s+New-ToolReportRunDirectory' -or $guiText -not
 }
 if ($assistantText -notmatch 'function\s+Show-ToolAssistantWindow' -or
     $assistantText -notmatch 'function\s+Get-ToolAssistantAnswer' -or
-    $assistantText -notmatch 'DownloadOnlyKnowledgeJson' -or
+    $assistantText -notmatch 'DownloadOnlySignedKnowledgePackage' -or
+    $assistantText -notmatch 'DetachedCmsSha256PinnedCertificate' -or
     $assistantText -notmatch 'PaidApiRequired\s*=\s*\$false' -or
     $assistantText -notmatch 'CodexRequired\s*=\s*\$false' -or
     $assistantText -notmatch 'ReportUpload\s*=\s*\$false' -or
@@ -522,6 +523,9 @@ $profile = $null
 if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
     $failures.Add("Thiếu EXE phát hành: $targetFileName")
 } else {
+    if ([int64](Get-Item -LiteralPath $exePath).Length -gt 875440) {
+        $failures.Add("$targetFileName vượt 875440 byte của bản phát hành trước; kho tri thức rời không được làm tăng EXE.")
+    }
     try {
         $profile = Get-PeSecurityProfile -Path $exePath
         if ($profile.ManagedPlatform -ne 'AnyCPU' -or $profile.Architecture -ne 'x86' -or
@@ -718,15 +722,21 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$assistantManifest.Engine -ne 'LocalKnowledge' -or
             [bool]$assistantManifest.PaidApiRequired -or
             [bool]$assistantManifest.CodexRequired -or
-            [string]$assistantManifest.OnlineTransfer -ne 'DownloadOnlyKnowledgeJson' -or
+            [string]$assistantManifest.OnlineTransfer -ne 'DownloadOnlySignedKnowledgePackage' -or
             [bool]$assistantManifest.ReportUpload -or
+            [bool]$assistantManifest.QuestionUpload -or
             [bool]$assistantManifest.AutomaticRemediation -or
             -not [bool]$assistantManifest.PortableEveryMachine -or
             [bool]$assistantManifest.CentralServerRequired -or
-            [string]$assistantManifest.KnowledgeStorage -ne 'BundledAndPerUserLocalCache' -or
+            [string]$assistantManifest.KnowledgeStorage -ne 'BundledAndSignedPerUserLocalCache' -or
             [string]$assistantManifest.ReportContextSource -ne 'CurrentDeviceLocalReportOnly' -or
             -not [bool]$assistantManifest.KnowledgeCompatibilityEnforced -or
+            [string]$assistantManifest.KnowledgeUpdateVerification -ne 'DetachedCmsSha256PinnedCertificate' -or
+            -not [bool]$assistantManifest.KnowledgeRollbackProtection -or
+            [bool]$assistantManifest.UnboundedSelfTraining -or
+            [bool]$assistantManifest.ExternalTopicLearning -or
             [string]$assistantManifest.KnowledgeFileName -ne 'tool-assistant-knowledge-v1.1.json' -or
+            [string]$assistantManifest.KnowledgeSignatureFileName -ne 'tool-assistant-knowledge-v1.1.json.p7s' -or
             -not [bool]$assistantManifest.ImmediateResponseRender) {
             throw 'Thiếu metadata ranh giới an toàn của Trợ lý Tool v4.8.'
         }

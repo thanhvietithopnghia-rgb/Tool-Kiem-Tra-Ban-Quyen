@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.2.0",
-  "UpdatedAtUtc": "2026-08-13T00:00:00Z",
+  "KnowledgeVersion": "1.3.0",
+  "UpdatedAtUtc": "2026-08-13T05:15:00Z",
   "ToolVersionMin": "4.8.0.0",
   "ToolVersionMax": "4.8.65535.65535",
   "ReleasedWithToolVersion": "4.8.0.0",
@@ -291,9 +291,9 @@
       "Id": "assistant-knowledge-update",
       "TitleVi": "Cơ sở tri thức của Trợ lý",
       "TitleEn": "Assistant knowledge database",
-      "Keywords": ["cap nhat co so du lieu tro ly", "dong bo kho tri thuc", "tri thuc theo phien ban", "du lieu tro ly tuong thich", "csdl tro ly", "knowledge database"],
-      "AnswerVi": "Mỗi bản Tool mang sẵn một cơ sở tri thức tương thích để Trợ lý vẫn hoạt động Offline. Khi người dùng chủ động bật Online và đồng bộ, Tool chỉ nhận tệp JSON đúng nguồn cho phép, đúng lược đồ, đúng dải phiên bản và đúng phiên bản phát hành; tệp không tương thích sẽ bị từ chối và bản cục bộ vẫn được giữ lại.",
-      "AnswerEn": "Every Tool release bundles a compatible knowledge database so the Assistant works Offline. When Online sync is explicitly enabled, only allowlisted JSON with the correct schema, release version, and compatibility range is accepted; incompatible data is rejected and the local copy remains available."
+      "Keywords": ["cap nhat co so du lieu tro ly", "dong bo kho tri thuc", "tri thuc theo phien ban", "du lieu tro ly tuong thich", "csdl tro ly", "knowledge database", "tro ly hoc hoi lien tuc", "hoc them kien thuc tool", "cap nhat tri thuc khong tang exe", "dung luong exe khi cap nhat tri thuc", "kho tri thuc roi", "moi may du lieu khac nhau", "goi tri thuc co chu ky"],
+      "AnswerVi": "Mỗi bản Tool mang sẵn một bộ tri thức nền để Trợ lý hoạt động Offline trên mọi máy. Từng máy dùng chung tri thức chuẩn nhưng chỉ kết hợp với báo cáo và trạng thái cục bộ của chính máy đó. Khi người dùng chủ động bật Online, Tool chỉ tải JSON và chữ ký CMS rời từ đúng địa chỉ GitHub đã khóa; sau đó kiểm tra chữ ký nhà phát hành, SHA-256, lược đồ, phạm vi Tool, kích thước, dải tương thích và chống hạ phiên bản trước khi lưu cache có bản dự phòng. Câu hỏi, báo cáo và dữ liệu máy không được gửi đi. Vì tri thức mới nằm trong cache rời nên có thể cập nhật liên tục mà không làm tăng EXE; chỉ tổng thư mục dữ liệu cục bộ tăng theo gói tri thức có giới hạn. Đây là tri thức do nhà phát hành kiểm duyệt trong phạm vi Tool, không phải tự huấn luyện vô hạn từ Internet.",
+      "AnswerEn": "Every Tool release bundles baseline knowledge so the Assistant works Offline on every device. Devices share the approved knowledge but combine it only with their own local report and state. After the user explicitly enables Online, the Tool downloads only JSON plus a detached CMS signature from the pinned GitHub paths, then verifies the publisher signature, SHA-256, schema, Tool scope, size, compatibility range, and rollback protection before installing a backed-up local cache. Questions, reports, and device data are never uploaded. New knowledge stays in the separate cache, so it can evolve without enlarging the EXE; only the bounded local data folder grows. This is publisher-curated Tool knowledge, not unbounded self-training from the Internet."
     },
     {
       "Id": "report-pdf",

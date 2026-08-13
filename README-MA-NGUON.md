@@ -5,7 +5,7 @@ Release `4.8.0.0`, build `2026.08.13`, tập trung vào tốc độ, khả năng
 ## Điểm mới v4.8.0 — Nhanh hơn, dễ dùng hơn, an toàn hơn
 
 - `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng. Bộ định tuyến ưu tiên ý định cụ thể, hiểu câu tiếp nối theo lượt trước, kết hợp kho tri thức với HDSD nhúng và chỉ dùng từ chối ngoài phạm vi khi câu hỏi thật sự không liên quan; câu ngoài phạm vi được diễn đạt theo từng ngữ cảnh.
-- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.2.0`, 58 nhóm nội dung và 429 từ khóa/cách hỏi. Phạm vi bao phủ thông tin sản phẩm, 10 chức năng cùng các chức năng con, lỗi/vận hành và dữ liệu báo cáo hiện có; cache/Online không tương thích bị từ chối fail-closed.
+- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.3.0`, 58 nhóm nội dung và 436 từ khóa/cách hỏi. `tool-assistant-knowledge-v1.1.json.p7s` là chữ ký CMS SHA-256 rời; runtime ghim SHA-256 chứng thư nhà phát hành, chỉ nhận phiên bản tương thích cao hơn, giữ một bản cache dự phòng và từ chối dữ liệu bị sửa/hạ phiên bản. Kho tăng thêm nằm ngoài EXE; không tải lên câu hỏi, báo cáo hoặc dữ liệu máy.
 - `Tool-SoftwareInventory.ps1` gộp record trùng theo định danh sản phẩm/hãng/dòng phiên bản, gồm cả bản vá cùng dòng và x86/x64; giữ mọi DiscoverySource, vị trí, kiến trúc, phân loại thành phần hệ thống và dùng `IntegrityCompromised` cho HashMismatch không kèm bằng chứng giấy phép trực tiếp.
 - Nút thắt gộp inventory được đổi sang descriptor tính một lần; Authenticode nhanh chạy theo lô tối đa bốn worker. Đối chứng cùng dữ liệu đạt 0 khác biệt, bước gộp 664→480 record giảm 118,33 giây xuống 11,05 giây và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
 - `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.3.1.0` với 76 quy tắc sản phẩm duy nhất.
@@ -43,7 +43,7 @@ v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thíc
 - `Tool-UiTheme.ps1`: palette Light/Dark dùng chung.
 - `Tool-Localization.ps1`, `Tool-Strings.*.json`: localization schema 1.0.
 - `Tool-OfflinePolicy.ps1`: Offline fail-closed schema 1.0.
-- `Tool-Assistant.ps1`, `tool-assistant-knowledge-v1.1.json`: Trợ lý chuyên biệt cục bộ và kho tri thức tương thích phiên bản, cập nhật download-only.
+- `Tool-Assistant.ps1`, `tool-assistant-knowledge-v1.1.json`, `.p7s`: Trợ lý chuyên biệt cục bộ; kho tri thức download-only có chữ ký, khóa phạm vi Tool, chống hạ phiên bản và cache dự phòng theo người dùng.
 - `Tool-SoftwareInventory.ps1`, `software-license-catalog-v1.0.json`: inventory schema 1.0, catalog 1.2 và bộ quét sâu/chấm điểm bằng chứng dùng chung cho mọi hãng.
 - `Tool-DataLifecycle.ps1`: DataSchema 2.0, `ProducerVersion`, staging/verify/commit/rollback và chính sách chỉ đọc dữ liệu log/backup cũ.
 - `Tool-Compatibility.ps1`, `compatibility-catalog-v1.0.json`: module compatibility schema 1.0, catalog schema 1.1 điều khiển bằng dữ liệu.

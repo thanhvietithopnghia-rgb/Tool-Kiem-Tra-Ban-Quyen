@@ -48,7 +48,7 @@ You do not need to open source files, configuration files, or technical document
 - Open report folder opens the latest report location.
 - Stop should be used only when a task is taking abnormally long. If remediation is interrupted, preserve the backup and rescan before continuing.
 - Offline/Online controls network permission for the current session only. Switching Online does not upload data or automatically start a scan; restarting always returns to Offline.
-- **Tool Assistant** sits left of **About**. Enter a question and click **Send** or press **Enter**; use `Shift+Enter` for a new line. Input and Send are temporarily locked while an answer is processed. The **Connect Online** button has a hover explanation and grants network access only for the current session; knowledge synchronization is enabled afterward.
+- **Tool Assistant** sits left of **About**. Enter a question and click **Send** or press **Enter**; use `Shift+Enter` for a new line. Input and Send are temporarily locked while an answer is processed. **Connect Online** grants network access only for the current session and automatically checks signed Tool knowledge; **Sync knowledge** can check again manually.
 
 ## Tool Assistant
 
@@ -61,7 +61,7 @@ Tool Assistant understands and answers every Tool-related question supported by 
 
 The Assistant combines structured knowledge, the bundled guide, and available report context. Routing prioritizes exact feature names, error codes, and specific phrases before general keywords; it handles natural wording, accent-free text, abbreviations, typing errors, and multi-part questions. A related question with insufficient data is identified as such; only genuinely unrelated content is marked out of scope, using wording adapted to the context instead of one repeated canned reply.
 
-The Assistant remains available Offline. Online only permits compatible knowledge synchronization after explicit network consent.
+The Assistant remains available Offline on every device through bundled baseline knowledge and that device's own local report context. After explicit Online consent, the Tool downloads only `tool-assistant-knowledge-v1.1.json` and its detached CMS signature from two pinned GitHub paths. It verifies the publisher signature, SHA-256, schema, Tool-only scope, size, compatibility range, and downgrade protection before replacing a backed-up cache. Questions, reports, inventory, paths, keys, and tokens are never uploaded. Growing knowledge is stored under `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\assistant`, outside the EXE; only this bounded 2 MiB local cache can grow.
 
 ## Recommended workflow
 

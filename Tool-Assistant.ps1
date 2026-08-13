@@ -947,7 +947,7 @@ function Get-ToolAssistantUiText {
     $english = [bool]($Culture -eq "en-US")
     switch ($Key) {
         "Title" { if ($english) { return "Tool Assistant" }; return "Trợ lý Tool" }
-        "Scope" { if ($english) { return "Understands all Tool-related questions supported by its local data." }; return "Hiểu mọi câu hỏi liên quan đến Tool theo dữ liệu cục bộ sẵn có." }
+        "Scope" { if ($english) { return "Supports questions within the Tool's scope using available local data." }; return "Hỗ trợ giải đáp các câu hỏi trong phạm vi Tool dựa trên dữ liệu cục bộ sẵn có." }
         "Offline" { if ($english) { return "OFFLINE · local knowledge" }; return "OFFLINE · tri thức cục bộ" }
         "Online" { if ($english) { return "ONLINE · knowledge sync allowed" }; return "ONLINE · cho phép đồng bộ tri thức" }
         "Input" { if ($english) { return "Ask anything related to Tool Kiem Tra..." }; return "Hỏi mọi nội dung liên quan đến Tool Kiểm Tra..." }
@@ -963,7 +963,7 @@ function Get-ToolAssistantUiText {
         "OnlineEnabled" { if ($english) { return "Online is now allowed for this session. Signed Tool knowledge will be checked." }; return "Đã cho phép Online trong phiên này. Tool sẽ kiểm tra gói tri thức đã ký." }
         "OnlineNotEnabled" { if ($english) { return "Online was not enabled. Tool Assistant continues with local knowledge." }; return "Chưa bật Online. Trợ lý tiếp tục dùng tri thức cục bộ." }
         "Close" { if ($english) { return "Close" }; return "Đóng" }
-        "Welcome" { if ($english) { return "I understand questions related to Tool Kiem Tra and answer from its local knowledge, documentation, and current report data. Ask in your own words." }; return "Trợ lý hiểu các câu hỏi liên quan đến Tool Kiểm Tra và trả lời từ kho tri thức, tài liệu cùng dữ liệu báo cáo hiện có. Bạn cứ hỏi theo cách tự nhiên." }
+        "Welcome" { if ($english) { return "Tool Assistant supports lookup, answers, and guidance for content within Tool Kiem Tra's scope, based on its knowledge base, user guides, and available report data." }; return "Trợ lý Tool hỗ trợ tra cứu, giải đáp và hướng dẫn các nội dung thuộc phạm vi Tool Kiểm Tra dựa trên kho tri thức, tài liệu hướng dẫn và dữ liệu báo cáo hiện có." }
         "You" { if ($english) { return "You" }; return "Bạn" }
         "Assistant" { if ($english) { return "Tool Assistant" }; return "Trợ lý Tool" }
         default { return $Key }

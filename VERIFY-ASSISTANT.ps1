@@ -399,6 +399,20 @@ if ($errors.Count -eq 0) {
     if ($assistantSource -match '"Scope"[^\r\n]+(?:paid API|API trả phí|Codex)') {
         Add-AssistantVerificationError 'Assistant scope line still contains API/Codex promotional text.'
     }
+    $expectedScopeVi = 'Hỗ trợ giải đáp các câu hỏi trong phạm vi Tool dựa trên dữ liệu cục bộ sẵn có.'
+    $expectedScopeEn = "Supports questions within the Tool's scope using available local data."
+    $expectedWelcomeVi = 'Trợ lý Tool hỗ trợ tra cứu, giải đáp và hướng dẫn các nội dung thuộc phạm vi Tool Kiểm Tra dựa trên kho tri thức, tài liệu hướng dẫn và dữ liệu báo cáo hiện có.'
+    $expectedWelcomeEn = "Tool Assistant supports lookup, answers, and guidance for content within Tool Kiem Tra's scope, based on its knowledge base, user guides, and available report data."
+    if ((Get-ToolAssistantUiText -Key Scope -Culture 'vi-VN') -ne $expectedScopeVi -or
+        (Get-ToolAssistantUiText -Key Scope -Culture 'en-US') -ne $expectedScopeEn -or
+        (Get-ToolAssistantUiText -Key Welcome -Culture 'vi-VN') -ne $expectedWelcomeVi -or
+        (Get-ToolAssistantUiText -Key Welcome -Culture 'en-US') -ne $expectedWelcomeEn) {
+        Add-AssistantVerificationError 'Assistant scope/welcome wording does not match the approved professional copy.'
+    }
+    if ((Get-ToolAssistantUiText -Key Welcome -Culture 'vi-VN') -match 'Bạn (?:có thể|cứ) (?:đặt câu hỏi|hỏi)' -or
+        (Get-ToolAssistantUiText -Key Welcome -Culture 'en-US') -match 'Ask in your own words') {
+        Add-AssistantVerificationError 'Assistant welcome still contains the removed invitation-to-ask sentence.'
+    }
     $knowledgePublishedText = [string]::Join("`n", @($knowledge.Entries | ForEach-Object {
         [string]$_.TitleVi; [string]$_.TitleEn; [string]$_.AnswerVi; [string]$_.AnswerEn
     }))
@@ -414,6 +428,10 @@ if ($errors.Count -eq 0) {
     $en = Get-Content -LiteralPath (Join-Path $SourceDirectory 'Tool-Strings.en-US.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ([string]$vi.'about.technology.body' -match '(?i)API trả phí|Codex' -or [string]$en.'about.technology.body' -match '(?i)paid API|Codex') {
         Add-AssistantVerificationError 'Product information still contains the removed API/Codex sentence.'
+    }
+    if ([string]$vi.'about.technology.body' -notlike "*$expectedWelcomeVi*" -or
+        [string]$en.'about.technology.body' -notlike "*$expectedWelcomeEn*") {
+        Add-AssistantVerificationError 'Product information does not use the approved professional Assistant wording.'
     }
     $englishOfflineSync = Sync-ToolAssistantKnowledge -OnlineMode $false -Culture 'en-US'
     if ([string]$englishOfflineSync.Message -notmatch '^Tool Assistant is Offline' -or [string]$englishOfflineSync.Message -match 'Trợ lý|tri thức') {

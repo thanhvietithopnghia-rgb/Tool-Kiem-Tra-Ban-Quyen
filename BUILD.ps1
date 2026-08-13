@@ -15,8 +15,8 @@ Set-StrictMode -Version 2.0
 
 $productVersion = '4.8'
 $releaseVersion = '4.8.0.0'
-$releaseBuildDate = '2026.08.12'
-$releaseLabel = "$releaseVersion-rc1-20260812"
+$releaseBuildDate = '2026.08.13'
+$releaseLabel = "$releaseVersion-rc1-20260813"
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -867,7 +867,7 @@ $infoLines = @(
     'Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.',
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
-    'Tro ly schema 1.1 co hon 270 tu khoa/cach hoi, chuan hoa viet tat/loi go, xu ly nhieu y dinh va rang buoc knowledge 1.1.0 theo Tool 4.8.',
+    'Tro ly schema 1.1 / knowledge 1.2.0 co 58 nhom va 429 tu khoa/cach hoi; hieu moi cau lien quan Tool theo tri thuc, HDSD nhung, bao cao hien co va ngu canh luot truoc; ngoai pham vi duoc dien dat theo chu de.',
     'Catalogue phan mem 1.3.1.0 co 76 quy tac; bo sung IObit Driver Booster, WIRIS MathType va nhom PDF editor thuong mai; sua nhan nham Driver Booster thanh driver he thong va nhan ten ngan IDM.',
     'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',

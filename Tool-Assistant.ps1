@@ -1,10 +1,11 @@
 ﻿$script:ToolAssistantSchemaVersion = "1.1"
 $script:ToolAssistantToolVersion = "4.8.0.0"
-$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.1.0"
+$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.2.0"
 $script:ToolAssistantKnowledgeFileName = "tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantMaxKnowledgeBytes = 2097152
 $script:ToolAssistantMaxReportBytes = 10485760
+$script:ToolAssistantDocumentCache = @{}
 
 function Get-ToolAssistantMetadata {
     return [pscustomobject][ordered]@{
@@ -22,6 +23,9 @@ function Get-ToolAssistantMetadata {
         CentralServerRequired = $false
         KnowledgeStorage = "BundledAndPerUserLocalCache"
         ReportContextSource = "CurrentDeviceLocalReportOnly"
+        CoverageMode = "KnowledgePlusBundledDocumentation"
+        ContextAwareFollowUp = $true
+        ContextualOutOfScope = $true
         KnowledgeCompatibilityEnforced = $true
         KnowledgeFileName = $script:ToolAssistantKnowledgeFileName
     }
@@ -45,8 +49,9 @@ function ConvertTo-ToolAssistantSearchKey {
     $replacements = [ordered]@{
         'k'='khong'; 'ko'='khong'; 'kh'='khong'; 'dc'='duoc'; 'dk'='duoc'
         'tl'='tra loi'; 'pm'='phan mem'; 'bc'='bao cao'; 'csdl'='co so du lieu'
+        'pb'='phien ban'; 'cn'='chuc nang'; 'hd'='huong dan'; 'sd'='su dung'
         'hdsd'='huong dan su dung'; 'pfd'='pdf'; 'ofline'='offline'; 'offine'='offline'
-        'fixx'='sua'; 'fix'='sua'; 'kt'='kiem tra'; 'ktra'='kiem tra'
+        'fixx'='sua'; 'fix'='sua'; 'kt'='kiem tra'; 'ktra'='kiem tra'; 'kieu'='kieu'
     }
     $tokens = @($key -split ' ' | Where-Object { $_ })
     $expanded = New-Object System.Collections.Generic.List[string]
@@ -210,6 +215,125 @@ function Get-ToolAssistantTokenDistance {
     return $previous[$Right.Length]
 }
 
+function Test-ToolAssistantFollowUpQuery {
+    param([Parameter(Mandatory = $true)][string]$QueryKey)
+
+    if ([string]::IsNullOrWhiteSpace($QueryKey)) { return $false }
+    if ($QueryKey -match '^(?:con|the con|vay|vay con|no|cai nay|cai do|muc nay|muc do|chuc nang nay|chuc nang do|truong hop nay|truong hop do)\b') { return $true }
+    if ($QueryKey -match '^(?:cach dung no|su dung no|lam sao dung|noi ro hon|chi tiet hon|giai thich them|tai sao vay|sao nua|tiep theo)\b') { return $true }
+    $tokens = @($QueryKey -split ' ' | Where-Object { $_ })
+    return [bool]($tokens.Count -le 4 -and $QueryKey -match '\b(?:no|nay|do|them|tiep|con)\b')
+}
+
+function Expand-ToolAssistantContextQuery {
+    param(
+        [Parameter(Mandatory = $true)][string]$QueryKey,
+        [AllowNull()][string]$PreviousQuestion
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$PreviousQuestion) -or -not (Test-ToolAssistantFollowUpQuery -QueryKey $QueryKey)) {
+        return $QueryKey
+    }
+    $previousKey = ConvertTo-ToolAssistantSearchKey -Value $PreviousQuestion
+    if ([string]::IsNullOrWhiteSpace($previousKey)) { return $QueryKey }
+    return ($QueryKey + ' ' + $previousKey).Trim()
+}
+
+function Test-ToolAssistantRelatedQuery {
+    param(
+        [Parameter(Mandatory = $true)][string]$QueryKey,
+        [AllowNull()][string]$PreviousQuestion
+    )
+
+    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|backup|sao luu|khoi phuc|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|kich hoat|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc)\b') { return $true }
+    if ($QueryKey -match '^(?:phien ban|version|do ai phat trien|ai phat trien|tac gia|ngay phat hanh|ngay build|tom tat|noi dung chinh|muc dich|nguyen tac|cong nghe|yeu cau he thong|cach chay|cach cai|tai o dau)\b') { return $true }
+    if (-not [string]::IsNullOrWhiteSpace([string]$PreviousQuestion) -and (Test-ToolAssistantFollowUpQuery -QueryKey $QueryKey)) {
+        $previousKey = ConvertTo-ToolAssistantSearchKey -Value $PreviousQuestion
+        return Test-ToolAssistantRelatedQuery -QueryKey $previousKey -PreviousQuestion $null
+    }
+    return $false
+}
+
+function ConvertTo-ToolAssistantPlainDocumentLine {
+    param([AllowNull()][string]$Line)
+
+    $text = ([string]$Line).Trim()
+    if ([string]::IsNullOrWhiteSpace($text) -or $text -match '^```') { return '' }
+    $text = $text -replace '!\[[^\]]*\]\([^\)]*\)', ''
+    $text = $text -replace '\[([^\]]+)\]\([^\)]+\)', '$1'
+    $text = $text -replace '\*\*([^\*]+)\*\*', '$1'
+    $text = $text -replace '`([^`]+)`', '$1'
+    $text = $text -replace '^[-*]\s+', '- '
+    return $text.Trim()
+}
+
+function Get-ToolAssistantDocumentSections {
+    param([ValidateSet('vi-VN','en-US')][string]$Culture = 'vi-VN')
+
+    if ($script:ToolAssistantDocumentCache.ContainsKey($Culture)) {
+        return @($script:ToolAssistantDocumentCache[$Culture])
+    }
+    $fileName = if ($Culture -eq 'en-US') { 'USER-GUIDE-en-US.md' } else { 'HUONG-DAN.txt' }
+    $path = Join-Path $PSScriptRoot $fileName
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $script:ToolAssistantDocumentCache[$Culture] = @()
+        return @()
+    }
+    try { $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8 -ErrorAction Stop } catch {
+        $script:ToolAssistantDocumentCache[$Culture] = @()
+        return @()
+    }
+    $sections = New-Object System.Collections.Generic.List[object]
+    $matches = [regex]::Matches($raw, '(?ms)^#{2,3}[ \t]+([^\r\n]+)\r?\n(.*?)(?=^#{2,3}[ \t]+|\z)')
+    foreach ($match in $matches) {
+        $heading = ConvertTo-ToolAssistantPlainDocumentLine -Line ([string]$match.Groups[1].Value)
+        $body = [string]$match.Groups[2].Value
+        if ([string]::IsNullOrWhiteSpace($heading) -or [string]::IsNullOrWhiteSpace($body)) { continue }
+        $searchKey = ConvertTo-ToolAssistantSearchKey -Value ($heading + ' ' + $body)
+        [void]$sections.Add([pscustomobject]@{ Heading=$heading; Body=$body; HeadingKey=(ConvertTo-ToolAssistantSearchKey -Value $heading); SearchKey=$searchKey })
+    }
+    $result = @($sections.ToArray())
+    $script:ToolAssistantDocumentCache[$Culture] = $result
+    return $result
+}
+
+function Get-ToolAssistantDocumentAnswer {
+    param(
+        [Parameter(Mandatory = $true)][string]$QueryKey,
+        [ValidateSet('vi-VN','en-US')][string]$Culture = 'vi-VN'
+    )
+
+    $stopTokens = @('bo','cua','cho','voi','nay','kia','mot','nhung','cac','the','nao','gi','la','va','theo','all','duoc','khong','co','hay','minh','toi','ban','tool','cong','cu')
+    $queryTokens = @($QueryKey -split ' ' | Where-Object { $_.Length -ge 2 -and $_ -notin $stopTokens } | Select-Object -Unique)
+    if ($queryTokens.Count -eq 0) { return '' }
+    $best = $null
+    $bestScore = 0
+    foreach ($section in @(Get-ToolAssistantDocumentSections -Culture $Culture)) {
+        $score = 0
+        if ($QueryKey.Contains([string]$section.HeadingKey) -or ([string]$section.HeadingKey).Contains($QueryKey)) { $score += 90 }
+        foreach ($token in $queryTokens) {
+            if (([string]$section.HeadingKey -split ' ') -contains $token) { $score += 14 }
+            elseif (([string]$section.SearchKey -split ' ') -contains $token) { $score += 3 }
+            elseif ($token.Length -ge 5 -and ([string]$section.HeadingKey).Contains($token)) { $score += 7 }
+        }
+        if ($QueryKey -match '\b(?:cach|huong dan|su dung|thao tac|cac buoc|lam sao)\b' -and [string]$section.Body -match '(?m)^\s*1\.') { $score += 8 }
+        if ($score -gt $bestScore) { $bestScore = $score; $best = $section }
+    }
+    if ($null -eq $best -or $bestScore -lt 24) { return '' }
+
+    $selected = New-Object System.Collections.Generic.List[string]
+    foreach ($rawLine in ([string]$best.Body -split '\r?\n')) {
+        $line = ConvertTo-ToolAssistantPlainDocumentLine -Line $rawLine
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line.Length -gt 360) { $line = $line.Substring(0, 357).TrimEnd() + '...' }
+        [void]$selected.Add($line)
+        if ($selected.Count -ge 9 -or (($selected -join "`r`n").Length -ge 1300)) { break }
+    }
+    if ($selected.Count -eq 0) { return '' }
+    $prefix = if ($Culture -eq 'en-US') { "For '$([string]$best.Heading)':" } else { "Về mục '$([string]$best.Heading)':" }
+    return ($prefix + "`r`n" + ($selected -join "`r`n"))
+}
+
 function Get-ToolAssistantEntryScore {
     param([Parameter(Mandatory = $true)][string]$QueryKey, [Parameter(Mandatory = $true)][object]$Entry)
 
@@ -249,8 +373,32 @@ function Get-ToolAssistantEntryScore {
 function Get-ToolAssistantPriorityEntryId {
     param([Parameter(Mandatory = $true)][string]$QueryKey)
 
+    if ($QueryKey -match '(?:tool|cong cu).*(?:phien ban|version)|(?:phien ban|version).*(?:tool|cong cu|hien tai|dang dung|moi nhat|bay gio)|^(?:phien ban|version)(?: hien tai| moi nhat)?$') { return 'tool-version' }
+    if ($QueryKey -match '(?:tac gia|author|nguoi phat trien|developer)|(?:do ai|ai).*(?:phat trien|viet|tao ra|lam ra)') { return 'tool-author' }
+    if ($QueryKey -match '(?:ngay|thoi diem).*(?:phat hanh|ra mat|build)|(?:phat hanh|ra mat|build).*(?:ngay nao|khi nao|luc nao)') { return 'release-date' }
+    if ($QueryKey -match '(?:tom tat|noi dung chinh|gioi thieu ngan|tong quan|tool lam gi|cong cu lam gi|muc dich cua tool)') { return 'tool-overview' }
+    if ($QueryKey -match '(?:nguyen tac|triet ly|tieu chi).*(?:tool|cong cu|hoat dong|an toan)|^(?:nguyen tac|triet ly|tieu chi)(?: cua tool)?$') { return 'tool-principles' }
+    if ($QueryKey -match '(?:tat ca|toan bo|10|tung).*(?:chuc nang|tinh nang|tac vu)|(?:chuc nang|tinh nang).*(?:gom nhung gi|co gi|danh sach|tong hop|tom tat)') { return 'feature-overview' }
+    if ($QueryKey -match '(?:cach chay|khoi dong tool|bat tool|mo tool|bat dau su dung|lan dau su dung|huong dan nhanh|getting started)') { return 'getting-started' }
+    if ($QueryKey -match '(?:yeu cau he thong|cau hinh toi thieu|windows nao chay duoc|he dieu hanh ho tro|tuong thich windows|32 bit|64 bit|powershell may|\.net framework)') { return 'system-requirements' }
+    if ($QueryKey -match '(?:cong nghe|ngon ngu lap trinh|viet bang gi|nen tang|winforms|anycpu|kien truc cua tool)') { return 'technology' }
+    if ($QueryKey -match '(?:doi ngon ngu|tieng viet|english|sang toi|light dark|giao dien|cai dat).*(?:tool|chuyen|doi|chon|mau|ngon ngu)|(?:cach doc man hinh chinh)') { return 'interface-settings' }
+    if ($QueryKey -match '(?:dung tac vu|huy tac vu|nut dung|quet bi lau|quet bi treo|khac phuc bi dung)') { return 'stop-task' }
+    if ($QueryKey -match '(?:sao luu|backup|khoi phuc backup|restore backup|phuc hoi backup)') { return 'backup-restore' }
+    if ($QueryKey -match '(?:khong mo duoc|khong chay duoc|khong khoi dong duoc).*(?:exe|tool|cong cu)|(?:exe|tool|cong cu).*(?:bi chan|khong mo|khong chay|khong khoi dong)') { return 'launch-troubleshooting' }
+    if ($QueryKey -match '(?:khong thay|thieu|bo sot).*(?:phan mem|ung dung)|(?:phan mem|ung dung).*(?:khong hien|khong duoc tim thay|bi thieu)') { return 'software-not-found' }
+    if ($QueryKey -match '(?:khong tao duoc|tao that bai|bi loi).*(?:pdf)|(?:pdf).*(?:khong tao|that bai|bi loi)') { return 'report-pdf-failure' }
+    if ($QueryKey -match '(?:online).*(?:loi|that bai|khong ket noi|khong cap nhat|khong dong bo)|(?:khong ket noi|khong cap nhat|khong dong bo).*(?:online|internet)') { return 'online-troubleshooting' }
+    if ($QueryKey -match '(?:may chu|server).*(?:tao cau hinh|xoa cau hinh|khoi dong|dung may chu|ma ghep noi|url acl|firewall)|(?:tao|xoa|khoi dong|dung).*(?:cau hinh may chu|server)') { return 'enterprise-server-management' }
+    if ($QueryKey -match '(?:may tram|client|workstation).*(?:ghep noi|gui bao cao|agent|tu tim)|(?:ghep noi|gui bao cao|chay agent).*(?:may tram|client)') { return 'enterprise-client-management' }
+    if ($QueryKey -match '(?:kenh ho tro|lien he tac gia|email ho tro|zalo ho tro|can ho tro tool)') { return 'support-channel' }
+    if ($QueryKey -match '(?:plugin|quy tac mo rong).*(?:cai|kiem tra|danh gia|json|thu muc|an toan)|(?:cai|danh gia).*(?:plugin)') { return 'plugin-management' }
+    if ($QueryKey -match '(?:chung chi|certificate|authenticode).*(?:windows|office|kiem tra|xac minh)|(?:kiem tra).*(?:chung chi so|certificate)') { return 'certificate-audit' }
+    if ($QueryKey -match '(?:timeline|dong thoi gian|lich su thay doi).*(?:ban quyen|xac minh|xuat)|(?:xac minh|xuat).*(?:timeline)') { return 'license-timeline' }
+    if ($QueryKey -match '(?:huong dan su dung|tai lieu huong dan|lich su phien ban).*(?:mo|xem|o dau|html|pdf)|(?:mo|xem).*(?:huong dan chi tiet|lich su phien ban)') { return 'embedded-documents' }
+    if ($QueryKey -match '(?:dinh dang|loai tep|file nao|docx|word).*(?:bao cao|xuat)|(?:bao cao).*(?:json|xml|html|pdf|docx|dinh dang)') { return 'report-formats' }
     $functionRoutes = [ordered]@{
-        '10'='report-center'; '9'='deep-scan'; '8'='enterprise'; '7'='backup-restore'; '6'='remediation'
+        '10'='report-center'; '9'='deep-scan'; '8'='enterprise'; '7'='oem'; '6'='remediation'
         '5'='software'; '4'='office-license'; '3'='windows-license'; '2'='hardware'; '1'='scan-all'
     }
     foreach ($number in $functionRoutes.Keys) {
@@ -440,7 +588,7 @@ function Get-ToolAssistantVariantIndex {
 
 function Get-ToolAssistantFallbackAnswer {
     param(
-        [Parameter(Mandatory = $true)][ValidateSet('Outside','Ambiguous','Unsafe','Missing')][string]$Kind,
+        [Parameter(Mandatory = $true)][ValidateSet('Outside','Ambiguous','Insufficient','Unsafe','Missing')][string]$Kind,
         [AllowNull()][string]$Question,
         [ValidateSet("vi-VN", "en-US")][string]$Culture = "vi-VN"
     )
@@ -469,18 +617,42 @@ function Get-ToolAssistantFallbackAnswer {
             if ($english) { @('The local knowledge base is unavailable, so I cannot give a reliable answer yet.') }
             else { @('Không đọc được bộ tri thức tương thích của phiên bản Tool này nên Trợ lý chưa thể trả lời đáng tin cậy.') }
         }
-        default {
+        'Insufficient' {
             if ($english) { @(
-                'That is outside Tool Kiem Tra. I can still help with its features, scans, reports, error codes, backup, remediation, or server/workstation mode.',
-                'I do not have a reliable Tool Kiem Tra answer for that topic. Ask me about a tool button, scan result, report, or error and I will stay within that scope.',
-                'This assistant is limited to Tool Kiem Tra, so I will leave that question unanswered. A feature name or report excerpt will get you a more useful response.'
+                'This is related to Tool Kiem Tra, but the local data does not contain enough verified detail for a reliable conclusion. Add the exact feature, status, error line, or current report evidence.',
+                'I can identify this as a Tool topic, but the available Tool data is not specific enough to answer safely. Send the button name, complete message, or matching report section.'
             ) } else { @(
-                'Nội dung này nằm ngoài phạm vi Tool Kiểm Tra. Trợ lý có thể hỗ trợ về chức năng, quét, báo cáo, mã lỗi, sao lưu, khắc phục hoặc chế độ Máy chủ–Máy trạm.',
-                'Trợ lý chưa có câu trả lời đáng tin cậy trong phạm vi Tool cho chủ đề này. Bạn có thể hỏi bằng tên nút, kết quả quét, báo cáo hoặc mã lỗi cụ thể.',
-                'Câu này không thuộc phạm vi Tool Kiểm Tra nên Trợ lý xin phép không trả lời. Nếu gửi tên chức năng hoặc một đoạn kết luận trong báo cáo, Trợ lý sẽ hỗ trợ sát hơn.'
+                'Câu hỏi có liên quan đến Tool, nhưng dữ liệu cục bộ chưa đủ chi tiết đã kiểm chứng để kết luận đáng tin cậy. Bạn hãy thêm tên chức năng, trạng thái, nguyên dòng lỗi hoặc bằng chứng trong báo cáo hiện tại.',
+                'Trợ lý nhận ra đây là nội dung của Tool nhưng dữ liệu sẵn có chưa đủ cụ thể để trả lời an toàn. Hãy gửi tên nút, thông báo đầy đủ hoặc đúng mục báo cáo liên quan.'
+            ) }
+        }
+        default {
+            $outsideKey = ConvertTo-ToolAssistantSearchKey -Value $Question
+            if ($outsideKey -match '\b(?:nau|mon an|bun|pho|com|banh|cong thuc nau)\b') {
+                if ($english) { @('Cooking is outside Tool Kiem Tra, so I do not have Tool data to answer that recipe. I can still help with running or interpreting the Tool.') }
+                else { @('Câu hỏi về nấu ăn nằm ngoài phạm vi Tool Kiểm Tra nên Trợ lý không có dữ liệu Tool để trả lời công thức này. Trợ lý vẫn có thể hỗ trợ cách chạy hoặc đọc kết quả của Tool.') }
+            } elseif ($outsideKey -match '\b(?:thoi tiet|du bao|mua nang|tin tuc|the thao|ty so)\b') {
+                if ($english) { @('Live weather, news, and sports are outside Tool Kiem Tra and are not present in its local data. Ask about a Tool status, scan, or report instead.') }
+                else { @('Thời tiết, tin tức hoặc tỷ số trực tiếp nằm ngoài phạm vi Tool Kiểm Tra và không có trong dữ liệu cục bộ của Tool. Bạn có thể hỏi về trạng thái, lượt quét hoặc báo cáo của Tool.') }
+            } elseif ($outsideKey -match '\b(?:benh|thuoc|suc khoe|bac si|luat|dau tu|chung khoan)\b') {
+                if ($english) { @('That professional topic is outside Tool Kiem Tra. This assistant will not substitute Tool data for medical, legal, or financial guidance.') }
+                else { @('Chủ đề chuyên môn này nằm ngoài phạm vi Tool Kiểm Tra. Trợ lý không dùng dữ liệu của Tool để thay cho tư vấn y tế, pháp lý hoặc tài chính.') }
+            } elseif ($outsideKey -match '\b(?:viet bai|lam tho|dich van ban|ke chuyen|sang tac)\b') {
+                if ($english) { @('Writing or translation unrelated to the product is outside Tool Kiem Tra. I can explain Tool text, labels, reports, and workflows when those are the subject.') }
+                else { @('Viết bài, làm thơ hoặc dịch nội dung không liên quan đến sản phẩm nằm ngoài phạm vi Tool Kiểm Tra. Nếu đó là nhãn, báo cáo hay quy trình của Tool, Trợ lý có thể giải thích.') }
+            } elseif ($english) { @(
+                'That topic is outside Tool Kiem Tra, so its local knowledge does not provide an answer. Questions about any Tool feature, state, report, error, or workflow remain in scope.',
+                'I cannot connect this question to Tool Kiem Tra data. If it concerns the product, include the screen, button, status, or message so I can use the right Tool context.',
+                'This request is unrelated to Tool Kiem Tra. The assistant remains available for the product, its operation, its evidence, and its supported Windows/Office/software workflows.'
+            ) } else { @(
+                'Chủ đề này không liên quan đến Tool Kiểm Tra nên nằm ngoài phạm vi dữ liệu của Trợ lý. Mọi câu hỏi về sản phẩm, chức năng, trạng thái, báo cáo, lỗi hoặc quy trình của Tool vẫn được hỗ trợ.',
+                'Trợ lý chưa liên hệ được câu hỏi này với dữ liệu của Tool Kiểm Tra. Nếu câu hỏi thực sự nói về Tool, bạn hãy thêm tên màn hình, nút, trạng thái hoặc thông báo để xác định đúng ngữ cảnh.',
+                'Yêu cầu này không thuộc Tool Kiểm Tra. Trợ lý vẫn trả lời các nội dung liên quan đến cách vận hành, bằng chứng và quy trình Windows, Office hoặc phần mềm mà Tool hỗ trợ.'
             ) }
         }
     }
+    $variants = @($variants)
+    if ($variants.Count -eq 0) { return '' }
     return [string]$variants[(Get-ToolAssistantVariantIndex -Text $Question -Count $variants.Count)]
 }
 
@@ -509,44 +681,68 @@ function Get-ToolAssistantAnswer {
         [Parameter(Mandatory = $true)][string]$Question,
         [ValidateSet("vi-VN", "en-US")][string]$Culture = "vi-VN",
         [AllowNull()][object]$Knowledge = $null,
-        [AllowNull()][object]$ReportContext = $null
+        [AllowNull()][object]$ReportContext = $null,
+        [AllowNull()][string]$PreviousQuestion = $null,
+        [AllowNull()][object]$OnlineMode = $null
     )
 
-    $queryKey = ConvertTo-ToolAssistantSearchKey -Value $Question
-    if ([string]::IsNullOrWhiteSpace($queryKey)) {
+    $originalQueryKey = ConvertTo-ToolAssistantSearchKey -Value $Question
+    if ([string]::IsNullOrWhiteSpace($originalQueryKey)) {
         if ($Culture -eq "en-US") { return "Please enter a question about Tool Kiem Tra." }
         return "Vui lòng nhập câu hỏi về Tool Kiểm Tra."
     }
+    $queryKey = Expand-ToolAssistantContextQuery -QueryKey $originalQueryKey -PreviousQuestion $PreviousQuestion
     if ($queryKey -match '(?:bo qua|vo hieu|tat|lach).*(?:ban quyen|kich hoat|defender|antivirus)|(?:crack|keygen).*(?:cach lam|huong dan|tai o dau)') {
         return Get-ToolAssistantFallbackAnswer -Kind Unsafe -Question $Question -Culture $Culture
     }
-    if ($queryKey -match '^(xin chao|chao|hello|hi|alo|hey)\b') {
+    if ($originalQueryKey -match '^(xin chao|chao|hello|hi|alo|hey)\b') {
         if ($Culture -eq "en-US") { return "Hello. I am Tool Assistant. Ask me about a button, report result, error code or workflow in Tool Kiem Tra." }
         return "Xin chào. Đây là Trợ lý Tool. Bạn có thể hỏi về nút chức năng, kết quả báo cáo, mã lỗi hoặc cách dùng Tool Kiểm Tra."
     }
-    if ($queryKey -match '(bao cao hien tai|bao cao vua|ket qua hien tai|ket qua vua|trang thai hien tai|may nay|scan result|current report|current status|explain (?:the )?current report)') {
+    if ($null -ne $OnlineMode -and $originalQueryKey -match '(?:(?:tool|cong cu|che do|trang thai mang|trang thai).*(?:online|offline).*(?:hien tai|luc nay|bay gio|dang)|(?:trang thai|che do).*(?:online|offline).*(?:hien tai|luc nay|bay gio)|(?:dang|hien tai).*(?:online|offline)|^online hay offline$)') {
+        $isOnline = [bool]$OnlineMode
+        if ($Culture -eq 'en-US') {
+            if ($isOnline) { return 'The Tool is Online for this session. Network access is allowed only for actions you explicitly start; reopening the Tool returns to Offline.' }
+            return 'The Tool is currently Offline. Local scans, reports, and the bundled Assistant knowledge remain available without Internet access.'
+        }
+        if ($isOnline) { return 'Tool đang Online trong phiên hiện tại. Quyền mạng chỉ được dùng cho thao tác bạn chủ động chạy; đóng rồi mở lại Tool sẽ trở về Offline.' }
+        return 'Tool hiện đang Offline. Các lượt quét cục bộ, báo cáo và kho tri thức nhúng của Trợ lý vẫn dùng được mà không cần Internet.'
+    }
+    if ($originalQueryKey -match '(bao cao hien tai|bao cao vua|ket qua hien tai|ket qua vua|trang thai hien tai cua may|may nay dang the nao|scan result|current report|current status|explain (?:the )?current report)') {
         return Format-ToolAssistantReportContext -Context $ReportContext -Culture $Culture
     }
     if ($null -eq $Knowledge) { $Knowledge = Get-ToolAssistantKnowledge }
     if ($null -eq $Knowledge) {
         return Get-ToolAssistantFallbackAnswer -Kind Missing -Question $Question -Culture $Culture
     }
-    if ($queryKey -match '\bcap nhat\b' -and $queryKey -notmatch '\b(tool|cong cu|phan mem|ung dung|co so du lieu|kho tri thuc|danh muc|catalog|phien ban)\b') {
-        return Get-ToolAssistantFallbackAnswer -Kind Ambiguous -Question $Question -Culture $Culture
-    }
+    $toolRelated = Test-ToolAssistantRelatedQuery -QueryKey $originalQueryKey -PreviousQuestion $PreviousQuestion
     $resolved = Resolve-ToolAssistantEntry -QueryKey $queryKey -Knowledge $Knowledge
     $bestEntry = $resolved.Entry
     $contentTokens = @($queryKey -split ' ' | Where-Object { $_.Length -ge 2 -and $_ -notin @('co','la','gi','duoc','khong','the','nao','hay','va') })
     if ($null -eq $bestEntry -or [int]$resolved.Score -lt 14) {
-        $toolRelated = [bool]($queryKey -match '\b(tool|bao cao|quet|scan|windows|office|phan mem|may chu|may tram|server|client|pdf|json|html|kms|activator|backup|khoi phuc|cap nhat|loi)\b')
-        return Get-ToolAssistantFallbackAnswer -Kind $(if ($toolRelated) { 'Ambiguous' } else { 'Outside' }) -Question $Question -Culture $Culture
+        if ($toolRelated) {
+            $documentAnswer = Get-ToolAssistantDocumentAnswer -QueryKey $queryKey -Culture $Culture
+            if (-not [string]::IsNullOrWhiteSpace($documentAnswer)) { return Add-ToolAssistantNaturalLead -Answer $documentAnswer -Question $Question -Culture $Culture }
+            return Get-ToolAssistantFallbackAnswer -Kind Insufficient -Question $Question -Culture $Culture
+        }
+        return Get-ToolAssistantFallbackAnswer -Kind Outside -Question $Question -Culture $Culture
     }
     if ([string]$resolved.Route -eq 'ScoredKeywords' -and $contentTokens.Count -le 1) {
-        return Get-ToolAssistantFallbackAnswer -Kind Ambiguous -Question $Question -Culture $Culture
+        if ($toolRelated) {
+            $documentAnswer = Get-ToolAssistantDocumentAnswer -QueryKey $queryKey -Culture $Culture
+            if (-not [string]::IsNullOrWhiteSpace($documentAnswer)) { return Add-ToolAssistantNaturalLead -Answer $documentAnswer -Question $Question -Culture $Culture }
+            return Get-ToolAssistantFallbackAnswer -Kind Insufficient -Question $Question -Culture $Culture
+        }
+        return Get-ToolAssistantFallbackAnswer -Kind Outside -Question $Question -Culture $Culture
     }
     if ([string]$resolved.Route -eq 'ScoredKeywords' -and
         $resolved.PSObject.Properties['SecondScore'] -and [int]$resolved.SecondScore -ge 18 -and [int]$resolved.Margin -lt 5) {
-        return Get-ToolAssistantFallbackAnswer -Kind Ambiguous -Question $Question -Culture $Culture
+        $firstTitle = if ($Culture -eq 'en-US') { [string]$bestEntry.TitleEn } else { [string]$bestEntry.TitleVi }
+        $secondTitle = if ($Culture -eq 'en-US') { [string]$resolved.SecondEntry.TitleEn } else { [string]$resolved.SecondEntry.TitleVi }
+        $firstAnswer = if ($Culture -eq 'en-US') { [string]$bestEntry.AnswerEn } else { [string]$bestEntry.AnswerVi }
+        $secondAnswer = if ($Culture -eq 'en-US') { [string]$resolved.SecondEntry.AnswerEn } else { [string]$resolved.SecondEntry.AnswerVi }
+        $combined = "${firstTitle}:`r`n$firstAnswer`r`n`r`n${secondTitle}:`r`n$secondAnswer"
+        return Add-ToolAssistantNaturalLead -Answer $combined -Question $Question -Culture $Culture
     }
     $answer = if ($Culture -eq "en-US") { [string]$bestEntry.AnswerEn } else { [string]$bestEntry.AnswerVi }
     if ($queryKey -match '\b(va|dong thoi|kem theo|them nua)\b' -and
@@ -565,10 +761,10 @@ function Get-ToolAssistantUiText {
     $english = [bool]($Culture -eq "en-US")
     switch ($Key) {
         "Title" { if ($english) { return "Tool Assistant" }; return "Trợ lý Tool" }
-        "Scope" { if ($english) { return "Answers only within Tool Kiem Tra." }; return "Chỉ giải đáp trong phạm vi Tool Kiểm Tra." }
+        "Scope" { if ($english) { return "Understands all Tool-related questions supported by its local data." }; return "Hiểu mọi câu hỏi liên quan đến Tool theo dữ liệu cục bộ sẵn có." }
         "Offline" { if ($english) { return "OFFLINE · local knowledge" }; return "OFFLINE · tri thức cục bộ" }
         "Online" { if ($english) { return "ONLINE · knowledge sync allowed" }; return "ONLINE · cho phép đồng bộ tri thức" }
-        "Input" { if ($english) { return "Ask about a feature, report result or error code..." }; return "Hỏi về chức năng, kết quả báo cáo hoặc mã lỗi..." }
+        "Input" { if ($english) { return "Ask anything related to Tool Kiem Tra..." }; return "Hỏi mọi nội dung liên quan đến Tool Kiểm Tra..." }
         "Send" { if ($english) { return "Send" }; return "Gửi" }
         "Copy" { if ($english) { return "Copy" }; return "Sao chép" }
         "Clear" { if ($english) { return "Clear" }; return "Xóa hội thoại" }
@@ -581,7 +777,7 @@ function Get-ToolAssistantUiText {
         "OnlineEnabled" { if ($english) { return "Online is now allowed for this session. You can synchronize Tool Assistant knowledge." }; return "Đã cho phép Online trong phiên này. Bạn có thể đồng bộ tri thức Trợ lý Tool." }
         "OnlineNotEnabled" { if ($english) { return "Online was not enabled. Tool Assistant continues with local knowledge." }; return "Chưa bật Online. Trợ lý tiếp tục dùng tri thức cục bộ." }
         "Close" { if ($english) { return "Close" }; return "Đóng" }
-        "Welcome" { if ($english) { return "I answer questions only within Tool Kiem Tra. Ask about a feature, report result, error code or workflow." }; return "Trợ lý Tool chỉ giải đáp trong phạm vi Tool Kiểm Tra. Bạn có thể hỏi về chức năng, kết quả báo cáo, mã lỗi hoặc cách sử dụng." }
+        "Welcome" { if ($english) { return "I understand questions related to Tool Kiem Tra and answer from its local knowledge, documentation, and current report data. Ask in your own words." }; return "Trợ lý hiểu các câu hỏi liên quan đến Tool Kiểm Tra và trả lời từ kho tri thức, tài liệu cùng dữ liệu báo cáo hiện có. Bạn cứ hỏi theo cách tự nhiên." }
         "You" { if ($english) { return "You" }; return "Bạn" }
         "Assistant" { if ($english) { return "Tool Assistant" }; return "Trợ lý Tool" }
         default { return $Key }
@@ -811,6 +1007,7 @@ function Clear-ToolAssistantConversation {
     }
     if ($State.PSObject.Properties['Transcript'] -and $null -ne $State.Transcript) { [void]$State.Transcript.Clear() }
     if ($State.PSObject.Properties['LastQuestionKey']) { $State.LastQuestionKey = "" }
+    if ($State.PSObject.Properties['LastQuestionText']) { $State.LastQuestionText = "" }
     if ($State.PSObject.Properties['LastAnswer']) { $State.LastAnswer = "" }
 }
 
@@ -823,6 +1020,7 @@ function Invoke-ToolAssistantQuestion {
     $question = $question.Trim()
     $answer = ""
     $questionKey = ConvertTo-ToolAssistantSearchKey -Value $question
+    $previousQuestion = if ($State.PSObject.Properties['LastQuestionText']) { [string]$State.LastQuestionText } else { '' }
     $State.IsSubmitting = $true
     if ($State.PSObject.Properties['SendButton'] -and $null -ne $State.SendButton) { $State.SendButton.Enabled = $false }
     $State.Input.Enabled = $false
@@ -838,10 +1036,12 @@ function Invoke-ToolAssistantQuestion {
                 "Câu này trùng với lượt ngay trước. Nội dung phía trên vẫn còn hiệu lực; bạn hãy thêm mã lỗi, dòng báo cáo hoặc chi tiết khác nếu muốn Trợ lý phân tích sâu hơn."
             }
         } else {
-            $answer = Get-ToolAssistantAnswer -Question $question -Culture $State.Culture -Knowledge $State.Knowledge -ReportContext $State.ReportContext
+            $currentOnlineMode = if ($State.PSObject.Properties['OnlineMode']) { [bool]$State.OnlineMode } else { $null }
+            $answer = Get-ToolAssistantAnswer -Question $question -Culture $State.Culture -Knowledge $State.Knowledge -ReportContext $State.ReportContext -PreviousQuestion $previousQuestion -OnlineMode $currentOnlineMode
         }
         [void](Add-ToolAssistantChatMessage -State $State -Role Assistant -Message $answer)
         if ($State.PSObject.Properties['LastQuestionKey']) { $State.LastQuestionKey = $questionKey }
+        if ($State.PSObject.Properties['LastQuestionText']) { $State.LastQuestionText = $question }
         if ($State.PSObject.Properties['LastAnswer']) { $State.LastAnswer = [string]$answer }
     } finally {
         $State.IsSubmitting = $false
@@ -1172,6 +1372,7 @@ function Show-ToolAssistantWindow {
         IsSubmitting = $false
         SubmissionQueued = $false
         LastQuestionKey = ""
+        LastQuestionText = ""
         LastAnswer = ""
         PendingRevealControl = $null
         RevealQueued = $false

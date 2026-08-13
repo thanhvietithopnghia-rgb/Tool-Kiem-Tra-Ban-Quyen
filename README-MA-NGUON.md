@@ -1,11 +1,11 @@
 # Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0 — mã nguồn
 
-Release `4.8.0.0`, build `2026.08.12`, tập trung vào tốc độ, khả năng sử dụng và an toàn; bản hiện tại được cập nhật đè mà không tạo phiên bản mới. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Release `4.8.0.0`, build `2026.08.13`, tập trung vào tốc độ, khả năng sử dụng và an toàn; bản hiện tại được cập nhật đè mà không tạo phiên bản mới. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
 
 ## Điểm mới v4.8.0 — Nhanh hơn, dễ dùng hơn, an toàn hơn
 
-- `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng; bộ định tuyến chuẩn hóa viết tắt/lỗi gõ, xử lý nhiều ý định và tạo lời dẫn/từ chối biến đổi theo ngữ cảnh.
-- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.1.0`, 35 nhóm nội dung và hơn 270 từ khóa/cách hỏi. Cache/Online không tương thích bị từ chối fail-closed.
+- `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng. Bộ định tuyến ưu tiên ý định cụ thể, hiểu câu tiếp nối theo lượt trước, kết hợp kho tri thức với HDSD nhúng và chỉ dùng từ chối ngoài phạm vi khi câu hỏi thật sự không liên quan; câu ngoài phạm vi được diễn đạt theo từng ngữ cảnh.
+- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.2.0`, 58 nhóm nội dung và 429 từ khóa/cách hỏi. Phạm vi bao phủ thông tin sản phẩm, 10 chức năng cùng các chức năng con, lỗi/vận hành và dữ liệu báo cáo hiện có; cache/Online không tương thích bị từ chối fail-closed.
 - `Tool-SoftwareInventory.ps1` gộp record trùng theo định danh sản phẩm/hãng/dòng phiên bản, gồm cả bản vá cùng dòng và x86/x64; giữ mọi DiscoverySource, vị trí, kiến trúc, phân loại thành phần hệ thống và dùng `IntegrityCompromised` cho HashMismatch không kèm bằng chứng giấy phép trực tiếp.
 - Nút thắt gộp inventory được đổi sang descriptor tính một lần; Authenticode nhanh chạy theo lô tối đa bốn worker. Đối chứng cùng dữ liệu đạt 0 khác biệt, bước gộp 664→480 record giảm 118,33 giây xuống 11,05 giây và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
 - `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.3.1.0` với 76 quy tắc sản phẩm duy nhất.

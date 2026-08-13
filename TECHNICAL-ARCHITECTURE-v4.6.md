@@ -27,7 +27,7 @@ Tool-Kiem-Tra-v4.8.exe
        ├─ Tool-Localization.ps1            localization schema 1.0
        ├─ Tool-OfflinePolicy.ps1           offline policy schema 1.0
        ├─ Tool-Assistant.ps1               hỏi đáp tri thức cục bộ schema 1.1, định tuyến tự nhiên
-       │   └─ tool-assistant-knowledge-v1.1.json (Tool min/max + knowledge 1.1.0)
+       │   └─ tool-assistant-knowledge-v1.1.json (Tool min/max + knowledge 1.2.0)
        ├─ Tool-UpdateManager.ps1           update manifest schema 1.0 + verified swap/rollback
        ├─ Tool-SoftwareInventory.ps1       inventory/deep scan schema 1.0
        │   └─ software-license-catalog-v1.0.json  catalog 1.2

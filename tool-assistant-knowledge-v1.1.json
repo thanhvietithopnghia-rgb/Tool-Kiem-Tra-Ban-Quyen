@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.1.0",
-  "UpdatedAtUtc": "2026-08-10T08:00:00Z",
+  "KnowledgeVersion": "1.2.0",
+  "UpdatedAtUtc": "2026-08-13T00:00:00Z",
   "ToolVersionMin": "4.8.0.0",
   "ToolVersionMax": "4.8.65535.65535",
   "ReleasedWithToolVersion": "4.8.0.0",
@@ -12,8 +12,96 @@
       "TitleVi": "Phạm vi của Trợ lý Tool",
       "TitleEn": "Tool Assistant scope",
       "Keywords": ["tro ly", "chat bot", "chatbot", "hoi gi", "lam duoc gi", "pham vi", "ai", "codex", "api", "mien phi"],
-      "AnswerVi": "Trợ lý Tool chỉ giải đáp cách dùng, kết quả, mã lỗi và chức năng của Tool Kiểm Tra. Trợ lý dùng bộ tri thức cục bộ và không trả lời nội dung ngoài phạm vi công cụ.",
-      "AnswerEn": "Tool Assistant only explains Tool Kiem Tra features, results, error codes and workflows. It uses a local knowledge base and declines unrelated questions."
+      "AnswerVi": "Trợ lý hiểu và trả lời mọi câu hỏi liên quan đến Tool Kiểm Tra trong phạm vi dữ liệu Tool có: thông tin sản phẩm, toàn bộ chức năng và cách dùng, trạng thái máy, báo cáo, bằng chứng, lỗi, an toàn, cập nhật và Máy chủ–Máy trạm. Trợ lý dùng tri thức cục bộ, tài liệu nhúng và báo cáo hiện có; danh sách này là phạm vi mở theo dữ liệu, không phải một tập câu hỏi mẫu cố định. Nếu thiếu bằng chứng, Trợ lý nói rõ phần chưa xác định; chỉ từ chối khi nội dung thực sự không liên quan đến Tool.",
+      "AnswerEn": "Tool Assistant handles every Tool Kiem Tra-related question supported by available Tool data: product information, all features and workflows, device state, reports, evidence, errors, safety, updates, and server/workstation operation. It uses local knowledge, bundled documentation, and available report context; this is a data-driven scope, not a fixed sample-question list. It states when evidence is insufficient and declines only genuinely unrelated topics."
+    },
+    {
+      "Id": "tool-version",
+      "TitleVi": "Phiên bản hiện tại",
+      "TitleEn": "Current version",
+      "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v4.8", "v4.8.0.0"],
+      "AnswerVi": "Phiên bản hiện tại là Tool Kiểm Tra v4.8.0.0. Bản này được cập nhật tại chỗ trên cùng nhánh, tag và đường dẫn phát hành v4.8.0.0; số FileVersion/ProductVersion không đổi.",
+      "AnswerEn": "The current release is Tool Kiem Tra v4.8.0.0. It is maintained as an in-place update on the same v4.8.0.0 branch, tag, and release URL; FileVersion/ProductVersion remain unchanged."
+    },
+    {
+      "Id": "tool-author",
+      "TitleVi": "Tác giả phát triển",
+      "TitleEn": "Developer",
+      "Keywords": ["tac gia cua tool", "do ai phat trien", "ai phat trien tool", "nguoi viet tool", "developer cua tool", "ai tao ra cong cu", "thanh viet la ai"],
+      "AnswerVi": "Tool Kiểm Tra do Thanh Việt phát triển. Thông tin này được ghi trong mục Giới thiệu, Hướng dẫn sử dụng và phần chân giao diện của bản phát hành.",
+      "AnswerEn": "Tool Kiem Tra is developed by Thanh Viet. This attribution appears in About, the user guide, and the release interface footer."
+    },
+    {
+      "Id": "release-date",
+      "TitleVi": "Ngày phát hành và ngày build",
+      "TitleEn": "Release and build date",
+      "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v4.8"],
+      "AnswerVi": "Tag v4.8.0.0 được phát hành công khai ngày 10/08/2026. Bản cập nhật tại chỗ hiện tại được build ngày 13/08/2026 nhưng vẫn giữ nguyên phiên bản và đường dẫn phát hành v4.8.0.0. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi.",
+      "AnswerEn": "Tag v4.8.0.0 was publicly released on 10 August 2026. The current in-place build is dated 13 August 2026 while retaining the same v4.8.0.0 version and release URL. Open Version history in the Assurance Report Center for the change timeline."
+    },
+    {
+      "Id": "tool-overview",
+      "TitleVi": "Tóm tắt Tool Kiểm Tra",
+      "TitleEn": "Tool Kiem Tra overview",
+      "Keywords": ["tom tat tool", "noi dung chinh cua tool", "gioi thieu tool", "tool lam duoc nhung gi", "cong cu dung de lam gi", "muc dich cua cong cu", "tong quan san pham", "mo ta ngan gon"],
+      "AnswerVi": "Tool Kiểm Tra là công cụ Windows một-EXE dùng để kiểm kê cấu hình, kiểm tra trạng thái Windows/Office, rà soát phần mềm và dấu hiệu can thiệp, tạo báo cáo có thể đối chiếu, sao lưu/khôi phục và khắc phục có kiểm soát. Tool mặc định Offline, ưu tiên quét chỉ đọc; mọi thay đổi hệ thống phải qua chọn phạm vi, xem trước, xác nhận, backup và hậu kiểm.",
+      "AnswerEn": "Tool Kiem Tra is a one-EXE Windows utility for hardware inventory, Windows/Office status, software and tampering review, verifiable reports, backup/restore, and controlled remediation. It starts Offline and prioritizes read-only scans; system changes require scope selection, preview, confirmation, backup, and post-check."
+    },
+    {
+      "Id": "tool-principles",
+      "TitleVi": "Nguyên tắc hoạt động",
+      "TitleEn": "Operating principles",
+      "Keywords": ["nguyen tac cua tool", "triet ly hoat dong", "offline an toan minh bach", "tieu chi an toan", "read only uu tien", "khong telemetry", "khong cap nhat ngam"],
+      "AnswerVi": "Ba nguyên tắc chính là Offline – an toàn – minh bạch. Tool khởi động Offline, không telemetry và không tự cập nhật; kiểm tra/tạo báo cáo ưu tiên chỉ đọc; kết luận tách bằng chứng kỹ thuật khỏi quyền sử dụng pháp lý. Thao tác thay đổi hệ thống phải có xem trước, chọn đúng mục, xác nhận, quyền Administrator khi cần, backup và kiểm tra lại; dữ liệu hoặc bằng chứng chưa đủ thì Tool không đoán.",
+      "AnswerEn": "The three core principles are Offline, safe, and transparent. The Tool starts Offline, has no telemetry or silent updates, and keeps scans/reports read-only by default. It separates technical evidence from legal entitlement; changes require preview, explicit selection, confirmation, elevation when needed, backup, and post-check, while insufficient evidence is never guessed."
+    },
+    {
+      "Id": "feature-overview",
+      "TitleVi": "Mười chức năng chính",
+      "TitleEn": "Ten main features",
+      "Keywords": ["tat ca chuc nang", "10 chuc nang chinh", "tung chuc nang cua tool", "danh sach tinh nang", "tong hop chuc nang", "tool co bao nhieu chuc nang", "chuc nang gom nhung gi", "tom tat cac tac vu"],
+      "AnswerVi": "Tool có 10 chức năng chính: 1) Kiểm tra toàn bộ; 2) Cấu hình phần cứng; 3) Bản quyền Windows; 4) Bản quyền Microsoft Office; 5) Phần mềm & dấu hiệu can thiệp; 6) Khắc phục KMS/Activator Win, Office & phần mềm; 7) Khôi phục key OEM; 8) Quản lý giấy phép hợp lệ, gồm cục bộ/Máy chủ/Máy trạm; 9) Kiểm tra chuyên sâu; 10) Trung tâm báo cáo & bảo đảm. Có thể hỏi tiếp tên hoặc số bất kỳ để nhận mục đích, cách dùng, kết quả và lưu ý an toàn của chức năng đó.",
+      "AnswerEn": "The Tool has ten main features: 1) Full inspection; 2) Hardware configuration; 3) Windows licensing; 4) Microsoft Office licensing; 5) Software and tampering signals; 6) Windows/Office/software KMS-Activator remediation; 7) OEM key recovery; 8) Valid-license management with local/server/workstation modes; 9) Deep inspection; and 10) Assurance Report Center. Ask by any name or number for purpose, steps, output, and safety notes."
+    },
+    {
+      "Id": "getting-started",
+      "TitleVi": "Cách bắt đầu sử dụng",
+      "TitleEn": "Getting started",
+      "Keywords": ["cach chay tool", "khoi dong cong cu", "mo file exe", "bat dau su dung", "huong dan nhanh", "lan dau chay", "giai nen ban phat hanh", "chay tu file zip"],
+      "AnswerVi": "Hãy giải nén ZIP trước, đặt EXE trong thư mục cục bộ rồi nhấp đúp để chạy; không chạy trực tiếp bên trong ZIP. Giữ Offline nếu chỉ kiểm tra máy đang dùng, chọn ngôn ngữ/giao diện nếu cần, sau đó dùng Kiểm tra toàn bộ cho lượt đầu. Chọn báo cáo đã che khi cần chia sẻ; chỉ chấp nhận UAC khi đúng tác vụ khắc phục, cập nhật hoặc quản trị mà bạn vừa chủ động mở.",
+      "AnswerEn": "Extract the ZIP first, place the EXE in a normal local folder, and double-click it; do not run it inside the ZIP. Stay Offline for local inspection, choose language/theme if needed, then use Full inspection for the first run. Select a redacted report for sharing and accept UAC only for the remediation, update, or administration action you explicitly started."
+    },
+    {
+      "Id": "system-requirements",
+      "TitleVi": "Yêu cầu hệ thống và tương thích",
+      "TitleEn": "System requirements and compatibility",
+      "Keywords": ["yeu cau he thong cua tool", "cau hinh toi thieu de chay", "windows nao ho tro", "tuong thich he dieu hanh", "powershell 3 tro len", "net framework 4", "chay tren 32 bit", "chay tren 64 bit"],
+      "AnswerVi": "Tool dùng một EXE AnyCPU cho Windows 7 SP1 trở lên, chạy x86 trên Windows 32-bit và x64 trên Windows 64-bit. Nền tương thích là .NET Framework 4/CLR v4 và Windows PowerShell 3 trở lên. Khả năng nhận diện sâu các bản Windows/Office mới phụ thuộc catalogue đi kèm; bản chưa biết sẽ chuyển sang chỉ đọc/cần rà soát thay vì kết luận liều.",
+      "AnswerEn": "The Tool uses one AnyCPU EXE for Windows 7 SP1 or later, running x86 on 32-bit Windows and x64 on 64-bit Windows. Its baseline is .NET Framework 4/CLR v4 and Windows PowerShell 3 or later. Deep recognition of newer Windows/Office releases depends on the bundled catalogue; unknown builds fail to read-only/review rather than being guessed."
+    },
+    {
+      "Id": "technology",
+      "TitleVi": "Công nghệ của Tool",
+      "TitleEn": "Tool technology",
+      "Keywords": ["tool viet bang gi", "cong nghe cua tool", "ngon ngu lap trinh", "nen tang winforms", "csharp powershell", "kien truc anycpu", "du lieu json xml csv"],
+      "AnswerVi": "Launcher và giao diện dùng C#/.NET Framework 4 với Windows Forms; các mô-đun nghiệp vụ dùng Windows PowerShell và được nhúng trong một EXE AnyCPU có kiểm tra SHA-256. Dữ liệu dùng JSON/XML/CSV, báo cáo dùng HTML/PDF, còn tính toàn vẹn và dữ liệu nhạy cảm dùng SHA-256, HMAC và DPAPI theo đúng phạm vi.",
+      "AnswerEn": "The launcher and interface use C#/.NET Framework 4 with Windows Forms; operational modules use Windows PowerShell and are embedded in one SHA-256-verified AnyCPU EXE. Data uses JSON/XML/CSV, reports use HTML/PDF, and integrity or protected local data use SHA-256, HMAC, and DPAPI as appropriate."
+    },
+    {
+      "Id": "interface-settings",
+      "TitleVi": "Giao diện và Cài đặt",
+      "TitleEn": "Interface and settings",
+      "Keywords": ["doi ngon ngu giao dien", "chuyen tieng anh", "chuyen tieng viet", "chon giao dien sang", "chon giao dien toi", "cach doc man hinh chinh", "thanh ben trai", "bon the trang thai"],
+      "AnswerVi": "Trong Cài đặt, bạn có thể chọn Tiếng Việt/English và giao diện Sáng/Tối. Thanh bên trái lọc Tổng quan, Kiểm tra, Khắc phục, Báo cáo và Cài đặt; bốn thẻ trên cùng hiển thị Windows, Office, chế độ mạng và tính toàn vẹn. Khung Hoạt động gần đây cho biết tiến trình/cảnh báo, còn Mở thư mục báo cáo đưa tới kết quả mới nhất.",
+      "AnswerEn": "Settings lets you choose Vietnamese/English and Light/Dark. The left navigation filters Overview, Inspection, Remediation, Reports, and Settings; four top cards show Windows, Office, network mode, and Tool integrity. Recent activity shows progress/warnings, while Open report folder opens the latest result location."
+    },
+    {
+      "Id": "stop-task",
+      "TitleVi": "Dừng một tác vụ",
+      "TitleEn": "Stopping a task",
+      "Keywords": ["nut dung tac vu", "cach huy luot quet", "quet bi lau bat thuong", "dung khi dang quet", "huy khac phuc", "tac vu bi treo"],
+      "AnswerVi": "Chỉ bấm Dừng khi tác vụ kéo dài bất thường. Nếu dừng lượt kiểm tra chỉ đọc, hãy chạy lại để có báo cáo đầy đủ. Nếu dừng giữa khắc phục, một phần kế hoạch có thể đã chạy: giữ nguyên backup, không tự sửa tiếp, mở lại Tool, quét chỉ đọc và đối chiếu báo cáo trước khi quyết định tiếp tục hoặc khôi phục.",
+      "AnswerEn": "Use Stop only when a task is unusually long. After stopping a read-only scan, rerun it for a complete report. If remediation was interrupted, part of the plan may have run: preserve the backup, avoid manual changes, reopen the Tool, run a read-only scan, and review the report before continuing or restoring."
     },
     {
       "Id": "offline-online",
@@ -36,24 +124,24 @@
       "TitleVi": "Kiểm tra toàn bộ",
       "TitleEn": "Full inspection",
       "Keywords": ["kiem tra toan bo", "quet toan bo", "full scan", "quet tat ca", "chuc nang 1", "chuc nang so 1", "muc 1", "nut 1"],
-      "AnswerVi": "Kiểm tra toàn bộ thu thập cấu hình phần cứng, trạng thái Windows và Office, phần mềm đã cài cùng các dấu hiệu kỹ thuật liên quan. Các tệp JSON, HTML, PDF và checksum được đặt chung trong thư mục BaoCao-Tool-Kiem-Tra, với tên riêng theo máy và thời điểm quét. Đây là thao tác đọc, không tự khắc phục hệ thống.",
-      "AnswerEn": "Full inspection collects hardware, Windows and Office status, installed software, and relevant technical signals. JSON, HTML, PDF, and checksum files share the BaoCao-Tool-Kiem-Tra folder and use unique machine/time-based names. The scan is read-only and does not remediate automatically."
+      "AnswerVi": "Chức năng 1 thu thập cấu hình, Windows, Office, phần mềm và dấu hiệu kỹ thuật trong một lượt chỉ đọc. Cách dùng: chọn Kiểm tra toàn bộ → chọn mức riêng tư → chờ hoàn tất → đọc thẻ tổng quan trong HTML rồi mở PDF để xem chi tiết. JSON/HTML/PDF/checksum được đặt chung trong BaoCao-Tool-Kiem-Tra với tên riêng theo máy và thời điểm; chức năng này không tự khắc phục.",
+      "AnswerEn": "Feature 1 collects hardware, Windows, Office, software, and technical signals in one read-only run. Use it by selecting Full inspection, choosing report privacy, waiting for completion, reading the HTML overview, then opening the PDF for detail. JSON/HTML/PDF/checksum files share BaoCao-Tool-Kiem-Tra with unique machine/time names; this feature does not remediate."
     },
     {
       "Id": "hardware",
       "TitleVi": "Cấu hình phần cứng",
       "TitleEn": "Hardware configuration",
       "Keywords": ["phan cung", "cau hinh", "cpu", "ram", "o cung", "mainboard", "bios", "may tinh", "chuc nang 2", "chuc nang so 2", "muc 2", "nut 2"],
-      "AnswerVi": "Cấu hình phần cứng đọc thông tin hệ điều hành, CPU, RAM, bo mạch chủ, BIOS, ổ đĩa và một số thiết bị để phục vụ kiểm tra kỹ thuật. Dữ liệu phản ánh trạng thái tại thời điểm quét và không phải chứng từ bản quyền.",
-      "AnswerEn": "Hardware configuration reads operating system, CPU, memory, mainboard, BIOS, storage and selected device information for technical inspection. It reflects the scan time and is not license evidence."
+      "AnswerVi": "Chức năng 2 đọc hệ điều hành, CPU, RAM, bo mạch chủ, BIOS/UEFI, ổ đĩa, đồ họa, mạng và thiết bị để phục vụ kiểm kê hoặc đối chiếu nâng cấp. Cách dùng: chọn Cấu hình phần cứng → chọn mức riêng tư → chờ thu thập → mở HTML/PDF và xem phần Khả năng tương thích nếu nguồn nào không đọc được. Dữ liệu là ảnh chụp kỹ thuật tại thời điểm quét, không phải chứng từ bản quyền.",
+      "AnswerEn": "Feature 2 reads the OS, CPU, memory, mainboard, BIOS/UEFI, storage, graphics, network, and devices for inventory or upgrade review. Select Hardware configuration, choose privacy, wait for collection, then open HTML/PDF and check Compatibility when a source is unavailable. It is point-in-time technical data, not license evidence."
     },
     {
       "Id": "windows-license",
       "TitleVi": "Bản quyền Windows",
       "TitleEn": "Windows licensing",
       "Keywords": ["windows", "ban quyen windows", "kich hoat windows", "activation", "slmgr", "license windows", "chuc nang 3", "chuc nang so 3", "muc 3", "nut 3"],
-      "AnswerVi": "Mục Windows đọc trạng thái kích hoạt, kênh giấy phép và tín hiệu từ hệ thống cấp phép. Trạng thái 'đã kích hoạt' không tự chứng minh quyền sử dụng hợp lệ; hóa đơn, hợp đồng hoặc hồ sơ cấp phép vẫn là căn cứ pháp lý.",
-      "AnswerEn": "The Windows section reads activation state, channel and licensing-system signals. An activated state alone does not prove valid entitlement; invoices, agreements or licensing records remain the legal evidence."
+      "AnswerVi": "Chức năng 3 đọc edition, trạng thái kích hoạt, kênh cấp phép, năm ký tự cuối key và máy chủ KMS nếu có. Cách dùng: chọn Bản quyền Windows → chọn mức riêng tư → chờ kiểm tra → đọc Trạng thái, Kênh, Kết luận và Bằng chứng trong báo cáo. 'Đã kích hoạt' chỉ là trạng thái kỹ thuật; quyền sử dụng hợp lệ vẫn phải đối chiếu tài khoản, hóa đơn, hợp đồng hoặc hồ sơ cấp phép.",
+      "AnswerEn": "Feature 3 reads Windows edition, activation, license channel, last five key characters, and KMS host when present. Select Windows licensing, choose privacy, wait, then read Status, Channel, Conclusion, and Evidence. 'Activated' is only technical state; valid entitlement still requires account, invoice, agreement, or licensing records."
     },
     {
       "Id": "unverifiable",
@@ -68,16 +156,16 @@
       "TitleVi": "Bản quyền Microsoft Office",
       "TitleEn": "Microsoft Office licensing",
       "Keywords": ["office", "microsoft office", "ban quyen office", "kich hoat office", "ospp", "visio", "project", "chuc nang 4", "chuc nang so 4", "muc 4", "nut 4"],
-      "AnswerVi": "Mục Office kiểm tra bản cài, trạng thái kích hoạt và kênh giấy phép của Microsoft Office, Visio hoặc Project khi phát hiện được. Công cụ tách trạng thái kỹ thuật khỏi quyền sử dụng và không tự kết luận hợp lệ chỉ vì sản phẩm đang kích hoạt.",
-      "AnswerEn": "The Office section checks detected Microsoft Office, Visio or Project installations, activation state and license channel. It separates technical activation from entitlement and does not declare a license valid merely because it is activated."
+      "AnswerVi": "Chức năng 4 kiểm tra Microsoft Office, Visio và Project được phát hiện, gồm bản cài, trạng thái kích hoạt, kênh giấy phép và dấu hiệu KMS. Cách dùng: đóng ứng dụng Office nếu cần → chọn Bản quyền Microsoft Office → chọn mức riêng tư → chờ quét → đối chiếu từng sản phẩm trong HTML/PDF. Tool tách kích hoạt kỹ thuật khỏi quyền sử dụng và không coi sản phẩm hợp lệ chỉ vì đang kích hoạt.",
+      "AnswerEn": "Feature 4 checks detected Microsoft Office, Visio, and Project installations, activation, license channel, and KMS signals. Close Office apps if needed, select Microsoft Office licensing, choose privacy, wait, then review each product in HTML/PDF. Technical activation is separated from entitlement and does not by itself prove valid use."
     },
     {
       "Id": "software",
       "TitleVi": "Phần mềm đã cài đặt",
       "TitleEn": "Installed software",
-      "Keywords": ["phan mem", "ung dung", "da cai", "installed", "publisher", "phien ban", "ngay cai", "chuc nang 5", "chuc nang so 5", "muc 5", "nut 5"],
-      "AnswerVi": "Mục phần mềm liệt kê tên, phiên bản, nhà phát hành và ngày cài đặt khi hệ thống cung cấp được. Trạng thái đáng ngờ là tín hiệu cần rà soát, không phải kết luận pháp lý về mọi phần mềm.",
-      "AnswerEn": "The software section lists name, version, publisher and installation date when available. A suspicious state is a review signal, not a legal conclusion about every product."
+      "Keywords": ["phan mem", "ung dung", "da cai", "installed", "publisher", "phien ban ung dung", "ngay cai", "chuc nang 5", "chuc nang so 5", "muc 5", "nut 5"],
+      "AnswerVi": "Chức năng 5 kiểm kê phần mềm từ các nguồn được hỗ trợ và quét dấu hiệu can thiệp theo bằng chứng. Cách dùng: chọn Phần mềm & dấu hiệu can thiệp → chọn mức riêng tư → chờ quét → trong báo cáo đọc đồng thời Tên/phiên bản, Trạng thái, Tin cậy, Bằng chứng, Đường dẫn đại diện và Độ phủ quét sâu. Nghi vấn hoặc Chưa xác minh là tín hiệu rà soát, không tự là kết luận pháp lý và chức năng này không gỡ/sửa phần mềm.",
+      "AnswerEn": "Feature 5 inventories software from supported sources and scans evidence-based tampering signals. Select Software and tampering signals, choose privacy, wait, then review name/version, status, trust, evidence, representative path, and deep-scan coverage together. Suspicious or Unverified is a review signal, not an automatic legal conclusion, and this feature does not remove or repair software."
     },
     {
       "Id": "kms-activator",
@@ -92,40 +180,40 @@
       "TitleVi": "Khắc phục KMS/Activator",
       "TitleEn": "KMS/Activator remediation",
       "Keywords": ["khac phuc", "sua loi", "go kms", "xoa crack", "cleanup", "remediation", "chuc nang 6", "chuc nang so 6", "muc 6", "nut 6", "sua crack", "xoa activator", "tu dong khac phuc", "tu dong sua crack"],
-      "AnswerVi": "Khắc phục chỉ chạy khi người dùng chủ động chọn, xem phạm vi, xác nhận và cấp quyền Administrator. Công cụ tạo bản sao lưu trước, khóa xử lý khi bằng chứng hoặc điều kiện an toàn chưa đủ và không tự gỡ/cài lại phần mềm ngoài kế hoạch đã xác nhận.",
-      "AnswerEn": "Remediation runs only after the user selects a scope, reviews it, confirms and grants Administrator rights. A backup is created first; unsafe or unsupported actions are blocked and software is not silently removed or reinstalled."
+      "AnswerVi": "Chức năng 6 có thể thay đổi hệ thống nên chỉ chạy khi người dùng chủ động và sau khi đã đọc bằng chứng. Cách dùng an toàn: chọn Khắc phục → chọn một hoặc nhiều ô Windows/Office/Phần mềm khác → ưu tiên Chạy thử để xem kế hoạch → chọn đúng từng mục → xác nhận và cấp Administrator khi thực hiện thật. Tool kiểm tra/tạo backup trước, khóa mục thiếu điều kiện, hậu kiểm sau xử lý và không tự gỡ/cài lại ứng dụng ngoài kế hoạch đã xác nhận.",
+      "AnswerEn": "Feature 6 can change the system and should be used only after evidence review. Select Remediation, choose one or more Windows/Office/Other software scopes, prefer Dry Run to inspect the plan, select exact findings, then confirm and elevate for a real run. The Tool verifies/creates backup first, blocks unsupported items, performs post-checks, and never silently removes/reinstalls apps outside the confirmed plan."
     },
     {
       "Id": "backup-restore",
       "TitleVi": "Sao lưu và khôi phục",
       "TitleEn": "Backup and restore",
-      "Keywords": ["sao luu", "backup", "khoi phuc", "restore", "phuc hoi", "chuc nang 7", "chuc nang so 7", "muc 7", "nut 7"],
-      "AnswerVi": "Trung tâm Sao lưu/Khôi phục cho phép lưu trạng thái Windows, Office hoặc phạm vi phần mềm được hỗ trợ trước khi thay đổi. Hãy giữ nguyên thư mục sao lưu và dùng đúng bản công cụ tạo ra nó; khôi phục vẫn cần xác nhận và có thể yêu cầu Administrator.",
-      "AnswerEn": "Backup/Restore preserves supported Windows, Office or software state before changes. Keep the backup folder intact and use the compatible tool version; restore still requires confirmation and may require Administrator rights."
+      "Keywords": ["sao luu", "backup", "khoi phuc", "restore", "phuc hoi", "trung tam sao luu", "khoi phuc tu backup", "backup windows office"],
+      "AnswerVi": "Sao lưu/Khôi phục nằm trong luồng Khắc phục, không phải chức năng số 7. Chọn Khắc phục → Sao lưu hoặc Khôi phục tự động → chọn đúng phạm vi Windows/Office/Phần mềm khác → xem thông tin backup → xác nhận. Giữ nguyên thư mục backup, không sửa/đổi tên/di chuyển tệp; Tool từ chối backup sai máy, bị sửa, thiếu hoặc không tương thích và khôi phục vẫn có thể cần Administrator.",
+      "AnswerEn": "Backup/Restore is part of the Remediation workflow, not feature 7. Open Remediation, choose Backup or Automatic restore, select the correct Windows/Office/Other software scope, review backup details, and confirm. Keep the folder intact; the Tool rejects wrong-machine, modified, incomplete, or incompatible backups, and restore may require elevation."
     },
     {
       "Id": "enterprise",
       "TitleVi": "Quản trị doanh nghiệp",
       "TitleEn": "Enterprise management",
       "Keywords": ["doanh nghiep", "enterprise", "lan", "agent", "may tram", "quan tri", "chuc nang 8", "chuc nang so 8", "muc 8", "nut 8"],
-      "AnswerVi": "Chế độ Doanh nghiệp phục vụ môi trường LAN đã cấu hình để quản lý và tổng hợp báo cáo. Mạng doanh nghiệp bị khóa mặc định, chỉ mở khi quản trị viên cấu hình rõ ràng; chức năng này không biến dữ liệu thành dịch vụ đám mây công cộng.",
-      "AnswerEn": "Enterprise mode supports configured LAN environments for management and report aggregation. Enterprise networking is blocked by default and must be enabled explicitly by an administrator; it is not a public cloud service."
+      "AnswerVi": "Chức năng 8 là nhóm quản lý Doanh nghiệp, gồm ba phần: Quản lý cục bộ Windows/Office trên máy hiện tại, Máy chủ nhận/quản lý báo cáo trong LAN, và Máy trạm ghép nối/gửi báo cáo. Cách dùng: mở Quản lý giấy phép hợp lệ → chọn đúng tab; với Máy chủ/Máy trạm phải chủ động bật LAN nội bộ, tạo hoặc tìm máy chủ, dùng mã ghép nối rồi kiểm tra kết nối. Quyền gửi lệnh thay đổi từ xa và agent tự gửi đều mặc định tắt; đây không phải dịch vụ cloud công cộng.",
+      "AnswerEn": "Feature 8 has three parts: local Windows/Office management, a LAN Server that receives/manages reports, and a Workstation that pairs and sends reports. Open Valid-license management and choose the correct tab; Server/Workstation use requires explicitly enabling Local LAN, creating or finding the server, entering a pairing code, and testing the connection. Remote-change and automatic-agent permissions default off; this is not a public cloud service."
     },
     {
       "Id": "deep-scan",
       "TitleVi": "Quét sâu",
       "TitleEn": "Deep scan",
       "Keywords": ["quet sau", "deep scan", "forensic", "dau vet", "quet ky", "chuc nang 9", "chuc nang so 9", "muc 9", "nut 9"],
-      "AnswerVi": "Quét sâu rà soát thêm dịch vụ, tác vụ, tệp, cấu hình và tín hiệu kỹ thuật liên quan. Quá trình có thể lâu hơn quét thường; phát hiện được phân loại theo mức bằng chứng và các mục chưa đủ chắc chắn sẽ chuyển sang kiểm tra thủ công.",
-      "AnswerEn": "Deep scan checks additional services, tasks, files, configuration and technical traces. It can take longer; findings are evidence-ranked and uncertain items are sent for manual review."
+      "AnswerVi": "Chức năng 9 dành cho kiểm tra chuyên sâu/forensics: rà thêm dịch vụ, tác vụ, tiến trình, tệp, cấu hình, chữ ký, hash và dấu vết tương quan. Cách dùng: chọn Kiểm tra chuyên sâu → chọn mức riêng tư → chờ đủ tiến trình → đọc điểm ưu tiên, nguồn quét, độ phủ và bằng chứng chi tiết. Quét có thể lâu hơn; mục chưa đủ chắc chắn chuyển sang kiểm tra thủ công chứ không tự khắc phục.",
+      "AnswerEn": "Feature 9 provides deep/forensic inspection of services, tasks, processes, files, configuration, signatures, hashes, and correlated traces. Select Deep inspection, choose privacy, wait for completion, then review priority score, sources, coverage, and detailed evidence. It can take longer; uncertain findings go to manual review rather than automatic remediation."
     },
     {
       "Id": "report-center",
       "TitleVi": "Báo cáo và lịch sử",
       "TitleEn": "Reports and history",
       "Keywords": ["bao cao", "html", "json", "xml", "pdf", "thu muc bao cao", "lich su", "chuc nang 10", "chuc nang so 10", "muc 10", "nut 10"],
-      "AnswerVi": "Tất cả báo cáo được gom vào một thư mục BaoCao-Tool-Kiem-Tra trên Desktop, không tạo thư mục con cho từng lượt. Mỗi bộ JSON/XML/HTML/PDF dùng cùng tên gốc có loại báo cáo, tên máy và thời điểm để không ghi đè. HTML mở tự động và có liên kết tới PDF chi tiết cùng bộ.",
-      "AnswerEn": "All reports share one BaoCao-Tool-Kiem-Tra folder on the Desktop; individual runs no longer create subfolders. Each JSON/XML/HTML/PDF set uses a common unique base name containing report type, computer, and time. HTML opens automatically and links to its detailed PDF."
+      "AnswerVi": "Chức năng 10 mở Trung tâm báo cáo & bảo đảm, nơi có báo cáo, chứng chỉ, plugin, timeline, hướng dẫn sử dụng và lịch sử/cập nhật. Chọn chức năng con cần xem; dùng Mở thư mục báo cáo để tới BaoCao-Tool-Kiem-Tra trên Desktop. Mỗi bộ JSON/XML/HTML/PDF/checksum dùng cùng tên gốc có loại báo cáo, tên máy và thời điểm để không ghi đè; HTML là tổng quan và liên kết tới PDF chi tiết.",
+      "AnswerEn": "Feature 10 opens the Assurance Report Center for reports, certificates, plugins, timeline, user guides, and version/update history. Choose the required subfeature or Open report folder for the Desktop BaoCao-Tool-Kiem-Tra directory. Each JSON/XML/HTML/PDF/checksum set shares a unique type/machine/time base name; HTML is the overview and links to the detailed PDF."
     },
     {
       "Id": "administrator",
@@ -147,9 +235,9 @@
       "Id": "oem",
       "TitleVi": "Khóa OEM trong BIOS",
       "TitleEn": "OEM key in firmware",
-      "Keywords": ["oem", "oa3", "bios key", "key bios", "key nhung", "firmware", "product key"],
-      "AnswerVi": "OA3/OEM trong firmware chỉ được ghi nhận khi hệ thống đọc được khóa hoặc tín hiệu firmware tương ứng. Không có khóa OA3 thì công cụ không được tự gán máy là OEM chính hãng; vẫn cần đối chiếu phiên bản Windows và chứng từ mua máy.",
-      "AnswerEn": "OA3/OEM firmware status is reported only when the corresponding firmware key or signal can be read. Without OA3 evidence the tool does not label the machine as genuine OEM; Windows edition and purchase records still need review."
+      "Keywords": ["oem", "oa3", "bios key", "key bios", "key nhung", "firmware", "product key", "chuc nang 7", "chuc nang so 7", "muc 7", "nut 7"],
+      "AnswerVi": "Chức năng 7 là Khôi phục key OEM trong firmware. Cách dùng: chọn Khôi phục key OEM → để Tool đọc OA3/firmware và so edition → kiểm tra thông tin key đã che/năm ký tự cuối → chỉ xác nhận áp dụng khi edition phù hợp và bạn có quyền sử dụng → quét lại Windows. Không có bằng chứng OA3 thì Tool không tự gán máy là OEM chính hãng; vẫn phải đối chiếu chứng từ mua máy.",
+      "AnswerEn": "Feature 7 is OEM firmware key recovery. Select OEM key recovery, let the Tool read OA3/firmware and compare Windows edition, review the masked key/last five characters, apply only when edition and entitlement are appropriate, then rescan Windows. Without OA3 evidence the Tool does not label the machine genuine OEM; purchase records still require review."
     },
     {
       "Id": "error-codes",
@@ -286,6 +374,102 @@
       "Keywords": ["bao cao co khang dinh duoc khong", "bao cao chung minh hop phap", "ket qua co chac chinh hang", "gioi han ket luan", "doi chieu hoa don hop dong", "report legal conclusion"],
       "AnswerVi": "Báo cáo có thể khẳng định bằng chứng kỹ thuật trực tiếp như trạng thái kích hoạt, nguồn KMS hoặc lỗi chữ ký/HashMismatch tại thời điểm quét. Báo cáo không thể chỉ từ các tín hiệu đó khẳng định quyền sử dụng hợp pháp; kết luận pháp lý còn cần đối chiếu tài khoản, hóa đơn, hợp đồng hoặc hồ sơ cấp phép.",
       "AnswerEn": "The report can state direct technical evidence such as activation state, KMS source, or signature/HashMismatch findings at scan time. Those signals alone cannot prove legal entitlement; accounts, invoices, contracts, or licensing records must also be reviewed."
+    },
+    {
+      "Id": "launch-troubleshooting",
+      "TitleVi": "Không mở hoặc chạy được Tool",
+      "TitleEn": "Tool does not open or run",
+      "Keywords": ["khong mo duoc file exe", "tool khong khoi dong", "exe bi windows chan", "chay tool khong len", "applocker chan tool", "wdac chan exe"],
+      "AnswerVi": "Hãy giải nén và chạy EXE từ ổ đĩa cục bộ, không chạy trong ZIP. Nếu vẫn không mở, tải lại từ GitHub chính thức, đối chiếu SHA-256 và quét Defender; không tắt bảo vệ hoặc thêm ngoại lệ để ép chạy. Trên máy doanh nghiệp, liên hệ quản trị viên nếu AppLocker/WDAC chặn và gửi nguyên thông báo để xác định đúng chính sách.",
+      "AnswerEn": "Extract and run the EXE from a local drive, not inside the ZIP. If it still fails, redownload from the official GitHub release, compare SHA-256, and scan with Defender; do not disable protection or add an exception to force it. On managed devices, contact the administrator when AppLocker/WDAC blocks it and provide the exact message."
+    },
+    {
+      "Id": "software-not-found",
+      "TitleVi": "Không thấy phần mềm cần kiểm tra",
+      "TitleEn": "Software is not detected",
+      "Keywords": ["khong thay phan mem can quet", "ung dung khong hien trong bao cao", "tool bo sot phan mem", "thieu phan mem trong danh sach", "khong tim thay ung dung da cai", "portable khong duoc nhan dien"],
+      "AnswerVi": "Hãy chạy lại lượt Phần mềm với quyền Administrator, kiểm tra ứng dụng có bản ghi cài đặt, shortcut hoặc nằm trong vị trí portable phổ biến hay không. Nếu đường dẫn chưa được đăng ký, mở ứng dụng ít nhất một lần, đóng lại rồi quét lại. Tool vẫn không thấy thì gửi tên, phiên bản, nhà phát hành và đường dẫn cài đặt; Trợ lý không tự khẳng định trạng thái của mục chưa được thu thập.",
+      "AnswerEn": "Rerun the Software scan as Administrator and check whether the app has an install record, shortcut, or a common portable location. If its path is not registered, open the app once, close it, and rescan. If it remains missing, provide name, version, publisher, and install path; the Assistant will not infer the state of an item that was not collected."
+    },
+    {
+      "Id": "report-pdf-failure",
+      "TitleVi": "Không tạo được báo cáo PDF",
+      "TitleEn": "PDF report creation failed",
+      "Keywords": ["khong tao duoc pdf", "pdf tao that bai", "bao cao pdf bi loi", "thieu file pdf", "pdf khong xuat hien", "loi xuat pdf"],
+      "AnswerVi": "Nếu PDF không tạo được, hãy dùng HTML vì kết quả kiểm tra chính vẫn còn. Kiểm tra Microsoft Edge hoặc Google Chrome, bấm Mở thư mục báo cáo để xem các tệp cùng lượt, rồi chạy lại nếu cần. Khi hỏi tiếp, gửi nguyên lỗi trong Hoạt động gần đây và cho biết HTML/JSON có được tạo hay không để phân biệt lỗi trình duyệt, quyền ghi hoặc dữ liệu báo cáo.",
+      "AnswerEn": "If PDF creation fails, use the HTML because the main inspection result remains available. Check Microsoft Edge or Google Chrome, open the report folder for files from the same run, and retry if needed. Provide the exact Recent activity error and whether HTML/JSON were created to distinguish browser, write-permission, or report-data failures."
+    },
+    {
+      "Id": "online-troubleshooting",
+      "TitleVi": "Online không kết nối hoặc đồng bộ được",
+      "TitleEn": "Online connection or sync failure",
+      "Keywords": ["online khong hoat dong", "khong dong bo duoc danh muc", "cap nhat online that bai", "internet trong tool bi loi", "loi dns proxy cua tool", "khong tai duoc kho tri thuc"],
+      "AnswerVi": "Tool vẫn dùng được Offline khi Online lỗi. Hãy kiểm tra Internet, DNS, proxy, firewall và ngày giờ hệ thống, sau đó bật Online trong đúng phiên và chạy lại thao tác đồng bộ/cập nhật. Gửi nguyên mã hoặc thông báo nếu còn lỗi; Tool không bỏ qua HTTPS allowlist, kiểm tra kích thước, cấu trúc, phiên bản hoặc SHA-256 để ép nhận dữ liệu.",
+      "AnswerEn": "The Tool remains usable Offline when Online fails. Check Internet, DNS, proxy, firewall, and system time, then enable Online for the current session and retry the sync/update action. Provide the exact code/message if it persists; the Tool will not bypass HTTPS allowlists, size/schema/version checks, or SHA-256 to force data acceptance."
+    },
+    {
+      "Id": "enterprise-server-management",
+      "TitleVi": "Tạo, chạy hoặc xóa cấu hình Máy chủ",
+      "TitleEn": "Create, run, or delete Server configuration",
+      "Keywords": ["tao cau hinh may chu", "xoa cau hinh may chu", "khoi dong may chu doanh nghiep", "dung server noi bo", "tao ma ghep noi tam thoi", "cap url acl cho server"],
+      "AnswerVi": "Trong chức năng 8, mở tab Máy chủ và bật LAN nội bộ. Để tạo: nhập tên/phạm vi và mã quản trị, chọn Tạo cấu hình, lưu mã quản trị, chuẩn bị URL ACL/Firewall khi được xác nhận rồi Khởi động máy chủ. Để xóa: chọn Xóa cấu hình, nhập đúng mã quản trị và đọc xác nhận cuối; Tool dừng dịch vụ, xóa danh tính/secret ghép nối/tác vụ chờ nhưng giữ báo cáo, kết quả đã hoàn tất và nhật ký. Máy trạm cũ phải ghép nối lại với cấu hình mới.",
+      "AnswerEn": "In feature 8, open Server and enable Local LAN. To create it, enter the server scope/admin code, create the configuration, preserve the admin code, approve URL ACL/Firewall setup when appropriate, then start the server. To delete it, choose Delete configuration, enter the correct admin code, and review the final confirmation; server identity, pairing secrets, and queued jobs are removed while reports, completed results, and audit logs remain. Old workstations must pair again."
+    },
+    {
+      "Id": "enterprise-client-management",
+      "TitleVi": "Ghép nối và gửi báo cáo từ Máy trạm",
+      "TitleEn": "Pair a Workstation and send reports",
+      "Keywords": ["ghep noi may tram", "gui bao cao may tram", "chay agent may tram", "ma ghep noi client", "tu tim server tu client", "hang doi bao cao may tram"],
+      "AnswerVi": "Trong chức năng 8, mở tab Máy trạm và bật LAN nội bộ. Để ghép nối: để trống địa chỉ rồi Tự tìm máy chủ hoặc nhập IP/tên máy chủ, nhập mã ghép nối tạm thời và chọn Ghép nối; sau đó Kiểm tra kết nối và Gửi báo cáo ngay. Nếu mất mạng, báo cáo mã hóa được giữ trong hàng đợi để agent thử lại. Quyền nhận lệnh thay đổi giấy phép và tự gửi định kỳ đều mặc định tắt, chỉ bật khi chính sách quản trị cho phép.",
+      "AnswerEn": "In feature 8, open Workstation and enable Local LAN. Leave the address blank to discover a server or enter its IP/name, enter the temporary pairing code, and pair; then test the connection and send the report. During outages, encrypted reports stay queued for agent retry. Remote-license-change and periodic-auto-send permissions default off and should be enabled only by policy."
+    },
+    {
+      "Id": "support-channel",
+      "TitleVi": "Kênh hỗ trợ của Tool",
+      "TitleEn": "Tool support channels",
+      "Keywords": ["kenh ho tro cua tool", "lien he nguoi phat trien", "email cua tac gia", "zalo cua tac gia", "gui loi cho thanh viet", "can ho tro ky thuat"],
+      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v4.8.0.0, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
+      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v4.8.0.0, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
+    },
+    {
+      "Id": "plugin-management",
+      "TitleVi": "Plugin và quy tắc mở rộng",
+      "TitleEn": "Plugins and extension rules",
+      "Keywords": ["cai plugin json", "danh gia plugin", "quy tac plugin chi doc", "thu muc plugin bao ve", "plugin co an toan khong", "kiem tra plugin mo rong"],
+      "AnswerVi": "Trong chức năng 10, chọn Đánh giá plugin để xem quy tắc và cảnh báo; chọn Cài plugin JSON chỉ đọc từ tệp khi cần thêm quy tắc. Chỉ dùng plugin từ nguồn tin cậy, đọc phạm vi trước khi cài và không chỉnh trực tiếp thư mục plugin được bảo vệ. Plugin chỉ được phép thu thập/đánh giá theo hợp đồng đọc; không được tự ý thay đổi hệ thống hoặc vượt chính sách an toàn của Tool.",
+      "AnswerEn": "In feature 10, use Evaluate plugins to inspect rules/warnings, or Install read-only JSON plugin from file to add a rule. Use trusted sources only, review scope before installation, and do not edit the protected plugin folder directly. Plugins are limited to read-only collection/evaluation contracts and cannot bypass Tool safety policy or modify the system silently."
+    },
+    {
+      "Id": "certificate-audit",
+      "TitleVi": "Kiểm tra chứng chỉ số Windows/Office",
+      "TitleEn": "Windows/Office certificate audit",
+      "Keywords": ["kiem tra chung chi windows office", "xac minh certificate he thong", "audit authenticode windows", "chu ky tep loi windows", "chung chi so office", "kiem tra chuoi tin cay offline"],
+      "AnswerVi": "Trong chức năng 10, chọn Kiểm tra chứng chỉ số Windows/Office để kiểm tra Authenticode và chuỗi tin cậy Offline của các tệp lõi được hỗ trợ. Kết quả chữ ký hợp lệ chứng minh tệp/chữ ký khớp tại thời điểm kiểm tra, không tự chứng minh giấy phép sử dụng hợp lệ; lỗi chữ ký hoặc HashMismatch phải được đọc cùng nguồn tệp và bằng chứng cấp phép.",
+      "AnswerEn": "In feature 10, select Windows/Office certificate audit to inspect Authenticode and offline trust chains for supported core files. A valid signature shows that the file/signature matches at scan time; it does not itself prove license entitlement. Signature failure or HashMismatch must be reviewed with file source and separate licensing evidence."
+    },
+    {
+      "Id": "license-timeline",
+      "TitleVi": "Timeline thay đổi bản quyền",
+      "TitleEn": "Licensing change timeline",
+      "Keywords": ["xac minh timeline ban quyen", "xuat dong thoi gian thay doi", "lich su thay doi kich hoat", "kiem tra chuoi nhat ky", "timeline co bi sua khong", "xuat timeline tu tool"],
+      "AnswerVi": "Trong chức năng 10, chọn Xác minh và xuất timeline. Tool kiểm tra chuỗi nhật ký do chính Tool tạo trên máy này, đánh dấu đứt chuỗi hoặc dữ liệu không khớp rồi cho phép xuất để đối chiếu. Timeline là lịch sử kỹ thuật cục bộ, không thay thế Event Log đầy đủ, hóa đơn, hợp đồng hoặc hồ sơ cấp phép và không xác minh nhật ký do công cụ khác tạo.",
+      "AnswerEn": "In feature 10, choose Verify and export timeline. The Tool validates its own local chained log, flags chain breaks or mismatches, and exports it for review. The timeline is local technical history; it does not replace full Event Logs, invoices, agreements, or licensing records and does not authenticate logs produced by other tools."
+    },
+    {
+      "Id": "embedded-documents",
+      "TitleVi": "Hướng dẫn và lịch sử phiên bản",
+      "TitleEn": "User guide and version history",
+      "Keywords": ["mo huong dan su dung chi tiet", "xem lich su phien ban", "hdsd html pdf", "tai lieu nhung trong tool", "phien ban va cap nhat o dau", "mo user guide"],
+      "AnswerVi": "Trong chức năng 10, chọn Mở hướng dẫn sử dụng chi tiết để tạo/mở HDSD HTML/PDF; chọn Phiên bản và cập nhật để xem lịch sử Việt/Anh cùng trạng thái cập nhật. Tài liệu được nhúng theo đúng bản Tool nên dùng được Offline. Nội dung HDSD tập trung thao tác, còn thay đổi theo từng build nằm trong Lịch sử phiên bản.",
+      "AnswerEn": "In feature 10, open the detailed user guide to generate/view its HTML/PDF, or open Version and updates for bilingual history and update status. Documentation is bundled with the matching Tool release and works Offline. The user guide focuses on operation while per-build changes belong in Version history."
+    },
+    {
+      "Id": "report-formats",
+      "TitleVi": "Định dạng báo cáo hỗ trợ",
+      "TitleEn": "Supported report formats",
+      "Keywords": ["bao cao xuat dinh dang gi", "tool co xuat docx khong", "cac loai tep bao cao", "json xml html pdf checksum", "dinh dang bao cao ho tro", "xuat word tu tool"],
+      "AnswerVi": "Các lượt quét chính tạo dữ liệu JSON/XML, bản HTML tổng quan, PDF chi tiết và tệp checksum/manifest khi áp dụng. Tool v4.8 không xuất DOCX/Word trực tiếp. Nếu cần Word, hãy dùng HTML/PDF đã che thông tin làm nguồn và giữ nguyên JSON/checksum gốc để còn khả năng đối chiếu; không sửa báo cáo gốc rồi coi là bằng chứng do Tool tạo.",
+      "AnswerEn": "Main scans produce JSON/XML data, an HTML overview, a detailed PDF, and checksum/manifest files where applicable. v4.8 does not export DOCX/Word directly. If Word is needed, use a redacted HTML/PDF as the source and preserve original JSON/checksums for verification; an edited derivative is not original Tool evidence."
     }
   ]
 }

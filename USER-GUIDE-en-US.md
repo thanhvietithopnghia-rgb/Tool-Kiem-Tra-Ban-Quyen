@@ -52,14 +52,14 @@ You do not need to open source files, configuration files, or technical document
 
 ## Tool Assistant
 
-Tool Assistant answers questions within the Tool's scope, including feature use, Windows/Office/software status, technical evidence, error codes, reports, the catalog, and Server/Workstation connectivity.
+Tool Assistant understands and answers every Tool-related question supported by available data; it is not limited to a fixed sample-question list. This includes product version, developer, build date, overview and principles; the purpose, use, output and safety notes of every feature; Windows/Office/software status; evidence, errors, reports, catalogs, updates, and Server/Workstation connectivity.
 
 1. Select **Tool Assistant**.
 2. Enter a question in the clearly outlined composer; select **Send** or press `Enter`. Use `Shift+Enter` for a new line.
 3. Read questions and answers in separate colored message frames. New content scrolls into view and the answer appears in the current submission turn.
-4. For a specific error or result, include the related error code, status, or evidence line.
+4. For a specific error or result, include the related error code, status, or evidence line. Follow-ups such as “how do I use it?”, “what about OEM key recovery?”, or “explain further” retain the immediately preceding Tool topic.
 
-The Assistant handles multiple natural phrasings, accent-free text, some abbreviations, and common typing errors. If a question is outside the Tool's scope or lacks enough evidence, it gives a context-appropriate boundary response or asks for the missing data instead of guessing.
+The Assistant combines structured knowledge, the bundled guide, and available report context. Routing prioritizes exact feature names, error codes, and specific phrases before general keywords; it handles natural wording, accent-free text, abbreviations, typing errors, and multi-part questions. A related question with insufficient data is identified as such; only genuinely unrelated content is marked out of scope, using wording adapted to the context instead of one repeated canned reply.
 
 The Assistant remains available Offline. Online only permits compatible knowledge synchronization after explicit network consent.
 

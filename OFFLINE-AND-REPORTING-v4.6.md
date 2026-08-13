@@ -75,7 +75,7 @@ HTML được tạo tự chứa:
 
 Từ export schema 1.4, HTML và PDF dùng cùng dữ liệu nhưng khác mức trình bày. HTML là tổng quan, giữ cấu hình chính, kết luận, cảnh báo, ứng dụng chính và nút mở đúng PDF. PDF là bản chi tiết có toàn bộ bảng/bằng chứng cùng phụ lục phần mềm hệ thống; bảng rộng được tách, nội dung dài mở đầy đủ khi in và ngắt trang A4 an toàn. Mọi lượt xuất dùng chung `Desktop\BaoCao-Tool-Kiem-Tra`, không tạo thư mục con; tên tệp có timestamp mili-giây và sau khi hoàn tất chỉ HTML tổng quan được mở.
 
-Kho Trợ lý schema `1.1` chỉ được cache khi `KnowledgeVersion`, `ToolVersionMin`, `ToolVersionMax` và `ReleasedWithToolVersion` tương thích Tool `4.8.0.0`. Tệp lỗi, quá lớn, sai nguồn hoặc khác phiên bản bị loại bỏ; Offline tiếp tục dùng bản nhúng hợp lệ gần nhất.
+Kho Trợ lý schema `1.1`, knowledge `1.2.0` chỉ được cache khi `KnowledgeVersion`, `ToolVersionMin`, `ToolVersionMax` và `ReleasedWithToolVersion` tương thích Tool `4.8.0.0`. Tệp lỗi, quá lớn, sai nguồn hoặc khác phiên bản bị loại bỏ; Offline tiếp tục dùng bản nhúng hợp lệ gần nhất. Máy trả lời kết hợp kho tri thức có cấu trúc với HDSD nhúng, ngữ cảnh lượt trước và dữ liệu báo cáo cục bộ hiện có; nội dung ngoài phạm vi được phân loại theo ngữ cảnh thay vì một câu cố định.
 
 HTML cân năm thẻ kết quả nhanh trên màn hình rộng và đặt Mức xác minh/Hướng xử lý trong các ô con riêng. Chân PDF được chia thành hai hàng để giữ đủ tên công cụ và thông tin tác giả/hỗ trợ trên khổ A4.
 

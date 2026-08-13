@@ -127,7 +127,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 $versionChecks = @(
     @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8\.0"' },
     @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.8\.0\.0"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.12"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.13"' },
     @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.8"' },
     @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8"' },
     @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyVersion\("4\.8\.0\.0"\)' },
@@ -583,10 +583,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.12') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.12.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.13') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.13.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-rc1-20260812' -or
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-rc1-20260813' -or
             [string]$releaseManifest.ReleaseStatus -ne 'ReleaseCandidate') {
             throw 'Release phải giữ nhãn RC cho tới khi hoàn tất ma trận E2E Production.'
         }

@@ -8,7 +8,7 @@ Offline vẫn là mặc định: công cụ không kết nối mạng khi chưa 
 
 Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
 
-Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.12**
+Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.13**
 
 Tác giả và phát triển: **Thanh Việt**
 
@@ -19,6 +19,7 @@ Tác giả và phát triển: **Thanh Việt**
 - **Báo cáo rõ hơn:** HTML dùng để xem nhanh, PDF chứa chi tiết; người dùng có thể che dữ liệu nhạy cảm trước khi chia sẻ.
 - **Khắc phục an toàn:** có Dry Run, backup, chọn từng mục, UAC khi cần và kiểm tra lại kết quả; Tool không tự gỡ ứng dụng.
 - **Kết luận thận trọng:** tệp bị sửa không tự đồng nghĩa phần mềm không chính hãng; kết quả chưa đủ bằng chứng được ghi rõ là chưa xác minh.
+- **Trợ lý hiểu toàn phạm vi Tool:** trả lời mọi câu hỏi liên quan theo kho tri thức, HDSD nhúng và báo cáo hiện có — từ phiên bản/tác giả/tóm tắt đến mục đích, cách dùng, lỗi và trạng thái của mọi chức năng. Trợ lý giữ ngữ cảnh câu hỏi tiếp theo, không dùng một danh sách câu mẫu cố định và chỉ báo ngoài phạm vi khi nội dung thật sự không liên quan.
 - **Offline mặc định:** không telemetry, không cập nhật ngầm và không gửi dữ liệu máy lên mạng khi chưa được phép.
 - **Một tệp EXE:** tự chạy đúng x64/x86; có chữ ký Authenticode tự ký miễn phí để phát hiện tệp bị sửa, nhưng vẫn có thể bị SmartScreen cảnh báo trên máy lạ.
 

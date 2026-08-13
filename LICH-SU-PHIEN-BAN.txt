@@ -3,9 +3,9 @@
 Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.8.0. v4.8.0 là bản nâng cấp trực tiếp từ v4.6; các thay đổi trung gian đã được kiểm định được hợp nhất vào v4.8 và không tách thành một phiên bản công khai riêng.
 
 Phiên bản hiện tại: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.12**
+FileVersion: **4.8.0.0** · Build **2026.08.13**
 
-## v4.8.0 — 10/08/2026 · cập nhật trực tiếp 12/08/2026
+## v4.8.0 — 10/08/2026 · cập nhật trực tiếp 13/08/2026
 
 **v4.8 nâng cấp trực tiếp từ v4.6, tập trung vào các thay đổi chính:**
 
@@ -13,7 +13,7 @@ FileVersion: **4.8.0.0** · Build **2026.08.12**
 - **Kiểm tra và khắc phục:** Online và Dry Run cùng có 3 ô chọn **Windows, Office, Phần mềm khác**; cho chọn một hoặc nhiều phạm vi và chỉ quét/xử lý đúng mục đã chọn. Vẫn bắt buộc xem trước, xác nhận, backup và hậu kiểm.
 - **Quét và hiệu năng:** tăng tốc kiểm kê–đánh giá, mở rộng catalogue lên 76 quy tắc và phân loại kết quả thận trọng hơn.
 - **Báo cáo:** sửa PDF cắt chữ/khuyết dòng, sắp xếp nội dung gọn hơn và hỗ trợ bản báo cáo đã che thông tin.
-- **Trợ lý và kết nối:** cải thiện hỏi–đáp trong Tool; bổ sung chẩn đoán và gửi lại báo cáo cho chế độ Máy chủ/Máy trạm.
+- **Trợ lý và kết nối:** hiểu mọi câu hỏi liên quan đến Tool theo 58 nhóm tri thức, HDSD nhúng, dữ liệu báo cáo và ngữ cảnh lượt trước; sửa định tuyến phiên bản/tác giả/chức năng 7, trả lời ngoài phạm vi theo từng chủ đề; bổ sung chẩn đoán và gửi lại báo cáo cho Máy chủ/Máy trạm.
 - **An toàn và riêng tư:** mặc định Offline, chỉ kết nối/cập nhật khi người dùng đồng ý; chỉ xin quyền quản trị lúc cần và không có telemetry hay cập nhật im lặng.
 
 ## v4.6 — 06/08/2026

@@ -11,7 +11,7 @@ v4.8 giữ nguyên các nhóm nâng cấp trước và bổ sung:
 - quét nhiều Office/nhiều nguồn tệp song song có giới hạn.
 - quét sâu phổ quát từng ứng dụng bằng nhiều EXE/DLL, Authenticode, hash và dấu vết hệ thống tương quan, có phân phối ngân sách công bằng và metadata độ phủ.
 - catalogue phần mềm 1.3.1 với 76 quy tắc; gộp nhiều nguồn phát hiện, tách phần mềm hệ thống và không suy diễn `HashMismatch` thành giấy phép không chính hãng;
-- Trợ lý schema 1.1 với hơn 270 cách hỏi, trả lời ngay, hiểu viết tắt/câu nhiều ý và ràng buộc kho tri thức theo phiên bản Tool;
+- Trợ lý schema 1.1 / knowledge 1.2.0 với 58 nhóm và 429 cách hỏi, trả lời ngay, hiểu câu liên quan theo tri thức + HDSD nhúng + báo cáo hiện có, giữ ngữ cảnh lượt trước và ràng buộc kho tri thức theo phiên bản Tool;
 - báo cáo dùng một thư mục chung, PDF tách bảng rộng và mở phụ lục phần mềm hệ thống; Máy chủ/Máy trạm có tự dò/chẩn đoán LAN và hàng đợi gửi lại;
 - Dry Run lập kế hoạch target/action/backup/restorability mà không thay đổi hệ thống, sau đó yêu cầu chọn và xác nhận lại nếu thực hiện thật;
 - data lifecycle schema 2.0 với vùng ghi v4.6 riêng, migration staging đã xác minh SHA-256, commit/rollback và dữ liệu cũ chỉ đọc;

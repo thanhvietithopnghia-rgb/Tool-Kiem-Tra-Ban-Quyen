@@ -18,7 +18,7 @@ if ($errors.Count -eq 0) {
     . (Join-Path $SourceDirectory 'Tool-Assistant.ps1')
     $knowledge = Get-ToolAssistantKnowledge
     if (-not (Test-ToolAssistantKnowledge -Knowledge $knowledge)) { Add-AssistantVerificationError 'Knowledge validation failed.' }
-    $legacyKnowledge = ((Get-Content -LiteralPath (Join-Path $SourceDirectory 'tool-assistant-knowledge-v1.1.json') -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.1\.0"', '"KnowledgeVersion": "1.0.0"') | ConvertFrom-Json
+    $legacyKnowledge = ((Get-Content -LiteralPath (Join-Path $SourceDirectory 'tool-assistant-knowledge-v1.1.json') -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.2\.0"', '"KnowledgeVersion": "1.1.0"') | ConvertFrom-Json
     if (Test-ToolAssistantKnowledge -Knowledge $legacyKnowledge) { Add-AssistantVerificationError 'An obsolete cached knowledge file was not rejected.' }
     if (@($knowledge.Entries).Count -lt 20) { Add-AssistantVerificationError 'Knowledge coverage is below 20 entries.' }
     $metadata = Get-ToolAssistantMetadata
@@ -32,6 +32,10 @@ if ($errors.Count -eq 0) {
     if ([string]$metadata.KnowledgeStorage -ne 'BundledAndPerUserLocalCache' -or
         [string]$metadata.ReportContextSource -ne 'CurrentDeviceLocalReportOnly') {
         Add-AssistantVerificationError 'Assistant local knowledge/report scope metadata is invalid.'
+    }
+    if ([string]$metadata.CoverageMode -ne 'KnowledgePlusBundledDocumentation' -or
+        -not [bool]$metadata.ContextAwareFollowUp -or -not [bool]$metadata.ContextualOutOfScope) {
+        Add-AssistantVerificationError 'Assistant broad coverage, follow-up context, or contextual boundary metadata is invalid.'
     }
 
     $keywordOwners = @{}
@@ -51,7 +55,7 @@ if ($errors.Count -eq 0) {
             }
         }
     }
-    if ($keywordCount -lt 270) { Add-AssistantVerificationError "Knowledge keyword coverage is below 270: actual $keywordCount." }
+    if ($keywordCount -lt 390) { Add-AssistantVerificationError "Knowledge keyword coverage is below 390: actual $keywordCount." }
 
     $routeTests = @(
         @{ Question='đọc báo cáo'; Entry='report-evidence' },
@@ -64,6 +68,19 @@ if ($errors.Count -eq 0) {
         @{ Question='ẩn pm hệ thống trong pdf'; Entry='software-system-filter' }
         @{ Question='tự tìm máy chủ khi ô ip trống'; Entry='enterprise-discovery' }
         @{ Question='hash mismatch có phải bản quyền lậu không'; Entry='integrity-compromised' }
+        @{ Question='phiên bản hiện tại của tool'; Entry='tool-version' }
+        @{ Question='tool do ai phát triển'; Entry='tool-author' }
+        @{ Question='tóm tắt nội dung chính của tool'; Entry='tool-overview' }
+        @{ Question='nguyên tắc hoạt động của công cụ'; Entry='tool-principles' }
+        @{ Question='liệt kê tất cả chức năng'; Entry='feature-overview' }
+        @{ Question='cách dùng chức năng số 7'; Entry='oem' }
+        @{ Question='cách sao lưu trước khi sửa'; Entry='backup-restore' }
+        @{ Question='không thấy phần mềm cần kiểm tra'; Entry='software-not-found' }
+        @{ Question='pdf không tạo được'; Entry='report-pdf-failure' }
+        @{ Question='cách xóa cấu hình máy chủ'; Entry='enterprise-server-management' }
+        @{ Question='cách ghép nối máy trạm'; Entry='enterprise-client-management' }
+        @{ Question='tool không mở được file exe'; Entry='launch-troubleshooting' }
+        @{ Question='online không đồng bộ được'; Entry='online-troubleshooting' }
     )
     foreach ($test in $routeTests) {
         $queryKey = ConvertTo-ToolAssistantSearchKey -Value $test.Question
@@ -86,13 +103,61 @@ if ($errors.Count -eq 0) {
         @{ Question='báo cáo có khẳng định đk k'; Expected='hóa đơn' }
         @{ Question='mỗi lần quét có tạo thư mục riêng k'; Expected='không tạo thư mục con' }
         @{ Question='pm hệ thống trong pdf quá dài'; Expected='phụ lục' }
-        @{ Question='cách luna cập nhật'; Expected='thêm' }
+        @{ Question='cách luna cập nhật'; Expected='manifest' }
+        @{ Question='phiên bản hiện tại của tool'; Expected='v4.8.0.0' }
+        @{ Question='do ai phát triển'; Expected='Thanh Việt' }
+        @{ Question='tóm tắt nội dung chính'; Expected='một-EXE' }
+        @{ Question='nguyên tắc của tool'; Expected='Offline' }
+        @{ Question='tool có những chức năng nào'; Expected='10 chức năng' }
+        @{ Question='hdsd chức năng 1'; Expected='chọn mức riêng tư' }
+        @{ Question='cách dùng chức năng 7'; Expected='Khôi phục key OEM' }
+        @{ Question='cách sao lưu'; Expected='không phải chức năng số 7' }
+        @{ Question='không thấy phần mềm cần kiểm tra'; Expected='quyền Administrator' }
+        @{ Question='pdf không tạo được'; Expected='dùng HTML' }
+        @{ Question='cách xóa cấu hình máy chủ'; Expected='giữ báo cáo' }
+        @{ Question='cách ghép nối máy trạm'; Expected='mã ghép nối' }
+        @{ Question='tool không mở được file exe'; Expected='không chạy trong ZIP' }
+        @{ Question='online không đồng bộ được'; Expected='DNS' }
+        @{ Question='yêu cầu hệ thống của tool'; Expected='Windows 7 SP1' }
+        @{ Question='tool viết bằng gì'; Expected='C#' }
+        @{ Question='cách chuyển giao diện tối'; Expected='Sáng/Tối' }
     )
     foreach ($test in $answerTests) {
         $answer = Get-ToolAssistantAnswer -Question $test.Question -Culture 'vi-VN' -Knowledge $knowledge
         if ($answer -notlike ('*' + $test.Expected + '*')) {
             Add-AssistantVerificationError "Unexpected answer for '$($test.Question)'."
         }
+    }
+
+    $windowsFollowUp = Get-ToolAssistantAnswer -Question 'cách dùng nó' -PreviousQuestion 'chức năng 3 là gì' -Culture 'vi-VN' -Knowledge $knowledge
+    $oemFollowUp = Get-ToolAssistantAnswer -Question 'thế còn chức năng 7' -PreviousQuestion 'cách dùng chức năng 6' -Culture 'vi-VN' -Knowledge $knowledge
+    if ($windowsFollowUp -notmatch 'Chức năng 3.*Bản quyền Windows|Chức năng 3.*trạng thái kích hoạt') {
+        Add-AssistantVerificationError 'Context follow-up did not retain the Windows feature topic.'
+    }
+    if ($oemFollowUp -notmatch 'Chức năng 7.*OEM' -or $oemFollowUp -match 'không phải chức năng số 7') {
+        Add-AssistantVerificationError 'Context follow-up cross-routed feature 7 away from OEM recovery.'
+    }
+
+    $offlineNow = Get-ToolAssistantAnswer -Question 'tool đang online hay offline hiện tại' -Culture 'vi-VN' -Knowledge $knowledge -OnlineMode $false
+    $onlineNow = Get-ToolAssistantAnswer -Question 'trạng thái online của tool lúc này' -Culture 'vi-VN' -Knowledge $knowledge -OnlineMode $true
+    if ($offlineNow -notmatch 'hiện đang Offline' -or $onlineNow -notmatch 'đang Online trong phiên hiện tại') {
+        Add-AssistantVerificationError 'Assistant did not use the actual current Online/Offline state.'
+    }
+
+    $cookingOutside = Get-ToolAssistantAnswer -Question 'cách nấu bún bò huế' -Culture 'vi-VN' -Knowledge $knowledge
+    $weatherOutside = Get-ToolAssistantAnswer -Question 'thời tiết hôm nay' -Culture 'vi-VN' -Knowledge $knowledge
+    $relatedUnknown = Get-ToolAssistantAnswer -Question 'tool quản lý một định dạng nội bộ chưa được tài liệu hóa thế nào' -Culture 'vi-VN' -Knowledge $knowledge
+    if ($cookingOutside -notmatch 'nấu ăn.*ngoài phạm vi' -or $weatherOutside -notmatch 'Thời tiết.*ngoài phạm vi' -or $cookingOutside -eq $weatherOutside) {
+        Add-AssistantVerificationError 'Out-of-scope replies are not adapted to their question context.'
+    }
+    if ($relatedUnknown -match 'không liên quan đến Tool|không thuộc Tool Kiểm Tra|ngoài phạm vi Tool') {
+        Add-AssistantVerificationError 'A Tool-related question was incorrectly rejected as out of scope.'
+    }
+
+    $pluginAnswer = Get-ToolAssistantAnswer -Question 'cách cài plugin json chỉ đọc' -Culture 'vi-VN' -Knowledge $knowledge
+    $formatAnswer = Get-ToolAssistantAnswer -Question 'tool có xuất báo cáo docx không' -Culture 'vi-VN' -Knowledge $knowledge
+    if ($pluginAnswer -notmatch 'nguồn tin cậy' -or $formatAnswer -notmatch 'không xuất DOCX') {
+        Add-AssistantVerificationError 'Feature 10 subfeatures or report-format questions are not answered specifically.'
     }
 
     if (-not [string]::IsNullOrEmpty((Resolve-ToolAssistantReportJsonPath -Path '\\server\share\report.json'))) {
@@ -165,6 +230,7 @@ if ($errors.Count -eq 0) {
             Input=$testInput; Chat=$testChat; SendButton=$testSend; Culture='vi-VN'; Knowledge=$knowledge; ReportContext=$null
             SpeakerFont=$testSpeakerFont; MessageFont=$testMessageFont; Transcript=(New-Object Text.StringBuilder); IsSubmitting=$false
             PendingRevealControl=$null; RevealQueued=$false; RenderTimer=$testRenderTimer
+            LastQuestionKey=''; LastQuestionText=''; LastAnswer=''; OnlineMode=$false
             UserBubbleColor=[Drawing.Color]::FromArgb(0,98,218); UserTextColor=[Drawing.Color]::White
             UserBubbleBorderColor=[Drawing.Color]::FromArgb(0,72,164)
             AssistantBubbleColor=[Drawing.Color]::FromArgb(232,241,252); AssistantTextColor=[Drawing.Color]::Black
@@ -253,7 +319,8 @@ if ($errors.Count -eq 0) {
         }
 
         Clear-ToolAssistantConversation -State $testState
-        if ($testChat.Controls.Count -ne 0 -or $testState.Transcript.Length -ne 0) {
+        if ($testChat.Controls.Count -ne 0 -or $testState.Transcript.Length -ne 0 -or
+            -not [string]::IsNullOrEmpty([string]$testState.LastQuestionText)) {
             Add-AssistantVerificationError 'Clearing the bubble conversation did not clear both UI and transcript.'
         }
     } finally {
@@ -283,7 +350,7 @@ if ($errors.Count -eq 0) {
         Add-AssistantVerificationError 'Dashboard does not pass the current-session Online callback to Tool Assistant.'
     }
     $assistantSource = Get-Content -LiteralPath (Join-Path $SourceDirectory 'Tool-Assistant.ps1') -Raw -Encoding UTF8
-    foreach ($requiredToken in @('$send.Tag = $assistantState','Queue-ToolAssistantQuestion -State $sender.Tag','$eventArgs.Handled = $true','BeginInvoke','SubmissionQueued','ConnectOnline','ConnectOnlineTip','Update-ToolAssistantConnectionUi','Update-ToolAssistantConversationUi','Complete-ToolAssistantConversationLayout','Set-ToolAssistantHeaderBounds','Set-ToolAssistantInputFrameState','InputIdleBorderColor','UserBubbleBorderColor','AssistantBubbleBorderColor','RenderTimer','PendingRevealControl','RevealQueued','[Windows.Forms.Application]::DoEvents()','Windows.Forms.FlowLayoutPanel','Windows.Forms.TableLayoutPanel','Role User','Role Assistant','IsSubmitting','SendButton.Enabled')) {
+    foreach ($requiredToken in @('$send.Tag = $assistantState','Queue-ToolAssistantQuestion -State $sender.Tag','$eventArgs.Handled = $true','BeginInvoke','SubmissionQueued','ConnectOnline','ConnectOnlineTip','Update-ToolAssistantConnectionUi','Update-ToolAssistantConversationUi','Complete-ToolAssistantConversationLayout','Set-ToolAssistantHeaderBounds','Set-ToolAssistantInputFrameState','InputIdleBorderColor','UserBubbleBorderColor','AssistantBubbleBorderColor','RenderTimer','PendingRevealControl','RevealQueued','[Windows.Forms.Application]::DoEvents()','Windows.Forms.FlowLayoutPanel','Windows.Forms.TableLayoutPanel','Role User','Role Assistant','IsSubmitting','SendButton.Enabled','Expand-ToolAssistantContextQuery','Test-ToolAssistantRelatedQuery','Get-ToolAssistantDocumentAnswer','LastQuestionText','KnowledgePlusBundledDocumentation')) {
         if (-not $assistantSource.Contains($requiredToken)) { Add-AssistantVerificationError "Assistant UI interaction token missing: $requiredToken" }
     }
     if ($assistantSource.Contains('New-Object Windows.Forms.RichTextBox')) {
@@ -325,5 +392,5 @@ if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
     exit 1
 }
-Write-Host 'VERIFY-ASSISTANT: 0 errors (270+ keywords + natural routing + immediate bubbles + duplicate lock + Send/Enter + Online control).' -ForegroundColor Green
+Write-Host 'VERIFY-ASSISTANT: 0 errors (390+ phrasings + broad Tool scope + bundled-doc fallback + context follow-up + contextual boundary + immediate bubbles + duplicate lock + Send/Enter + live Online state).' -ForegroundColor Green
 exit 0

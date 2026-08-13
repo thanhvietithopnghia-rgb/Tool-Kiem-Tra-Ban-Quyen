@@ -3,9 +3,9 @@
 This document summarizes the main public releases from v1.0 through v4.8.0. v4.8.0 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
 
 Current release: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.12**
+FileVersion: **4.8.0.0** · Build **2026.08.13**
 
-## v4.8.0 — August 10, 2026 · in-place update August 12, 2026
+## v4.8.0 — August 10, 2026 · in-place update August 13, 2026
 
 **v4.8 is a direct upgrade from v4.6, focused on these main changes:**
 
@@ -13,7 +13,7 @@ FileVersion: **4.8.0.0** · Build **2026.08.12**
 - **Checks and remediation:** Online and Dry Run now share three checkboxes—**Windows, Office, and Other software**. One or more scopes can be selected, and only those scopes are scanned or handled. Preview, confirmation, backup, and post-verification remain mandatory.
 - **Scanning and performance:** faster inventory and assessment, a 76-rule catalog, and more cautious result classification.
 - **Reports:** fixes clipped/missing PDF lines, simplifies layout, and supports redacted reports for sharing.
-- **Assistant and connectivity:** improves in-Tool answers plus Server/Workstation diagnostics and report retry handling.
+- **Assistant and connectivity:** understands every Tool-related question supported by 58 structured topics, bundled guides, report data, and prior-turn context; fixes version/developer/feature-7 routing, varies unrelated-topic boundaries by context, and improves Server/Workstation diagnostics and report retry handling.
 - **Safety and privacy:** Offline by default, networking and updates only with consent, elevation only when needed, and no telemetry or silent updates.
 
 ## v4.6 — August 6, 2026

@@ -52,14 +52,14 @@ Không cần mở mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật
 
 ## Trợ lý Tool
 
-Trợ lý hỗ trợ giải đáp câu hỏi trong phạm vi Tool, gồm cách dùng chức năng, trạng thái Windows/Office/phần mềm, bằng chứng kỹ thuật, mã lỗi, báo cáo, catalogue và kết nối Máy chủ/Máy trạm.
+Trợ lý hiểu và trả lời mọi câu hỏi liên quan đến Tool trong phạm vi dữ liệu sẵn có, không giới hạn ở một danh sách câu mẫu. Phạm vi này bao gồm thông tin sản phẩm như phiên bản, tác giả, ngày build, tóm tắt và nguyên tắc; mục đích/cách dùng/kết quả/lưu ý của mọi chức năng; trạng thái Windows/Office/phần mềm; bằng chứng, mã lỗi, báo cáo, catalogue, cập nhật và kết nối Máy chủ/Máy trạm.
 
 1. Bấm **Trợ lý Tool**.
 2. Nhập câu hỏi vào khung soạn rõ viền; bấm **Gửi** hoặc nhấn `Enter`. Dùng `Shift+Enter` để xuống dòng.
 3. Đọc câu hỏi và câu trả lời trong các khung màu riêng. Nội dung mới tự cuộn tới đúng vị trí và câu trả lời xuất hiện ngay trong lượt hỏi hiện tại.
-4. Nếu cần giải thích một lỗi hoặc kết quả cụ thể, hãy gửi kèm mã lỗi, trạng thái hoặc dòng bằng chứng liên quan.
+4. Nếu cần giải thích một lỗi hoặc kết quả cụ thể, hãy gửi kèm mã lỗi, trạng thái hoặc dòng bằng chứng liên quan. Có thể hỏi tiếp bằng các cụm như “cách dùng nó”, “còn Khôi phục key OEM” hoặc “giải thích thêm”; Trợ lý giữ chủ đề của lượt ngay trước để hiểu ngữ cảnh.
 
-Trợ lý có thể xử lý nhiều cách diễn đạt tự nhiên, câu không dấu, một số viết tắt và lỗi gõ thông thường. Khi câu hỏi nằm ngoài phạm vi hoặc chưa đủ dữ liệu, Trợ lý sẽ trả lời phù hợp ngữ cảnh hoặc đề nghị bổ sung thông tin thay vì tự suy đoán.
+Trợ lý kết hợp kho tri thức có cấu trúc, tài liệu HDSD nhúng và dữ liệu báo cáo hiện có; bộ định tuyến ưu tiên tên chức năng, mã lỗi và cụm từ cụ thể trước từ khóa chung. Trợ lý xử lý cách diễn đạt tự nhiên, câu không dấu, viết tắt, lỗi gõ và câu nhiều ý. Câu có liên quan đến Tool nhưng thiếu dữ liệu sẽ được nói rõ là chưa đủ thông tin; chỉ nội dung thật sự không liên quan mới được báo ngoài phạm vi, với cách diễn đạt phù hợp từng ngữ cảnh thay vì lặp một câu cố định.
 
 Trợ lý vẫn dùng được khi Offline. Online chỉ cho phép đồng bộ kho tri thức tương thích sau khi người dùng chủ động cấp quyền mạng.
 

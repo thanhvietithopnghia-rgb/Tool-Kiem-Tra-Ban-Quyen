@@ -765,13 +765,14 @@ $applicationUpdateManifest = [ordered]@{
     Channel = 'stable'
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
-    PublishedAtUtc = '2026-08-12T00:00:00Z'
+    PublishedAtUtc = '2026-08-13T00:00:00Z'
     Title = [ordered]@{
         'vi-VN' = 'v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn'
         'en-US' = 'v4.8.0 - Faster, clearer, and safer'
     }
     Changes = [ordered]@{
         'vi-VN' = @(
+            'Trợ lý hiểu mọi câu hỏi liên quan đến Tool theo tri thức, HDSD, báo cáo hiện có và ngữ cảnh lượt trước; câu ngoài phạm vi được trả lời theo từng chủ đề.',
             'Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.',
             'Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.',
             'Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.',
@@ -779,6 +780,7 @@ $applicationUpdateManifest = [ordered]@{
             'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
         )
         'en-US' = @(
+            'Tool Assistant handles every Tool-related question supported by local knowledge, guides, report context, and the previous turn; unrelated-topic boundaries adapt to context.',
             'The interface is clearer; the Redacted report button no longer clips or fades on hover.',
             'Scans are faster, recognize more software, and present results more clearly.',
             'Reports protect sensitive data better, and known PDF clipping cases are fixed.',

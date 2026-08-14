@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [string]$SourceDirectory = '',
-    [string]$DistributionDirectory = ''
+    [string]$DistributionDirectory = '',
+    [switch]$AllowDevelopmentManifest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -564,11 +565,17 @@ if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
     }
 
     $signature = Get-AuthenticodeSignature -LiteralPath $exePath
-    if ($signature.Status -ne 'Valid') { $warnings.Add("$targetFileName chưa có chữ ký Authenticode hợp lệ: $($signature.Status)") }
+    if ($signature.Status -ne 'Valid') {
+        $warnings.Add("$targetFileName chưa có chữ ký Authenticode hợp lệ: $($signature.Status)")
+    } elseif ($signature.SignerCertificate -and
+        ([string]$signature.SignerCertificate.Subject -eq [string]$signature.SignerCertificate.Issuer -or
+         [string]$signature.SignerCertificate.Subject -match '(?i)Self-Signed')) {
+        $warnings.Add("$targetFileName dùng chứng thư tự ký; chỉ phù hợp thử nghiệm có kiểm soát khi chứng thư đã được phân phối qua kênh tin cậy.")
+    }
 }
 
 if ($profile -and -not $profile.ControlFlowGuardHeader) {
-    $warnings.Add('CFG/load configuration native chưa được tuyên bố cho launcher managed IL; SECURITY-HARDENING-v4.6.md ghi rõ giới hạn này.')
+    $warnings.Add('CFG/load configuration native chưa được tuyên bố cho launcher managed IL; SECURITY-HARDENING-v4.8.md ghi rõ giới hạn này.')
 }
 
 $releaseManifestPath = Join-Path $distributionDirectoryFull 'RELEASE-MANIFEST.json'
@@ -749,13 +756,21 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
     } catch { $failures.Add("RELEASE-MANIFEST.json không hợp lệ: $($_.Exception.Message)") }
 }
 
+$sourceApplicationUpdateManifestPath = Join-Path $sourceDirectoryFull 'update-manifest-v1.json'
 $applicationUpdateManifestPath = Join-Path $distributionDirectoryFull 'update-manifest-v1.json'
+if (-not (Test-Path -LiteralPath $sourceApplicationUpdateManifestPath -PathType Leaf)) {
+    $failures.Add('Thiếu update-manifest-v1.json trong gói mã nguồn.')
+} elseif ((Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf) -and
+    (Get-Sha256Hex $sourceApplicationUpdateManifestPath) -ne (Get-Sha256Hex $applicationUpdateManifestPath)) {
+    $failures.Add('update-manifest-v1.json trong Source và Release không giống hệt từng byte.')
+}
 if (-not (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf)) {
     $failures.Add('Thiếu update-manifest-v1.json.')
 } elseif (Test-Path -LiteralPath $exePath -PathType Leaf) {
     try {
         $applicationUpdateManifest = Get-Content -LiteralPath $applicationUpdateManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ([string]$applicationUpdateManifest.SchemaVersion -ne '1.0' -or [string]$applicationUpdateManifest.Channel -ne 'stable' -or
+        $expectedUpdateChannel = if ($AllowDevelopmentManifest) { 'development' } else { 'stable' }
+        if ([string]$applicationUpdateManifest.SchemaVersion -ne '1.0' -or [string]$applicationUpdateManifest.Channel -ne $expectedUpdateChannel -or
             [string]$applicationUpdateManifest.LatestVersion -ne '4.8.0.0' -or [string]$applicationUpdateManifest.MinimumUpdaterVersion -ne '4.6.1.0') {
             throw 'Sai schema/channel/version cập nhật.'
         }
@@ -771,8 +786,23 @@ if (-not (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf))
             @($applicationUpdateManifest.Changes.'vi-VN').Count -lt 3 -or @($applicationUpdateManifest.Changes.'en-US').Count -lt 3) {
             throw 'Manifest cập nhật thiếu nội dung vi-VN/en-US.'
         }
-        if ([bool]$applicationUpdateManifest.AuthenticodeRequired -and @($applicationUpdateManifest.SignerThumbprints).Count -eq 0) {
-            throw 'Manifest yêu cầu Authenticode nhưng thiếu signer thumbprint.'
+        $manifestRequiresAuthenticode = [bool]$applicationUpdateManifest.AuthenticodeRequired
+        $manifestSignerThumbprints = @($applicationUpdateManifest.SignerThumbprints | ForEach-Object { ([string]$_).Replace(' ', '').ToUpperInvariant() })
+        if ($expectedUpdateChannel -eq 'stable' -and -not $manifestRequiresAuthenticode) {
+            throw 'Manifest stable chưa bắt buộc Authenticode.'
+        }
+        if ($expectedUpdateChannel -eq 'development' -and $manifestRequiresAuthenticode) {
+            throw 'Manifest development không được giả làm stable signed release.'
+        }
+        if ($manifestRequiresAuthenticode) {
+            if ($manifestSignerThumbprints.Count -eq 0 -or @($manifestSignerThumbprints | Where-Object { $_ -notmatch '^[0-9A-F]{40,64}$' }).Count -gt 0) {
+                throw 'Manifest yêu cầu Authenticode nhưng thiếu hoặc sai signer thumbprint.'
+            }
+            $releaseSignature = Get-AuthenticodeSignature -LiteralPath $exePath
+            $releaseSignerThumbprint = if ($releaseSignature.SignerCertificate) { ([string]$releaseSignature.SignerCertificate.Thumbprint).Replace(' ', '').ToUpperInvariant() } else { '' }
+            if ($releaseSignature.Status -ne 'Valid' -or $manifestSignerThumbprints -notcontains $releaseSignerThumbprint) {
+                throw 'EXE phát hành không có chữ ký hợp lệ của signer đã ghim trong manifest.'
+            }
         }
     } catch { $failures.Add("update-manifest-v1.json không hợp lệ: $($_.Exception.Message)") }
 }

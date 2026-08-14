@@ -43,7 +43,7 @@ Không chuyển sang WPF/WebView2 trong v4.3. Modern WinForms được chọn đ
 | --- | --- | --- |
 | Dashboard/dark mode | Hoàn thành | `VERIFY-DASHBOARD.ps1` |
 | Compatibility logic/catalog | Hoàn thành ở mức code + fixture | `VERIFY-COMPATIBILITY.ps1` |
-| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.6.md` |
+| VM/máy thật mọi SKU | Cần ma trận QA bên ngoài repo | `COMPATIBILITY-MATRIX-v4.8.md` |
 | Offline policy | Hoàn thành ở cấp ứng dụng | `VERIFY-OFFLINE-I18N.ps1` |
 | HTML/PDF offline-safe | Hoàn thành | export schema 1.4, HTML tổng quan / PDF chi tiết và ngắt trang an toàn |
 | Quét sâu phần mềm phổ quát | Hoàn thành ở mức code + fixture + quét tích hợp máy thật | `VERIFY-SAFETY-REGRESSIONS.ps1` và metadata deep scan |

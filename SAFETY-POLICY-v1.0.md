@@ -92,6 +92,7 @@ Cho phép mạng là opt-in từ dashboard, không phải trạng thái tự đ�
 ## Release policy
 
 - Không dùng `ExecutionPolicy Bypass`; tiến trình con dùng `RemoteSigned`.
-- Build chính thức có thể bật `-RequireAuthenticode`; khi bật, build thất bại nếu chữ ký không `Valid`.
+- Build stable bắt buộc `-RequireAuthenticode`, ghim thumbprint trong manifest và thất bại nếu chữ ký không `Valid`.
+- Build chưa ký chỉ được tạo bằng `-AllowUnsignedDevelopmentBuild`; manifest mang kênh `development` và không đủ điều kiện phát hành.
 - Release không được mô tả là đã ký nếu chưa có chứng thư thật và timestamp hợp lệ.
 - Không tuyên bố CFG native cho launcher managed IL.

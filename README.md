@@ -122,7 +122,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.8.exe | Format-List Status,StatusMe
 - `LICH-SU-PHIEN-BAN.txt` — lịch sử phiên bản tiếng Việt.
 - `VERSION-HISTORY-en-US.md` — English version history.
 - `README-MA-NGUON.md` — cách build, kiểm thử và đóng gói.
-- `TECHNICAL-ARCHITECTURE-v4.6.md` — kiến trúc kỹ thuật.
+- `TECHNICAL-ARCHITECTURE-v4.8.md` — kiến trúc kỹ thuật.
 - `SAFETY-POLICY-v1.0.md` — ranh giới an toàn.
 
 ## Tải chính thức và hỗ trợ

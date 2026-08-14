@@ -52,9 +52,9 @@ Tool-Kiem-Tra-v4.8.exe
 7. truyền phiên bản schema, correlation ID, đường dẫn log/plugin/timeline và trạng thái Offline qua environment;
 8. dọn session tạm sau khi tiến trình con kết thúc.
 
-Launcher có sáu mode được công bố trong `ENTRY-POINTS-v4.6.md`. `--enterprise-ui` luôn được phép mở để Mục 8 giữ đủ ba chức năng. Các tiến trình mạng `--enterprise-server`, `--enterprise-agent` và `--enterprise-agent-force` chỉ chạy khi công tắc mạng riêng của Mục 8 đang bật.
+Launcher có sáu mode được công bố trong `ENTRY-POINTS-v4.8.md`. `--enterprise-ui` luôn được phép mở để Mục 8 giữ đủ ba chức năng. Các tiến trình mạng `--enterprise-server`, `--enterprise-agent` và `--enterprise-agent-force` chỉ chạy khi công tắc mạng riêng của Mục 8 đang bật.
 
-## Vòng đời dữ liệu v4.6
+## Vòng đời dữ liệu v4.8 trên storage generation v4.6
 
 `Tool-DataLifecycle.ps1` tạo `data-state.json` với `DataSchemaVersion=2.0`, `ProducerVersion=4.8.0.0`, storage generation và kết quả migration. Launcher tiếp tục dùng vùng dữ liệu tương thích v4.6/v4.4 cùng schema qua environment; dashboard fail-closed khi schema không khớp.
 
@@ -67,7 +67,7 @@ Migration chỉ chạy khi chưa có state:
 5. nếu commit lỗi, khôi phục tệp bị ghi đè, xóa đúng tệp/thư mục mới và không tạo state hoàn tất;
 6. giữ nguyên toàn bộ vùng cũ; `logs`/`backups` cũ chỉ được công bố dưới `LegacyReadOnlyRoots`.
 
-Launcher v4.6 kiểm tra mutex launcher v4.4/v4.5 trước migration. Enterprise agent/audit dùng mutex v4.6 riêng. Các chuỗi `v4.4` còn lại trong timeline/Enterprise là nhãn mật mã tương thích, không phải đường dẫn ghi.
+Launcher v4.8 kiểm tra mutex launcher v4.4/v4.5 trước migration. Enterprise agent/audit tiếp tục dùng mutex của storage generation v4.6. Các chuỗi `v4.4` còn lại trong timeline/Enterprise là nhãn mật mã tương thích, không phải đường dẫn ghi.
 
 ## Cập nhật ứng dụng v4.6.1–v4.8.0
 
@@ -222,7 +222,7 @@ Launcher và dashboard so khớp schema qua environment. Lệch schema trong sec
 - plugin/timeline/enterprise;
 - data lifecycle migration/idempotency/rollback;
 - PE flags và release manifest;
-- Authenticode khi `-RequireAuthenticode` được bật.
+- Authenticode bắt buộc cho build stable; build chưa ký chỉ được phép ở kênh `development` có cờ xác nhận riêng.
 
 Workflow `.github/workflows/compatibility-review.yml` chạy hàng tuần, dùng `VERIFY-MICROSOFT-CATALOG-SOURCES.ps1` để phát hiện catalog quá hạn, revision/release/channel mới và xuất `microsoft-catalog-review.json`. Workflow chỉ tạo bằng chứng/khóa gate; không tự sửa hay tự xuất bản catalog.
 

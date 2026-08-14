@@ -7,7 +7,8 @@ param(
     [string]$SigningPfxPath = '',
     [Security.SecureString]$SigningPfxPassword,
     [string]$TimestampServer = 'http://timestamp.digicert.com',
-    [switch]$RequireAuthenticode
+    [switch]$RequireAuthenticode,
+    [switch]$AllowUnsignedDevelopmentBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,6 +25,13 @@ $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
 $applicationManifestName = "Tool-Kiem-Tra-v$productVersion-OneFile.manifest"
 $embeddedVerifierName = 'VERIFY-EMBEDDED-PAYLOAD.ps1'
 $peHardeningName = 'PE-HARDENING.ps1'
+
+if ($RequireAuthenticode -and $AllowUnsignedDevelopmentBuild) {
+    throw 'Không được đồng thời bật RequireAuthenticode và AllowUnsignedDevelopmentBuild.'
+}
+if (-not $RequireAuthenticode -and -not $AllowUnsignedDevelopmentBuild) {
+    throw 'Build stable bắt buộc Authenticode. Chỉ dùng -AllowUnsignedDevelopmentBuild cho artefact phát triển không phát hành.'
+}
 
 if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
     throw 'BUILD.ps1 phải chạy bằng Windows PowerShell 64-bit để build AnyCPU và kiểm tra trên cả CLR x64/x86.'
@@ -137,18 +145,18 @@ $integrityFiles = @(
 $sourceFiles = @(
     $payloadFiles
     'BUILD.ps1'
-    'DANH-GIA-VA-NANG-CAP-v4.6.md'
+    'DANH-GIA-VA-NANG-CAP-v4.8.md'
     'LICENSE-NOTICE.txt'
     'README.md'
     'README-MA-NGUON.md'
     'MODULE-CONTRACT-v1.0.md'
     'REPORT-SCHEMA-v1.5.md'
     'ROADMAP-v5.0.md'
-    'SECURITY-HARDENING-v4.6.md'
-    'TECHNICAL-ARCHITECTURE-v4.6.md'
-    'ENTRY-POINTS-v4.6.md'
-    'COMPATIBILITY-MATRIX-v4.6.md'
-    'OFFLINE-AND-REPORTING-v4.6.md'
+    'SECURITY-HARDENING-v4.8.md'
+    'TECHNICAL-ARCHITECTURE-v4.8.md'
+    'ENTRY-POINTS-v4.8.md'
+    'COMPATIBILITY-MATRIX-v4.8.md'
+    'OFFLINE-AND-REPORTING-v4.8.md'
     'LOCALIZATION-v1.0.md'
     'SAFETY-POLICY-v1.0.md'
     $sourceName
@@ -186,6 +194,27 @@ function Get-Sha256Hex {
         try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '') }
         finally { $algorithm.Dispose() }
     } finally { $stream.Dispose() }
+}
+
+function Write-SourcePackageHashManifest {
+    $sourcePackageManifestPath = Join-Path $sourceDirectory 'SOURCE-PACKAGE-SHA256SUMS.txt'
+    $sourcePackageRootPrefix = [IO.Path]::GetFullPath($sourceDirectory).TrimEnd('\') + '\'
+    $sourcePackageFiles = @(Get-ChildItem -LiteralPath $sourceDirectory -Recurse -File -Force | Where-Object {
+        $_.FullName -ne $sourcePackageManifestPath -and
+        $_.FullName -notmatch '\\(?:\.git|dist|test)(?:\\|$)'
+    } | Sort-Object { $_.FullName.Substring($sourcePackageRootPrefix.Length) })
+    $sourcePackageManifestLines = @(
+        "# SHA-256 cua toan bo goi ma nguon v$productVersion.0; khong tu liet ke tep manifest nay."
+    )
+    foreach ($file in $sourcePackageFiles) {
+        $relativePath = $file.FullName.Substring($sourcePackageRootPrefix.Length)
+        $sourcePackageManifestLines += "$(Get-Sha256Hex $file.FullName)  $relativePath"
+    }
+    [IO.File]::WriteAllLines(
+        $sourcePackageManifestPath,
+        $sourcePackageManifestLines,
+        (New-Object Text.UTF8Encoding($false))
+    )
 }
 
 function New-DeflatedPayloadFile {
@@ -239,18 +268,18 @@ function Get-VerificationPowerShell([string]$Architecture) {
 
 $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }) + @(
     'BUILD.ps1',
-    'DANH-GIA-VA-NANG-CAP-v4.6.md',
+    'DANH-GIA-VA-NANG-CAP-v4.8.md',
     'LICENSE-NOTICE.txt',
     'README.md',
     'README-MA-NGUON.md',
     'MODULE-CONTRACT-v1.0.md',
     'REPORT-SCHEMA-v1.5.md',
     'ROADMAP-v5.0.md',
-    'SECURITY-HARDENING-v4.6.md',
-    'TECHNICAL-ARCHITECTURE-v4.6.md',
-    'ENTRY-POINTS-v4.6.md',
-    'COMPATIBILITY-MATRIX-v4.6.md',
-    'OFFLINE-AND-REPORTING-v4.6.md',
+    'SECURITY-HARDENING-v4.8.md',
+    'TECHNICAL-ARCHITECTURE-v4.8.md',
+    'ENTRY-POINTS-v4.8.md',
+    'COMPATIBILITY-MATRIX-v4.8.md',
+    'OFFLINE-AND-REPORTING-v4.8.md',
     'LOCALIZATION-v1.0.md',
     'SAFETY-POLICY-v1.0.md',
     $sourceName,
@@ -339,26 +368,9 @@ foreach ($name in $sourceFiles) {
 )
 
 # Manifest này bao phủ toàn bộ gói mã nguồn bàn giao, kể cả tài liệu và workflow
-# nằm trong thư mục con. Loại trừ chính manifest để tránh tham chiếu vòng, cùng
-# các thư mục làm việc/build không thuộc gói phát hành.
-$sourcePackageManifestPath = Join-Path $sourceDirectory 'SOURCE-PACKAGE-SHA256SUMS.txt'
-$sourcePackageRootPrefix = [IO.Path]::GetFullPath($sourceDirectory).TrimEnd('\') + '\'
-$sourcePackageFiles = @(Get-ChildItem -LiteralPath $sourceDirectory -Recurse -File -Force | Where-Object {
-    $_.FullName -ne $sourcePackageManifestPath -and
-    $_.FullName -notmatch '\\(?:\.git|dist|test)(?:\\|$)'
-} | Sort-Object { $_.FullName.Substring($sourcePackageRootPrefix.Length) })
-$sourcePackageManifestLines = @(
-    "# SHA-256 cua toan bo goi ma nguon v$productVersion.0; khong tu liet ke tep manifest nay."
-)
-foreach ($file in $sourcePackageFiles) {
-    $relativePath = $file.FullName.Substring($sourcePackageRootPrefix.Length)
-    $sourcePackageManifestLines += "$(Get-Sha256Hex $file.FullName)  $relativePath"
-}
-[IO.File]::WriteAllLines(
-    $sourcePackageManifestPath,
-    $sourcePackageManifestLines,
-    (New-Object Text.UTF8Encoding($false))
-)
+# nằm trong thư mục con. Nó được tạo lại sau khi manifest cập nhật cuối cùng đã
+# được đồng bộ về nguồn để không giữ hash của bản cũ.
+Write-SourcePackageHashManifest
 
 Write-Host '[3/8] Chuẩn bị thư mục đầu ra...'
 if (-not (Test-Path -LiteralPath $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory | Out-Null }
@@ -520,8 +532,8 @@ Write-Host '[5/8] Tạo metadata phát hành...'
 foreach ($sidecar in @(
     'approved-kms-servers.txt', 'HUONG-DAN.txt', 'USER-GUIDE-en-US.md', 'LICH-SU-PHIEN-BAN.txt', 'VERSION-HISTORY-en-US.md', 'LICENSE-NOTICE.txt',
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
-    'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
-    'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
+    'TECHNICAL-ARCHITECTURE-v4.8.md', 'ENTRY-POINTS-v4.8.md', 'COMPATIBILITY-MATRIX-v4.8.md',
+    'OFFLINE-AND-REPORTING-v4.8.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.8.md',
     'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s'
 )) {
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $sidecar) -Destination (Join-Path $OutputDirectory $sidecar) -Force
@@ -605,7 +617,7 @@ $releaseManifest = [ordered]@{
     ApplicationUpdateManifestUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json'
     ApplicationUpdateChoices = @('UpdateNow','Later','DismissForSession')
     ApplicationUpdateDeferral = 'After next completed task or 2 hours; next launch rechecks only when Online is allowed'
-    ApplicationUpdateVerification = 'Fixed GitHub HTTPS allowlist + declared size + SHA-256 + optional pinned Authenticode signer + rollback'
+    ApplicationUpdateVerification = 'Fixed GitHub HTTPS allowlist + declared size + SHA-256 + mandatory pinned Authenticode signer for stable + rollback'
     LocalizationSchemaVersion = [string]$localizationMetadata.SchemaVersion
     DefaultCulture = [string]$localizationMetadata.DefaultCulture
     SupportedCultures = @($localizationMetadata.SupportedCultures)
@@ -766,18 +778,17 @@ $releaseManifest = [ordered]@{
 $primaryArtifact = @($artifactResults.ToArray())[0]
 $primaryArtifactPath = Join-Path $OutputDirectory $primaryArtifact.FileName
 $updateSignerThumbprints = @()
-# Chữ ký tự ký chỉ có trạng thái Valid trên máy đã cài chứng thư tin cậy. Không
-# bắt buộc máy người dùng phải tin chứng thư này; updater công khai vẫn khóa URL,
-# kích thước và SHA-256. Chỉ bật pinning khi dùng chứng thư phát hành công khai.
-$updateAuthenticodeRequired = [bool](
-    $primaryArtifact.AuthenticodeStatus -eq 'Valid' -and
-    -not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint) -and
-    [string]$primaryArtifact.AuthenticodeSigner -notmatch '(?i)Self-Signed'
-)
-if ($updateAuthenticodeRequired) { $updateSignerThumbprints = @(([string]$primaryArtifact.AuthenticodeThumbprint).Replace(' ', '').ToUpperInvariant()) }
+$updateAuthenticodeRequired = [bool]$RequireAuthenticode
+if ($updateAuthenticodeRequired) {
+    if ($primaryArtifact.AuthenticodeStatus -ne 'Valid' -or
+        [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint)) {
+        throw 'Stable update manifest requires a valid Authenticode signature and signer thumbprint.'
+    }
+    $updateSignerThumbprints = @(([string]$primaryArtifact.AuthenticodeThumbprint).Replace(' ', '').ToUpperInvariant())
+}
 $applicationUpdateManifest = [ordered]@{
     SchemaVersion = '1.0'
-    Channel = 'stable'
+    Channel = if ($updateAuthenticodeRequired) { 'stable' } else { 'development' }
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
     PublishedAtUtc = '2026-08-13T00:00:00Z'
@@ -810,7 +821,17 @@ $applicationUpdateManifest = [ordered]@{
     AuthenticodeRequired = $updateAuthenticodeRequired
     SignerThumbprints = @($updateSignerThumbprints)
 }
-[IO.File]::WriteAllText((Join-Path $OutputDirectory 'update-manifest-v1.json'), ($applicationUpdateManifest | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($false)))
+$applicationUpdateManifestJson = $applicationUpdateManifest | ConvertTo-Json -Depth 8
+$sourceUpdateManifestPath = Join-Path $sourceDirectory 'update-manifest-v1.json'
+$outputUpdateManifestPath = Join-Path $OutputDirectory 'update-manifest-v1.json'
+[IO.File]::WriteAllText($sourceUpdateManifestPath, $applicationUpdateManifestJson, (New-Object Text.UTF8Encoding($false)))
+if (-not $sourceUpdateManifestPath.Equals($outputUpdateManifestPath, [StringComparison]::OrdinalIgnoreCase)) {
+    Copy-Item -LiteralPath $sourceUpdateManifestPath -Destination $outputUpdateManifestPath -Force
+}
+if ((Get-Sha256Hex $sourceUpdateManifestPath) -ne (Get-Sha256Hex $outputUpdateManifestPath)) {
+    throw 'Manifest cập nhật trong mã nguồn và thư mục phát hành không giống hệt từng byte.'
+}
+Write-SourcePackageHashManifest
 
 $infoName = 'THONG-TIN-PHAT-HANH-v4.8.txt'
 $authenticodeInfo = if (-not [string]::IsNullOrWhiteSpace([string]$primaryArtifact.AuthenticodeThumbprint)) {
@@ -907,7 +928,7 @@ $infoLines = @(
     "Module contract schema $($moduleContractMetadata.ContractSchemaVersion): $($moduleContractMetadata.EntryPointCount) entry point / $($moduleContractMetadata.ModuleCount) module; co capability gate va ModuleResult thong nhat.",
     'Log JSON Lines cua dashboard nam trong LocalAppData theo tai khoan; che do nang quyen va doanh nghiep dung ProgramData co ACL Administrators/SYSTEM; khong ghi product key day du.',
     'PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.',
-    'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.6.md.',
+    'CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.8.md.',
     'Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; catalog hien tai theo doi Windows 10 22H2 va Windows 11 23H2/24H2/25H2/26H1.',
     $authenticodeInfo,
     $authenticodeTrustInfo,
@@ -918,8 +939,8 @@ $infoLines = @(
 $releaseHashFiles = @($targets.OutputName) + @(
     'approved-kms-servers.txt', 'HUONG-DAN.txt', 'USER-GUIDE-en-US.md', 'LICH-SU-PHIEN-BAN.txt', 'VERSION-HISTORY-en-US.md', 'LICENSE-NOTICE.txt',
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
-    'TECHNICAL-ARCHITECTURE-v4.6.md', 'ENTRY-POINTS-v4.6.md', 'COMPATIBILITY-MATRIX-v4.6.md',
-    'OFFLINE-AND-REPORTING-v4.6.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.6.md',
+    'TECHNICAL-ARCHITECTURE-v4.8.md', 'ENTRY-POINTS-v4.8.md', 'COMPATIBILITY-MATRIX-v4.8.md',
+    'OFFLINE-AND-REPORTING-v4.8.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.8.md',
     'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
 )
 $releaseHashLines = @("# SHA-256 goi phat hanh Tool-Kiem-Tra v$productVersion.")
@@ -953,7 +974,8 @@ if (-not $SkipVerification) {
     & (Join-Path $sourceDirectory 'VERIFY-ASSISTANT.ps1') -SourceDirectory $sourceDirectory
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-ASSISTANT.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     Write-Host '[7/8] Kiểm tra phát hành tổng thể...'
-    & (Join-Path $sourceDirectory 'VERIFY-RELEASE.ps1') -SourceDirectory $sourceDirectory -DistributionDirectory $OutputDirectory
+    & (Join-Path $sourceDirectory 'VERIFY-RELEASE.ps1') -SourceDirectory $sourceDirectory -DistributionDirectory $OutputDirectory `
+        -AllowDevelopmentManifest:$AllowUnsignedDevelopmentBuild
     if ($LASTEXITCODE -ne 0) { throw "VERIFY-RELEASE.ps1 thất bại, mã thoát: $LASTEXITCODE" }
     if ($RequireAuthenticode) {
         & (Join-Path $sourceDirectory 'VERIFY-AUTHENTICODE.ps1') -FilePath (Join-Path $OutputDirectory "Tool-Kiem-Tra-v$productVersion.exe") -RequireTimestamp

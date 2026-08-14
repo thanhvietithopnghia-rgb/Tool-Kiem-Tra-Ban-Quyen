@@ -1,4 +1,4 @@
-# Ma trận tương thích v4.6
+# Ma trận tương thích v4.8
 
 Mốc rà soát: **2026-08-05 UTC**. Nguồn máy đọc: `compatibility-catalog-v1.0.json`, schema catalog `1.1`, phiên bản `1.1.0.0`.
 

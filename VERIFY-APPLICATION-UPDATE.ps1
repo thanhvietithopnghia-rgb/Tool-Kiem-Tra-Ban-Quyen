@@ -49,8 +49,8 @@ try {
         DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe'
         DownloadSha256 = ('A' * 64)
         DownloadSize = 65536
-        AuthenticodeRequired = $false
-        SignerThumbprints = @()
+        AuthenticodeRequired = $true
+        SignerThumbprints = @(('C' * 40))
     }
     $candidate = ConvertFrom-ToolUpdateManifest -Manifest $manifest -InstalledVersion '4.8.0.0' -SelectedCulture 'vi-VN' -SourceUrl $script:ToolUpdateDefaultManifestUrl
     Assert-UpdateTest ([bool]$candidate.UpdateAvailable) 'A newer version was not detected.'
@@ -108,6 +108,10 @@ try {
     $missingSignerManifest.AuthenticodeRequired = $true
     $missingSignerManifest.SignerThumbprints = @()
     Assert-UpdateThrows { ConvertFrom-ToolUpdateManifest -Manifest $missingSignerManifest -InstalledVersion '4.8.0.0' | Out-Null } 'A signed release requirement without a trusted signer was accepted.'
+    $unsignedStableManifest = $manifest.PSObject.Copy()
+    $unsignedStableManifest.AuthenticodeRequired = $false
+    $unsignedStableManifest.SignerThumbprints = @()
+    Assert-UpdateThrows { ConvertFrom-ToolUpdateManifest -Manifest $unsignedStableManifest -InstalledVersion '4.8.0.0' | Out-Null } 'An unsigned stable update manifest was accepted.'
     Assert-UpdateThrows { Assert-ToolUpdateManifestUri ([uri]($script:ToolUpdateDefaultManifestUrl + '?redirect=1')) | Out-Null } 'A manifest URL with a query was accepted.'
     Assert-UpdateThrows { Assert-ToolUpdateReleaseUri ([uri]'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0?x=1') | Out-Null } 'A release URL with a query was accepted.'
     $badBooleanManifest = $manifest.PSObject.Copy()
@@ -177,7 +181,7 @@ try {
         }
     }
 
-    Write-Host 'VERIFY-APPLICATION-UPDATE: OK (Offline/consent gates + anti-downgrade + version/asset/hash/size/signer validation + 3 choices + verified swap/backup)' -ForegroundColor Green
+    Write-Host 'VERIFY-APPLICATION-UPDATE: OK (Offline/consent gates + signed-stable policy + anti-downgrade + version/asset/hash/size/signer validation + verified swap/backup)' -ForegroundColor Green
     exit 0
 } catch {
     Write-Error $_.Exception.Message

@@ -1,4 +1,4 @@
-# Module Contract schema 1.0 — Tool-Kiem-Tra v4.6
+# Module Contract schema 1.0 — Tool-Kiem-Tra v4.8
 
 `Tool-ModuleContract.ps1` là nguồn chuẩn. Catalog có 27 descriptor: 24 entry point và ba nguồn inventory nội bộ.
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | `ContractSchemaVersion` | `1.0` |
 | `ResultSchemaVersion` | `1.0` |
-| `ToolVersion` | `4.6` |
+| `ToolVersion` | `4.8` |
 | `ModuleId` | ID chữ thường, ổn định |
 | `Category`, `DisplayName` | Nhóm và tên hiển thị |
 | `ScriptFile`, `Operation`, `TaskKind` | Entry point và mode |
@@ -74,7 +74,7 @@ Plugin assurance vẫn read-only; thao tác cài plugin là hành động riêng
 
 ## Danh sách entry point
 
-Danh sách đầy đủ, script/operation, quyền và network scope nằm trong `ENTRY-POINTS-v4.6.md`. Verifier yêu cầu đúng 27 descriptor/24 entry point, ID duy nhất, script tồn tại, schema đúng và `OfflineCapable` khớp `NetworkScope`.
+Danh sách đầy đủ, script/operation, quyền và network scope nằm trong `ENTRY-POINTS-v4.8.md`. Verifier yêu cầu đúng 27 descriptor/24 entry point, ID duy nhất, script tồn tại, schema đúng và `OfflineCapable` khớp `NetworkScope`.
 
 ## Quy tắc mở rộng
 

@@ -15,7 +15,7 @@ Release `4.8.0.0`, build `2026.08.13`, tập trung vào tốc độ, khả năng
 - `enterprise-license-manager.ps1` tự dò khi ô địa chỉ trống, phân biệt LAN với Internet, cấu hình URLACL/Firewall qua UAC và không lặp exception kỹ thuật trên status/popup.
 - `VERIFY-ASSISTANT.ps1`, `VERIFY-SAFETY-REGRESSIONS.ps1`, `VERIFY-REPORT-SCHEMA.ps1` và `VERIFY-ENTERPRISE.ps1` có fixture hồi quy cho các yêu cầu v4.8; Enterprise còn khởi chạy listener loopback thật để chẩn đoán, ghép nối và gửi báo cáo đầu-cuối.
 
-## Điểm mới v4.6
+## Nền tảng v4.6 được kế thừa và hoàn thiện trong v4.8
 
 - Dashboard schema 2.0: Modern WinForms 1040 × 820, card Windows/Office, tile có mô tả, responsive DPI và dark mode toàn công cụ; Trung tâm quản lý giấy phép có màu nhận diện riêng.
 - Kiểm kê toàn bộ phần mềm từ Uninstall Registry, AppX/MSIX, Start Menu, Desktop và các vị trí cài đặt/portable có giới hạn; phân loại theo mô hình cấp phép và bằng chứng kỹ thuật, không mặc định “không có bằng chứng” là chính hãng.
@@ -61,26 +61,26 @@ v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thíc
 
 ## Tài liệu kỹ thuật
 
-- `TECHNICAL-ARCHITECTURE-v4.6.md`
-- `ENTRY-POINTS-v4.6.md`
+- `TECHNICAL-ARCHITECTURE-v4.8.md`
+- `ENTRY-POINTS-v4.8.md`
 - `MODULE-CONTRACT-v1.0.md`
 - `REPORT-SCHEMA-v1.5.md`
 - `SAFETY-POLICY-v1.0.md`
-- `COMPATIBILITY-MATRIX-v4.6.md`
-- `OFFLINE-AND-REPORTING-v4.6.md`
+- `COMPATIBILITY-MATRIX-v4.8.md`
+- `OFFLINE-AND-REPORTING-v4.8.md`
 - `LOCALIZATION-v1.0.md`
-- `SECURITY-HARDENING-v4.6.md`
+- `SECURITY-HARDENING-v4.8.md`
 
-## Build chưa ký
+## Build phát triển chưa ký
 
 Mở Windows PowerShell 64-bit:
 
 ```powershell
 Set-Location '<thu-muc-ma-nguon>'
-.\BUILD.ps1 -OutputDirectory .\dist
+.\BUILD.ps1 -OutputDirectory .\dist-development -AllowUnsignedDevelopmentBuild
 ```
 
-Build tạo một EXE AnyCPU, tài liệu sidecar, `RELEASE-MANIFEST.json`, `update-manifest-v1.json`, thông tin phát hành và `RELEASE-SHA256SUMS.txt`. Mỗi payload được chọn tự động giữa Deflate và raw theo kích thước thực tế; verifier giải nén rồi đối chiếu byte/SHA-256 trên cả CLR x64/x86.
+Chế độ này tạo manifest kênh `development`, không được dùng để phát hành. Build tạo một EXE AnyCPU, tài liệu sidecar, `RELEASE-MANIFEST.json`, `update-manifest-v1.json`, thông tin phát hành và `RELEASE-SHA256SUMS.txt`. Mỗi payload được chọn tự động giữa Deflate và raw theo kích thước thực tế; verifier giải nén rồi đối chiếu byte/SHA-256 trên cả CLR x64/x86.
 
 ## Build đã ký
 
@@ -105,7 +105,7 @@ $password = Read-Host 'Mật khẩu PFX' -AsSecureString
   -RequireAuthenticode
 ```
 
-Không đưa PFX/private key/mật khẩu vào repo. `-RequireAuthenticode` làm build thất bại nếu chữ ký không `Valid`.
+Không đưa PFX/private key/mật khẩu vào repo. Build stable bắt buộc `-RequireAuthenticode`; build thất bại nếu chữ ký không `Valid`, manifest thiếu thumbprint hoặc manifest Source/Release không giống hệt từng byte. Chứng thư tự ký chỉ phù hợp thử nghiệm có kiểm soát; phát hành rộng cần chứng thư code-signing được máy người dùng tin cậy.
 
 ## Verifier
 

@@ -23,6 +23,22 @@ if ([string]$metadata.ContractSchemaVersion -ne "1.0" -or [string]$metadata.Resu
     $catalog = @(Get-ToolModuleCatalog)
     $duplicateIds = @($catalog | Group-Object ModuleId | Where-Object Count -ne 1)
     if ($duplicateIds.Count -gt 0) { throw "Catalog có ModuleId trùng." }
+    $expectedSystemChangeIds = @(
+        'backup.create', 'cleanup.deep', 'cleanup.remediate', 'cleanup.repair',
+        'enterprise.agent', 'enterprise.server', 'license.manager', 'license.manager.local',
+        'oem.apply', 'restore.apply'
+    ) | Sort-Object
+    $actualSystemChangeIds = @($catalog | Where-Object IsEntryPoint | Where-Object AccessMode -eq 'SystemChange' | ForEach-Object ModuleId | Sort-Object)
+    if (@(Compare-Object -ReferenceObject $expectedSystemChangeIds -DifferenceObject $actualSystemChangeIds).Count -ne 0) {
+        throw 'Ranh giới ReadOnly/SystemChange của entry point đã thay đổi ngoài danh sách kiểm soát.'
+    }
+    if (@($catalog | Where-Object { $_.IsEntryPoint -and $_.AccessMode -eq 'SystemChange' -and -not $_.RequiresElevation }).Count -gt 0) {
+        throw 'Có entry point thay đổi hệ thống nhưng không yêu cầu elevation.'
+    }
+    $cleanupReadOnly = @($catalog | Where-Object { $_.IsEntryPoint -and $_.ModuleId -like 'cleanup.*' -and $_.AccessMode -eq 'ReadOnly' })
+    if ($cleanupReadOnly.Count -ne 1 -or [string]$cleanupReadOnly[0].ModuleId -ne 'cleanup.scan' -or [string]$cleanupReadOnly[0].Operation -ne 'Scan') {
+        throw 'Nhóm cleanup chưa tách duy nhất luồng Scan chỉ đọc khỏi các luồng thay đổi.'
+    }
     foreach ($descriptor in $catalog) {
 if ([string]$descriptor.ContractSchemaVersion -ne "1.0" -or [string]$descriptor.ResultSchemaVersion -ne "1.0" -or [string]$descriptor.ToolVersion -ne "4.8") { throw "Descriptor sai schema: $($descriptor.ModuleId)" }
         if ([string]$descriptor.NetworkScope -notin @("LocalOnly","Lan","Internet")) { throw "Descriptor thiếu NetworkScope: $($descriptor.ModuleId)" }

@@ -68,7 +68,7 @@ Full product key bị loại khỏi log/report/timeline. Enterprise key chỉ n�
 - machine binding;
 - SHA-256 + HMAC;
 - DPAPI LocalMachine;
-- manifest ToolVersion 4.6;
+- manifest ToolVersion 4.8; restore vẫn đọc tương thích backup 4.6/4.7;
 - restore từ chối dữ liệu sai schema/hash/máy/root.
 
 ## Plugin threat model
@@ -129,12 +129,12 @@ Build hỗ trợ chứng thư store hoặc PFX và timestamp. Khi dùng `-Requir
 4. release verifier kiểm tra;
 5. `VERIFY-AUTHENTICODE.ps1 -RequireTimestamp` xác minh timestamp.
 
-Build phát triển chưa ký vẫn có thể tạo để test, nhưng không được mô tả là release đã ký. Một EXE tự giải nén payload PowerShell, chứa từ khóa KMS/activator và trình cập nhật có thể bị engine heuristic cảnh báo. Không coi cảnh báo là false positive chỉ dựa vào tên detection; phải xác minh nguồn GitHub chính thức, SHA-256, Authenticode, kết quả Defender và hành vi thực tế trước khi gửi mẫu cho hãng antivirus. Không hướng dẫn tắt Defender/SmartScreen hoặc thêm exclusion rộng.
+Build stable bắt buộc `-RequireAuthenticode`, ghim thumbprint signer vào manifest và từ chối nếu manifest Source/Release không giống hệt từng byte. Build phát triển chưa ký chỉ được tạo với `-AllowUnsignedDevelopmentBuild`, mang kênh `development` và không được phát hành. Một EXE tự giải nén payload PowerShell, chứa từ khóa KMS/activator và trình cập nhật có thể bị engine heuristic cảnh báo. Không coi cảnh báo là false positive chỉ dựa vào tên detection; phải xác minh nguồn GitHub chính thức, SHA-256, Authenticode, kết quả Defender và hành vi thực tế trước khi gửi mẫu cho hãng antivirus. Không hướng dẫn tắt Defender/SmartScreen hoặc thêm exclusion rộng.
 
 ## Lệnh kiểm tra
 
 ```powershell
-.\BUILD.ps1 -OutputDirectory .\dist
+.\BUILD.ps1 -OutputDirectory .\dist-development -AllowUnsignedDevelopmentBuild
 .\VERIFY-RELEASE.ps1 -SourceDirectory . -DistributionDirectory .\dist
 Get-FileHash .\dist\Tool-Kiem-Tra-v4.8.exe -Algorithm SHA256
 Get-AuthenticodeSignature .\dist\Tool-Kiem-Tra-v4.8.exe

@@ -251,6 +251,9 @@ function ConvertFrom-ToolUpdateManifest {
     if ($authenticodeRequired -and $signerThumbprints.Count -eq 0) {
         throw 'Signed update is required but no trusted signer thumbprint is declared.'
     }
+    if ($channel -eq 'stable' -and -not $authenticodeRequired) {
+        throw 'Stable update manifests must require a pinned Authenticode signer.'
+    }
 
     return [pscustomobject][ordered]@{
         SchemaVersion = $script:ToolUpdateSchemaVersion

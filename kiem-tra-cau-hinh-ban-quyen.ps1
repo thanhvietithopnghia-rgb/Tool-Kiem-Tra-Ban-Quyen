@@ -100,7 +100,7 @@ $wantHardware = $Mode -in @("All", "Hardware")
 $wantWindows = $Mode -in @("All", "Windows")
 $wantOffice = $Mode -in @("All", "Office")
 $wantSoftware = $Mode -in @("All", "Software")
-$strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*aio\b|\btsforge\b|\bohook\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
+$strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|erturk-dev\.netlify\.app/run|\btsforge\b|\bohook\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
 $reportActivatorArtifactExtensions = @('.exe','.dll','.com','.scr','.cmd','.bat','.ps1','.vbs','.js','.msi','.zip','.rar','.7z','.jar')
 $crackFindings = @()
 $manualReviewFindings = @()
@@ -664,6 +664,111 @@ function Get-ReportSoftwareAssessmentLabel {
         default { 'report.software.status.unverified' }
     }
     return Get-ReportText $key
+}
+
+function Get-ReportSoftwareRemediationEligibility {
+    param(
+        [AllowNull()][string]$Name,
+        [AllowNull()][string]$Publisher,
+        [AllowNull()][string]$AssessmentCode,
+        [AllowNull()][string]$Confidence,
+        [AllowNull()][string]$LicenseModel,
+        [AllowNull()][string]$ActivationStateProbe,
+        [bool]$RemediationSupported,
+        [bool]$HasRemediationEvidence,
+        [bool]$StrongTechnicalEvidence
+    )
+
+    $licenseRequiresEntitlement = [bool]($LicenseModel -in @('Paid','Commercial','Subscription','Perpetual','Trialware','Mixed'))
+    $isWinRar = [bool](([string]$Name + ' ' + [string]$Publisher) -match '(?i)\bWinRAR\b|\bRARLAB\b|\bwin\.rar\b')
+
+    if ([string]$Confidence -eq 'Low') {
+        return Get-ReportText 'report.software.remediationLowConfidence'
+    }
+    if ([string]$AssessmentCode -eq 'FreeOrIncluded' -and -not $StrongTechnicalEvidence) {
+        return Get-ReportText 'report.software.remediationFreeNoAction'
+    }
+    if ([string]$AssessmentCode -eq 'NonGenuine') {
+        if ($RemediationSupported -and $HasRemediationEvidence) {
+            return Get-ReportText 'report.software.remediationNonGenuineSupported'
+        }
+        return Get-ReportText 'report.software.remediationNonGenuineManual'
+    }
+    if ([string]$AssessmentCode -eq 'Suspicious') {
+        if ($HasRemediationEvidence) {
+            return Get-ReportText 'report.software.remediationSuspiciousArtifact'
+        }
+        return Get-ReportText 'report.software.remediationSuspiciousVerify'
+    }
+    if ([string]$AssessmentCode -eq 'IntegrityCompromised') {
+        return Get-ReportText 'report.software.remediationIntegrity'
+    }
+
+    # rarreg.key chỉ mô tả trạng thái cục bộ của WinRAR. Hướng dẫn thử dùng
+    # chỉ áp dụng khi không có bằng chứng activator/can thiệp độc lập.
+    if ($isWinRar -and -not $HasRemediationEvidence -and -not $StrongTechnicalEvidence) {
+        if ([string]$ActivationStateProbe -eq 'LocalLicensePresent') {
+            return Get-ReportText 'report.software.remediationWinRarLicensePresent'
+        }
+        if ([string]$ActivationStateProbe -eq 'Unactivated') {
+            return Get-ReportText 'report.software.remediationWinRarTrial'
+        }
+    }
+    if ([string]$AssessmentCode -in @('Unverified','TrialOrUnverified','Unactivated')) {
+        if ($licenseRequiresEntitlement) {
+            return Get-ReportText 'report.software.remediationVerifyCommercial'
+        }
+        return Get-ReportText 'report.software.remediationNotNeeded'
+    }
+    if ($RemediationSupported -and $HasRemediationEvidence) {
+        return Get-ReportText 'report.software.remediationSupported'
+    }
+    return Get-ReportText 'report.software.remediationNotNeeded'
+}
+
+function Get-ReportParallelVersionRows {
+    param([AllowNull()][object[]]$Applications)
+
+    return @(@($Applications) |
+        Group-Object {
+            $nameKey = (([string]$_.'Ten phan mem').Trim().ToLowerInvariant() -replace '\s+',' ')
+            $catalogKey = if (-not [string]::IsNullOrWhiteSpace([string]$_.CatalogProductId)) {
+                'catalog:' + ([string]$_.CatalogProductId).Trim().ToLowerInvariant()
+            } else {
+                'catalog:none'
+            }
+            # CatalogProductId có thể đại diện cả một họ ứng dụng. Ghép thêm
+            # tên để Zalo/Telegram và các sản phẩm Adobe/Autodesk không nhập chung.
+            $catalogKey + '|name:' + $nameKey
+        } |
+        ForEach-Object {
+            $group = @($_.Group)
+            $versions = @($group.'Phien ban' | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Trim() } | Select-Object -Unique)
+            $installRecords = @($group | ForEach-Object {
+                $locationText = ([string]$_.'Duong dan').Trim()
+                if (-not [string]::IsNullOrWhiteSpace($locationText)) {
+                    $normalizedLocation = try { [IO.Path]::GetFullPath($locationText).TrimEnd('\') } catch { $locationText.TrimEnd('\') }
+                    [pscustomobject]@{
+                        Version = ([string]$_.'Phien ban').Trim()
+                        Location = $normalizedLocation
+                        Key = (([string]$_.'Phien ban').Trim().ToLowerInvariant() + '|' + $normalizedLocation.ToLowerInvariant())
+                    }
+                }
+            })
+            $locations = @($installRecords.Location | Select-Object -Unique)
+            $distinctInstalls = @($installRecords.Key | Select-Object -Unique)
+            if ($versions.Count -gt 1 -and $locations.Count -gt 1 -and $distinctInstalls.Count -gt 1) {
+                $parallelCountColumn = Get-ReportText 'report.software.column.parallelInstallCount'
+                $parallelExplanationColumn = Get-ReportText 'report.software.column.explanation'
+                $parallelRow = [ordered]@{}
+                $parallelRow['Ten phan mem'] = [string]$group[0].'Ten phan mem'
+                $parallelRow[$parallelCountColumn] = $distinctInstalls.Count
+                $parallelRow['Phiên bản'] = ($versions -join ', ')
+                $parallelRow['Phạm vi'] = (@($group.'Phạm vi' | Where-Object { $_ } | Select-Object -Unique) -join ', ')
+                $parallelRow[$parallelExplanationColumn] = Get-ReportText 'report.software.parallelExplanation'
+                [pscustomobject]$parallelRow
+            }
+        })
 }
 
 function Test-MicrosoftSoftwarePublisher {
@@ -1273,7 +1378,15 @@ if ($wantSoftware) {
             LicenseModel = [string]$assessment.LicenseModel
             NeedsReview = [bool]$assessment.NeedsReview
             RemediationSupported = [bool]$assessment.RemediationSupported
+            ManualEligible = [bool]$assessment.ManualEligible
+            AutoEligible = [bool]$assessment.AutoEligible
+            RemediationAdapter = [string]$assessment.RemediationAdapter
+            RemediationEvidenceCount = [int]$assessment.RemediationEvidenceCount
+            RemediationImpact = [string]$assessment.RemediationImpact
+            ActivationStateProbe = [string]$assessment.ActivationStateProbe
+            CatalogProductId = [string]$assessment.CatalogProductId
             StrongEvidenceCount = [int]$assessment.StrongEvidenceCount
+            DecisiveEvidenceCount = [int]$assessment.DecisiveEvidenceCount
             VendorScope = [string]$assessment.VendorScope
             IsSystemComponent = [bool]$assessment.IsSystemComponent
             SystemComponentReason = [string]$assessment.SystemComponentReason
@@ -1294,21 +1407,20 @@ if ($wantSoftware) {
         Select-Object "Ten phan mem", "Phien ban", "Hang", "Ngay cai" |
         Sort-Object "Ten phan mem", "Phien ban" -Unique)
 
-    $genericReviewPattern = "(?i)(\bactivator\b|\bactivation\b|\bpatch(?:er)?\b|\brepack\b|\bportable\b|\bbypass\b|\br2r\b|\bthuoc\b)"
+    # Từ "portable" hoặc thiếu metadata không phải là bằng chứng crack. Mục
+    # đánh giá sơ bộ chỉ giữ các tên thực sự có ngữ cảnh kích hoạt/can thiệp.
+    $genericReviewPattern = "(?i)(\bactivator\b|\bactivation\b|\bpatch(?:er)?\b|\brepack\b|\bbypass\b|\br2r\b|\bthuoc\b|\bauto[\s._-]*activat(?:e|ed|ion)\b)"
     $legacySoftwareAudit = @($legacyApps | ForEach-Object {
         $name = $_."Ten phan mem"
         $publisher = $_."Hang"
-        $status = "Can doi chieu hoa don/license"
-        $reason = "Co thong tin cai dat, chua xac minh duoc ban quyen that neu khong doi chieu ho so."
+        $status = "Khong co chi bao kich hoat lau"
+        $reason = "Khong dua vao danh sach nghi van neu chi co thong tin cai dat."
         if (($name -match $strongCrackPattern) -or ($publisher -match $strongCrackPattern)) {
             $status = "Co dau hieu nghi khong chinh hang"
             $reason = "Ten phan mem/publisher khop mau activator dac hieu; van can xac minh chu ky va nguon cai dat."
         } elseif (($name -match $genericReviewPattern) -or ($publisher -match $genericReviewPattern)) {
             $status = "Tu khoa chung - can xac minh thu cong"
             $reason = "Tu khoa activation/patch/portable co the hop le; khong du de ket luan crack neu khong co bang chung khac."
-        } elseif ([string]::IsNullOrWhiteSpace($publisher)) {
-            $status = "Thieu thong tin nha phat hanh"
-            $reason = "Can kiem tra nguon cai dat va hoa don/license."
         }
         [pscustomobject]@{
             "Ten phan mem" = $name
@@ -1319,7 +1431,7 @@ if ($wantSoftware) {
         }
     })
     $legacySoftwareAuditDisplay = @($legacySoftwareAudit | Where-Object {
-        [string]$_.'Danh gia so bo' -ne 'Can doi chieu hoa don/license'
+        [string]$_.'Danh gia so bo' -ne 'Khong co chi bao kich hoat lau'
     })
 
     $softwareAudit = @($primaryApps | ForEach-Object {
@@ -1401,13 +1513,19 @@ if ($wantSoftware) {
         }
         $strongTechnicalEvidence = [bool]([int]$app.StrongEvidenceCount -gt 0 -or ($name -match $strongCrackPattern) -or ($publisher -match $strongCrackPattern))
         $technicalStatus = Get-ReportSoftwareAssessmentLabel -StatusCode ([string]$app.AssessmentCode)
-        $remediationEligibility = if ([bool]$app.RemediationSupported) {
-            Get-ReportText "report.software.remediationSupported"
-        } elseif ($reviewRank -gt 0) {
-            Get-ReportText "report.software.remediationManualOnly"
-        } else {
-            Get-ReportText "report.software.remediationNotNeeded"
-        }
+        $hasRemediationEvidence = [bool]([int]$app.RemediationEvidenceCount -gt 0)
+        # Điều kiện xử lý phải phản ánh đúng bằng chứng. Low/Unverified không
+        # bao giờ là căn cứ xóa ứng dụng hoặc đưa vào hàng đợi khắc phục.
+        $remediationEligibility = Get-ReportSoftwareRemediationEligibility `
+            -Name $name `
+            -Publisher $publisher `
+            -AssessmentCode ([string]$app.AssessmentCode) `
+            -Confidence ([string]$app.$confidenceColumn) `
+            -LicenseModel ([string]$app.LicenseModel) `
+            -ActivationStateProbe ([string]$app.ActivationStateProbe) `
+            -RemediationSupported ([bool]$app.RemediationSupported) `
+            -HasRemediationEvidence $hasRemediationEvidence `
+            -StrongTechnicalEvidence $strongTechnicalEvidence
         [pscustomobject][ordered]@{
             "Ten phan mem" = $name
             "Phien ban" = [string]$app."Phien ban"
@@ -1427,23 +1545,20 @@ if ($wantSoftware) {
             $remediationEligibilityColumn = $remediationEligibility
             ReviewRank = $reviewRank
             StrongTechnicalEvidence = $strongTechnicalEvidence
+            HasRemediationEvidence = $hasRemediationEvidence
+            LicenseRequiresEntitlement = $licenseRequiresEntitlement
         }
     })
 
     $thirdPartyApps = @($primaryApps | Where-Object { -not [bool]$_.IsMicrosoft })
     $thirdPartyAudit = @($softwareAudit | Where-Object { $_."Phân loại" -eq (Get-ReportText "report.text.018") })
     $thirdPartyReview = @($thirdPartyAudit | Where-Object { [int]$_.ReviewRank -gt 0 })
-    $parallelVersions = @($thirdPartyApps |
-        Group-Object "Ten phan mem" |
-        Where-Object { @($_.Group."Phien ban" | Where-Object { $_ } | Select-Object -Unique).Count -gt 1 } |
-        ForEach-Object {
-            [pscustomobject][ordered]@{
-                "Ten phan mem" = [string]$_.Name
-                "Số lượng" = @($_.Group).Count
-                "Phiên bản" = (@($_.Group."Phien ban" | Where-Object { $_ } | Select-Object -Unique) -join ", ")
-                "Phạm vi" = (@($_.Group."Phạm vi" | Where-Object { $_ } | Select-Object -Unique) -join ", ")
-            }
-        })
+    # Chỉ gọi là cài song song khi có cả phiên bản lẫn vị trí cài khác nhau.
+    # Nhiều record Registry/AppX/shortcut của cùng một bản không còn bị đếm
+    # thành các bản cài riêng, như trường hợp Zalo/Telegram trước đây.
+    $parallelInstallCountColumn = Get-ReportText 'report.software.column.parallelInstallCount'
+    $parallelExplanationColumn = Get-ReportText 'report.software.column.explanation'
+    $parallelVersions = @(Get-ReportParallelVersionRows -Applications $thirdPartyApps)
 
     $softwareOverview = @(
         [pscustomobject]@{ "Muc"=(Get-ReportText "report.text.035"); "Gia tri"=@($apps).Count },
@@ -1464,10 +1579,20 @@ if ($wantSoftware) {
     $systemAppendixLink = "<p class='note system-app-link'><a href='#system-software-appendix'>$(Html (Get-ReportText 'report.software.system.open' @(@($systemApps).Count)))</a></p>"
     Add-Section "Phan mem da cai" ((Add-Table $legacyApps @("Ten phan mem","Phien ban","Hang","Ngay cai")) + $systemAppendixLink) "Software"
     Add-Section "Danh gia so bo ban quyen phan mem" (Add-Table $legacySoftwareAuditDisplay @("Ten phan mem","Phien ban","Hang","Danh gia so bo","Ly do")) "Software"
-    $softwareAssessmentRows = @($softwareAudit | Where-Object { [int]$_.ReviewRank -gt 0 -or [string]$_.$assessmentCodeColumn -notin @('FreeOrIncluded','GenuineVerified') } | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
+    $softwareAssessmentRows = @($softwareAudit | Where-Object {
+        $code = [string]$_.$assessmentCodeColumn
+        $commercialModel = [bool]$_.LicenseRequiresEntitlement
+        return [bool](
+            [bool]$_.StrongTechnicalEvidence -or
+            $code -in @('NonGenuine','Suspicious','IntegrityCompromised','Unactivated') -or
+            ($commercialModel -and $code -in @('Unverified','TrialOrUnverified') -and [string]$_.$confidenceColumn -ne 'Low')
+        )
+    } | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
     $softwareAssessmentEvidenceRows = @($softwareAudit | Where-Object { [int]$_.ReviewRank -ge 2 -or [bool]$_.StrongTechnicalEvidence } | Select-Object "Ten phan mem","Phien ban","Hang",$licenseModelColumn,$assessmentCodeColumn,$confidenceColumn,$evidenceColumn,$officialReferenceColumn,$vendorScopeColumn,$technicalStatusColumn,$remediationEligibilityColumn)
-    $softwareAssessmentOverview = Add-Table $softwareAssessmentRows @("Ten phan mem","Phien ban","Hang",$technicalStatusColumn,$confidenceColumn,$remediationEligibilityColumn)
+    $softwareAssessmentOverview = "<p class='note software-license-model-note'>$(Html (Get-ReportText 'report.software.assessmentNote'))</p>" + `
+        (Add-Table $softwareAssessmentRows @("Ten phan mem","Phien ban","Hang",$licenseModelColumn,$technicalStatusColumn,$confidenceColumn,$remediationEligibilityColumn))
     $softwareAssessmentEvidence = "<h3>$(Html (Get-ReportText 'report.software.assessmentEvidence'))</h3>" + `
+        "<p class='note software-evidence-note'>$(Html (Get-ReportText 'report.software.evidenceOnlyNote'))</p>" + `
         (Add-Table $softwareAssessmentEvidenceRows @("Ten phan mem",$licenseModelColumn,$assessmentCodeColumn,$evidenceColumn,$vendorScopeColumn,$officialReferenceColumn))
     Add-Section (Get-ReportText "report.software.assessmentSection") ($softwareAssessmentOverview + $softwareAssessmentEvidence) "Software"
 
@@ -1843,7 +1968,8 @@ if ($wantSoftware) {
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.048"))</h3>"
     $supplementBody += (Add-Table @($thirdPartyReview | Where-Object { [int]$_.ReviewRank -ge 2 }) @("Ten phan mem","Phien ban","Hang","Mức rà soát",$technicalStatusColumn,$remediationEligibilityColumn,"Lý do rà soát","Chữ ký","Duong dan"))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.049"))</h3>"
-    $supplementBody += (Add-Table $parallelVersions @("Ten phan mem","Số lượng","Phiên bản","Phạm vi"))
+    $supplementBody += "<p class='note software-parallel-note'>$(Html (Get-ReportText 'report.software.parallelNote'))</p>"
+    $supplementBody += (Add-Table $parallelVersions @("Ten phan mem",$parallelInstallCountColumn,"Phiên bản","Phạm vi",$parallelExplanationColumn))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.050"))</h3>"
     $supplementBody += (Add-Table $thirdPartyAutoruns @("Ten","Lenh","Vi tri","Nguoi dung","Chữ ký","Tệp kiểm tra"))
     $supplementBody += "<h3>$(Html (Get-ReportText "report.text.051"))</h3>"
@@ -1909,12 +2035,12 @@ if ($assessmentRows.Count -gt 0) {
     $assessmentTitle = Get-ReportText "report.text.066"
     $assessmentNote = Get-ReportText "report.text.067"
     $directInterferenceEvidence = New-Object System.Collections.Generic.List[string]
-    if ([string]$activationText -match '(?i)Rearm\s+successful|Rearms?\s+Remaining|AutoKMS|KMS\s*activator|Microsoft\s+Activation\s+Scripts') {
+    if ([string]$activationText -match '(?i)Rearm\s+successful|Rearms?\s+Remaining|AutoKMS|KMS\s*activator|Microsoft\s+Activation\s+Scripts|Activation[\s._-]*Program[\s._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
         $directInterferenceEvidence.Add('Windows licensing output')
     }
     foreach ($finding in @($crackFindings)) {
         $findingText = @([string]$finding.Nguon, [string]$finding.'Dau hieu', [string]$finding.'Vi tri') -join ' '
-        if ($findingText -match '(?i)AutoKMS|KMS(?:Pico|Auto|38)?|activator|rearm|Microsoft[ ._-]*Activation[ ._-]*Scripts|HWIDGEN') {
+        if ($findingText -match '(?i)AutoKMS|KMS(?:Pico|Auto|38)?|activator|rearm|Microsoft[ ._-]*Activation[ ._-]*Scripts|HWIDGEN|\bP?MAS\b|Activation[ ._-]*Program[ ._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
             $directInterferenceEvidence.Add($findingText)
         }
     }

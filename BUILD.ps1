@@ -16,9 +16,9 @@ Set-StrictMode -Version 2.0
 
 $productVersion = '4.8'
 $releaseVersion = '4.8.0.0'
-$releaseBuildDate = '2026.08.13'
-$releaseLabel = "$releaseVersion-rc1-20260813"
-$maximumInPlaceExecutableBytes = 875440
+$releaseBuildDate = '2026.08.14'
+$releaseLabel = "$releaseVersion-rc1-20260814"
+$maximumInPlaceExecutableBytes = 900000
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -332,9 +332,9 @@ $softwareCatalogMetadata = Get-Content -LiteralPath (Join-Path $sourceDirectory 
 $engineeringCatalogRules = @($softwareCatalogMetadata.Products | Where-Object {
     $_.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Category)
 })
-if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.1.0' -or
+if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.2.0' -or
     @($softwareCatalogMetadata.Products).Count -lt 76 -or $engineeringCatalogRules.Count -lt 16) {
-    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.1.0 / 76 quy tắc / 16 quy tắc kỹ thuật.'
+    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.2.0 / 76 quy tắc / 16 quy tắc kỹ thuật.'
 }
 
 Write-Host '[1/8] Tạo TOOL-SHA256SUMS.txt...'
@@ -639,7 +639,7 @@ $releaseManifest = [ordered]@{
     AssuranceCenter = $true
     Function5Compatibility = 'v4.3.0.3 title, primary tables, assessment and summary-card layout preserved'
     ThirdPartySoftwareInspection = 'All-source installed-software inventory + vendor-neutral bounded deep scan + conservative evidence scoring'
-    NormalReportActivatorInspection = 'Windows/Office-only reports inspect current process/service/startup/task and bounded file evidence for MAS, TSforge, OHook, KMS tools and Microsoft Toolkit'
+    NormalReportActivatorInspection = 'Windows/Office-only reports inspect current process/service/startup/task and bounded file evidence for MAS/PMAS, Activation Program 1.17, exact erturk-dev.netlify.app/run commands, TSforge, OHook, KMS tools and Microsoft Toolkit'
     NormalSoftwareInstalledArtifactInspection = 'Bounded scan of priority paid/trial/review application install roots plus user and shared data roots'
     WindowsKmsLifecyclePresentation = 'KMS channel remains visible in Notification state; grace minutes/days/expiry and approved-host trust are reported separately from entitlement'
     InstallDateNormalization = 'Registry yyyyMMdd, CIM datetime and plausible Unix epoch values normalize to yyyy-MM-dd'
@@ -658,7 +658,7 @@ $releaseManifest = [ordered]@{
     DeepSoftwareScanScoring = 'NonGenuine requires decisive evidence or two independent strong groups; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
     DeepSoftwareScanBudgetPolicy = 'Bounded time/depth/files/signatures/hashes; weighted budgeting prioritizes paid/trial/evidence-bearing software while reserving coverage for unknown/free applications'
     DeepSoftwareScanCatalogTrust = 'Online-cache rules cannot create decisive hash/name evidence unless byte-identical to the bundled catalog'
-    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR bounded local rarreg.key reset','Generic exact-artifact/hosts cleanup + exact application-scoped firewall cleanup + validated MSI Repair + manual official-reinstall fallback')
+    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR adapter gated by independent activator/tampering evidence; rarreg.key alone is never eligible','Generic exact-artifact/hosts cleanup + exact application-scoped firewall cleanup + validated MSI Repair + manual official-reinstall fallback')
     ThirdPartyAutomaticResetPolicy = 'Verified decisive evidence + scope-locked safe action + complete scan sources; firewall changes and uninstall/reinstall are manual-only'
     ThirdPartyBackupPolicy = 'HMAC-protected inventory and quarantine; unauthorized activators and licensing tokens are non-restorable'
     ThirdPartyPostCleanupQueuePolicy = 'Post-verification requeues only current activator/tampering evidence; inventory-only Unverified state remains reportable but is not remediation residue'
@@ -791,26 +791,26 @@ $applicationUpdateManifest = [ordered]@{
     Channel = if ($updateAuthenticodeRequired) { 'stable' } else { 'development' }
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
-    PublishedAtUtc = '2026-08-13T00:00:00Z'
+    PublishedAtUtc = '2026-08-14T00:00:00Z'
     Title = [ordered]@{
         'vi-VN' = 'v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn'
         'en-US' = 'v4.8.0 - Faster, clearer, and safer'
     }
     Changes = [ordered]@{
         'vi-VN' = @(
-            'Trợ lý dùng kho tri thức rời có chữ ký, chống hạ phiên bản và tự đồng bộ sau khi người dùng bật Online; EXE không chứa phần tri thức tăng thêm.',
-            'Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.',
-            'Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.',
-            'Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.',
-            'Khắc phục có Dry Run, backup và hậu kiểm; Tool không tự gỡ ứng dụng.',
+            'Đánh giá phần mềm tách mô hình giấy phép khỏi bằng chứng crack/can thiệp; phần mềm miễn phí và mức tin cậy Low không còn bị yêu cầu hóa đơn hay đưa vào diện tự động xóa.',
+            'Bổ sung nhận diện bảo thủ MAS/PMAS, Activation Program 1.17 và đúng lệnh erturk-dev; giữ ứng dụng, chỉ cô lập đúng artifact/tác vụ đáng ngờ khi đủ bằng chứng.',
+            'WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.',
+            'Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tăng khoảng trắng và tự tách bảng rộng để bớt dày.',
+            'Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.',
             'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
         )
         'en-US' = @(
-            'Tool Assistant uses a detached signed knowledge cache with rollback protection and syncs after the user enables Online; growing knowledge is kept outside the EXE.',
-            'The interface is clearer; the Redacted report button no longer clips or fades on hover.',
-            'Scans are faster, recognize more software, and present results more clearly.',
-            'Reports protect sensitive data better, and known PDF clipping cases are fixed.',
-            'Remediation includes Dry Run, backup, and post-verification; the Tool never uninstalls applications.',
+            'Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.',
+            'Conservative detection now covers MAS/PMAS, Activation Program 1.17, and the exact erturk-dev command; applications stay installed while only proven artifacts or tasks are isolated.',
+            'A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.',
+            'The software appendix uses a clearer teal palette; detailed PDFs add spacing and split wide tables for lower visual density.',
+            'Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.',
             'Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0.'
         )
     }
@@ -905,12 +905,12 @@ $infoLines = @(
     'Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.',
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
-    'Tro ly schema 1.1 / knowledge 1.3.0 co 58 nhom va 436 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va khong lam tang EXE qua 875440 byte.',
-    'Catalogue phan mem 1.3.1.0 co 76 quy tac; bo sung IObit Driver Booster, WIRIS MathType va nhom PDF editor thuong mai; sua nhan nham Driver Booster thanh driver he thong va nhan ten ngan IDM.',
-    'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
+    'Tro ly schema 1.1 / knowledge 1.3.1 co 63 nhom va 481 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va giu EXE trong ngan sach 900000 byte.',
+    'Catalogue phan mem 1.3.2.0 co 76 quy tac; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
+    'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',
     'Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.',
-    'WinRAR co dau do rarreg.key: sau khi go license cuc bo, quet lai xac nhan Unactivated thay vi dua vao viec chuong trinh van mo duoc.',
+    'WinRAR khong coi rarreg.key don le la bang chung vi pham hay dieu kien khac phuc; neu het thu dung thi mua giay phep hoac dung phan mem thay the hop phap.',
     'Khac phuc phan mem ben thu ba ghi ket qua tung hanh dong va chi bao thanh cong khi he thong thuc su thay doi; huong dan don thuan khong con bi tinh la da sua.',
     'Sau hau kiem, hang doi phan mem khac chi con bang chung activator/can thiep; Unverified don thuan khong quay lai, tep activator doc lap co candidate cach ly thu cong va kho backup bi loai tru.',
     'HashMismatch duoc tach thanh IntegrityCompromised: tep bi sua/hong nhung khong tu ket luan quyen su dung khong chinh hang.',

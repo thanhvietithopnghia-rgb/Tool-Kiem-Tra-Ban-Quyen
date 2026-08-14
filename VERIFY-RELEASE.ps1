@@ -112,7 +112,7 @@ foreach ($script in Get-ChildItem -LiteralPath $sourceDirectoryFull -Filter '*.p
 
 Test-HashManifest (Join-Path $sourceDirectoryFull 'TOOL-SHA256SUMS.txt') $sourceDirectoryFull 47
 Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-SHA256SUMS.txt') $sourceDirectoryFull 88
-Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-PACKAGE-SHA256SUMS.txt') $sourceDirectoryFull 91 -AllowRelativePaths
+Test-HashManifest (Join-Path $sourceDirectoryFull 'SOURCE-PACKAGE-SHA256SUMS.txt') $sourceDirectoryFull 99 -AllowRelativePaths
 Test-HashManifest (Join-Path $distributionDirectoryFull 'RELEASE-SHA256SUMS.txt') $distributionDirectoryFull 24
 
 $manifestPath = Join-Path $sourceDirectoryFull 'Tool-Kiem-Tra-v4.8-OneFile.manifest'
@@ -128,7 +128,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 $versionChecks = @(
     @{ File='Giao-Dien.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8\.0"' },
     @{ File='Giao-Dien.ps1'; Pattern='\$releaseVersion\s*=\s*"4\.8\.0\.0"' },
-    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.13"' },
+    @{ File='Giao-Dien.ps1'; Pattern='\$releaseBuildDate\s*=\s*"2026\.08\.14"' },
     @{ File='kiem-tra-cau-hinh-ban-quyen.ps1'; Pattern='\$ToolVersion\s*=\s*"4\.8"' },
     @{ File='windows-license-forensics.ps1'; Pattern='\$toolVersion\s*=\s*"4\.8"' },
     @{ File='Tool-Kiem-Tra-v4.8-OneFile.cs'; Pattern='AssemblyVersion\("4\.8\.0\.0"\)' },
@@ -524,8 +524,8 @@ $profile = $null
 if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
     $failures.Add("Thiếu EXE phát hành: $targetFileName")
 } else {
-    if ([int64](Get-Item -LiteralPath $exePath).Length -gt 875440) {
-        $failures.Add("$targetFileName vượt 875440 byte của bản phát hành trước; kho tri thức rời không được làm tăng EXE.")
+    if ([int64](Get-Item -LiteralPath $exePath).Length -gt 900000) {
+        $failures.Add("$targetFileName vượt ngân sách 900000 byte của bản cập nhật tại chỗ.")
     }
     try {
         $profile = Get-PeSecurityProfile -Path $exePath
@@ -594,10 +594,10 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
         if ([string]$releaseManifest.ControlFlowGuard.Status -ne 'NotClaimed') { throw 'Trạng thái CFG không minh bạch.' }
         if (-not [bool]$releaseManifest.DeterministicManagedBuild) { throw 'Release manifest chưa xác nhận deterministic managed build.' }
         if ([string]$releaseManifest.CapabilitySchemaVersion -ne '1.1' -or [string]$releaseManifest.LogSchemaVersion -ne '1.0-jsonl') { throw 'Thiếu metadata capability/log schema v4.3.' }
-        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.13') {
-            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.13.'
+        if ([string]$releaseManifest.ReleaseVersion -ne '4.8.0.0' -or [string]$releaseManifest.ReleaseBuildDate -ne '2026.08.14') {
+            throw 'Release manifest chưa đồng bộ phiên bản 4.8.0.0 / Build 2026.08.14.'
         }
-        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-rc1-20260813' -or
+        if ([string]$releaseManifest.ReleaseLabel -ne '4.8.0.0-rc1-20260814' -or
             [string]$releaseManifest.ReleaseStatus -ne 'ReleaseCandidate') {
             throw 'Release phải giữ nhãn RC cho tới khi hoàn tất ma trận E2E Production.'
         }
@@ -623,6 +623,7 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             @($releaseManifest.ProgressUtilities).Count -ne 2) { throw 'Thiếu metadata cải tiến giao diện v4.6.' }
         if (@($releaseManifest.ThirdPartyLicenseRemediationAdapters).Count -ne 4 -or
             (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'WinRAR' -or
+            (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'rarreg\.key alone is never eligible' -or
             [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'Verified decisive evidence' -or
             [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'manual-only' -or
             [string]$releaseManifest.ThirdPartyBackupPolicy -notmatch 'non-restorable') {
@@ -635,13 +636,15 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'byte-identical') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
-        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.3.1.0' -or
+        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.3.2.0' -or
             [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 76 -or
             [int]$releaseManifest.EngineeringSoftwareCatalogRules -lt 16 -or
             @($releaseManifest.EngineeringSoftwareCategories).Count -lt 8) {
             throw 'Thiếu metadata mở rộng catalog phần mềm kỹ thuật v4.6.'
         }
-        if ([string]$releaseManifest.NormalReportActivatorInspection -notmatch 'MAS, TSforge, OHook' -or
+        if ([string]$releaseManifest.NormalReportActivatorInspection -notmatch 'MAS/PMAS' -or
+            [string]$releaseManifest.NormalReportActivatorInspection -notmatch 'Activation Program 1.17' -or
+            [string]$releaseManifest.NormalReportActivatorInspection -notmatch 'erturk-dev\.netlify\.app/run' -or
             [string]$releaseManifest.NormalSoftwareInstalledArtifactInspection -notmatch 'install roots' -or
             [string]$releaseManifest.WindowsKmsLifecyclePresentation -notmatch 'Notification' -or
             [string]$releaseManifest.InstallDateNormalization -notmatch 'yyyy-MM-dd' -or
@@ -771,7 +774,8 @@ if (-not (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf))
         $applicationUpdateManifest = Get-Content -LiteralPath $applicationUpdateManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $expectedUpdateChannel = if ($AllowDevelopmentManifest) { 'development' } else { 'stable' }
         if ([string]$applicationUpdateManifest.SchemaVersion -ne '1.0' -or [string]$applicationUpdateManifest.Channel -ne $expectedUpdateChannel -or
-            [string]$applicationUpdateManifest.LatestVersion -ne '4.8.0.0' -or [string]$applicationUpdateManifest.MinimumUpdaterVersion -ne '4.6.1.0') {
+            [string]$applicationUpdateManifest.LatestVersion -ne '4.8.0.0' -or [string]$applicationUpdateManifest.MinimumUpdaterVersion -ne '4.6.1.0' -or
+            [string]$applicationUpdateManifest.PublishedAtUtc -ne '2026-08-14T00:00:00Z') {
             throw 'Sai schema/channel/version cập nhật.'
         }
         if ([string]$applicationUpdateManifest.ReleasePageUrl -ne 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0' -or

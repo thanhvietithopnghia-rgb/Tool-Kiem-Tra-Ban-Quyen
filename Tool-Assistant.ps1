@@ -1,6 +1,6 @@
 ﻿$script:ToolAssistantSchemaVersion = "1.1"
 $script:ToolAssistantToolVersion = "4.8.0.0"
-$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.3.0"
+$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.3.1"
 $script:ToolAssistantKnowledgeFileName = "tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeSignatureFileName = "tool-assistant-knowledge-v1.1.json.p7s"
@@ -57,7 +57,7 @@ function ConvertTo-ToolAssistantSearchKey {
     $key = ([regex]::Replace($plain, '[^a-z0-9]+', ' ')).Trim()
     $replacements = [ordered]@{
         'k'='khong'; 'ko'='khong'; 'kh'='khong'; 'dc'='duoc'; 'dk'='duoc'
-        'tl'='tra loi'; 'pm'='phan mem'; 'bc'='bao cao'; 'csdl'='co so du lieu'
+        'tl'='tra loi'; 'pm'='phan mem'; 'app'='phan mem'; 'bc'='bao cao'; 'csdl'='co so du lieu'
         'pb'='phien ban'; 'cn'='chuc nang'; 'hd'='huong dan'; 'sd'='su dung'
         'hdsd'='huong dan su dung'; 'pfd'='pdf'; 'ofline'='offline'; 'offine'='offline'
         'fixx'='sua'; 'fix'='sua'; 'kt'='kiem tra'; 'ktra'='kiem tra'; 'kieu'='kieu'
@@ -429,7 +429,7 @@ function Test-ToolAssistantRelatedQuery {
         [AllowNull()][string]$PreviousQuestion
     )
 
-    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|backup|sao luu|khoi phuc|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|kich hoat|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc|tri thuc|kien thuc|hoc hoi|dung luong exe|dung luong file exe|cache tri thuc|goi tri thuc)\b') { return $true }
+    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|software|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|mas|pmas|kmspico|repack|backup|sao luu|khoi phuc|khac phuc|remediation|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|giay phep|license|freeware|open source|nguon mo|kich hoat|nghi van|suspicious|dau hieu|evidence|tampering|artifact|third party|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc|tri thuc|kien thuc|hoc hoi|dung luong exe|dung luong file exe|cache tri thuc|goi tri thuc|confidence|tin cay|winrar|mathtype)\b') { return $true }
     if ($QueryKey -match '^(?:chua du bang chung|thieu bang chung|du bang chung chua)$') { return $true }
     if ($QueryKey -match '^(?:phien ban|version|do ai phat trien|ai phat trien|tac gia|ngay phat hanh|ngay build|tom tat|noi dung chinh|muc dich|nguyen tac|cong nghe|yeu cau he thong|cach chay|cach cai|tai o dau)\b') { return $true }
     if (-not [string]::IsNullOrWhiteSpace([string]$PreviousQuestion) -and (Test-ToolAssistantFollowUpQuery -QueryKey $QueryKey)) {
@@ -579,6 +579,11 @@ function Get-ToolAssistantPriorityEntryId {
     if ($QueryKey -match '(?:kenh ho tro|lien he tac gia|email ho tro|zalo ho tro|can ho tro tool)') { return 'support-channel' }
     if ($QueryKey -match '(?:plugin|quy tac mo rong).*(?:cai|kiem tra|danh gia|json|thu muc|an toan)|(?:cai|danh gia).*(?:plugin)') { return 'plugin-management' }
     if ($QueryKey -match '(?:chung chi|certificate|authenticode).*(?:windows|office|kiem tra|xac minh)|(?:kiem tra).*(?:chung chi so|certificate)') { return 'certificate-audit' }
+    if ($QueryKey -match '(?:(?:mien phi|freeware|nguon mo|open source).*(?:hoa don|chung tu|giay phep|license|ban quyen)|(?:hoa don|chung tu|giay phep|license).*(?:mien phi|freeware|nguon mo|open source)|(?:mo hinh giay phep|license model).*(?:bang chung|dau hieu|evidence|trang thai)|(?:doi chieu).*(?:mo hinh).*(?:trang thai|bang chung).*(?:ban quyen|phan mem))') { return 'license-model-evidence' }
+    if ($QueryKey -match '\b(?:winrar|mathtype)\b') { return 'commercial-software-review' }
+    if ($QueryKey -match '(?:(?:dieu kien|du dieu kien|chua du dieu kien).*(?:khac phuc|remediation).*(?:phan mem|nghi van|crack|activator)|(?:nghi van|dau hieu).*(?:dieu kien khac phuc|duoc khac phuc|khac phuc duoc)|(?:remediation eligibility|remediation condition).*(?:software|suspicious|finding|artifact)|(?:suspicious software).*(?:remediation|eligible)|(?:khac phuc|remediation).*(?:nghi van|low confidence|tin cay thap|giu ung dung|giu phan mem)|(?:co lap|isolate).*(?:crack|activator|tac vu|dich vu).*(?:giu|ung dung|phan mem))') { return 'software-finding-remediation' }
+    if ($QueryKey -match '(?:(?:low|thap|confidence|tin cay).*(?:xoa|go|khac phuc|bloat|phan mem|nghi van)|(?:xoa|go|khac phuc).*(?:low|tin cay thap)|(?:co dau hieu nghi van|trang thai nghi van).*(?:nghia la gi|co phai|xoa|go))') { return 'software-finding-confidence' }
+    if ($QueryKey -match '(?:(?:tach|phan biet|khac nhau|rieng|separate|distinguish).*(?:windows).*(?:office).*(?:phan mem|ben thu ba|third party|software)|(?:windows|office).*(?:phan mem ben thu ba|third party).*(?:xu ly|khac phuc|danh gia|pham vi|remediation|review|scope)|(?:windows).*(?:yen|khong co|khong thay|sach).*(?:office).*(?:canh bao|activator|kms|dau hieu|thi sao))') { return 'license-scope-separation' }
     if ($QueryKey -match '(?:timeline|dong thoi gian|lich su thay doi).*(?:ban quyen|xac minh|xuat)|(?:xac minh|xuat).*(?:timeline)') { return 'license-timeline' }
     if ($QueryKey -match '(?:huong dan su dung|tai lieu huong dan|lich su phien ban).*(?:mo|xem|o dau|html|pdf)|(?:mo|xem).*(?:huong dan chi tiet|lich su phien ban)') { return 'embedded-documents' }
     if ($QueryKey -match '(?:dinh dang|loai tep|file nao|docx|word).*(?:bao cao|xuat)|(?:bao cao).*(?:json|xml|html|pdf|docx|dinh dang)') { return 'report-formats' }
@@ -607,7 +612,7 @@ function Get-ToolAssistantPriorityEntryId {
     if ($QueryKey -match 'doc bao cao|cach doc|giai thich ket luan|hieu ket luan|muc rui ro|bang chung.*bao cao|report evidence') { return 'report-evidence' }
     if ($QueryKey -match 'bao cao luu o dau|thu muc bao cao|tim bao cao|mo bao cao|report folder|where.*report') { return 'report-center' }
     if ($QueryKey -match 'khac phuc.*(?:kms|activator|crack)|xoa.*(?:kms|activator|crack)|go.*(?:kms|activator|crack)') { return 'remediation' }
-    if ($QueryKey -match '\b(?:kms|activator|autokms|rearm|hwidgen)\b') { return 'kms-activator' }
+    if ($QueryKey -match '\b(?:kms|activator|autokms|rearm|hwidgen|mas|pmas|kmspico|repack)\b|activation program') { return 'kms-activator' }
     return ''
 }
 
@@ -757,10 +762,27 @@ function Format-ToolAssistantReportContext {
     }
     $windowsConclusion = Get-ToolAssistantLocalizedConclusion -Product Windows -Code ([string]$Context.WindowsConclusionCode) -Fallback ([string]$Context.WindowsConclusion) -Culture $Culture
     $officeConclusion = Get-ToolAssistantLocalizedConclusion -Product Office -Code ([string]$Context.OfficeConclusionCode) -Fallback ([string]$Context.OfficeConclusion) -Culture $Culture
+    $suspiciousCount = [int]$Context.SuspiciousFindingCount
+    $manualReviewCount = [int]$Context.ManualReviewFindingCount
+    $thirdPartyHighCount = [int]$Context.ThirdPartyHighSeverityCount
     if ($Culture -eq "en-US") {
-        return "Current report summary:`r`n- Windows: $windowsConclusion`r`n- Office: $officeConclusion`r`n- Suspicious findings: $($Context.SuspiciousFindingCount)`r`n- Manual review: $($Context.ManualReviewFindingCount)`r`n- Third-party applications: $($Context.ThirdPartyApplicationCount)"
+        $nextAction = if ($suspiciousCount -gt 0 -or $thirdPartyHighCount -gt 0) {
+            "Next: open the exact evidence and keep Windows, Office, and third-party scopes separate. Preview and back up before isolating only a confirmed activator, task, service, or modified file; do not remove the main application from a Low-confidence signal."
+        } elseif ($manualReviewCount -gt 0) {
+            "Next: keep the applications unchanged and compare each finding with its license model, publisher/source, and detailed evidence. Manual review is not remediation approval."
+        } else {
+            "No suspicious or manual-review signal appears in this summary. That is a technical scan result, not a legal entitlement verdict."
+        }
+        return "Current report summary:`r`n- Windows: $windowsConclusion`r`n- Office: $officeConclusion`r`n- Third-party software: $($Context.ThirdPartyApplicationCount) inventoried; high-severity findings: $thirdPartyHighCount`r`n- All scopes: suspicious findings $suspiciousCount; manual review $manualReviewCount`r`n$nextAction`r`nThe Assistant never remediates automatically."
     }
-    return "Tóm tắt báo cáo hiện tại:`r`n- Windows: $windowsConclusion`r`n- Office: $officeConclusion`r`n- Dấu hiệu đáng ngờ: $($Context.SuspiciousFindingCount)`r`n- Cần kiểm tra thủ công: $($Context.ManualReviewFindingCount)`r`n- Phần mềm bên thứ ba: $($Context.ThirdPartyApplicationCount)"
+    $nextAction = if ($suspiciousCount -gt 0 -or $thirdPartyHighCount -gt 0) {
+        "Bước tiếp theo: mở đúng bằng chứng và tách riêng phạm vi Windows, Office, phần mềm bên thứ ba. Chỉ sau khi xem trước và sao lưu mới cô lập đúng activator, tác vụ, dịch vụ hoặc tệp bị sửa đã xác nhận; không gỡ ứng dụng chính chỉ vì Tin cậy Low."
+    } elseif ($manualReviewCount -gt 0) {
+        "Bước tiếp theo: giữ nguyên ứng dụng, đối chiếu từng mục với mô hình giấy phép, nhà phát hành/nguồn cài và bằng chứng chi tiết. Kiểm tra thủ công không phải là điều kiện cho phép khắc phục."
+    } else {
+        "Phần tóm tắt không có tín hiệu nghi vấn hoặc mục cần kiểm tra thủ công. Đây vẫn chỉ là kết quả kỹ thuật, không phải phán quyết quyền sử dụng hợp pháp."
+    }
+    return "Tóm tắt báo cáo hiện tại:`r`n- Windows: $windowsConclusion`r`n- Office: $officeConclusion`r`n- Phần mềm bên thứ ba: $($Context.ThirdPartyApplicationCount) ứng dụng; mức nghiêm trọng cao: $thirdPartyHighCount`r`n- Toàn bộ phạm vi: $suspiciousCount dấu hiệu nghi vấn; $manualReviewCount mục cần kiểm tra thủ công`r`n$nextAction`r`nTrợ lý không bao giờ tự khắc phục."
 }
 
 function Get-ToolAssistantVariantIndex {

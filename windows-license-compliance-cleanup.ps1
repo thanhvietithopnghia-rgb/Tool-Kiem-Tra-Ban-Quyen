@@ -74,7 +74,8 @@ $ErrorActionPreference = "Continue"
 $releaseVersion = "4.8.0.0"
 if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
-$script:StrictActivatorPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|autokms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:patcher|hook)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|\bmassgrave\b|mas[\s._-]*aio|tsforge|ohook)"
+$script:StrictActivatorPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b)"
+$script:StrictActivationCommandPattern = '(?i)(?<![a-z0-9.-])(?:https?://)?erturk-dev\.netlify\.app/run(?:[/?#][^\s''"|]*)?(?![a-z0-9._-])'
 $script:ThirdPartyAdobeActivatorPattern = "(?i)(\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\badobe.{0,24}\b(?:patcher|activator|crack)\b|\b(?:patcher|activator|crack).{0,24}\badobe\b)"
 $script:ThirdPartyAutodeskActivatorPattern = "(?i)(\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:autodesk|adsk).{0,24}\b(?:license[\s._-]*patch|patcher|activator|crack)\b|\b(?:patcher|activator|crack).{0,24}\b(?:autodesk|adsk)\b)"
 try { Add-Type -AssemblyName System.Security -ErrorAction Stop }
@@ -84,6 +85,15 @@ $script:ScanWarnings = New-Object System.Collections.Generic.List[string]
 $script:CimCache = @{}
 $script:ScheduledTaskRecordsCache = $null
 $script:WindowsLicenseSourceNote = ""
+
+function Test-CleanupKnownActivatorText {
+    param([AllowNull()][string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    return [bool](
+        $Text -match $script:StrictActivatorPattern -or
+        $Text -match $script:StrictActivationCommandPattern
+    )
+}
 
 function Add-ScanWarning([string]$Message) {
     if (-not [string]::IsNullOrWhiteSpace($Message) -and -not $script:ScanWarnings.Contains($Message)) {
@@ -705,12 +715,11 @@ function Test-ApprovedKms {
 
 function Get-ActivatorFindings {
     # Mẫu đặc hiệu; không dùng chuỗi ngắn như "mas" vì dễ trùng tên hợp lệ.
-    $regex = $script:StrictActivatorPattern
     $findings = New-Object System.Collections.Generic.List[object]
 
     try {
         Get-CompatibleScheduledTaskRecords | Where-Object {
-            $_.TaskName -match $regex -or $_.TaskPath -match $regex -or $_.ActionsText -match $regex
+            Test-CleanupKnownActivatorText ((([string]$_.TaskName) + ' ' + ([string]$_.TaskPath) + ' ' + ([string]$_.ActionsText)).Trim())
         } | ForEach-Object {
             $findings.Add([pscustomobject]@{
                 Type = "ScheduledTask"
@@ -723,7 +732,7 @@ function Get-ActivatorFindings {
 
     try {
         Safe-Cim -ClassName Win32_Service -CriticalLabel (Get-CleanupText "cleanupReport.scan.servicesCritical") | Where-Object {
-            $_.Name -match $regex -or $_.DisplayName -match $regex -or $_.PathName -match $regex
+            Test-CleanupKnownActivatorText ((([string]$_.Name) + ' ' + ([string]$_.DisplayName) + ' ' + ([string]$_.PathName)).Trim())
         } | ForEach-Object {
             $findings.Add([pscustomobject]@{
                 Type = "Service"
@@ -736,7 +745,7 @@ function Get-ActivatorFindings {
 
     try {
         Get-Process | Where-Object {
-            $_.ProcessName -match $regex -or $_.Path -match $regex
+            Test-CleanupKnownActivatorText ((([string]$_.ProcessName) + ' ' + ([string]$_.Path)).Trim())
         } | ForEach-Object {
             $findings.Add([pscustomobject]@{
                 Type = "Process"
@@ -746,6 +755,24 @@ function Get-ActivatorFindings {
             })
         }
     } catch {}
+
+    # Win32_StartupCommand bao phủ các mục Startup Manager/Run phổ biến. Chỉ
+    # ghi nhận để xem xét thủ công vì Location của CIM không đủ an toàn để suy
+    # diễn rồi xóa một registry value hay shortcut tự động.
+    try {
+        Safe-Cim -ClassName Win32_StartupCommand | Where-Object {
+            Test-CleanupKnownActivatorText ((([string]$_.Name) + ' ' + ([string]$_.Command) + ' ' + ([string]$_.Location)).Trim())
+        } | ForEach-Object {
+            $findings.Add([pscustomobject]@{
+                Type = "Startup"
+                Name = [string]$_.Name
+                Location = [string]$_.Command
+                Action = Get-CleanupText "cleanupReport.candidate.reviewFolder"
+                StartupLocation = [string]$_.Location
+                ComponentScope = "Shared"
+            })
+        }
+    } catch { Add-ScanWarning (Get-CleanupText "cleanupReport.thirdParty.inventorySourceFailed" @('Win32_StartupCommand', $_.Exception.Message)) }
 
     $scanRoots = @(
         $env:ProgramFiles,
@@ -761,7 +788,7 @@ function Get-ActivatorFindings {
     foreach ($root in $scanRoots) {
         try {
             Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match $regex } |
+                Where-Object { Test-CleanupKnownActivatorText ([string]$_.Name) } |
                 ForEach-Object {
                     $findings.Add([pscustomobject]@{
                         Type = "Folder"
@@ -935,7 +962,7 @@ function Get-ThirdPartyStrongEvidence {
         $app = $record.Application
         $text = (([string]$app.Name) + ' ' + ([string]$app.Publisher) + ' ' + ([string]$app.InstallLocation))
         $specificScope = Get-ThirdPartyEvidenceScope $text
-        $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+        $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
         $generic = [bool]($knownSpecific -or $text -match $script:ToolSoftwareSuspiciousArtifactPattern)
         if (-not $generic) { continue }
         $targets = if ($specificScope) { @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope) } else { @($record) }
@@ -947,7 +974,7 @@ function Get-ThirdPartyStrongEvidence {
         foreach ($task in @(Get-CompatibleScheduledTaskRecords)) {
             $text = (([string]$task.FullName) + ' ' + ([string]$task.ActionsText))
             $specificScope = Get-ThirdPartyEvidenceScope $text
-            $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+            $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
             if (-not $knownSpecific -and $text -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
             $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
             & $addEvidence 'ScheduledTask' ([string]$task.FullName) ([string]$task.ActionsText) '' `
@@ -959,7 +986,7 @@ function Get-ThirdPartyStrongEvidence {
         foreach ($service in @(Safe-Cim -ClassName Win32_Service -CriticalLabel (Get-CleanupText "cleanupReport.scan.servicesCritical"))) {
             $text = (([string]$service.Name) + ' ' + ([string]$service.DisplayName) + ' ' + ([string]$service.PathName))
             $specificScope = Get-ThirdPartyEvidenceScope $text
-            $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+            $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
             if (-not $knownSpecific -and $text -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
             $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
             & $addEvidence 'Service' ([string]$service.Name) ([string]$service.PathName) '' `
@@ -973,7 +1000,7 @@ function Get-ThirdPartyStrongEvidence {
             try { $processPath = [string]$process.Path } catch {}
             $text = (([string]$process.ProcessName) + ' ' + $processPath)
             $specificScope = Get-ThirdPartyEvidenceScope $text
-            $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+            $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
             if (-not $knownSpecific -and $text -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
             $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
             & $addEvidence 'Process' ([string]$process.ProcessName) $processPath '' `
@@ -995,7 +1022,7 @@ function Get-ThirdPartyStrongEvidence {
             foreach ($directory in @($bounded.ToArray() | Select-Object -First 3000)) {
                 $text = [string]$directory.FullName
                 $specificScope = Get-ThirdPartyEvidenceScope $text
-                $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+                $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
                 if (-not $knownSpecific -and $text -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
                 $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
                 & $addEvidence 'Folder' ([string]$directory.Name) $text '' `
@@ -1028,7 +1055,7 @@ function Get-ThirdPartyStrongEvidence {
                 $text = [string]$path
                 if (([IO.Path]::GetExtension($text)).ToLowerInvariant() -notin @('.exe','.dll','.com','.scr','.cmd','.bat','.ps1','.vbs','.js','.msi','.zip','.rar','.7z','.jar')) { continue }
                 $specificScope = Get-ThirdPartyEvidenceScope $text
-                $knownSpecific = [bool]($specificScope -or $text -match $script:ToolSoftwareKnownActivatorPattern)
+                $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
                 $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
                 & $addEvidence 'FileArtifact' ([IO.Path]::GetFileName($text)) $text '' `
                     (Get-CleanupText "cleanupReport.thirdParty.evidence.folder") $specificScope $knownSpecific $false $true $targets
@@ -1363,6 +1390,17 @@ function Get-ThirdPartyGenericRemediationPlan {
         ForEach-Object { $_.Group[0] })
 }
 
+function Test-ThirdPartyApplicationCleanupEligible {
+    param([AllowNull()][object]$Application)
+    if ($null -eq $Application -or -not [bool]$Application.ManualEligible) { return $false }
+    if ($Application.PSObject.Properties['CleanupFinding'] -and -not [bool]$Application.CleanupFinding) { return $false }
+    if ($Application.PSObject.Properties['Confidence'] -and [string]$Application.Confidence -eq 'Low') { return $false }
+    foreach ($item in @($Application.Evidence)) {
+        if (Test-ToolSoftwareRemediationEvidence -Evidence $item) { return $true }
+    }
+    return $false
+}
+
 function Get-ThirdPartyLicenseCandidates {
     param($Applications, $Evidence)
     $candidates = New-Object System.Collections.Generic.List[object]
@@ -1375,7 +1413,7 @@ function Get-ThirdPartyLicenseCandidates {
         $adapter = [string]$adapterDefinition.Adapter
         $vendorScope = [string]$adapterDefinition.EvidenceScope
         $vendorApps = @($Applications | Where-Object {
-            [string]$_.RemediationAdapter -eq $adapter -and [bool]$_.CleanupFinding -and [bool]$_.ManualEligible
+            [string]$_.RemediationAdapter -eq $adapter -and (Test-ThirdPartyApplicationCleanupEligible -Application $_)
         })
         $vendorEvidence = @($Evidence | Where-Object { [string]$_.VendorScope -eq $vendorScope })
         if ($vendorApps.Count -eq 0) { continue }
@@ -1401,7 +1439,8 @@ function Get-ThirdPartyLicenseCandidates {
     }
 
     $genericApplications = @($Applications | Where-Object {
-        [bool]$_.ManualEligible -and [string]$_.RemediationAdapter -notin @('Adobe','Autodesk','WinRAR')
+        (Test-ThirdPartyApplicationCleanupEligible -Application $_) -and
+        [string]$_.RemediationAdapter -notin @('Adobe','Autodesk','WinRAR')
     })
     $genericGroups = @($genericApplications | Group-Object {
         $root = Get-ThirdPartyNormalizedInstallRoot -Application $_
@@ -1642,7 +1681,7 @@ function Get-DeepCleanupCandidates {
     try {
         $preference = Get-MpPreference -ErrorAction Stop
         foreach ($excludedPath in @($preference.ExclusionPath)) {
-            if ([string]$excludedPath -match $script:StrictActivatorPattern) {
+            if (Test-CleanupKnownActivatorText -Text ([string]$excludedPath)) {
                 $items.Add((New-CleanupItem -Type "Defender" -Kind "ExclusionPath" `
                     -Name (Get-CleanupText "cleanupReport.candidate.defenderExclusion") -Location ([string]$excludedPath) `
                     -Detail (Get-CleanupText "cleanupReport.candidate.defenderExclusionDetail") -ComponentScope 'Shared'))
@@ -1840,7 +1879,7 @@ function Get-InvalidActivationHistory {
     # Lịch sử chỉ là bằng chứng quá khứ, không được dùng một mình để kết luận
     # crack vẫn đang hoạt động hoặc để tự động gỡ product key.
     $history = New-Object System.Collections.Generic.List[object]
-    $strictPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation|\bactivator\b|0xC004F074|VOLUME_KMSCLIENT)"
+    $strictPattern = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|kms-r|aact(?:portable)?|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|(?<![a-z0-9.-])erturk-dev\.netlify\.app/run(?![a-z0-9._-])|tsforge|ohook|digital license activation|\bactivator\b|0xC004F074|VOLUME_KMSCLIENT)"
     $since = (Get-Date).AddDays(-180)
 
     $eventQueries = @(
@@ -1933,7 +1972,7 @@ function Get-ActivationConfigurationResidues {
     try {
         $preference = Get-MpPreference -ErrorAction Stop
         foreach ($excludedPath in @($preference.ExclusionPath)) {
-            if ([string]$excludedPath -match $script:StrictActivatorPattern) {
+            if (Test-CleanupKnownActivatorText -Text ([string]$excludedPath)) {
                 $residues.Add([pscustomobject]@{ Type="DefenderExclusion"; Name=(Get-CleanupText "cleanupReport.residue.defenderExclusion"); Location=[string]$excludedPath; Value=(Get-CleanupText "cleanupReport.residue.removeExclusion"); ComponentScope='Shared' })
             }
         }

@@ -123,7 +123,7 @@ ERROR CODE: 0xC004F014
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
-    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed','softwareUninstallBlocked','PolicyBlocked','BlockApplicationUninstall')) {
+    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed','softwareUninstallBlocked','PolicyBlocked','BlockApplicationUninstall','Test-CleanupKnownActivatorText','Win32_StartupCommand','erturk-dev\.netlify\.app/run')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Thiếu thành phần khắc phục phần mềm bên thứ ba: $requiredToken" }
     }
     if ($cleanup.Text -notmatch '(?s)ThirdPartyLicenseState.+?Restorable=\$false' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
@@ -160,13 +160,15 @@ ERROR CODE: 0xC004F014
             Invoke-Expression ("function script:" + $Name + " " + $functionAst.Body.Extent.Text)
         }
         function Get-CleanupText { param([string]$Key, [object[]]$Arguments=@()); return ($Key + ':' + (@($Arguments) -join '|')) }
-        $hostsParserAst = $softwareInventory.Ast.Find({
-            param($node)
-            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ToolSoftwareHostsLineMappings'
-        }, $true)
-        if (-not $hostsParserAst) { throw 'Missing function: Get-ToolSoftwareHostsLineMappings' }
-        Invoke-Expression ('function script:Get-ToolSoftwareHostsLineMappings ' + $hostsParserAst.Body.Extent.Text)
-        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Test-CleanupScanScopeIncludes','Get-CleanupRecordComponentScope','Test-CleanupRecordMatchesScope','Get-ScopedCleanupCandidates','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady')) {
+        foreach ($inventoryFunctionName in @('Get-ToolSoftwareHostsLineMappings','Test-ToolSoftwareRemediationEvidence')) {
+            $inventoryFunctionAst = $softwareInventory.Ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $inventoryFunctionName
+            }, $true)
+            if (-not $inventoryFunctionAst) { throw "Missing function: $inventoryFunctionName" }
+            Invoke-Expression ('function script:' + $inventoryFunctionName + ' ' + $inventoryFunctionAst.Body.Extent.Text)
+        }
+        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Test-CleanupScanScopeIncludes','Get-CleanupRecordComponentScope','Test-CleanupRecordMatchesScope','Get-ScopedCleanupCandidates','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Test-ThirdPartyApplicationCleanupEligible','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady','Test-CleanupKnownActivatorText')) {
             Import-CleanupFunctionForFixture $name
         }
         $broadRootFixture = [pscustomobject]@{ InstallLocation=$env:ProgramFiles; RepresentativePath='' }
@@ -313,6 +315,26 @@ ERROR CODE: 0xC004F014
             if ($standaloneCandidates.Count -ne 1 -or @($standaloneCandidates[0].ApplicationIds).Count -ne 0 -or
                 @($standaloneCandidates[0].PlanItems | Where-Object { $_.Type -eq 'File' -and $_.Location -eq $artifactPath }).Count -ne 1) {
                 Fail 'Tệp activator độc lập không tương quan ứng dụng chưa tạo candidate chọn thủ công.'
+            }
+            $lowConfidenceApp = [pscustomobject]@{
+                Id='low-confidence'; Name='Low confidence fixture'; SourceKind='Registry'; Publisher='Example'; VendorScope='Example'
+                InstallLocation=$artifactInstallRoot; RepresentativePath=''; RegistryPath=''; UninstallString=''
+                Confidence='Low'; CleanupFinding=$true; ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'
+                OfficialReferenceUrl='https://example.invalid/'
+                Evidence=@([pscustomobject]@{ Code='KnownActivatorArtifact'; Source='Fixture'; Detail=$artifactPath; Strength='Strong'; Decisive=$true })
+            }
+            if (@(Get-ThirdPartyLicenseCandidates -Applications @($lowConfidenceApp) -Evidence @()).Count -ne 0) {
+                Fail 'Ứng dụng Low confidence vẫn lọt vào danh sách khắc phục dù cờ đầu vào bị đặt sai.'
+            }
+            $unlinkedEvidenceApp = [pscustomobject]@{
+                Id='unlinked-evidence'; Name='Unlinked evidence fixture'; SourceKind='Registry'; Publisher='Example'; VendorScope='Example'
+                InstallLocation=$artifactInstallRoot; RepresentativePath=''; RegistryPath=''; UninstallString=''
+                Confidence='Medium'; CleanupFinding=$true; ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'
+                OfficialReferenceUrl='https://example.invalid/'
+                Evidence=@([pscustomobject]@{ Code='InventoryObservation'; Source='Fixture'; Detail='No activator/tampering link'; Strength='Strong'; Decisive=$true })
+            }
+            if (@(Get-ThirdPartyLicenseCandidates -Applications @($unlinkedEvidenceApp) -Evidence @()).Count -ne 0) {
+                Fail 'Ứng dụng không có bằng chứng activator/tampering vẫn lọt vào danh sách khắc phục.'
             }
             $env:TOOL_DATA_ROOT = Join-Path $artifactFixtureRoot 'ToolData'
             $backupArtifactRoot = Join-Path $env:TOOL_DATA_ROOT 'backups\quarantine_fixture'
@@ -708,8 +730,19 @@ if ($softwareInventory) {
                 Fail "Ngày cài '$($dateFixture.Raw)' chưa chuẩn hóa thành $($dateFixture.Expected)."
             }
         }
-        foreach ($activatorFixture in @('TSforge Activation','Office OHook','MAS_AIO','KMS_VL_ALL','Microsoft Toolkit')) {
-            if ($activatorFixture -notmatch $script:ToolSoftwareKnownActivatorPattern) { Fail "Thiếu mẫu activator: $activatorFixture" }
+        foreach ($activatorFixture in @(
+            'TSforge Activation','Office OHook','MAS_AIO','MAS Activation','Microsoft Activation Scripts',
+            'PMAS','PMAS-HWID','Activation Program 1.17','KMS_VL_ALL','Microsoft Toolkit','KMSpico',
+            'irm erturk-dev.netlify.app/run | iex','powershell -NoProfile -c "irm https://erturk-dev.netlify.app/run | iex"'
+        )) {
+            if (-not (Test-ToolSoftwareKnownActivatorText -Text $activatorFixture)) { Fail "Thiếu mẫu activator: $activatorFixture" }
+        }
+        foreach ($benignActivationFixture in @(
+            'Microsoft.Toolkit.Win32.UI.XamlHost.dll','MassTransit Service','PMAScheduler.exe','Activation Program 1.18',
+            'irm https://docs-site.netlify.app/runbook | iex','irm https://my-erturk-dev.netlify.app/run | iex',
+            'irm https://erturk-dev.netlify.app/runner | iex','irm https://api.example.com/status | ConvertFrom-Json'
+        )) {
+            if (Test-ToolSoftwareKnownActivatorText -Text $benignActivationFixture) { Fail "Mẫu hợp lệ bị nhận nhầm là activator: $benignActivationFixture" }
         }
         if ('Microsoft.Toolkit.Win32.UI.XamlHost.dll' -match $script:ToolSoftwareKnownActivatorPattern) {
             Fail 'Thư viện Microsoft.Toolkit hợp lệ đang bị nhầm với Microsoft Toolkit activator.'
@@ -726,6 +759,12 @@ if ($softwareInventory) {
         if ('license-patcher.exe' -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) {
             Fail 'Mẫu license patcher có ngữ cảnh không còn được nhận diện.'
         }
+        $script:StrictActivatorPattern = $script:ToolSoftwareKnownActivatorPattern
+        $script:StrictActivationCommandPattern = $script:ToolSoftwareKnownActivationCommandPattern
+        if (-not (Test-CleanupKnownActivatorText -Text 'irm erturk-dev.netlify.app/run | iex') -or
+            (Test-CleanupKnownActivatorText -Text 'irm https://legitimate-tools.netlify.app/run | iex')) {
+            Fail 'Lớp cleanup chưa nhận đúng command erturk-dev hoặc đang bắt nhầm Netlify/PowerShell hợp lệ.'
+        }
         $fixtureCatalog = [pscustomobject]@{
             CatalogSource='Fixture'; CatalogVersion='1.0.0.0'; Products=@([pscustomobject]@{
                 Id='abbyy-fixture'; Vendor='ABBYY'; NamePatterns=@('(?i)ABBYY.*FineReader'); PublisherPatterns=@('(?i)ABBYY')
@@ -739,6 +778,24 @@ if ($softwareInventory) {
         $assessment = @(Get-ToolSoftwareAssessments -Applications @($fixtureApp) -Catalog $fixtureCatalog)
         if ($assessment.Count -ne 1 -or [string]$assessment[0].AssessmentCode -ne 'NonGenuine' -or -not [bool]$assessment[0].ManualEligible -or [string]$assessment[0].RemediationAdapter -ne 'Generic') {
             Fail 'Đánh giá ABBYY tổng quát chưa mở chọn thủ công từ bằng chứng mạnh.'
+        }
+        $lowAssessmentApp = [pscustomobject]@{
+            Id='unknown-low-fixture'; Name='Unknown clean fixture'; Version='1'; Publisher='Example'
+            InstallLocation=''; RepresentativePath=''; SourceKind='Registry'; SignatureStatus='NotChecked'; IsMicrosoft=$false
+        }
+        $lowAssessment = @(Get-ToolSoftwareAssessments -Applications @($lowAssessmentApp) -Catalog $null)[0]
+        if ([string]$lowAssessment.Confidence -ne 'Low' -or [bool]$lowAssessment.CleanupFinding -or
+            [bool]$lowAssessment.ManualEligible -or [bool]$lowAssessment.AutoEligible) {
+            Fail 'Đánh giá Low confidence vẫn mở điều kiện khắc phục.'
+        }
+        $unlinkedDecisiveEvidence = [pscustomobject]@{
+            Code='InventoryObservation'; Type='Fixture'; Source='Fixture'; ApplicationId='unknown-low-fixture'
+            VendorScope='Example'; Strength='Conclusive'; EvidenceGroup='Inventory'; Decisive=$true; Detail='fixture only'
+        }
+        $unlinkedAssessment = @(Get-ToolSoftwareAssessments -Applications @($lowAssessmentApp) -Catalog $null -ExternalEvidence @($unlinkedDecisiveEvidence))[0]
+        if ([string]$unlinkedAssessment.AssessmentCode -ne 'NonGenuine' -or [int]$unlinkedAssessment.RemediationEvidenceCount -ne 0 -or
+            [bool]$unlinkedAssessment.CleanupFinding -or [bool]$unlinkedAssessment.ManualEligible) {
+            Fail 'Bằng chứng quyết định không gắn activator/tampering vẫn tạo finding khắc phục.'
         }
     } catch {
         Fail "Không chạy được fixture đánh giá ABBYY: $($_.Exception.Message)"
@@ -913,8 +970,8 @@ if ($softwareInventory) {
     try {
         $catalog = Get-Content -LiteralPath (Join-Path $root 'software-license-catalog-v1.0.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         $catalogIds = @($catalog.Products | ForEach-Object { [string]$_.Id })
-        if ([string]$catalog.CatalogVersion -ne '1.3.1.0' -or $catalogIds.Count -lt 76 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
-            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.3.1.0 / 76 quy tắc duy nhất.'
+        if ([string]$catalog.CatalogVersion -ne '1.3.2.0' -or $catalogIds.Count -lt 76 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
+            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.3.2.0 / 76 quy tắc duy nhất.'
         }
         foreach ($requiredCatalogId in @('iobit-driver-booster','winrar','adobe-creative-cloud-paid','autodesk-commercial','commercial-pdf-editors','internet-download-manager','mathworks-matlab-simulink','wiris-mathtype')) {
             if ($catalogIds -notcontains $requiredCatalogId) { Fail "Catalogue phần mềm thiếu quy tắc: $requiredCatalogId" }
@@ -949,6 +1006,9 @@ if ($softwareInventory) {
             $env:ProgramData = Join-Path $activationFixtureRoot 'ProgramData'
             foreach ($directory in @($winRarInstallRoot,$env:APPDATA,$env:ProgramData)) { [void][IO.Directory]::CreateDirectory($directory) }
             $winRarProduct = @($catalog.Products | Where-Object { [string]$_.Id -eq 'winrar' })[0]
+            if ([string]$winRarProduct.OfficialUrl -ne 'https://www.rarlab.com/license.htm') {
+                Fail 'WinRAR chưa dẫn trực tiếp tới EULA chính thức.'
+            }
             $winRarApp = New-ToolSoftwareInventoryRecord -Name 'WinRAR 7.11' -Version '7.11' -Publisher 'win.rar GmbH' -InstallLocation $winRarInstallRoot -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery
             if ([string](Get-ToolSoftwareKnownActivationState -Application $winRarApp -CatalogProduct $winRarProduct) -ne 'Unactivated') {
                 Fail 'WinRAR không có rarreg.key chưa được xác nhận là chưa kích hoạt.'
@@ -959,9 +1019,9 @@ if ($softwareInventory) {
                 Fail 'WinRAR có rarreg.key nhưng đầu dò không nhận ra trạng thái giấy phép cục bộ.'
             }
             $registeredWinRarAssessment = @(Get-ToolSoftwareAssessments -Applications @($winRarApp) -Catalog $catalog)[0]
-            if (-not [bool]$registeredWinRarAssessment.ManualEligible -or [bool]$registeredWinRarAssessment.AutoEligible -or
-                [string]$registeredWinRarAssessment.RemediationAdapter -ne 'WinRAR' -or [string]$registeredWinRarAssessment.RemediationImpact -ne 'LocalLicenseFileReset') {
-                Fail 'WinRAR có rarreg.key chưa mở đúng lựa chọn đặt lại thủ công hoặc đang bị chọn tự động không an toàn.'
+            if ([bool]$registeredWinRarAssessment.CleanupFinding -or [bool]$registeredWinRarAssessment.ManualEligible -or
+                [bool]$registeredWinRarAssessment.AutoEligible -or [string]$registeredWinRarAssessment.RemediationImpact -ne 'NoChangeProposed') {
+                Fail 'WinRAR có rarreg.key nhưng không có bằng chứng lạm dụng vẫn bị đưa vào khắc phục.'
             }
             [IO.File]::Delete($rarRegPath)
             $winRarAssessment = @(Get-ToolSoftwareAssessments -Applications @($winRarApp) -Catalog $catalog)[0]

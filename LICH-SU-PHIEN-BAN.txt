@@ -3,17 +3,27 @@
 Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.8.0. v4.8.0 là bản nâng cấp trực tiếp từ v4.6; các thay đổi trung gian đã được kiểm định được hợp nhất vào v4.8 và không tách thành một phiên bản công khai riêng.
 
 Phiên bản hiện tại: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.13**
+FileVersion: **4.8.0.0** · Build **2026.08.14**
 
-## v4.8.0 — 10/08/2026 · cập nhật trực tiếp 13/08/2026
+## v4.8.0 — 10/08/2026 · cập nhật trực tiếp 14/08/2026
 
 **v4.8 nâng cấp trực tiếp từ v4.6, tập trung vào các thay đổi chính:**
+
+**Cập nhật theo phản hồi báo cáo ngày 14/08/2026:**
+
+- **Đánh giá đúng ngữ cảnh:** tách mô hình cấp phép khỏi bằng chứng kỹ thuật; phần mềm miễn phí/mã nguồn mở không còn bị yêu cầu hóa đơn. Chỉ crack, activator, lệnh/tác vụ kích hoạt hoặc dấu hiệu can thiệp có thật mới vào bảng bằng chứng.
+- **Điều kiện xử lý cụ thể:** `Low` chỉ là thông tin và không đủ căn cứ xóa ứng dụng/bloatware; các trạng thái Chưa xác minh, Nghi vấn, Không chính hãng và Ảnh hưởng tính toàn vẹn có hướng xử lý riêng. Tool ưu tiên cô lập đúng artifact/lệnh/tác vụ và giữ nguyên ứng dụng.
+- **Nhận diện bổ sung:** phát hiện bảo thủ MAS/PMAS, Activation Program 1.17 và lệnh Startup trỏ chính xác tới `erturk-dev.netlify.app/run`; giữ KMSPico và các mẫu đặc hiệu hiện có, đồng thời có fixture chống nhận nhầm PowerShell/Netlify hợp lệ.
+- **WinRAR và nguồn chính thức:** không xem `rarreg.key` đơn lẻ là bằng chứng vi phạm và không tự xóa; bản hết thời gian dùng thử được hướng dẫn mua giấy phép hoặc dùng lựa chọn hợp pháp khác. MathType và WinRAR mở đúng trang chính thức của hãng.
+- **Phiên bản cài song song:** chỉ hiện khi có phiên bản khác nhau tại vị trí cài khác nhau; record trùng Registry/AppX/shortcut như Zalo/Telegram không còn bị đếm thành nhiều bản, và bảng nói rõ đây không phải bằng chứng bản quyền.
+- **Báo cáo/PDF:** phụ lục phần mềm dùng bảng màu xanh lục lam riêng, khoảng trắng và tương phản tốt hơn; bảng rộng tách thành nhóm Ngữ cảnh/Quyết định, tăng cỡ chữ/line-height/padding, lặp header và ngắt trang dễ đọc hơn.
+- **Trợ lý Tool:** trả lời theo cấu trúc kết luận–bằng chứng–hành động, phân biệt Windows/Office/phần mềm bên thứ ba, giải thích mô hình–trạng thái–độ tin cậy–điều kiện khắc phục và tránh suy diễn pháp lý hoặc khắc phục tự động.
 
 - **Giao diện:** bố cục rõ hơn, hiển thị Sáng/Tối và DPI tốt hơn; sửa nút **Bản đã che thông tin** bị mất chữ hoặc mờ khi rê chuột.
 - **Kiểm tra và khắc phục:** Online và Dry Run cùng có 3 ô chọn **Windows, Office, Phần mềm khác**; cho chọn một hoặc nhiều phạm vi và chỉ quét/xử lý đúng mục đã chọn. Vẫn bắt buộc xem trước, xác nhận, backup và hậu kiểm.
 - **Quét và hiệu năng:** tăng tốc kiểm kê–đánh giá, mở rộng catalogue lên 76 quy tắc và phân loại kết quả thận trọng hơn.
 - **Báo cáo:** sửa PDF cắt chữ/khuyết dòng, sắp xếp nội dung gọn hơn và hỗ trợ bản báo cáo đã che thông tin.
-- **Trợ lý và kết nối:** hiểu mọi câu hỏi liên quan đến Tool theo 58 nhóm tri thức, HDSD nhúng, dữ liệu báo cáo và ngữ cảnh lượt trước. Knowledge `1.3.0` dùng gói JSON + chữ ký CMS SHA-256 rời, ghim chứng thư nhà phát hành, chống hạ phiên bản, giữ cache dự phòng và tự kiểm tra sau khi người dùng bật Online; tri thức tăng thêm không nằm trong EXE, không tải lên câu hỏi/báo cáo/dữ liệu máy và không vượt phạm vi Tool.
+- **Trợ lý và kết nối:** hiểu câu hỏi liên quan đến Tool theo 63 nhóm tri thức/481 từ khóa và cách hỏi, HDSD nhúng, dữ liệu báo cáo và ngữ cảnh lượt trước. Knowledge `1.3.1` dùng gói JSON + chữ ký CMS SHA-256 rời, ghim chứng thư nhà phát hành, chống hạ phiên bản, giữ cache dự phòng và tự kiểm tra sau khi người dùng bật Online; tri thức tăng thêm không nằm trong EXE, không tải lên câu hỏi/báo cáo/dữ liệu máy và không vượt phạm vi Tool.
 - **An toàn và riêng tư:** mặc định Offline, chỉ kết nối/cập nhật khi người dùng đồng ý; chỉ xin quyền quản trị lúc cần và không có telemetry hay cập nhật im lặng.
 
 ## v4.6 — 06/08/2026

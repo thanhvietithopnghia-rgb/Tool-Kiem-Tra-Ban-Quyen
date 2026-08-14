@@ -50,7 +50,7 @@ function ConvertTo-ToolHtmlText {
 
 function Get-ToolProfessionalReportCss {
     return @'
-:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#d8e0ea;--paper:#fff;--canvas:#edf2f8;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#a35b00;--bad:#b42318;--info:#175cd3;--shadow:0 8px 26px rgba(16,24,40,.08)}
+:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#d8e0ea;--paper:#fff;--canvas:#edf2f8;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#a35b00;--bad:#b42318;--info:#175cd3;--row-alt:#f7f9fc;--row-hover:#eef5fc;--appendix:#17635d;--appendix-soft:#eef9f7;--appendix-line:#9bcfc8;--shadow:0 8px 26px rgba(16,24,40,.08)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#e7eef7 0,var(--canvas) 360px);color:var(--ink);font-feature-settings:"tnum" 1;margin:0;line-height:1.42}
@@ -80,26 +80,33 @@ h1{font-size:31px;letter-spacing:-.025em;line-height:1.2;margin:8px 0 9px}
 .toc strong{color:var(--brand)}
 .toc ol{columns:2;column-gap:32px;margin:8px 0 0;padding-left:22px}
 .toc a{color:var(--brand2);text-decoration:none}
-section{background:var(--paper);border:1px solid var(--line);border-radius:14px;margin:0 0 13px;padding:16px 17px;box-shadow:var(--shadow);break-inside:avoid-page}
-section h2{border-bottom:1px solid #e8edf3;color:var(--brand);font-size:18px;margin:0 0 10px;padding:0 0 7px}
+section{background:var(--paper);border:1px solid var(--line);border-radius:14px;margin:0 0 16px;padding:18px 19px;box-shadow:var(--shadow);break-inside:avoid-page}
+section h2{border-bottom:1px solid #e8edf3;color:var(--brand);font-size:18px;line-height:1.3;margin:0 0 13px;padding:0 0 9px}
+section h3{color:#244b78;font-size:14px;line-height:1.35;margin:18px 0 9px;padding-left:9px;position:relative}section h3:before{background:var(--brand2);border-radius:2px;content:"";height:1.15em;left:0;position:absolute;top:.12em;width:3px}
 .table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
-.table-split-part+.table-split-part{margin-top:12px}.table-split-label{color:var(--muted);font-size:11px;font-weight:700;margin:0 0 5px;text-align:right}
-table{border-collapse:collapse;font-size:12px;width:100%}
+.table-split-part{background:#fbfdff;border:1px solid #e3eaf2;border-radius:9px;padding:8px}.table-split-part+.table-split-part{margin-top:16px}.table-split-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em;margin:0 0 6px;text-align:right}
+table{border-collapse:collapse;font-size:12.2px;width:100%}
 table.table-wide{min-width:980px}
 table.table-profile-software{min-width:760px;table-layout:fixed}
 table.table-profile-software col.col-name{width:31%}
 table.table-profile-software col.col-version{width:16%}
 table.table-profile-software col.col-publisher{width:37%}
 table.table-profile-software col.col-date{width:16%}
-th,td{border:1px solid #dfe6ee;line-height:1.42;padding:7px 8px;text-align:left;vertical-align:top;overflow-wrap:normal;word-break:normal}
+table.table-profile-system-software{min-width:780px;table-layout:fixed}table.table-profile-system-software col:nth-child(1){width:34%}table.table-profile-system-software col:nth-child(2){width:15%}table.table-profile-system-software col:nth-child(3){width:31%}table.table-profile-system-software col:nth-child(4){width:20%}
+table.table-profile-assessment-context{min-width:760px;table-layout:fixed}table.table-profile-assessment-context col:nth-child(1){width:31%}table.table-profile-assessment-context col:nth-child(2){width:14%}table.table-profile-assessment-context col:nth-child(3){width:31%}table.table-profile-assessment-context col:nth-child(4){width:24%}
+table.table-profile-assessment-decision{min-width:760px;table-layout:fixed}table.table-profile-assessment-decision col:nth-child(1){width:28%}table.table-profile-assessment-decision col:nth-child(2){width:23%}table.table-profile-assessment-decision col:nth-child(3){width:14%}table.table-profile-assessment-decision col:nth-child(4){width:35%}
+table.table-profile-assessment-overview{min-width:940px;table-layout:fixed}table.table-profile-assessment-overview col:nth-child(1){width:21%}table.table-profile-assessment-overview col:nth-child(2){width:10%}table.table-profile-assessment-overview col:nth-child(3){width:18%}table.table-profile-assessment-overview col:nth-child(4){width:17%}table.table-profile-assessment-overview col:nth-child(5){width:12%}table.table-profile-assessment-overview col:nth-child(6){width:22%}
+table.table-profile-assessment-evidence{min-width:980px;table-layout:fixed}table.table-profile-assessment-evidence col:nth-child(1){width:19%}table.table-profile-assessment-evidence col:nth-child(2){width:14%}table.table-profile-assessment-evidence col:nth-child(3){width:12%}table.table-profile-assessment-evidence col:nth-child(4){width:25%}table.table-profile-assessment-evidence col:nth-child(5){width:13%}table.table-profile-assessment-evidence col:nth-child(6){width:17%}
+table.table-profile-compact{max-width:980px}
+th,td{border:1px solid #dfe6ee;line-height:1.48;padding:8px 9px;text-align:left;vertical-align:top;overflow-wrap:normal;word-break:normal}
 th.cell-version,td.cell-version,th.cell-date,td.cell-date{min-width:104px;white-space:nowrap}
 th.cell-name,td.cell-name{min-width:210px}
 th.cell-publisher,td.cell-publisher{min-width:250px}
 th.cell-path,td.cell-path,th.cell-evidence,td.cell-evidence{min-width:230px}
-.cell-clip{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-clip{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cell-full{display:none}.cell-reference{color:var(--brand2);font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-word}
 .cell-details{margin:0;max-width:100%}.cell-details summary{color:var(--brand2);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cell-details .detail-content{margin-top:6px;overflow-wrap:break-word;white-space:pre-wrap;word-break:normal}
-th{background:#eaf2fb;color:#183b66;font-weight:700}
-tr:nth-child(even) td{background:#fafcff}
+th{background:#e6f0fa;color:#173b66;font-weight:750;letter-spacing:.008em}
+tbody tr:nth-child(even) td{background:var(--row-alt)}tbody tr:hover td{background:var(--row-hover)}
 .muted{color:var(--muted)}
 .note{background:#f5f8fc;border:1px solid #dde5ef;border-left:4px solid #8292a8;border-radius:7px;color:#475467;font-size:12.5px;margin:12px 0 0;padding:10px 12px}
 .summary-intro{background:#f7fbff;border-color:#c9dcef}.summary-intro p{margin:0;color:#344054}
@@ -109,8 +116,8 @@ tr:nth-child(even) td{background:#fafcff}
 .summary-verdict{flex:1;line-height:1.42;margin:4px 0 9px!important}.summary-detail-grid{display:grid;gap:7px;margin-top:auto}.summary-detail-box{background:#fff;border:1px solid #d6e0ec;border-radius:8px;padding:8px 9px}.summary-detail-verification{min-height:54px}.summary-detail-direction{min-height:82px}.summary-detail-value{font-size:12.3px;line-height:1.4;overflow-wrap:break-word}
 .summary-alert{border-left:4px solid var(--info);margin-top:11px}.summary-alert-warning{border-left-color:var(--warn)}.summary-alert-danger{border-left-color:var(--bad)}
 .pdf-guide{background:#f4f8fd;border:1px solid #b9cee7;border-left:5px solid var(--brand2)}.pdf-guide p{margin:7px 0}.pdf-link{align-items:center;background:var(--brand2);border-radius:8px;color:#fff;display:inline-flex;font-size:13px;font-weight:700;gap:8px;margin:7px 0 3px;padding:9px 13px;text-decoration:none}.pdf-link:hover{background:var(--brand)}.pdf-file{font-size:11px;font-weight:500;opacity:.86}.pdf-contents{color:var(--muted);font-size:12px}.pdf-guide-unavailable{border-left-color:var(--warn)}
-.system-app-link a,.back-link a{color:var(--brand2);font-weight:700;text-decoration:underline;text-underline-offset:2px}.system-software-appendix{break-before:page;page-break-before:always}.back-link{margin-top:12px}
-.system-summary-details>summary{background:#f4f8fd;border:1px solid #b9cee7;border-radius:8px;color:var(--brand2);cursor:pointer;font-weight:700;list-style-position:inside;padding:10px 12px}.system-summary-details[open]>summary{margin-bottom:10px}.system-summary-details .table-wrap{max-height:520px}
+.system-app-link a,.back-link a{color:var(--brand2);font-weight:700;text-decoration:underline;text-underline-offset:2px}.system-software-appendix{background:linear-gradient(180deg,var(--appendix-soft),#fff 170px);border-color:var(--appendix-line);break-before:page;page-break-before:always}.system-software-appendix h2{border-bottom-color:var(--appendix-line);color:var(--appendix)}.system-software-appendix .note{background:#f6fcfb;border-color:#c7e4df;border-left-color:var(--appendix);color:#315b57}.system-software-appendix .table-wrap{background:#fff;border:1px solid var(--appendix-line);border-radius:9px}.system-software-appendix th{background:#dff3f0;color:#154e49}.system-software-appendix tbody tr:nth-child(even) td{background:#f2faf8}.back-link{margin-top:14px}
+.system-summary-details>summary{background:var(--appendix-soft);border:1px solid var(--appendix-line);border-radius:8px;color:var(--appendix);cursor:pointer;font-weight:700;list-style-position:inside;padding:11px 13px}.system-summary-details[open]>summary{margin-bottom:12px}.system-summary-details .table-wrap{border:1px solid var(--appendix-line);border-radius:8px;max-height:520px}.system-summary-details th{position:sticky;top:0;z-index:1}
 .license-warning{background:#fff7e8;border:1px solid #f4d7a7;border-left:4px solid #f0a000;border-radius:7px;color:#6b4300;margin:12px 0 0;padding:10px 12px}
 .text-report{font-family:"Segoe UI",Arial,sans-serif;font-size:12.5px;line-height:1.45;margin:0;overflow-wrap:break-word;white-space:pre-wrap;word-break:normal}
 .badge{border-radius:999px;display:inline-block;font-size:11px;font-weight:700;padding:3px 8px}
@@ -118,13 +125,13 @@ tr:nth-child(even) td{background:#fafcff}
 .badge-warning{background:#fff3df;color:var(--warn)}
 .badge-danger{background:#feeceb;color:var(--bad)}
 .footer{break-inside:avoid;color:var(--muted);font-size:11.5px;line-height:1.35;margin-top:22px;page-break-inside:avoid;text-align:center}.footer-line+.footer-line{margin-top:3px}
-@media(prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#e6ebf2;--muted:#a9b4c5;--line:#3b4658;--paper:#202733;--canvas:#141923;--brand:#8bb8ff;--brand2:#a8caff;--ok:#71d6a1;--warn:#ffc36e;--bad:#ff8a82;--info:#8eb9ff;--shadow:0 8px 26px rgba(0,0,0,.25)}body{background:linear-gradient(180deg,#101722,var(--canvas) 360px)}.hero{background:linear-gradient(135deg,#17345f,#234d85)}.toc,.note,.summary-intro,.summary-result,.pdf-guide{background:#1c2634;border-color:#3b4d64;color:#cbd4e2}.summary-detail-box{background:#202c3b;border-color:#43536a}.summary-intro p{color:#cbd4e2}section h2{border-bottom-color:#3b4658}.license-warning{background:#3a2d1a;border-color:#6b512b;color:#ffd494}th{background:#293d58;color:#dceaff}tr:nth-child(even) td{background:#1b222d}}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#e6ebf2;--muted:#a9b4c5;--line:#3b4658;--paper:#202733;--canvas:#141923;--brand:#8bb8ff;--brand2:#a8caff;--ok:#71d6a1;--warn:#ffc36e;--bad:#ff8a82;--info:#8eb9ff;--row-alt:#1b222d;--row-hover:#263449;--appendix:#8fd9ce;--appendix-soft:#1c302f;--appendix-line:#3f6965;--shadow:0 8px 26px rgba(0,0,0,.25)}body{background:linear-gradient(180deg,#101722,var(--canvas) 360px)}.hero{background:linear-gradient(135deg,#17345f,#234d85)}.toc,.note,.summary-intro,.summary-result,.pdf-guide{background:#1c2634;border-color:#3b4d64;color:#cbd4e2}.summary-detail-box{background:#202c3b;border-color:#43536a}.summary-intro p{color:#cbd4e2}section h2{border-bottom-color:#3b4658}section h3{color:#b8d5f4}.table-split-part{background:#1a222e;border-color:#364354}.license-warning{background:#3a2d1a;border-color:#6b512b;color:#ffd494}th{background:#293d58;color:#dceaff}.system-software-appendix{background:linear-gradient(180deg,var(--appendix-soft),var(--paper) 180px)}.system-software-appendix .note{background:#203432;border-color:#3f6965;color:#c6e6e1}.system-software-appendix .table-wrap{background:var(--paper)}.system-software-appendix th{background:#25433f;color:#d5f3ee}.system-software-appendix tbody tr:nth-child(even) td{background:#1b2928}}
 @media(max-width:1100px){.cards-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:720px){.page{padding:14px 10px 28px}.hero{border-radius:13px;padding:22px 18px}.report-mode{position:static;margin-bottom:12px}.toc ol{columns:1}h1{font-size:24px}section{padding:13px 10px}.cards{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}.cards-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.page{padding:14px 10px 28px}.hero{border-radius:13px;padding:22px 18px}.report-mode{position:static;margin-bottom:12px}.toc ol{columns:1}h1{font-size:24px}section{padding:15px 12px}.cards{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}.cards-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.table-split-part{padding:5px}th,td{padding:7px 8px}}
 @media(max-width:460px){.cards,.cards-summary{grid-template-columns:1fr}}
-@media print{.cell-clip{display:block;overflow:visible;text-overflow:clip;white-space:normal}.cell-details summary{display:none!important}.cell-details .detail-content{display:block!important;margin:0;white-space:pre-wrap}}
-@media print{@page{size:A4 portrait;margin:12mm}:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#b9c3cf;--paper:#fff;--canvas:#fff;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#7a4700;--bad:#9e2018;--info:#175cd3}html,body{height:auto!important;overflow:visible!important}body{background:#fff!important;color:#000}.page{max-width:none;padding:0}.hero{background:#fff!important;border:2px solid #123b74;border-radius:0;color:#123b74;box-shadow:none;break-inside:avoid-page;padding:14px 16px}.hero:after{display:none}.report-mode{border-color:#7591b3;color:#123b74;right:12px;top:10px}.report-mode:before{background:#147a4b}.meta-grid{border-top-color:#b8c8db}.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.cards.cards-count-1{grid-template-columns:repeat(1,minmax(0,1fr))}.cards.cards-count-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cards.cards-count-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cards.cards-count-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cards.cards-count-5{grid-template-columns:repeat(5,minmax(0,1fr))}.cards.cards-count-6{grid-template-columns:repeat(6,minmax(0,1fr))}.card,section,.toc{background:#fff!important;border-color:#b9c3cf;border-radius:0;box-shadow:none}.card{break-inside:avoid-page;min-height:62px;padding:9px 8px}.card-label{font-size:7.7pt;letter-spacing:.035em}.card-value{font-size:9pt;line-height:1.26}.toc{display:none}section{break-inside:auto!important;page-break-inside:auto!important;orphans:3;widows:3}section h2,section h3{break-after:avoid-page;page-break-after:avoid}.table-wrap{max-width:none;overflow:visible!important}table,table.table-wide,table.table-profile-software{font-size:8.15pt;min-width:0!important;width:100%!important;page-break-inside:auto;table-layout:fixed}table.table-cols-6,table.table-cols-7{font-size:7.35pt}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid-page;page-break-inside:avoid}th,td{min-width:0!important;line-height:1.34;padding:5px 6px;overflow-wrap:break-word;white-space:normal!important;word-break:normal}th.cell-path,td.cell-path,th.cell-evidence,td.cell-evidence{overflow-wrap:anywhere;word-break:break-word}table col.col-name{width:23%}table col.col-version{width:12%}table col.col-date{width:12%}table col.col-publisher{width:23%}table col.col-path,table col.col-evidence{width:28%}a{color:#000}.system-app-link a,.back-link a{text-decoration:underline}.system-software-appendix{break-before:page!important;page-break-before:always!important}th{background:#e8edf3!important;color:#183b66!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.text-report{font-size:9.5pt;line-height:1.42;overflow:visible}.footer{position:running(report-footer)}}
-@media print{table col.col-name,table col.col-version,table col.col-date,table col.col-publisher,table col.col-path,table col.col-evidence{width:auto!important}table.table-profile-software col.col-name{width:31%!important}table.table-profile-software col.col-version{width:16%!important}table.table-profile-software col.col-date{width:16%!important}table.table-profile-software col.col-publisher{width:37%!important}table.table-cols-6{font-size:7.65pt}.table-split-part{break-inside:auto;page-break-inside:auto}.table-split-label{font-size:7.2pt;margin-bottom:3px}}
+@media print{.cell-clip{display:block;overflow:visible;text-overflow:clip;white-space:normal}.cell-compact{display:none!important}.cell-full{display:block!important;overflow-wrap:anywhere;white-space:normal}.cell-details summary{display:none!important}.cell-details .detail-content{display:block!important;margin:0;white-space:pre-wrap}}
+@media print{@page{size:A4 portrait;margin:12mm}:root{color-scheme:light;--ink:#172033;--muted:#667085;--line:#b9c3cf;--paper:#fff;--canvas:#fff;--brand:#123b74;--brand2:#2563a7;--ok:#147a4b;--warn:#7a4700;--bad:#9e2018;--info:#175cd3;--row-alt:#f3f6f9;--appendix:#155e58;--appendix-soft:#edf8f6;--appendix-line:#87bdb6}html,body{height:auto!important;overflow:visible!important}body{background:#fff!important;color:#111}.page{max-width:none;padding:0}.hero{background:#fff!important;border:2px solid #123b74;border-radius:0;color:#123b74;box-shadow:none;break-inside:avoid-page;padding:14px 16px}.hero:after{display:none}.report-mode{border-color:#7591b3;color:#123b74;right:12px;top:10px}.report-mode:before{background:#147a4b}.meta-grid{border-top-color:#b8c8db}.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.cards.cards-count-1{grid-template-columns:repeat(1,minmax(0,1fr))}.cards.cards-count-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cards.cards-count-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cards.cards-count-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cards.cards-count-5{grid-template-columns:repeat(5,minmax(0,1fr))}.cards.cards-count-6{grid-template-columns:repeat(6,minmax(0,1fr))}.card,section,.toc{background:#fff!important;border-color:#b9c3cf;border-radius:0;box-shadow:none}.card{break-inside:avoid-page;min-height:62px;padding:9px 8px}.card-label{font-size:7.7pt;letter-spacing:.035em}.card-value{font-size:9pt;line-height:1.26}.toc{display:none}section{break-inside:auto!important;margin-bottom:5mm;padding:4mm!important;page-break-inside:auto!important;orphans:3;widows:3}section h2{border-bottom:1.2px solid #9fb3ca;font-size:13.2pt;line-height:1.3;margin-bottom:3.5mm;padding-bottom:2mm}section h3{font-size:10.2pt;margin:4mm 0 2mm}section h2,section h3{break-after:avoid-page;page-break-after:avoid}.table-wrap{max-width:none;overflow:visible!important}table,table.table-wide,table.table-profile-software,table.table-profile-system-software,table.table-profile-assessment-context,table.table-profile-assessment-decision,table.table-profile-assessment-overview,table.table-profile-assessment-evidence{font-size:8.55pt;min-width:0!important;width:100%!important;page-break-inside:auto;table-layout:fixed}table.table-cols-6,table.table-cols-7{font-size:7.95pt}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid-page;page-break-inside:avoid}th,td{min-width:0!important;line-height:1.46;orphans:3;padding:6px 7px;overflow-wrap:break-word;white-space:normal!important;widows:3;word-break:normal}th.cell-path,td.cell-path,th.cell-evidence,td.cell-evidence{overflow-wrap:anywhere;word-break:break-word}table col.col-name{width:23%}table col.col-version{width:12%}table col.col-date{width:12%}table col.col-publisher{width:23%}table col.col-path,table col.col-evidence{width:28%}tbody tr:nth-child(even) td{background:var(--row-alt)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}a{color:#111}.cell-reference,.system-app-link a,.back-link a{color:#123b74!important;text-decoration:underline}.system-software-appendix{background:linear-gradient(180deg,var(--appendix-soft),#fff 42mm)!important;border-color:var(--appendix-line)!important;break-before:page!important;page-break-before:always!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.system-software-appendix h2{border-bottom-color:var(--appendix-line);color:var(--appendix)}.system-software-appendix .note{background:#f4fbfa!important;border-color:#b8dcd7;color:#244c48;-webkit-print-color-adjust:exact;print-color-adjust:exact}.system-software-appendix th{background:#dcefeb!important;color:#154e49!important}.system-software-appendix tbody tr:nth-child(even) td{background:#f0f8f7!important}th{background:#e3ebf4!important;color:#183b66!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.text-report{font-size:9.5pt;line-height:1.48;overflow:visible}.footer{position:running(report-footer)}}
+@media print{table col.col-name,table col.col-version,table col.col-date,table col.col-publisher,table col.col-path,table col.col-evidence{width:auto!important}table.table-profile-software col.col-name{width:31%!important}table.table-profile-software col.col-version{width:16%!important}table.table-profile-software col.col-date{width:16%!important}table.table-profile-software col.col-publisher{width:37%!important}table.table-profile-system-software col:nth-child(1){width:34%!important}table.table-profile-system-software col:nth-child(2){width:15%!important}table.table-profile-system-software col:nth-child(3){width:31%!important}table.table-profile-system-software col:nth-child(4){width:20%!important}table.table-profile-assessment-context col:nth-child(1){width:31%!important}table.table-profile-assessment-context col:nth-child(2){width:14%!important}table.table-profile-assessment-context col:nth-child(3){width:31%!important}table.table-profile-assessment-context col:nth-child(4){width:24%!important}table.table-profile-assessment-decision col:nth-child(1){width:28%!important}table.table-profile-assessment-decision col:nth-child(2){width:23%!important}table.table-profile-assessment-decision col:nth-child(3){width:14%!important}table.table-profile-assessment-decision col:nth-child(4){width:35%!important}table.table-profile-assessment-overview col:nth-child(1){width:21%!important}table.table-profile-assessment-overview col:nth-child(2){width:10%!important}table.table-profile-assessment-overview col:nth-child(3){width:18%!important}table.table-profile-assessment-overview col:nth-child(4){width:17%!important}table.table-profile-assessment-overview col:nth-child(5){width:12%!important}table.table-profile-assessment-overview col:nth-child(6){width:22%!important}table.table-profile-assessment-evidence col:nth-child(1){width:19%!important}table.table-profile-assessment-evidence col:nth-child(2){width:14%!important}table.table-profile-assessment-evidence col:nth-child(3){width:12%!important}table.table-profile-assessment-evidence col:nth-child(4){width:25%!important}table.table-profile-assessment-evidence col:nth-child(5){width:13%!important}table.table-profile-assessment-evidence col:nth-child(6){width:17%!important}table.table-profile-assessment-evidence tr{break-inside:auto;page-break-inside:auto}table.table-cols-6{font-size:7.95pt}.table-split-part{background:#fff;border-color:#cbd5e1;break-inside:auto;padding:3mm;page-break-inside:auto}.table-split-label{font-size:7.5pt;margin-bottom:1.5mm}}
 '@
 }
 
@@ -150,7 +157,7 @@ function Get-ToolHtmlColumnClass {
     if ($name -match '^(phien ban|version|file version|phien ban tep)$') { return 'version' }
     if ($name -match 'ten phan mem|^name$|^ten$|^san pham$') { return 'name' }
     if ($name -match '^hang$|publisher|nha phat hanh') { return 'publisher' }
-    if ($name -match 'duong dan|tep kiem tra|^path$|nguon|source') { return 'path' }
+    if ($name -match 'duong dan|tep kiem tra|^path$|nguon|source|tham chieu|official reference|reference|^url$|lien ket|^link$') { return 'path' }
     if ($name -match 'bang chung|evidence|quan sat|huong xu ly|nhan dinh') { return 'evidence' }
     return 'text'
 }
@@ -159,14 +166,41 @@ function Get-ToolHtmlTableProfile {
     param([Parameter(Mandatory = $true)][string[]]$Columns)
 
     $classes = @($Columns | ForEach-Object { Get-ToolHtmlColumnClass -Column $_ })
+    $columnKeys = @($Columns | ForEach-Object { ConvertTo-ToolHtmlSearchKey -Value ([string]$_).Trim() })
     $isSoftwareInventory = $Columns.Count -eq 4 -and
         $classes -contains 'name' -and $classes -contains 'version' -and
         $classes -contains 'publisher' -and $classes -contains 'date'
+    $isSystemSoftware = $Columns.Count -eq 4 -and
+        $classes -contains 'name' -and $classes -contains 'version' -and
+        $classes -contains 'publisher' -and $classes -contains 'path' -and
+        -not ($classes -contains 'date')
+    $isAssessmentContext = $Columns.Count -eq 4 -and
+        $classes -contains 'name' -and $classes -contains 'version' -and
+        $classes -contains 'publisher' -and
+        ($columnKeys -contains 'license model' -or $columnKeys -contains 'mo hinh ban quyen')
+    $isAssessmentDecision = $Columns.Count -eq 4 -and $classes -contains 'name' -and
+        ($columnKeys -contains 'technical status' -or $columnKeys -contains 'trang thai ky thuat') -and
+        ($columnKeys -contains 'confidence' -or $columnKeys -contains 'do tin cay') -and
+        ($columnKeys -contains 'remediation eligibility' -or $columnKeys -contains 'dieu kien khac phuc')
+    $isAssessmentOverview = $Columns.Count -eq 6 -and
+        ($columnKeys -contains 'technical status' -or $columnKeys -contains 'trang thai ky thuat') -and
+        ($columnKeys -contains 'confidence' -or $columnKeys -contains 'do tin cay') -and
+        ($columnKeys -contains 'remediation eligibility' -or $columnKeys -contains 'dieu kien khac phuc')
+    $isAssessmentEvidence = $Columns.Count -eq 6 -and
+        ($columnKeys -contains 'license model' -or $columnKeys -contains 'mo hinh ban quyen') -and
+        ($columnKeys -contains 'evidence' -or $columnKeys -contains 'bang chung') -and
+        ($columnKeys -contains 'official reference' -or $columnKeys -contains 'tham chieu chinh thuc')
     return [pscustomobject]@{
         Classes = $classes
         TableClass = (@('report-table', "table-cols-$($Columns.Count)") +
             $(if ($Columns.Count -ge 6) { 'table-wide' }) +
-            $(if ($isSoftwareInventory) { 'table-profile-software' })) -join ' '
+            $(if ($Columns.Count -le 3) { 'table-profile-compact' }) +
+            $(if ($isSoftwareInventory) { 'table-profile-software' }) +
+            $(if ($isSystemSoftware) { 'table-profile-system-software' }) +
+            $(if ($isAssessmentContext) { 'table-profile-assessment-context' }) +
+            $(if ($isAssessmentDecision) { 'table-profile-assessment-decision' }) +
+            $(if ($isAssessmentOverview) { 'table-profile-assessment-overview' }) +
+            $(if ($isAssessmentEvidence) { 'table-profile-assessment-evidence' })) -join ' '
     }
 }
 
@@ -190,9 +224,17 @@ function ConvertTo-ToolHtmlTableCell {
     if ($ColumnClass -eq 'publisher') { $text = ConvertTo-ToolHtmlCompactPublisher -Value $text }
     $encoded = ConvertTo-ToolHtmlText $text
     if ($ColumnClass -eq 'path') {
+        $absoluteWebReference = $null
+        if ([Uri]::TryCreate($text, [UriKind]::Absolute, [ref]$absoluteWebReference) -and
+            $absoluteWebReference.Scheme -in @('https','http')) {
+            return "<a class='cell-reference' href='$encoded' rel='noreferrer noopener'>$encoded</a>"
+        }
         $display = $text
         if ($display.Length -gt 110) { $display = $display.Substring(0, 52) + " ... " + $display.Substring($display.Length - 52) }
-        return "<span class='cell-clip' title='$encoded'>$(ConvertTo-ToolHtmlText $display)</span>"
+        if ($display -ne $text) {
+            return "<span class='cell-clip' title='$encoded'><span class='cell-compact'>$(ConvertTo-ToolHtmlText $display)</span><span class='cell-full'>$encoded</span></span>"
+        }
+        return "<span class='cell-clip' title='$encoded'>$encoded</span>"
     }
     if ($ColumnClass -eq 'evidence' -and $text.Length -gt 220) {
         $summary = $text.Substring(0, [Math]::Min(118, $text.Length)).TrimEnd() + "..."

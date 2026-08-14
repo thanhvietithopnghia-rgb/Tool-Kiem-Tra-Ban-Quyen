@@ -3,33 +3,33 @@
     "Channel":  "stable",
     "LatestVersion":  "4.8.0.0",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-13T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-14T00:00:00Z",
     "Title":  {
                   "vi-VN":  "v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn",
                   "en-US":  "v4.8.0 - Faster, clearer, and safer"
               },
     "Changes":  {
                     "vi-VN":  [
-                                  "Trợ lý dùng kho tri thức rời có chữ ký, chống hạ phiên bản và tự đồng bộ sau khi người dùng bật Online; EXE không chứa phần tri thức tăng thêm.",
-                                  "Giao diện rõ hơn; sửa nút Bản đã che thông tin bị mất chữ hoặc mờ khi rê chuột.",
-                                  "Quét nhanh hơn, nhận diện nhiều phần mềm hơn và trình bày kết quả dễ hiểu hơn.",
-                                  "Báo cáo bảo vệ dữ liệu nhạy cảm tốt hơn; PDF không còn cắt chữ ở các trường hợp đã biết.",
-                                  "Khắc phục có Dry Run, backup và hậu kiểm; Tool không tự gỡ ứng dụng.",
+                                  "Đánh giá phần mềm tách mô hình giấy phép khỏi bằng chứng crack/can thiệp; phần mềm miễn phí và mức tin cậy Low không còn bị yêu cầu hóa đơn hay đưa vào diện tự động xóa.",
+                                  "Bổ sung nhận diện bảo thủ MAS/PMAS, Activation Program 1.17 và đúng lệnh erturk-dev; giữ ứng dụng, chỉ cô lập đúng artifact/tác vụ đáng ngờ khi đủ bằng chứng.",
+                                  "WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.",
+                                  "Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tăng khoảng trắng và tự tách bảng rộng để bớt dày.",
+                                  "Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.",
                                   "Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0."
                               ],
                     "en-US":  [
-                                  "Tool Assistant uses a detached signed knowledge cache with rollback protection and syncs after the user enables Online; growing knowledge is kept outside the EXE.",
-                                  "The interface is clearer; the Redacted report button no longer clips or fades on hover.",
-                                  "Scans are faster, recognize more software, and present results more clearly.",
-                                  "Reports protect sensitive data better, and known PDF clipping cases are fixed.",
-                                  "Remediation includes Dry Run, backup, and post-verification; the Tool never uninstalls applications.",
+                                  "Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.",
+                                  "Conservative detection now covers MAS/PMAS, Activation Program 1.17, and the exact erturk-dev command; applications stay installed while only proven artifacts or tasks are isolated.",
+                                  "A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.",
+                                  "The software appendix uses a clearer teal palette; detailed PDFs add spacing and split wide tables for lower visual density.",
+                                  "Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.",
                                   "Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0."
                               ]
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe",
-    "DownloadSha256":  "4D08BC0EB862F3F0FBC21B56693808D4F5FB421817004B4F95C96A2C28E49384",
-    "DownloadSize":  874928,
+    "DownloadSha256":  "5CDB86548D30560854D87CEE5129D29B1C19941C5566FE2B353A2CB95B5EBCBB",
+    "DownloadSize":  885680,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ACF45ABCB9842701652F75BA58E13DC0ACFA79FE"

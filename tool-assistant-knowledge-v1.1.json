@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.3.0",
-  "UpdatedAtUtc": "2026-08-13T05:15:00Z",
+  "KnowledgeVersion": "1.3.1",
+  "UpdatedAtUtc": "2026-08-14T11:00:00Z",
   "ToolVersionMin": "4.8.0.0",
   "ToolVersionMax": "4.8.65535.65535",
   "ReleasedWithToolVersion": "4.8.0.0",
@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v4.8"],
-      "AnswerVi": "Tag v4.8.0.0 được phát hành công khai ngày 10/08/2026. Bản cập nhật tại chỗ hiện tại được build ngày 13/08/2026 nhưng vẫn giữ nguyên phiên bản và đường dẫn phát hành v4.8.0.0. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi.",
-      "AnswerEn": "Tag v4.8.0.0 was publicly released on 10 August 2026. The current in-place build is dated 13 August 2026 while retaining the same v4.8.0.0 version and release URL. Open Version history in the Assurance Report Center for the change timeline."
+      "AnswerVi": "Tag v4.8.0.0 được phát hành công khai ngày 10/08/2026. Bản cập nhật tại chỗ hiện tại được build ngày 14/08/2026 nhưng vẫn giữ nguyên phiên bản và đường dẫn phát hành v4.8.0.0. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi.",
+      "AnswerEn": "Tag v4.8.0.0 was publicly released on 10 August 2026. The current in-place build is dated 14 August 2026 while retaining the same v4.8.0.0 version and release URL. Open Version history in the Assurance Report Center for the change timeline."
     },
     {
       "Id": "tool-overview",
@@ -164,16 +164,56 @@
       "TitleVi": "Phần mềm đã cài đặt",
       "TitleEn": "Installed software",
       "Keywords": ["phan mem", "ung dung", "da cai", "installed", "publisher", "phien ban ung dung", "ngay cai", "chuc nang 5", "chuc nang so 5", "muc 5", "nut 5"],
-      "AnswerVi": "Chức năng 5 kiểm kê phần mềm từ các nguồn được hỗ trợ và quét dấu hiệu can thiệp theo bằng chứng. Cách dùng: chọn Phần mềm & dấu hiệu can thiệp → chọn mức riêng tư → chờ quét → trong báo cáo đọc đồng thời Tên/phiên bản, Trạng thái, Tin cậy, Bằng chứng, Đường dẫn đại diện và Độ phủ quét sâu. Nghi vấn hoặc Chưa xác minh là tín hiệu rà soát, không tự là kết luận pháp lý và chức năng này không gỡ/sửa phần mềm.",
-      "AnswerEn": "Feature 5 inventories software from supported sources and scans evidence-based tampering signals. Select Software and tampering signals, choose privacy, wait, then review name/version, status, trust, evidence, representative path, and deep-scan coverage together. Suspicious or Unverified is a review signal, not an automatic legal conclusion, and this feature does not remove or repair software."
+      "AnswerVi": "Chức năng 5 kiểm kê phần mềm và quét dấu hiệu can thiệp theo bằng chứng. Khi đọc một dòng, tách bốn ý: Mô hình giấy phép cho biết miễn phí/nguồn mở/dùng thử/thương mại; Trạng thái cho biết Tool quan sát thấy gì; Tin cậy cho biết độ mạnh của phép đối chiếu; Điều kiện khắc phục cho biết có đủ bằng chứng kỹ thuật để lập kế hoạch hay chưa. Nghi vấn, Chưa xác minh hoặc Tin cậy Low chỉ yêu cầu rà soát, không cho phép gỡ ứng dụng và không phải kết luận pháp lý.",
+      "AnswerEn": "Feature 5 inventories software and scans evidence-based tampering signals. Read each row as four separate fields: License model says free/open-source/trial/commercial; Status says what the Tool observed; Confidence says how strong the match is; Remediation eligibility says whether technical evidence is sufficient to build a plan. Suspicious, Unverified, or Low confidence requires review; it does not authorize app removal or establish a legal conclusion."
+    },
+    {
+      "Id": "license-model-evidence",
+      "TitleVi": "Mô hình giấy phép và bằng chứng kỹ thuật",
+      "TitleEn": "License model and technical evidence",
+      "Keywords": ["mo hinh giay phep va bang chung", "phan mem mien phi co can hoa don", "nguon mo co can chung tu", "giay phep phan mem mien phi", "free software invoice", "open source invoice", "freeware licensing", "license model vs evidence"],
+      "AnswerVi": "Hãy tách hai việc: mô hình giấy phép và bằng chứng kỹ thuật. Phần mềm miễn phí/nguồn mở không bị yêu cầu hóa đơn mua hàng chung chung; cần kiểm tra đúng điều khoản, tệp LICENSE/notice, nguồn cài và giới hạn cá nhân/doanh nghiệp. Với bản dùng thử, thuê bao hoặc thương mại, đối chiếu tài khoản, key, hóa đơn/hợp đồng khi chính mô hình đó yêu cầu. Dấu vết activator, lệnh/tác vụ, dịch vụ, repack hoặc tệp bị sửa là bằng chứng kỹ thuật riêng; Tool dùng chúng để cảnh báo, không tự phán quyết quyền sử dụng hợp pháp.",
+      "AnswerEn": "Separate the license model from technical evidence. Free or open-source software should not receive a generic purchase-invoice demand; check its terms, LICENSE/notice, official source, and any personal/business conditions. For trial, subscription, or commercial software, review the account, key, invoice, or contract only when that model calls for it. Activator traces, commands/tasks, services, repacks, or modified files are separate technical evidence; the Tool reports them without making a legal-entitlement verdict."
+    },
+    {
+      "Id": "software-finding-confidence",
+      "TitleVi": "Trạng thái nghi vấn và độ tin cậy",
+      "TitleEn": "Suspicious status and confidence",
+      "Keywords": ["tin cay low co xoa phan mem", "low confidence co du xoa", "do tin cay low", "muc tin cay thap", "confidence low software", "suspicious low confidence", "nghi van co phai crack", "co dau hieu nghi van la gi", "low co xoa bloatware", "phan mem thua low confidence"],
+      "AnswerVi": "Trạng thái và Tin cậy không cùng nghĩa: Trạng thái mô tả tín hiệu đã thấy, còn Tin cậy đo độ mạnh của phép nhận diện. Low nghĩa là bằng chứng yếu hoặc chưa đủ; không được dùng để xóa bloatware, ứng dụng thừa hay kết luận có crack. Hành động an toàn là giữ nguyên ứng dụng, mở bằng chứng chi tiết, kiểm tra mô hình giấy phép/nguồn cài rồi quét sâu hoặc đối chiếu thủ công. Chỉ một dấu vết kỹ thuật trực tiếp đã xác nhận mới có thể chuyển sang xem trước kế hoạch khắc phục.",
+      "AnswerEn": "Status and Confidence are different: Status describes the observed signal, while Confidence measures match strength. Low means weak or incomplete evidence; it must not be used to remove bloatware, unwanted apps, or claim a crack is present. Keep the app, inspect detailed evidence, check its license model and install source, then deep-scan or review manually. Only confirmed direct technical evidence can proceed to a remediation preview."
+    },
+    {
+      "Id": "software-finding-remediation",
+      "TitleVi": "Điều kiện khắc phục dấu hiệu phần mềm",
+      "TitleEn": "Remediation eligibility for software findings",
+      "Keywords": ["dieu kien khac phuc phan mem nghi van", "khac phuc co dau hieu nghi van", "co lap crack giu ung dung", "xoa activator giu phan mem", "remediation condition software finding", "suspicious software remediation", "chua du dieu kien khac phuc phan mem", "giu ung dung khi co crack"],
+      "AnswerVi": "Điều kiện khắc phục phải bám vào bằng chứng: Chưa xác minh hoặc Low → giữ nguyên ứng dụng và kiểm tra thủ công; Nghi vấn chưa có hiện vật trực tiếp → quét sâu, chưa cho khắc phục; crack/activator, lệnh, tác vụ, dịch vụ hoặc tệp sửa đổi đã xác nhận → xem trước, tạo backup, rồi chỉ cô lập đúng hiện vật sau khi người dùng xác nhận. Ứng dụng chính được giữ lại; chỉ sửa/cài lại từ nguồn chính thức khi bằng chứng cho thấy tệp ứng dụng bị ảnh hưởng. Quét lại sau xử lý; Trợ lý không tự chạy khắc phục.",
+      "AnswerEn": "Remediation eligibility must follow evidence: Unverified or Low confidence means keep the app and review manually; Suspicious without a direct artifact means deep-scan with no remediation; a confirmed crack/activator, command, task, service, or modified file may proceed to preview, backup, and isolation of that exact artifact after user confirmation. Keep the main app; repair or reinstall from the official source only when its files are affected. Rescan afterward; the Assistant never runs remediation automatically."
+    },
+    {
+      "Id": "license-scope-separation",
+      "TitleVi": "Tách phạm vi Windows, Office và phần mềm bên thứ ba",
+      "TitleEn": "Separate Windows, Office, and third-party scopes",
+      "Keywords": ["tach windows office phan mem ben thu ba", "phan biet windows office va phan mem", "pham vi khac phuc windows office phan mem", "windows office phan mem xu ly rieng", "separate windows office third party", "license scopes separately"],
+      "AnswerVi": "Ba phạm vi phải được kết luận và xử lý riêng. Windows: xem trạng thái/kênh kích hoạt, OEM, KMS, rearm và hồ sơ quyền sử dụng phù hợp. Office: xem sản phẩm/edition, kênh kích hoạt, KMS hoặc activator riêng dù Windows không có cảnh báo. Phần mềm bên thứ ba: xem mô hình giấy phép, nhà phát hành/nguồn cài và bằng chứng can thiệp của chính ứng dụng; không áp logic key Windows/Office hoặc yêu cầu hóa đơn cho mọi phần mềm. Một phạm vi yên không làm mất cảnh báo của phạm vi khác.",
+      "AnswerEn": "Conclude and handle the three scopes separately. Windows: review activation state/channel, OEM, KMS, rearm, and applicable entitlement records. Office: review its product/edition, activation channel, KMS, or activator even when Windows is quiet. Third-party software: review that app's license model, publisher/install source, and its own tampering evidence; do not apply Windows/Office key logic or an invoice requirement to every app. A clean scope does not cancel a finding in another scope."
+    },
+    {
+      "Id": "commercial-software-review",
+      "TitleVi": "Đối chiếu phần mềm thương mại",
+      "TitleEn": "Reviewing commercial software",
+      "Keywords": ["winrar license", "winrar ban quyen", "winrar co can xoa", "mathtype license", "mathtype ban quyen", "phan mem thuong mai khong co crack", "commercial app without activator"],
+      "AnswerVi": "Với WinRAR, MathType hoặc phần mềm thương mại tương tự, việc ứng dụng được cài hay đang ở chế độ dùng thử không tự chứng minh vi phạm. Nếu không có crack/activator hoặc dấu vết can thiệp trực tiếp, giữ nguyên ứng dụng và đối chiếu edition, điều khoản hiện hành, tài khoản/key hoặc hồ sơ phù hợp; hết quyền dùng thì mua giấy phép, gỡ ứng dụng hoặc chọn phần mềm thay thế hợp pháp. Nếu có hiện vật kích hoạt lậu đã xác nhận, cô lập riêng hiện vật đó, giữ ứng dụng chính rồi sửa/cài lại từ nguồn chính thức khi cần. Tool không đưa ra phán quyết pháp lý.",
+      "AnswerEn": "For WinRAR, MathType, or similar commercial software, installation or trial mode alone does not prove a violation. If no crack/activator or direct tampering trace exists, keep the app and review its edition, current terms, account/key, or applicable records; when use is no longer entitled, purchase a license, uninstall it, or choose a lawful alternative. If a confirmed unauthorized activation artifact exists, isolate that artifact, keep the main app, and repair/reinstall from the official source when needed. The Tool does not issue a legal verdict."
     },
     {
       "Id": "kms-activator",
       "TitleVi": "KMS và activator",
       "TitleEn": "KMS and activators",
-      "Keywords": ["kms", "activator", "crack", "rearm", "autokms", "hwid", "can thiep", "kich hoat lau"],
-      "AnswerVi": "Công cụ chỉ khẳng định KMS/activator khi có bằng chứng kỹ thuật trực tiếp như kênh KMS, máy chủ KMS, tác vụ, dịch vụ, tệp hoặc dấu vết can thiệp phù hợp. Thiếu bằng chứng thì kết luận phải là chưa xác định hoặc cần đối chiếu, không suy đoán.",
-      "AnswerEn": "The tool identifies KMS or activator use only from direct technical evidence such as a KMS channel/host, task, service, file or matching interference trace. Without evidence it reports undetermined or review required instead of guessing."
+      "Keywords": ["kms", "activator", "crack", "rearm", "autokms", "hwid", "can thiep", "kich hoat lau", "mas", "pmas", "kmspico", "activation program 1 17", "repack tu kich hoat", "startup activator"],
+      "AnswerVi": "Tool chỉ cảnh báo KMS/activator khi có bằng chứng kỹ thuật trực tiếp: kênh/máy chủ KMS, lệnh Startup tải/chạy script kích hoạt, tác vụ, dịch vụ, tệp hoặc dấu vết phù hợp với MAS/PMAS, KMSPico, Activation Program hay bản repack tự kích hoạt. Tên gọi hoặc phép khớp yếu riêng lẻ chưa đủ; chi tiết cần nêu đúng hiện vật, đường dẫn/nguồn và mức Tin cậy. Khi đã xác nhận, chỉ cô lập hiện vật can thiệp theo luồng xem trước–backup–xác nhận; không tự gỡ ứng dụng chính và không suy diễn thành phán quyết pháp lý.",
+      "AnswerEn": "The Tool warns about KMS/activators only from direct technical evidence: a KMS channel/host, a Startup command that downloads/runs an activation script, a task, service, file, or a matching MAS/PMAS, KMSPico, Activation Program, or self-activating repack trace. A name or weak match alone is insufficient; details must identify the exact artifact, path/source, and Confidence. Once confirmed, isolate only the interference artifact through preview, backup, and confirmation; do not silently remove the main app or turn the signal into a legal verdict."
     },
     {
       "Id": "remediation",
@@ -228,8 +268,8 @@
       "TitleVi": "Cách đọc kết luận báo cáo",
       "TitleEn": "How to read report conclusions",
       "Keywords": ["ket luan", "muc rui ro", "bang chung", "danh gia", "hop le", "khong hop le", "doc bao cao"],
-      "AnswerVi": "Báo cáo tách ba lớp: trạng thái kỹ thuật, mức xác minh và hướng xử lý. 'Đã kích hoạt' là trạng thái kỹ thuật; 'cần đối chiếu hồ sơ' nghĩa là chưa có đủ chứng từ; 'nguy cơ cao' cần xem bằng chứng chi tiết trước khi xử lý.",
-      "AnswerEn": "Reports separate technical state, verification level and recommended action. 'Activated' is technical state; 'records required' means entitlement evidence is incomplete; 'high risk' requires reviewing detailed evidence before action."
+      "AnswerVi": "Báo cáo tách bốn lớp: mô hình giấy phép, trạng thái/bằng chứng kỹ thuật, mức Tin cậy và điều kiện khắc phục. 'Đã kích hoạt' chỉ là trạng thái kỹ thuật; Tin cậy Low không đủ để gỡ ứng dụng; 'cần đối chiếu' phải dùng hồ sơ phù hợp với mô hình giấy phép chứ không mặc định đòi hóa đơn. Chỉ mở kế hoạch khắc phục khi có bằng chứng kỹ thuật đủ cụ thể, sau đó vẫn cần xem trước, backup và xác nhận.",
+      "AnswerEn": "Reports separate four layers: license model, technical status/evidence, Confidence, and remediation eligibility. 'Activated' is only a technical state; Low confidence cannot justify app removal; review records must fit the license model rather than defaulting to an invoice request. A remediation plan opens only for sufficiently specific technical evidence and still requires preview, backup, and confirmation."
     },
     {
       "Id": "oem",
@@ -268,8 +308,8 @@
       "TitleVi": "Cần kiểm tra thủ công",
       "TitleEn": "Manual review required",
       "Keywords": ["kiem tra thu cong", "manual review", "can xem lai", "chua du bang chung", "khong chac", "unverified"],
-      "AnswerVi": "'Cần kiểm tra thủ công' nghĩa là công cụ phát hiện tín hiệu liên quan nhưng chưa đủ bằng chứng để kết luận hoặc tự khắc phục. Hãy mở chi tiết bằng chứng, đối chiếu đường dẫn/nhà phát hành/chứng từ và chỉ xử lý sau khi xác nhận đúng đối tượng.",
-      "AnswerEn": "'Manual review required' means a relevant signal exists but evidence is insufficient for a conclusion or automatic remediation. Review the detailed evidence, path, publisher and records before acting."
+      "AnswerVi": "'Cần kiểm tra thủ công' nghĩa là chưa đủ điều kiện khắc phục. Giữ nguyên ứng dụng; mở chi tiết để xem tín hiệu nào được phát hiện, mức Tin cậy, đường dẫn/nhà phát hành/nguồn cài và mô hình giấy phép. Với phần mềm miễn phí hoặc nguồn mở, đối chiếu điều khoản/notice thay vì mặc định đòi hóa đơn. Chỉ chuyển sang khắc phục khi xác nhận được đúng hiện vật kỹ thuật; Tool không tự xử lý từ trạng thái này.",
+      "AnswerEn": "'Manual review required' means remediation is not yet eligible. Keep the app; inspect the observed signal, Confidence, path, publisher/install source, and license model. For free or open-source software, review terms or notices instead of defaulting to a purchase invoice. Proceed only after confirming the exact technical artifact; the Tool does not act automatically from this status."
     },
     {
       "Id": "result-stale",
@@ -372,8 +412,8 @@
       "TitleVi": "Giới hạn kết luận của báo cáo",
       "TitleEn": "Limits of report conclusions",
       "Keywords": ["bao cao co khang dinh duoc khong", "bao cao chung minh hop phap", "ket qua co chac chinh hang", "gioi han ket luan", "doi chieu hoa don hop dong", "report legal conclusion"],
-      "AnswerVi": "Báo cáo có thể khẳng định bằng chứng kỹ thuật trực tiếp như trạng thái kích hoạt, nguồn KMS hoặc lỗi chữ ký/HashMismatch tại thời điểm quét. Báo cáo không thể chỉ từ các tín hiệu đó khẳng định quyền sử dụng hợp pháp; kết luận pháp lý còn cần đối chiếu tài khoản, hóa đơn, hợp đồng hoặc hồ sơ cấp phép.",
-      "AnswerEn": "The report can state direct technical evidence such as activation state, KMS source, or signature/HashMismatch findings at scan time. Those signals alone cannot prove legal entitlement; accounts, invoices, contracts, or licensing records must also be reviewed."
+      "AnswerVi": "Báo cáo có thể khẳng định bằng chứng kỹ thuật trực tiếp như trạng thái kích hoạt, nguồn KMS, tác vụ/activator hoặc lỗi chữ ký/HashMismatch tại thời điểm quét. Các tín hiệu đó không tự chứng minh quyền sử dụng hợp pháp. Đối chiếu phải theo mô hình: phần mềm thương mại có thể cần tài khoản, key, hóa đơn/hợp đồng; phần mềm miễn phí/nguồn mở cần điều khoản, LICENSE/notice và nguồn phân phối phù hợp. Báo cáo và Trợ lý không đưa ra phán quyết pháp lý.",
+      "AnswerEn": "The report can state direct technical evidence such as activation state, KMS source, an activator/task, or a signature/HashMismatch finding at scan time. Those signals do not by themselves prove legal entitlement. Review evidence by model: commercial software may require an account, key, invoice, or contract; free/open-source software calls for its terms, LICENSE/notice, and a suitable distribution source. Neither the report nor the Assistant issues a legal verdict."
     },
     {
       "Id": "launch-troubleshooting",

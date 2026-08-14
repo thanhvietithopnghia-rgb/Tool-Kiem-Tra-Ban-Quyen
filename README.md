@@ -10,7 +10,7 @@ Offline vẫn là mặc định: công cụ không kết nối mạng khi chưa 
 
 Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
 
-Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.13**
+Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.14**
 
 Tác giả và phát triển: **Thanh Việt**
 

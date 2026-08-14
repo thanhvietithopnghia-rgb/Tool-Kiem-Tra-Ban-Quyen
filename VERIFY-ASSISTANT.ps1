@@ -34,11 +34,11 @@ if ($errors.Count -eq 0) {
     if (Test-ToolAssistantKnowledgeSignature -ContentBytes $tamperedBytes -SignatureBytes $signatureBytes) {
         Add-AssistantVerificationError 'Detached signature accepted tampered knowledge bytes.'
     }
-    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.0"', '"KnowledgeVersion": "1.2.0"') | ConvertFrom-Json
+    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.1"', '"KnowledgeVersion": "1.3.0"') | ConvertFrom-Json
     if (Test-ToolAssistantKnowledge -Knowledge $legacyKnowledge) { Add-AssistantVerificationError 'An obsolete cached knowledge file was not rejected.' }
     $compatibleFutureKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
-    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.1'
-    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-13T05:16:00Z'
+    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.2'
+    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-14T11:01:00Z'
     $compatibleFutureKnowledge.ReleasedWithToolVersion = '4.8.0.1'
     if (-not (Test-ToolAssistantKnowledge -Knowledge $compatibleFutureKnowledge)) {
         Add-AssistantVerificationError 'A newer signed-compatible knowledge version cannot evolve independently of the EXE.'
@@ -110,6 +110,13 @@ if ($errors.Count -eq 0) {
         @{ Question='cách ghép nối máy trạm'; Entry='enterprise-client-management' }
         @{ Question='tool không mở được file exe'; Entry='launch-troubleshooting' }
         @{ Question='online không đồng bộ được'; Entry='online-troubleshooting' }
+        @{ Question='phần mềm miễn phí mà cũng cần hóa đơn license à'; Entry='license-model-evidence' }
+        @{ Question='đối chiếu mô hình và trạng thái bản quyền phần mềm'; Entry='license-model-evidence' }
+        @{ Question='độ tin cậy Low đủ để xóa bloat hay app thừa không'; Entry='software-finding-confidence' }
+        @{ Question='có dấu hiệu nghi vấn thì điều kiện khắc phục là gì'; Entry='software-finding-remediation' }
+        @{ Question='Windows yên nhưng Office có activator thì sao'; Entry='license-scope-separation' }
+        @{ Question='WinRAR không có crack thì xử lý sao'; Entry='commercial-software-review' }
+        @{ Question='MAS trong Startup nghĩa là gì'; Entry='kms-activator' }
     )
     foreach ($test in $routeTests) {
         $queryKey = ConvertTo-ToolAssistantSearchKey -Value $test.Question
@@ -124,12 +131,12 @@ if ($errors.Count -eq 0) {
         @{ Question='che do ofline hoat dong sao'; Expected='Offline' },
         @{ Question='tool co can api codex khong'; Expected='tri thức cục bộ' },
         @{ Question='bao cao luu o dau'; Expected='BaoCao-Tool-Kiem-Tra' },
-        @{ Question='doc bao cao'; Expected='ba lớp' },
+        @{ Question='doc bao cao'; Expected='bốn lớp' },
         @{ Question='chua du bang chung'; Expected='kiểm tra thủ công' },
         @{ Question='cach dung chuc nang so 8'; Expected='Doanh nghiệp' },
         @{ Question='tool co sua crack tu dong khong'; Expected='người dùng chủ động' },
         @{ Question='cach nau bun bo hue'; Expected='ngoài phạm vi' }
-        @{ Question='báo cáo có khẳng định đk k'; Expected='hóa đơn' }
+        @{ Question='báo cáo có khẳng định đk k'; Expected='mô hình' }
         @{ Question='mỗi lần quét có tạo thư mục riêng k'; Expected='không tạo thư mục con' }
         @{ Question='pm hệ thống trong pdf quá dài'; Expected='phụ lục' }
         @{ Question='cách luna cập nhật'; Expected='manifest' }
@@ -150,12 +157,63 @@ if ($errors.Count -eq 0) {
         @{ Question='yêu cầu hệ thống của tool'; Expected='Windows 7 SP1' }
         @{ Question='tool viết bằng gì'; Expected='C#' }
         @{ Question='cách chuyển giao diện tối'; Expected='Sáng/Tối' }
+        @{ Question='phần mềm miễn phí mà cũng cần hóa đơn license à'; Expected='không bị yêu cầu hóa đơn mua hàng chung chung' }
+        @{ Question='độ tin cậy Low đủ để xóa bloat hay app thừa không'; Expected='không được dùng để xóa bloatware' }
+        @{ Question='có dấu hiệu nghi vấn thì điều kiện khắc phục là gì'; Expected='chỉ cô lập đúng hiện vật' }
+        @{ Question='Windows yên nhưng Office có activator thì sao'; Expected='Ba phạm vi phải được kết luận và xử lý riêng' }
+        @{ Question='WinRAR không có crack thì xử lý sao'; Expected='giữ nguyên ứng dụng' }
+        @{ Question='MAS trong Startup nghĩa là gì'; Expected='lệnh Startup' }
     )
     foreach ($test in $answerTests) {
         $answer = Get-ToolAssistantAnswer -Question $test.Question -Culture 'vi-VN' -Knowledge $knowledge
         if ($answer -notlike ('*' + $test.Expected + '*')) {
             Add-AssistantVerificationError "Unexpected answer for '$($test.Question)'."
         }
+    }
+
+    $licenseModelVi = Get-ToolAssistantAnswer -Question 'phần mềm nguồn mở có phải nộp hóa đơn bản quyền không' -Culture 'vi-VN' -Knowledge $knowledge
+    $licenseModelEn = Get-ToolAssistantAnswer -Question 'does open source software require a purchase invoice' -Culture 'en-US' -Knowledge $knowledge
+    if ($licenseModelVi -notmatch 'điều khoản.*LICENSE/notice.*nguồn cài' -or $licenseModelVi -match 'phải.*hóa đơn') {
+        Add-AssistantVerificationError 'Vietnamese license-model answer applies generic commercial evidence to free/open-source software.'
+    }
+    if ($licenseModelEn -notmatch 'should not receive a generic purchase-invoice demand' -or $licenseModelEn -notmatch 'license model from technical evidence') {
+        Add-AssistantVerificationError 'English license-model answer does not separate model from technical evidence.'
+    }
+
+    $lowConfidenceVi = Get-ToolAssistantAnswer -Question 'Tin cậy Low có đủ để xóa bloatware hay app thừa không' -Culture 'vi-VN' -Knowledge $knowledge
+    $lowConfidenceEn = Get-ToolAssistantAnswer -Question 'can Low confidence remove a suspicious app' -Culture 'en-US' -Knowledge $knowledge
+    if ($lowConfidenceVi -notmatch 'giữ nguyên ứng dụng' -or $lowConfidenceVi -notmatch 'không được dùng để xóa bloatware') {
+        Add-AssistantVerificationError 'Vietnamese Low-confidence answer is not safely action-oriented.'
+    }
+    if ($lowConfidenceEn -notmatch 'Keep the app' -or $lowConfidenceEn -notmatch 'must not be used to remove bloatware') {
+        Add-AssistantVerificationError 'English Low-confidence answer is not safely action-oriented.'
+    }
+
+    $remediationVi = Get-ToolAssistantAnswer -Question 'dấu hiệu nghi vấn thì điều kiện khắc phục phần mềm là gì' -Culture 'vi-VN' -Knowledge $knowledge
+    $remediationEn = Get-ToolAssistantAnswer -Question 'remediation condition for suspicious software' -Culture 'en-US' -Knowledge $knowledge
+    if ($remediationVi -notmatch 'Chưa xác minh hoặc Low.*giữ nguyên ứng dụng' -or
+        $remediationVi -notmatch 'Nghi vấn chưa có hiện vật trực tiếp.*chưa cho khắc phục' -or
+        $remediationVi -notmatch 'Trợ lý không tự chạy khắc phục') {
+        Add-AssistantVerificationError 'Vietnamese remediation answer does not vary by evidence strength.'
+    }
+    if ($remediationEn -notmatch 'Unverified or Low confidence.*keep the app' -or
+        $remediationEn -notmatch 'Suspicious without a direct artifact.*no remediation' -or
+        $remediationEn -notmatch 'never runs remediation automatically') {
+        Add-AssistantVerificationError 'English remediation answer does not vary by evidence strength.'
+    }
+
+    $scopeVi = Get-ToolAssistantAnswer -Question 'Windows yên nhưng Office có activator thì sao' -Culture 'vi-VN' -Knowledge $knowledge
+    $scopeEn = Get-ToolAssistantAnswer -Question 'separate Windows Office and third party remediation scopes' -Culture 'en-US' -Knowledge $knowledge
+    if ($scopeVi -notmatch 'Windows:' -or $scopeVi -notmatch 'Office:' -or $scopeVi -notmatch 'Phần mềm bên thứ ba:' -or
+        $scopeEn -notmatch 'Windows:' -or $scopeEn -notmatch 'Office:' -or $scopeEn -notmatch 'Third-party software:') {
+        Add-AssistantVerificationError 'Assistant does not keep Windows, Office, and third-party license scopes distinct.'
+    }
+
+    $commercialVi = Get-ToolAssistantAnswer -Question 'WinRAR không có crack thì xử lý sao' -Culture 'vi-VN' -Knowledge $knowledge
+    $commercialEn = Get-ToolAssistantAnswer -Question 'what should I do with MathType when no activator is found' -Culture 'en-US' -Knowledge $knowledge
+    if ($commercialVi -notmatch 'giữ nguyên ứng dụng' -or $commercialVi -notmatch 'mua giấy phép, gỡ ứng dụng hoặc chọn phần mềm thay thế hợp pháp' -or
+        $commercialEn -notmatch 'keep the app' -or $commercialEn -notmatch 'lawful alternative') {
+        Add-AssistantVerificationError 'Commercial-software answer removes or condemns an app without direct evidence.'
     }
 
     $windowsFollowUp = Get-ToolAssistantAnswer -Question 'cách dùng nó' -PreviousQuestion 'chức năng 3 là gì' -Culture 'vi-VN' -Knowledge $knowledge

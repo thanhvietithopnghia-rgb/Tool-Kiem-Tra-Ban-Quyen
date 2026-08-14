@@ -12,7 +12,8 @@ $script:ToolSoftwareDeepDirectoryCache = @{}
 $script:ToolSoftwareDeepSystemSnapshotCache = $null
 $script:ToolSoftwareLastDeepScanMetadata = $null
 $script:ToolSoftwareCatalogTrustCache = @{}
-$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*aio\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
+$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
+$script:ToolSoftwareKnownActivationCommandPattern = '(?i)(?<![a-z0-9.-])(?:https?://)?erturk-dev\.netlify\.app/run(?:[/?#][^\s''"|]*)?(?![a-z0-9._-])'
 $script:ToolSoftwareSuspiciousArtifactPattern = '(?i)(\bcrack(?:ed)?\b|\bkeygen\b|\bactivator\b|\bactivation[\s._-]*(?:bypass|patch(?:er)?)\b|\blicen[cs]e[\s._-]*(?:bypass|patch(?:er)?)\b|\bserial[\s._-]*generator\b)'
 $script:ToolSoftwareDeepRelevantExtensions = @('.exe','.dll','.sys','.ocx','.cpl','.scr','.com','.msi','.cmd','.bat','.ps1','.vbs','.js','.jar','.zip','.rar','.7z')
 $script:ToolSoftwareAuthenticodeExtensions = @('.exe','.dll','.sys','.ocx','.cpl','.scr','.com','.msi','.ps1','.vbs','.js')
@@ -27,6 +28,15 @@ function Reset-ToolSoftwareInventoryCaches {
     $script:ToolSoftwareDeepSystemSnapshotCache = $null
     $script:ToolSoftwareLastDeepScanMetadata = $null
     $script:ToolSoftwareCatalogTrustCache = @{}
+}
+
+function Test-ToolSoftwareKnownActivatorText {
+    param([AllowNull()][string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    return [bool](
+        $Text -match $script:ToolSoftwareKnownActivatorPattern -or
+        $Text -match $script:ToolSoftwareKnownActivationCommandPattern
+    )
 }
 
 function Get-ToolSoftwareOptionalPropertyValues {
@@ -1442,6 +1452,20 @@ function New-ToolSoftwareTechnicalEvidence {
     }
 }
 
+function Test-ToolSoftwareRemediationEvidence {
+    param([AllowNull()][object]$Evidence)
+    if ($null -eq $Evidence) { return $false }
+    $code = if ($Evidence.PSObject.Properties['Code']) { [string]$Evidence.Code } else { '' }
+    if ([string]::IsNullOrWhiteSpace($code)) { return $false }
+    if ($code -match '^(?:KnownActivator|SuspiciousActivator)') { return $true }
+    return [bool]($code -in @(
+        'LicenseDomainBlocked','UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
+        'ApplicationIfeoDebugger','ApplicationOutboundBlocked','SuspiciousApplicationAutorun',
+        'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','CriticalFileNotSigned',
+        'UnexpectedCoreFileSigner','KnownBadFileHash','KnownUnauthorizedName','CatalogUnauthorizedName'
+    ))
+}
+
 function Get-ToolSoftwareIdentityTokens {
     param([Parameter(Mandatory = $true)]$Application)
     $ignored = @('software','application','applications','program','professional','enterprise','edition','desktop','studio','editor','viewer','reader','update','helper','service','services','windows','microsoft','corporation','company','limited','inc','ltd','the','and','for','with','x64','x86','bit')
@@ -1460,7 +1484,7 @@ function Get-ToolSoftwareDeepSystemEvidence {
     try { if ($Application.RepresentativePath) { $representativeName = [IO.Path]::GetFileName([string]$Application.RepresentativePath) } } catch {}
     foreach ($entry in @($Snapshot.Ifeo)) {
         if (-not $representativeName -or -not ([string]$entry.Target).Equals($representativeName, [StringComparison]::OrdinalIgnoreCase)) { continue }
-        $knownActivator = [bool]([string]$entry.Debugger -match $script:ToolSoftwareKnownActivatorPattern)
+        $knownActivator = Test-ToolSoftwareKnownActivatorText -Text ([string]$entry.Debugger)
         $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'ApplicationIfeoDebugger' -Strength $(if ($knownActivator) {'Strong'} else {'Moderate'}) `
             -Source 'IFEO' -EvidenceGroup 'ExecutionInterception' -Detail (([string]$entry.Target) + ' -> ' + ([string]$entry.Debugger)) -Decisive:$knownActivator))
     }
@@ -1494,11 +1518,11 @@ function Get-ToolSoftwareDeepSystemEvidence {
     }
     foreach ($autorun in @($Snapshot.Autoruns)) {
         $commandText = [string]$autorun.Command
-        if ($commandText -notmatch $script:ToolSoftwareKnownActivatorPattern -and $commandText -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
+        if (-not (Test-ToolSoftwareKnownActivatorText -Text $commandText) -and $commandText -notmatch $script:ToolSoftwareSuspiciousArtifactPattern) { continue }
         $matched = $false
         foreach ($root in @($Roots)) { if ($commandText.IndexOf($root, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $matched=$true; break } }
         if ($matched) {
-            $knownActivator = [bool]($commandText -match $script:ToolSoftwareKnownActivatorPattern)
+            $knownActivator = Test-ToolSoftwareKnownActivatorText -Text $commandText
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SuspiciousApplicationAutorun' -Strength $(if ($knownActivator) {'Strong'} else {'Moderate'}) `
                 -Source 'Autorun' -EvidenceGroup 'Persistence' -Detail (([string]$autorun.Name) + ' | ' + $commandText) -Decisive:$knownActivator))
         }
@@ -1760,7 +1784,7 @@ function Get-ToolSoftwareAssessments {
         [ValidateRange(20, 10000)][int]$DeepScanMaximumHashChecks = 1000
     )
     $results = New-Object System.Collections.Generic.List[object]
-    $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
+    $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
     $script:ToolSoftwareDeepFileCache = @{}
     $script:ToolSoftwareDeepDirectoryCache = @{}
     $script:ToolSoftwareDeepSystemSnapshotCache = $null
@@ -1993,21 +2017,8 @@ function Get-ToolSoftwareAssessments {
         # Only evidence tied to an activation/tampering cleanup plan is allowed
         # to keep an item in the queue. Integrity-only uncertainty remains in
         # the audit report and is not silently treated as a licensing residue.
-        $remediationEvidenceCodes = @(
-            'LicenseDomainBlocked','UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
-            'ApplicationIfeoDebugger','ApplicationOutboundBlocked','SuspiciousApplicationAutorun',
-            'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','CriticalFileNotSigned',
-            'UnexpectedCoreFileSigner','KnownBadFileHash','KnownUnauthorizedName','CatalogUnauthorizedName'
-        )
         $remediationEvidenceCount = @($uniqueEvidence | Where-Object {
-            $code = [string]$_.Code
-            $group = [string]$_.EvidenceGroup
-            return [bool](
-                $code -in $remediationEvidenceCodes -or
-                $code -match '^(?:KnownActivator|SuspiciousActivator)' -or
-                $group -in @('KnownActivator','KnownUnauthorizedPackage','KnownBadHash','ExecutionInterception',
-                    'LicenseConnectivity','ActivatorPersistence','ActivatorArtifact','ArtifactName','Persistence')
-            )
+            Test-ToolSoftwareRemediationEvidence -Evidence $_
         }).Count
         $knownActivationState = Get-ToolSoftwareKnownActivationState -Application $application -CatalogProduct $catalogProduct
         $statusCode = 'Unverified'
@@ -2027,22 +2038,18 @@ function Get-ToolSoftwareAssessments {
             if ($vendorScope -eq 'Adobe' -and [string]$application.SourceKind -ne 'Appx' -and [string]$application.Name -match '(?i)\b(?:Acrobat|Distiller|Photoshop|Illustrator|InDesign|Lightroom|Premiere|After Effects|Audition|Animate|Dreamweaver)\b') { $remediationAdapter = 'Adobe' }
             elseif ($vendorScope -eq 'Autodesk' -and [string]$application.SourceKind -ne 'Appx' -and [string]$application.Name -match '(?i)\b(?:Autodesk|AutoCAD|Revit|3ds Max|Civil 3D|Navisworks|Inventor|Fusion 360)\b') { $remediationAdapter = 'Autodesk' }
         }
-        # Tách khả năng nhận diện/chọn khỏi adapter theo hãng. Mọi ứng dụng có
-        # bằng chứng NonGenuine/Suspicious đều có thể được người dùng chọn, trừ
-        # thành phần hệ thống/driver/runtime. Adapter Generic chỉ cho phép các
-        # thao tác đã khóa phạm vi (cách ly artifact chính xác, sửa hosts chính
-        # xác, Repair MSI đã xác thực hoặc hướng dẫn cài lại chính thức).
-        $knownLocalResetEligible = [bool](
-            $remediationAdapter -eq 'WinRAR' -and
-            $knownActivationState -eq 'LocalLicensePresent'
-        )
+        # Tách khả năng nhận diện/chọn khỏi adapter theo hãng. Chỉ ứng dụng có
+        # bằng chứng activator/can thiệp thuộc allowlist mới được đưa vào hàng
+        # đợi; nhãn NonGenuine/Suspicious hoặc trạng thái license cục bộ đơn lẻ
+        # không đủ. Adapter Generic chỉ cho phép các thao tác đã khóa phạm vi.
         $cleanupFinding = [bool](
-            $knownLocalResetEligible -or
-            $statusCode -eq 'NonGenuine' -or
-            ($statusCode -eq 'Suspicious' -and $remediationEvidenceCount -gt 0)
+            $confidence -in @('Medium','High') -and
+            $remediationEvidenceCount -gt 0 -and
+            $statusCode -in @('NonGenuine','Suspicious')
         )
         $manualEligible = [bool](
             $cleanupFinding -and
+            $confidence -ne 'Low' -and
             $licenseModel -notin @('SystemComponent','Driver','Runtime')
         )
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
@@ -2051,15 +2058,13 @@ function Get-ToolSoftwareAssessments {
         # AutoEligible ở lớp đánh giá chỉ biểu thị có bằng chứng mạnh. Lớp lập
         # kế hoạch còn phải chứng minh tồn tại hành động tự động an toàn trước
         # khi mục thực sự được đưa vào chế độ Tự động an toàn.
-        $autoEligible = [bool]($manualEligible -and -not $knownLocalResetEligible -and $decisiveCount -gt 0)
+        $autoEligible = [bool]($manualEligible -and $decisiveCount -gt 0)
         $needsReview = [bool]($statusCode -notin @('FreeOrIncluded','GenuineVerified','Unactivated'))
         $referenceUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'OfficialUrl'
         $remediationImpact = if (-not $manualEligible) {
             'NoChangeProposed'
         } elseif ($remediationAdapter -in @('Adobe','Autodesk')) {
             'VendorSharedLicenseState'
-        } elseif ($knownLocalResetEligible) {
-            'LocalLicenseFileReset'
         } else {
             'GenericArtifactCleanupOrOfficialRepair'
         }

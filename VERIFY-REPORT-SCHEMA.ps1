@@ -91,9 +91,50 @@ $guiText = Read-SourceText 'Giao-Dien.ps1'
 $reportExportText = Read-SourceText 'Tool-ReportExport.ps1'
 
 try {
+    . (Join-Path $sourceDirectoryFull 'Tool-ReportExport.ps1')
+    $tableProfileFixtures = @(
+        @{ Name='VI assessment context split'; Columns=@('Ten phan mem','Phien ban','Hang','Mô hình bản quyền'); Expected='table-profile-assessment-context' },
+        @{ Name='VI assessment decision split'; Columns=@('Ten phan mem','Trạng thái kỹ thuật','Độ tin cậy','Điều kiện khắc phục'); Expected='table-profile-assessment-decision' },
+        @{ Name='VI assessment overview'; Columns=@('Ten phan mem','Phien ban','Hang','Trạng thái kỹ thuật','Độ tin cậy','Điều kiện khắc phục'); Expected='table-profile-assessment-overview' },
+        @{ Name='EN assessment evidence'; Columns=@('Software name','License model','Assessment code','Evidence','Vendor scope','Official reference'); Expected='table-profile-assessment-evidence' },
+        @{ Name='VI system software appendix'; Columns=@('Ten phan mem','Phien ban','Hang','Nguồn phát hiện'); Expected='table-profile-system-software' },
+        @{ Name='compact table'; Columns=@('Muc','Gia tri'); Expected='table-profile-compact' }
+    )
+    foreach ($fixture in $tableProfileFixtures) {
+        $profile = Get-ToolHtmlTableProfile -Columns $fixture.Columns
+        if ([string]$profile.TableClass -notmatch [regex]::Escape([string]$fixture.Expected)) {
+            Add-Failure "Renderer không gắn profile bảng $($fixture.Name): $($fixture.Expected)"
+        }
+    }
+    $splitColumns = @('Ten phan mem','Phien ban','Hang','Mô hình bản quyền','Trạng thái kỹ thuật','Độ tin cậy','Điều kiện khắc phục')
+    $splitRow = [pscustomobject][ordered]@{
+        'Ten phan mem'='Fixture'; 'Phien ban'='1.0'; 'Hang'='Fixture Vendor'; 'Mô hình bản quyền'='Commercial'
+        'Trạng thái kỹ thuật'='Chưa xác minh'; 'Độ tin cậy'='Low'; 'Điều kiện khắc phục'='Chỉ xem xét thủ công'
+    }
+    $splitHtml = ConvertTo-ToolHtmlTable -Rows @($splitRow) -Columns $splitColumns
+    if ([regex]::Matches($splitHtml, "class='table-split-part'").Count -ne 2 -or
+        $splitHtml -notmatch 'table-profile-assessment-context' -or
+        $splitHtml -notmatch 'table-profile-assessment-decision') {
+        Add-Failure 'Bảng đánh giá bảy cột chưa tách thành hai nhóm ngữ cảnh/quyết định dễ đọc.'
+    }
+    $referenceCell = ConvertTo-ToolHtmlTableCell -Value 'https://www.wiris.com/en/mathtype/' -ColumnClass path
+    if ($referenceCell -notmatch "class='cell-reference'" -or $referenceCell -notmatch "href='https://www\.wiris\.com/en/mathtype/'") {
+        Add-Failure 'Renderer chưa biến tham chiếu HTTPS chính thức thành liên kết rõ ràng trong HTML/PDF.'
+    }
+    $longPathFixture = 'C:\fixture\' + ('long-segment-' * 14) + 'file.exe'
+    $longPathCell = ConvertTo-ToolHtmlTableCell -Value $longPathFixture -ColumnClass path
+    if ($longPathCell -notmatch "class='cell-compact'" -or $longPathCell -notmatch "class='cell-full'" -or
+        $longPathCell -notmatch [regex]::Escape($longPathFixture)) {
+        Add-Failure 'Renderer đường dẫn dài chưa giữ nguyên dữ liệu đầy đủ cho bản PDF.'
+    }
+} catch {
+    Add-Failure "Không chạy được fixture profile/độ dễ đọc PDF: $($_.Exception.Message)"
+}
+
+try {
     $inventoryPath = Join-Path $sourceDirectoryFull 'kiem-tra-cau-hinh-ban-quyen.ps1'
     $inventoryAst = [Management.Automation.Language.Parser]::ParseFile($inventoryPath, [ref]$null, [ref]$null)
-    foreach ($functionName in @('Protect-ReportText','ConvertTo-ReportRedactedObject','Get-ReportWindowsLicenseChannel','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorFamilyCode')) {
+    foreach ($functionName in @('Protect-ReportText','ConvertTo-ReportRedactedObject','Get-ReportWindowsLicenseChannel','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorFamilyCode','Get-ReportSoftwareRemediationEligibility','Get-ReportParallelVersionRows')) {
         $functionAst = $inventoryAst.Find({
             param($node)
             $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
@@ -106,7 +147,10 @@ try {
         switch ($Key) {
             'report.redaction.ip' { return '[IP]' }
             'report.redaction.mac' { return '[MAC]' }
-            default { return '[ĐÃ CHE]' }
+            default {
+                if ($Key -like 'report.software.*') { return $Key }
+                return '[ĐÃ CHE]'
+            }
         }
     }
     $script:RedactSensitive = $true
@@ -138,6 +182,31 @@ try {
         'TSforge Activation'='TSforge'; 'Office OHook'='OHook'; 'Microsoft Toolkit'='MicrosoftToolkit'; 'MAS_AIO'='MAS'; 'KMS_VL_ALL'='KmsActivator'
     }.GetEnumerator()) {
         if ((Get-ReportActivatorFamilyCode $familyFixture.Key) -ne $familyFixture.Value) { Add-Failure "Không nhận diện family activator: $($familyFixture.Key)" }
+    }
+
+    $crossProductRows = @(Get-ReportParallelVersionRows -Applications @(
+        [pscustomobject]@{ 'Ten phan mem'='Zalo'; 'Phien ban'='24.1'; 'Duong dan'='C:\Program Files\Zalo'; 'Phạm vi'='Machine'; CatalogProductId='communication-free' },
+        [pscustomobject]@{ 'Ten phan mem'='Telegram Desktop'; 'Phien ban'='5.2'; 'Duong dan'='C:\Program Files\Telegram Desktop'; 'Phạm vi'='Machine'; CatalogProductId='communication-free' }
+    ))
+    $actualParallelRows = @(Get-ReportParallelVersionRows -Applications @(
+        [pscustomobject]@{ 'Ten phan mem'='Zalo'; 'Phien ban'='23.9'; 'Duong dan'='C:\Program Files\Zalo-23'; 'Phạm vi'='Machine'; CatalogProductId='communication-free' },
+        [pscustomobject]@{ 'Ten phan mem'='  ZALO '; 'Phien ban'='24.1'; 'Duong dan'='C:\Program Files\Zalo-24'; 'Phạm vi'='Machine'; CatalogProductId='communication-free' }
+    ))
+    $duplicateDiscoveryRows = @(Get-ReportParallelVersionRows -Applications @(
+        [pscustomobject]@{ 'Ten phan mem'='Zalo'; 'Phien ban'='24.1'; 'Duong dan'='C:\Program Files\Zalo'; 'Phạm vi'='Registry'; CatalogProductId='communication-free' },
+        [pscustomobject]@{ 'Ten phan mem'='Zalo'; 'Phien ban'='24.1'; 'Duong dan'='C:\Program Files\Zalo'; 'Phạm vi'='Shortcut'; CatalogProductId='communication-free' }
+    ))
+    if ($crossProductRows.Count -ne 0 -or $actualParallelRows.Count -ne 1 -or $duplicateDiscoveryRows.Count -ne 0) {
+        Add-Failure 'Phiên bản cài song song đang ghép chéo Zalo/Telegram, bỏ sót hai bản Zalo thật hoặc đếm lặp nguồn khám phá.'
+    }
+
+    $cleanWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'Unverified' -Confidence 'Medium' -LicenseModel 'Trialware' -ActivationStateProbe 'LocalLicensePresent' -RemediationSupported $true -HasRemediationEvidence $false -StrongTechnicalEvidence $false
+    $crackedWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'NonGenuine' -Confidence 'High' -LicenseModel 'Trialware' -ActivationStateProbe 'LocalLicensePresent' -RemediationSupported $true -HasRemediationEvidence $true -StrongTechnicalEvidence $true
+    $suspiciousWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'Suspicious' -Confidence 'Medium' -LicenseModel 'Trialware' -ActivationStateProbe 'Unactivated' -RemediationSupported $true -HasRemediationEvidence $true -StrongTechnicalEvidence $true
+    if ($cleanWinRarGuidance -ne 'report.software.remediationWinRarLicensePresent' -or
+        $crackedWinRarGuidance -ne 'report.software.remediationNonGenuineSupported' -or
+        $suspiciousWinRarGuidance -ne 'report.software.remediationSuspiciousArtifact') {
+        Add-Failure 'Hướng khắc phục WinRAR chưa ưu tiên bằng chứng crack/can thiệp độc lập trước trạng thái rarreg.key/thử dùng.'
     }
 } catch {
     Add-Failure "Không chạy được fixture ẩn IP/giữ phiên bản: $($_.Exception.Message)"
@@ -200,12 +269,15 @@ foreach ($requiredToken in @('Get-ReportMonitorInventory','WmiMonitorID','Win32_
 foreach ($requiredToken in @('tsforge','ohook','deepReport.kmsLifecycle.detected','forensicsReport.kmsLifecycle.renewal')) {
     if (-not $deepScanText.Contains($requiredToken) -and -not $forensicsText.Contains($requiredToken)) { Add-Failure "Quét sâu/forensics thiếu dấu hiệu: $requiredToken" }
 }
-if ($inventoryText -notmatch 'Add-Table\s+\$softwareAssessmentRows\s+@\("Ten phan mem","Phien ban","Hang",\$technicalStatusColumn,\$confidenceColumn,\$remediationEligibilityColumn\)' -or
+if ($inventoryText -notmatch 'Add-Table\s+\$softwareAssessmentRows\s+@\("Ten phan mem","Phien ban","Hang",(?:\$licenseModelColumn,)?\$technicalStatusColumn,\$confidenceColumn,\$remediationEligibilityColumn\)' -or
     $inventoryText -notmatch 'Add-Table\s+\$softwareAssessmentEvidenceRows\s+@\("Ten phan mem",\$licenseModelColumn,\$assessmentCodeColumn,\$evidenceColumn,\$vendorScopeColumn,\$officialReferenceColumn\)') {
     Add-Failure 'Bảng đánh giá phần mềm chưa được tách thành tổng quan và bằng chứng để tránh ép cột PDF.'
 }
-foreach ($cssToken in @('.cell-details summary{display:none!important}',".cell-details .detail-content{display:block!important",'table-layout:fixed','line-height:1.34','padding:5px 6px','orphans:3','widows:3','.system-software-appendix{break-before:page','.system-summary-details>summary','.table-split-part')) {
+foreach ($cssToken in @('.cell-details summary{display:none!important}',".cell-details .detail-content{display:block!important",'.cell-compact{display:none!important}',".cell-full{display:block!important",'table-layout:fixed','line-height:1.46','padding:6px 7px','orphans:3','widows:3','.system-software-appendix{background:linear-gradient','.system-summary-details>summary','.table-split-part','tbody tr:nth-child(even) td','thead{display:table-header-group}','print-color-adjust:exact')) {
     if (-not $reportExportText.Contains($cssToken)) { Add-Failure "CSS PDF thiếu bảo vệ chống khuyết dòng/hàng: $cssToken" }
+}
+foreach ($profileClass in @('table-profile-assessment-context','table-profile-assessment-decision','table-profile-assessment-overview','table-profile-assessment-evidence','table-profile-system-software','table-profile-compact')) {
+    if (-not $reportExportText.Contains($profileClass)) { Add-Failure "CSS/renderer thiếu profile dễ đọc: $profileClass" }
 }
 if ($reportExportText -notmatch '\$Columns\.Count\s+-gt\s+6' -or
     $inventoryText -notmatch '\$Columns\.Count\s+-gt\s+6') {

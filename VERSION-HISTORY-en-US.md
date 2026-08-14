@@ -3,17 +3,27 @@
 This document summarizes the main public releases from v1.0 through v4.8.0. v4.8.0 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
 
 Current release: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.13**
+FileVersion: **4.8.0.0** · Build **2026.08.14**
 
-## v4.8.0 — August 10, 2026 · in-place update August 13, 2026
+## v4.8.0 — August 10, 2026 · in-place update August 14, 2026
 
 **v4.8 is a direct upgrade from v4.6, focused on these main changes:**
+
+**Report-feedback update on August 14, 2026:**
+
+- **Context-correct assessment:** separates the license model from technical evidence; free/open-source applications no longer request purchase invoices. Only real crack, activator, unauthorized command/task, or tampering indicators enter the evidence table.
+- **Specific handling conditions:** `Low` is informational and cannot justify removing an application or bloatware. Unverified, Suspicious, Non-genuine, and Integrity-compromised states have distinct guidance. The Tool targets the exact artifact/command/task and preserves the application.
+- **Additional detection:** conservatively detects MAS/PMAS, Activation Program 1.17, and Startup commands that point exactly to `erturk-dev.netlify.app/run`; existing KMSPico coverage remains, with benign PowerShell/Netlify negative fixtures.
+- **WinRAR and official sources:** a `rarreg.key` file alone is not treated as abuse and is not automatically removed; an expired trial recommends a license or lawful alternative. MathType and WinRAR links resolve to the vendors' official pages.
+- **Parallel installations:** shown only when different versions exist in different locations; duplicate Registry/AppX/shortcut records such as Zalo/Telegram are not counted as separate installs, and the table states that this is not licensing evidence.
+- **Reports/PDF:** the software appendix uses a dedicated teal palette with better spacing and contrast; wide tables split into Context/Decision groups, and detailed A4 output uses larger type, line height, padding, repeated headers, and cleaner page breaks.
+- **Tool Assistant:** responds with conclusion–evidence–action structure, distinguishes Windows/Office/third-party software, explains model–status–confidence–remediation, and avoids legal overclaims or automatic remediation.
 
 - **Interface:** clearer layout, better Light/Dark and DPI behavior, and a fix for the **Redacted report** button being clipped or fading on hover.
 - **Checks and remediation:** Online and Dry Run now share three checkboxes—**Windows, Office, and Other software**. One or more scopes can be selected, and only those scopes are scanned or handled. Preview, confirmation, backup, and post-verification remain mandatory.
 - **Scanning and performance:** faster inventory and assessment, a 76-rule catalog, and more cautious result classification.
 - **Reports:** fixes clipped/missing PDF lines, simplifies layout, and supports redacted reports for sharing.
-- **Assistant and connectivity:** understands every Tool-related question supported by 58 structured topics, bundled guides, report data, and prior-turn context. Knowledge `1.3.0` uses detached JSON plus a CMS SHA-256 signature, a pinned publisher certificate, downgrade protection, and a previous-cache fallback; it checks after explicit Online consent, keeps growing knowledge outside the EXE, uploads no questions/reports/device data, and enforces Tool-only scope.
+- **Assistant and connectivity:** understands Tool-related questions across 63 structured topics and 481 keywords/phrasing variants, bundled guides, report data, and prior-turn context. Knowledge `1.3.1` uses detached JSON plus a CMS SHA-256 signature, a pinned publisher certificate, downgrade protection, and a previous-cache fallback; it checks after explicit Online consent, keeps growing knowledge outside the EXE, uploads no questions/reports/device data, and enforces Tool-only scope.
 - **Safety and privacy:** Offline by default, networking and updates only with consent, elevation only when needed, and no telemetry or silent updates.
 
 ## v4.6 — August 6, 2026

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Tool Kiểm Tra Bản Quyền Windows và Office v4.8</title>
+  <desc id="desc">Quét offline, báo cáo rõ ràng và khắc phục có kiểm soát</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07162b"/><stop offset=".58" stop-color="#0b1f3a"/><stop offset="1" stop-color="#17649a"/></linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4dcfe8"/><stop offset="1" stop-color="#257ed6"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1080" cy="70" r="250" fill="#4dcfe8" opacity=".09"/>
+  <g transform="translate(86 142)">
+    <rect width="255" height="255" rx="48" fill="#0e3158"/>
+    <path d="M63 38h129v78l-12 46-53 49-52-49-12-46z" fill="url(#shield)"/>
+    <path d="m88 126 28 26 51-58" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="190" cy="188" r="12" fill="#5ce29f"/>
+  </g>
+  <text x="390" y="216" fill="#92e9f6" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="2">WINDOWS 10 / 11 • OFFLINE MẶC ĐỊNH</text>
+  <text x="390" y="292" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="750">Tool Kiểm Tra</text>
+  <text x="390" y="358" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="750">Bản Quyền v4.8</text>
+  <text x="390" y="418" fill="#d8e8f4" font-family="Segoe UI, Arial, sans-serif" font-size="28">Windows • Microsoft Office • Phần mềm</text>
+  <rect x="390" y="459" width="510" height="54" rx="27" fill="#4dcfe8"/>
+  <text x="418" y="494" fill="#06243b" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">github.com/thanhvietithopnghia-rgb</text>
+</svg>

@@ -1,5 +1,7 @@
 # Tool Kiểm Tra v4.8 – Nhanh hơn, dễ dùng hơn, an toàn hơn
 
+**Trang giới thiệu chính thức:** <https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/>
+
 v4.8 tập trung vào ba điều người dùng dễ nhận thấy: thao tác rõ hơn, quét nhanh hơn và khắc phục an toàn hơn. Tool vẫn kiểm tra cấu hình, Windows, Office và phần mềm; mặc định Offline và chỉ thay đổi hệ thống sau khi người dùng chọn, xác nhận và tạo backup.
 
 Bản cập nhật dùng Catalog Lifecycle 1.1 để nhận diện Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1; Office 2021/2024, Microsoft 365 Apps và phần mềm khác từ nhiều nguồn cài đặt. Catalog cảnh báo tuổi 30/45 ngày; phiên bản Microsoft chưa biết chuyển sang chỉ đọc và yêu cầu rà soát thay vì bị kết luận sai. Giao diện Dashboard 2.0 hỗ trợ Sáng/Tối, tự tối ưu theo DPI và chỉ kết nối online khi người dùng đồng ý.

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/sitemap.xml

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tool Kiểm Tra Bản Quyền Windows &amp; Office v4.8 | Thanh Việt</title>
+  <meta name="description" content="Tool Kiểm Tra Bản Quyền v4.8 giúp kiểm tra Windows, Microsoft Office và phần mềm trên Windows 10/11. Quét offline, báo cáo rõ ràng, khắc phục có xác nhận và backup.">
+  <meta name="author" content="Thanh Việt">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="theme-color" content="#0b1f3a">
+  <link rel="canonical" href="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+
+  <meta property="og:locale" content="vi_VN">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Tool Kiểm Tra Bản Quyền">
+  <meta property="og:title" content="Tool Kiểm Tra Bản Quyền Windows &amp; Office v4.8">
+  <meta property="og:description" content="Kiểm tra bản quyền Windows, Microsoft Office và phần mềm trên Windows 10/11; offline mặc định và khắc phục có kiểm soát.">
+  <meta property="og:url" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/">
+  <meta property="og:image" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/social-card.png">
+  <meta property="og:image:alt" content="Biểu tượng khiên của Tool Kiểm Tra Bản Quyền v4.8">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tool Kiểm Tra Bản Quyền Windows &amp; Office v4.8">
+  <meta name="twitter:description" content="Quét offline, báo cáo rõ ràng và khắc phục có xác nhận trên Windows 10/11.">
+  <meta name="twitter:image" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/social-card.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Tool Kiểm Tra Bản Quyền",
+    "alternateName": ["Tool Kiểm Tra v4.8", "Tool Kiem Tra Ban Quyen"],
+    "url": "https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/",
+    "codeRepository": "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen",
+    "downloadUrl": "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
+    "releaseNotes": "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
+    "softwareVersion": "4.8.0.0",
+    "operatingSystem": "Windows 10, Windows 11",
+    "applicationCategory": "UtilitiesApplication",
+    "applicationSubCategory": "Kiểm tra bản quyền và quản trị hệ thống",
+    "inLanguage": ["vi", "en"],
+    "dateModified": "2026-08-14",
+    "author": {
+      "@type": "Person",
+      "name": "Thanh Việt"
+    },
+    "description": "Công cụ kiểm tra bản quyền Windows, Microsoft Office và phần mềm trên Windows 10/11; quét offline, xuất báo cáo và khắc phục có xác nhận, backup và hậu kiểm.",
+    "featureList": [
+      "Kiểm tra bản quyền Windows",
+      "Kiểm tra bản quyền Microsoft Office",
+      "Kiểm kê phần mềm",
+      "Quét offline mặc định",
+      "Báo cáo HTML và PDF",
+      "Dry Run, backup và rollback"
+    ]
+  }
+  </script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --navy: #0b1f3a;
+      --blue: #1769aa;
+      --cyan: #4dcfe8;
+      --green: #16865a;
+      --ink: #162438;
+      --muted: #52647a;
+      --line: #dbe5ef;
+      --soft: #f4f8fc;
+      --white: #fff;
+      --shadow: 0 18px 48px rgba(11, 31, 58, .14);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+      background: var(--white);
+      line-height: 1.65;
+    }
+    a { color: var(--blue); }
+    a:focus-visible, .button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+    .wrap { width: min(1120px, calc(100% - 36px)); margin-inline: auto; }
+    header {
+      color: var(--white);
+      background:
+        radial-gradient(circle at 85% 18%, rgba(77, 207, 232, .24), transparent 28rem),
+        linear-gradient(135deg, #07162b, var(--navy) 52%, #154d78);
+      overflow: hidden;
+    }
+    nav { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--white); text-decoration: none; font-weight: 700; }
+    .brand img { width: 42px; height: 42px; border-radius: 10px; }
+    .nav-link { color: #dcecf8; text-decoration: none; font-weight: 600; }
+    .hero { display: grid; grid-template-columns: 1.3fr .7fr; align-items: center; gap: 48px; padding: 64px 0 82px; }
+    .eyebrow { margin: 0 0 10px; color: #92e9f6; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    h1 { max-width: 820px; margin: 0; font-size: clamp(2.35rem, 5vw, 4.5rem); line-height: 1.08; letter-spacing: -.035em; }
+    .lead { max-width: 760px; margin: 24px 0 0; color: #d8e8f4; font-size: clamp(1.05rem, 2vw, 1.3rem); }
+    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0; }
+    .badge { border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 7px 12px; background: rgba(255,255,255,.08); color: #edf8ff; font-size: .92rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 20px; border-radius: 10px; text-decoration: none; font-weight: 700; }
+    .button.primary { background: var(--cyan); color: #06243b; }
+    .button.secondary { border: 1px solid rgba(255,255,255,.35); color: var(--white); background: rgba(255,255,255,.06); }
+    .hero-mark { display: grid; place-items: center; }
+    .hero-mark img { width: min(270px, 70vw); filter: drop-shadow(0 28px 32px rgba(0,0,0,.28)); }
+    main section { padding: 72px 0; }
+    main section:nth-child(even) { background: var(--soft); }
+    .section-title { max-width: 760px; margin: 0 0 34px; }
+    .section-title h2 { margin: 0 0 10px; color: var(--navy); font-size: clamp(1.8rem, 3vw, 2.65rem); line-height: 1.2; }
+    .section-title p { margin: 0; color: var(--muted); font-size: 1.08rem; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .card { border: 1px solid var(--line); border-radius: 16px; padding: 24px; background: var(--white); box-shadow: 0 7px 24px rgba(11,31,58,.05); }
+    .card h3 { margin: 0 0 8px; color: var(--navy); }
+    .card p { margin: 0; color: var(--muted); }
+    .check { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-bottom: 12px; border-radius: 9px; color: #fff; background: var(--green); font-weight: 800; }
+    .safety { display: grid; grid-template-columns: .8fr 1.2fr; gap: 36px; align-items: start; }
+    .safety-note { border-left: 5px solid var(--cyan); border-radius: 14px; padding: 24px; color: #dcecf8; background: var(--navy); box-shadow: var(--shadow); }
+    .safety-note strong { color: var(--white); }
+    .steps { margin: 0; padding-left: 1.3rem; }
+    .steps li { margin-bottom: 12px; padding-left: 6px; }
+    .faq { display: grid; gap: 12px; }
+    details { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: var(--white); }
+    summary { cursor: pointer; color: var(--navy); font-weight: 700; }
+    details p { margin: 12px 0 0; color: var(--muted); }
+    .cta { border-radius: 22px; padding: 34px; color: var(--white); background: linear-gradient(135deg, var(--navy), #17649a); box-shadow: var(--shadow); }
+    .cta h2 { margin: 0 0 8px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+    .cta p { margin: 0 0 22px; color: #dcecf8; }
+    footer { padding: 34px 0; color: #64748b; border-top: 1px solid var(--line); font-size: .95rem; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    @media (max-width: 820px) {
+      .hero, .safety { grid-template-columns: 1fr; }
+      .hero-mark { order: -1; }
+      .hero-mark img { width: 150px; }
+      .grid { grid-template-columns: 1fr; }
+      .hero { padding-top: 38px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <nav aria-label="Điều hướng chính">
+        <a class="brand" href="#top"><img src="logo.svg" alt=""><span>Tool Kiểm Tra Bản Quyền</span></a>
+        <a class="nav-link" href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen">GitHub chính thức</a>
+      </nav>
+      <div class="hero" id="top">
+        <div>
+          <p class="eyebrow">Công cụ Windows local-first</p>
+          <h1>Tool Kiểm Tra Bản Quyền Windows &amp; Office v4.8</h1>
+          <p class="lead">Kiểm tra cấu hình, trạng thái bản quyền Windows, Microsoft Office và phần mềm trên Windows 10/11. Tool quét offline mặc định, xuất báo cáo rõ ràng và chỉ thay đổi hệ thống sau khi bạn xác nhận.</p>
+          <div class="badges" aria-label="Thông tin phiên bản">
+            <span class="badge">v4.8.0.0</span>
+            <span class="badge">Windows 10 &amp; 11</span>
+            <span class="badge">Offline mặc định</span>
+            <span class="badge">Việt / Anh</span>
+          </div>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0">Tải bản v4.8 chính thức</a>
+            <a class="button secondary" href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen">Xem mã nguồn</a>
+          </div>
+        </div>
+        <div class="hero-mark" aria-hidden="true"><img src="logo.svg" alt=""></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <div class="section-title">
+          <h2>Kiểm tra tập trung trong một công cụ</h2>
+          <p>Phù hợp cho người dùng cá nhân và quản trị viên cần kiểm tra máy Windows một cách minh bạch, có bằng chứng và có thể đối chiếu.</p>
+        </div>
+        <div class="grid">
+          <article class="card"><span class="check">✓</span><h3>Windows</h3><p>Kiểm tra trạng thái kích hoạt, edition, kênh cấp phép, key OEM firmware và dấu hiệu cấu hình KMS.</p></article>
+          <article class="card"><span class="check">✓</span><h3>Microsoft Office</h3><p>Nhận diện Office 2021/2024, LTSC, Microsoft 365 Apps, Click-to-Run và trạng thái giấy phép liên quan.</p></article>
+          <article class="card"><span class="check">✓</span><h3>Phần mềm</h3><p>Kiểm kê nhiều nguồn cài đặt, kiểm tra chữ ký, hash và các dấu hiệu kỹ thuật cần người quản trị rà soát.</p></article>
+          <article class="card"><span class="check">✓</span><h3>Báo cáo</h3><p>Xuất HTML để xem nhanh, PDF chi tiết, JSON/XML và tệp SHA-256 để lưu trữ hoặc chia sẻ có kiểm soát.</p></article>
+          <article class="card"><span class="check">✓</span><h3>Quyền riêng tư</h3><p>Không telemetry; không gửi danh sách phần mềm, đường dẫn, khóa hoặc báo cáo lên mạng khi chưa được cho phép.</p></article>
+          <article class="card"><span class="check">✓</span><h3>Quản trị an toàn</h3><p>Có Dry Run, chọn phạm vi, xem trước, UAC khi cần, backup, xác nhận và hậu kiểm sau thao tác.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap safety">
+        <div class="section-title">
+          <h2>An toàn được đặt trước tự động hóa</h2>
+          <p>Chế độ kiểm tra mặc định chỉ đọc. Các chức năng có thể thay đổi cấu hình đều yêu cầu lựa chọn và xác nhận rõ ràng.</p>
+        </div>
+        <div>
+          <div class="safety-note"><strong>Lưu ý:</strong> chỉ sử dụng trên máy bạn sở hữu hoặc được phép quản trị. Luôn đọc Dry Run, tạo backup và chuẩn bị giấy phép hợp lệ trước khi khắc phục.</div>
+          <ol class="steps">
+            <li>Tải đúng bản phát hành từ GitHub chính thức.</li>
+            <li>Đối chiếu SHA-256 theo manifest trong gói.</li>
+            <li>Giải nén đầy đủ, sau đó chạy <code>Tool-Kiem-Tra-v4.8.exe</code>.</li>
+            <li>Giữ Offline nếu chỉ cần quét cục bộ; chỉ bật Online khi thật sự cần cập nhật.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-title"><h2>Câu hỏi thường gặp</h2></div>
+        <div class="faq">
+          <details><summary>Tool Kiểm Tra Bản Quyền là gì?</summary><p>Đây là công cụ Windows do Thanh Việt phát triển để kiểm tra cấu hình, bản quyền Windows, Microsoft Office, phần mềm và xuất báo cáo kỹ thuật phục vụ đối chiếu.</p></details>
+          <details><summary>Tool có hỗ trợ Windows 11 và Office 2024 không?</summary><p>Có. Catalogue v4.8 nhận diện Windows 10/11 cùng Office 2021, Office 2024, LTSC và Microsoft 365 Apps. Phiên bản Microsoft chưa biết sẽ được chuyển sang chỉ đọc để tránh kết luận vội.</p></details>
+          <details><summary>Có cần kết nối Internet không?</summary><p>Không khi quét cục bộ. Tool mở ở chế độ Offline và chỉ kiểm tra cập nhật hoặc đồng bộ khi người dùng chủ động bật Online.</p></details>
+          <details><summary>Tải Tool Kiểm Tra Bản Quyền ở đâu?</summary><p>Chỉ tải từ <a href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0">Release v4.8.0.0 trên GitHub chính thức</a> và đối chiếu SHA-256 trước khi chạy.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="cta">
+          <h2>Tải đúng nguồn, kiểm tra đúng phạm vi</h2>
+          <p>Kho GitHub là nguồn phát hành chính thức. Các đường dẫn repo, release và tệp tải v4.8 vẫn được giữ nguyên.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0">Mở trang tải v4.8</a>
+            <a class="button secondary" href="https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/blob/main/HUONG-DAN.txt">Đọc hướng dẫn</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><span>© 2026 Thanh Việt — Tool Kiểm Tra Bản Quyền</span><span><a href="mailto:thanhvietit.hopnghia@gmail.com">thanhvietit.hopnghia@gmail.com</a></span></div>
+  </footer>
+</body>
+</html>

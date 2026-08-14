@@ -121,6 +121,34 @@ try {
     if ($referenceCell -notmatch "class='cell-reference'" -or $referenceCell -notmatch "href='https://www\.wiris\.com/en/mathtype/'") {
         Add-Failure 'Renderer chưa biến tham chiếu HTTPS chính thức thành liên kết rõ ràng trong HTML/PDF.'
     }
+    $offlineFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('tool-report-offline-fixture-' + [Guid]::NewGuid().ToString('N'))
+    [void](New-Item -ItemType Directory -Path $offlineFixtureRoot -Force)
+    try {
+        $csp = '<meta http-equiv="Content-Security-Policy" content="default-src ''none''; style-src ''unsafe-inline''; img-src data:">'
+        $safeReferencePath = Join-Path $offlineFixtureRoot 'safe-reference.html'
+        [IO.File]::WriteAllText($safeReferencePath, ('<!doctype html><html><head>' + $csp + '</head><body>' + $referenceCell + '</body></html>'), (New-Object Text.UTF8Encoding($false)))
+        if (-not (Test-ToolHtmlOfflineSafe -HtmlPath $safeReferencePath)) {
+            Add-Failure 'Liên kết HTTPS chính thức chỉ để điều hướng đang bị nhận nhầm là tài nguyên mạng, làm hỏng PDF toàn bộ.'
+        }
+        $unsafeFixtures = [ordered]@{
+            'external-image.html' = '<img src="https://example.invalid/pixel.png">'
+            'external-srcset.html' = '<img srcset="https://example.invalid/pixel-2x.png 2x">'
+            'external-style.html' = '<link rel="stylesheet" href="https://example.invalid/theme.css">'
+            'external-svg-image.html' = '<svg><image href="https://example.invalid/vector.svg"></image></svg>'
+            'external-form.html' = '<form action="https://example.invalid/submit"></form>'
+            'untrusted-anchor.html' = '<a href="https://example.invalid/">outside generated renderer</a>'
+            'insecure-reference.html' = '<a class="cell-reference" href="http://example.invalid/" rel="noreferrer noopener">http</a>'
+        }
+        foreach ($unsafeName in $unsafeFixtures.Keys) {
+            $unsafePath = Join-Path $offlineFixtureRoot $unsafeName
+            [IO.File]::WriteAllText($unsafePath, ('<!doctype html><html><head>' + $csp + '</head><body>' + $unsafeFixtures[$unsafeName] + '</body></html>'), (New-Object Text.UTF8Encoding($false)))
+            if (Test-ToolHtmlOfflineSafe -HtmlPath $unsafePath) {
+                Add-Failure "Chính sách offline chấp nhận fixture mạng không an toàn: $unsafeName"
+            }
+        }
+    } finally {
+        if (Test-Path -LiteralPath $offlineFixtureRoot) { Remove-Item -LiteralPath $offlineFixtureRoot -Recurse -Force }
+    }
     $longPathFixture = 'C:\fixture\' + ('long-segment-' * 14) + 'file.exe'
     $longPathCell = ConvertTo-ToolHtmlTableCell -Value $longPathFixture -ColumnClass path
     if ($longPathCell -notmatch "class='cell-compact'" -or $longPathCell -notmatch "class='cell-full'" -or

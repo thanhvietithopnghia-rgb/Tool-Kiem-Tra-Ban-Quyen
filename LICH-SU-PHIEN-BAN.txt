@@ -17,6 +17,7 @@ FileVersion: **4.8.0.0** · Build **2026.08.14**
 - **WinRAR và nguồn chính thức:** không xem `rarreg.key` đơn lẻ là bằng chứng vi phạm và không tự xóa; bản hết thời gian dùng thử được hướng dẫn mua giấy phép hoặc dùng lựa chọn hợp pháp khác. MathType và WinRAR mở đúng trang chính thức của hãng.
 - **Phiên bản cài song song:** chỉ hiện khi có phiên bản khác nhau tại vị trí cài khác nhau; record trùng Registry/AppX/shortcut như Zalo/Telegram không còn bị đếm thành nhiều bản, và bảng nói rõ đây không phải bằng chứng bản quyền.
 - **Báo cáo/PDF:** phụ lục phần mềm dùng bảng màu xanh lục lam riêng, khoảng trắng và tương phản tốt hơn; bảng rộng tách thành nhóm Ngữ cảnh/Quyết định, tăng cỡ chữ/line-height/padding, lặp header và ngắt trang dễ đọc hơn.
+- **Hotfix PDF Toàn bộ/Phần mềm:** liên kết HTTPS chính thức do renderer tạo không còn bị chính sách Offline nhận nhầm là tài nguyên mạng, nên PDF chi tiết được xuất bình thường; ảnh/CSS/SVG/form mạng và liên kết không tin cậy vẫn bị chặn. Trạng thái, engine và lỗi PDF được ghi vào log hoàn tất.
 - **Trợ lý Tool:** trả lời theo cấu trúc kết luận–bằng chứng–hành động, phân biệt Windows/Office/phần mềm bên thứ ba, giải thích mô hình–trạng thái–độ tin cậy–điều kiện khắc phục và tránh suy diễn pháp lý hoặc khắc phục tự động.
 
 - **Giao diện:** bố cục rõ hơn, hiển thị Sáng/Tối và DPI tốt hơn; sửa nút **Bản đã che thông tin** bị mất chữ hoặc mờ khi rê chuột.

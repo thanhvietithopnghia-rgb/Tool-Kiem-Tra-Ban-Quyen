@@ -71,7 +71,7 @@ HTML được tạo tự chứa:
 - responsive screen layout, dark preview và print A4;
 - bảng có header lặp khi in, hạn chế tách dòng/card giữa trang.
 
-`Test-ToolHtmlOfflineSafe` từ chối HTML có `http(s)`, protocol-relative URL, remote `src`/`href`, `@import`, script hoặc iframe trước khi PDF/package được coi là hợp lệ.
+`Test-ToolHtmlOfflineSafe` chỉ cho phép thẻ điều hướng HTTPS do renderer tạo cho nguồn chính thức; thẻ này không tự tải dữ liệu khi in PDF. Mọi tài nguyên hoặc đích gửi từ xa (`src`, `srcset`, `poster`, CSS, SVG, form), liên kết không tin cậy, protocol-relative URL, `@import`, script và iframe vẫn bị từ chối trước khi PDF/package được coi là hợp lệ. Trình duyệt headless đồng thời tắt background networking và ánh xạ DNS ra địa chỉ vô hiệu.
 
 Từ export schema 1.4, HTML và PDF dùng cùng dữ liệu nhưng khác mức trình bày. HTML là tổng quan, giữ cấu hình chính, kết luận, cảnh báo, ứng dụng chính và nút mở đúng PDF. PDF là bản chi tiết có toàn bộ bảng/bằng chứng cùng phụ lục phần mềm hệ thống; bảng rộng được tách, nội dung dài mở đầy đủ khi in và ngắt trang A4 an toàn. Mọi lượt xuất dùng chung `Desktop\BaoCao-Tool-Kiem-Tra`, không tạo thư mục con; tên tệp có timestamp mili-giây và sau khi hoàn tất chỉ HTML tổng quan được mở.
 

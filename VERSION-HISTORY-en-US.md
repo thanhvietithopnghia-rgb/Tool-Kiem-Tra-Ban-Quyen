@@ -17,6 +17,7 @@ FileVersion: **4.8.0.0** · Build **2026.08.14**
 - **WinRAR and official sources:** a `rarreg.key` file alone is not treated as abuse and is not automatically removed; an expired trial recommends a license or lawful alternative. MathType and WinRAR links resolve to the vendors' official pages.
 - **Parallel installations:** shown only when different versions exist in different locations; duplicate Registry/AppX/shortcut records such as Zalo/Telegram are not counted as separate installs, and the table states that this is not licensing evidence.
 - **Reports/PDF:** the software appendix uses a dedicated teal palette with better spacing and contrast; wide tables split into Context/Decision groups, and detailed A4 output uses larger type, line height, padding, repeated headers, and cleaner page breaks.
+- **Full/Software PDF hotfix:** renderer-generated official HTTPS references are no longer mistaken for remotely loaded resources by the Offline gate, so detailed PDFs export normally; remote image/CSS/SVG/form content and untrusted links remain blocked. Completion logs now include PDF status, engine, and error details.
 - **Tool Assistant:** responds with conclusion–evidence–action structure, distinguishes Windows/Office/third-party software, explains model–status–confidence–remediation, and avoids legal overclaims or automatic remediation.
 
 - **Interface:** clearer layout, better Light/Dark and DPI behavior, and a fix for the **Redacted report** button being clipped or fading on hover.

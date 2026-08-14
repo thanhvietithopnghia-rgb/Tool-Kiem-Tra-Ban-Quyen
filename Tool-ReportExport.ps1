@@ -226,7 +226,7 @@ function ConvertTo-ToolHtmlTableCell {
     if ($ColumnClass -eq 'path') {
         $absoluteWebReference = $null
         if ([Uri]::TryCreate($text, [UriKind]::Absolute, [ref]$absoluteWebReference) -and
-            $absoluteWebReference.Scheme -in @('https','http')) {
+            $absoluteWebReference.Scheme -eq 'https') {
             return "<a class='cell-reference' href='$encoded' rel='noreferrer noopener'>$encoded</a>"
         }
         $display = $text
@@ -605,14 +605,24 @@ function Test-ToolHtmlOfflineSafe {
         $item = Get-Item -LiteralPath $HtmlPath -Force -ErrorAction Stop
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $item.Length -gt 52428800) { return $false }
         $html = Get-Content -LiteralPath $HtmlPath -Raw -Encoding UTF8
+
+        # Official references are emitted by ConvertTo-ToolHtmlTableCell as a
+        # fixed HTTPS anchor. An anchor does not load a resource while the PDF
+        # is rendered, and the headless browser separately blocks networking.
+        # Remove only that exact generated opening tag from security inspection;
+        # every other external href/src remains forbidden below.
+        $inspectionHtml = [regex]::Replace(
+            $html,
+            '(?is)<a\s+class\s*=\s*["'']cell-reference["'']\s+href\s*=\s*["'']https://[^"''<>\s]+["'']\s+rel\s*=\s*["'']noreferrer\s+noopener["'']\s*>',
+            '<a>')
         $blockedPatterns = @(
             '(?is)<\s*(script|iframe|object|embed)\b',
-            '(?is)(src|href)\s*=\s*["'']\s*(https?:)?//',
+            '(?is)\b(srcset|formaction|poster|action|src|href)\s*=\s*["'']\s*(https?:)?//',
             '(?is)@import\s+',
             '(?is)url\(\s*["'']?\s*(https?:)?//'
         )
         foreach ($pattern in $blockedPatterns) {
-            if ($html -match $pattern) { return $false }
+            if ($inspectionHtml -match $pattern) { return $false }
         }
         return [bool]($html -match '(?is)<meta\s+http-equiv=["'']Content-Security-Policy["'']')
     } catch {

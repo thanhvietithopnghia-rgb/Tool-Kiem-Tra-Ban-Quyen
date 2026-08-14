@@ -801,7 +801,7 @@ $applicationUpdateManifest = [ordered]@{
             'Đánh giá phần mềm tách mô hình giấy phép khỏi bằng chứng crack/can thiệp; phần mềm miễn phí và mức tin cậy Low không còn bị yêu cầu hóa đơn hay đưa vào diện tự động xóa.',
             'Bổ sung nhận diện bảo thủ MAS/PMAS, Activation Program 1.17 và đúng lệnh erturk-dev; giữ ứng dụng, chỉ cô lập đúng artifact/tác vụ đáng ngờ khi đủ bằng chứng.',
             'WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.',
-            'Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tăng khoảng trắng và tự tách bảng rộng để bớt dày.',
+            'Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tự tách bảng rộng và sửa lỗi báo cáo Toàn bộ/Phần mềm không xuất PDF khi có liên kết chính thức.',
             'Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.',
             'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
         )
@@ -809,7 +809,7 @@ $applicationUpdateManifest = [ordered]@{
             'Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.',
             'Conservative detection now covers MAS/PMAS, Activation Program 1.17, and the exact erturk-dev command; applications stay installed while only proven artifacts or tasks are isolated.',
             'A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.',
-            'The software appendix uses a clearer teal palette; detailed PDFs add spacing and split wide tables for lower visual density.',
+            'The software appendix uses a clearer teal palette; detailed PDFs add spacing, split wide tables, and fix Full/Software PDF export when official references are present.',
             'Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.',
             'Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0.'
         )

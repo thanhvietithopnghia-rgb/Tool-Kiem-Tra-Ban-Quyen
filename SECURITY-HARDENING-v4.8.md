@@ -116,7 +116,7 @@ HTTP transport không tự cung cấp TLS; bảo mật nội dung dựa trên en
 - profile browser nằm ở LocalAppData, ACL user/SYSTEM và được dọn;
 - SHA-256 manifest cho package.
 - mọi package dùng chung `Desktop\BaoCao-Tool-Kiem-Tra`, tên tệp có timestamp mili-giây chống ghi đè và chỉ HTML được tự mở;
-- HTML chỉ dùng liên kết tương đối tới PDF cùng tên; phần mềm hệ thống nằm trong phụ lục, không bị loại khỏi JSON/PDF chi tiết;
+- HTML dùng liên kết tương đối tới PDF cùng tên và chỉ cho phép anchor HTTPS do renderer tạo để người dùng chủ động mở nguồn chính thức; anchor không tự tải nội dung khi in, còn remote image/CSS/SVG/form và href không tin cậy vẫn bị chặn. Phần mềm hệ thống nằm trong phụ lục, không bị loại khỏi JSON/PDF chi tiết;
 - bảng rộng dùng overflow ngang trên màn hình, profile cột theo ngữ nghĩa và quy tắc co riêng khi in, tránh ép mất dữ liệu.
 
 ## Authenticode

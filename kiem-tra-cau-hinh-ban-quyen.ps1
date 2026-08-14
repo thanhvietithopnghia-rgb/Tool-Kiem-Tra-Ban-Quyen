@@ -2405,6 +2405,10 @@ Write-Host (Get-ReportText "report.output.manifest" @($package.ManifestPath))
     Redacted = [bool]$RedactSensitive
     SuspiciousFindingCount = [int]@($crackFindings).Count
     ManualReviewFindingCount = [int]@($manualReviewFindings).Count
+    PdfStatus = [string]$summary.Export.PdfStatus
+    PdfEngine = [string]$summary.Export.PdfEngine
+    PdfPath = [string]$summary.Export.PdfPath
+    PdfError = [string]$summary.Export.PdfError
 }))
 if (-not $NoOpen) {
     $selectPath = $package.HtmlPath

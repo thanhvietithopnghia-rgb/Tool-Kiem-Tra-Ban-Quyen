@@ -408,9 +408,10 @@ if (-not $softwareCatalogMetadata -or -not [bool]$softwareCatalogMetadata.Catalo
 $engineeringCatalogRules = @($softwareCatalogMetadata.Products | Where-Object {
     $_.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Category)
 })
-if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.4.0.0' -or
+if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.4.0.1' -or
+    [string]$softwareCatalogMetadata.GeneratedAtUtc -ne '2026-08-18T14:00:00Z' -or
     @($softwareCatalogMetadata.Products).Count -lt 77 -or $engineeringCatalogRules.Count -lt 16) {
-    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.4.0.0 / 77 quy tắc / 16 quy tắc kỹ thuật.'
+    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.4.0.1 / ngày tạo 2026-08-18T14:00:00Z / 77 quy tắc / 16 quy tắc kỹ thuật.'
 }
 
 Write-Host '[1/8] Tạo TOOL-SHA256SUMS.txt...'
@@ -723,6 +724,7 @@ $releaseManifest = [ordered]@{
     TimelineCurrentStatePolicy = 'Latest observed state is separated from retained historical events; removed evidence is not presented as current'
     UniversalDeepSoftwareScan = $true
     SoftwareLicenseCatalogVersion = [string]$softwareCatalogMetadata.CatalogVersion
+    SoftwareLicenseCatalogGeneratedAtUtc = [string]$softwareCatalogMetadata.GeneratedAtUtc
     SoftwareLicenseCatalogProductRules = [int]@($softwareCatalogMetadata.Products).Count
     SoftwareLicenseCatalogSignatureFile = 'software-license-catalog-v1.0.json.p7s'
     SoftwareLicenseCatalogSignatureRequired = $true
@@ -987,7 +989,7 @@ $infoLines = @(
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
     'Tro ly schema 1.1 / knowledge 1.3.1 co 63 nhom va 481 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va giu EXE trong ngan sach 900000 byte.',
-    'Catalogue phan mem 1.4.0.0 co 77 quy tac va chu ky CMS; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
+    'Catalogue phan mem 1.4.0.1 co 77 quy tac va chu ky CMS; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
     'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',
     'Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.',

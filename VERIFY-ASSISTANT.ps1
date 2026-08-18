@@ -34,11 +34,11 @@ if ($errors.Count -eq 0) {
     if (Test-ToolAssistantKnowledgeSignature -ContentBytes $tamperedBytes -SignatureBytes $signatureBytes) {
         Add-AssistantVerificationError 'Detached signature accepted tampered knowledge bytes.'
     }
-    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.4"', '"KnowledgeVersion": "1.3.2"') | ConvertFrom-Json
+    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.5"', '"KnowledgeVersion": "1.3.2"') | ConvertFrom-Json
     if (Test-ToolAssistantKnowledge -Knowledge $legacyKnowledge) { Add-AssistantVerificationError 'An obsolete cached knowledge file was not rejected.' }
     $compatibleFutureKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
-    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.5'
-    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-18T07:01:00Z'
+    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.6'
+    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-18T14:01:00Z'
     $compatibleFutureKnowledge.ReleasedWithToolVersion = '4.8.0.1'
     if (-not (Test-ToolAssistantKnowledge -Knowledge $compatibleFutureKnowledge)) {
         Add-AssistantVerificationError 'A newer signed-compatible knowledge version cannot evolve independently of the EXE.'

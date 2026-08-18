@@ -28,8 +28,8 @@
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.1",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe",
-    "DownloadSha256":  "6E3FDD6CE6706BFCF0199DDD6141FA43EF1327B2F88BC1714C63862813AC2D08",
-    "DownloadSize":  885168,
+    "DownloadSha256":  "8EDE729C6CF457F1DA105C9626787028D2A4F1263BE09524FB99D30227C58B32",
+    "DownloadSize":  884144,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ACF45ABCB9842701652F75BA58E13DC0ACFA79FE"

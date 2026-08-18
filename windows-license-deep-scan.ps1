@@ -270,7 +270,7 @@ if ($channel -eq "KMS") {
 }
 
 # 2. Services/processes/history markers. History content is never copied to the report.
-$activatorRegex = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|aact|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation)"
+$activatorRegex = "(?i)(kmspico|kmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?|auto[\s._-]*kms|kms[\s._-]*(?:38|vl(?:[\s._-]*all)?)|aact(?:[\s._-]*(?:network|portable))?|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation)"
 $serviceHits = @(Safe-Cim Win32_Service | Where-Object {
     $_.Name -match $activatorRegex -or $_.DisplayName -match $activatorRegex -or $_.PathName -match $activatorRegex
 })
@@ -279,7 +279,7 @@ $runtimePaths = @($serviceHits | Select-Object -ExpandProperty PathName) + @($pr
 $historyHitCount = 0
 $historyPath = Join-Path $env:APPDATA "Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
 if (Test-Path -LiteralPath $historyPath) {
-    $historyRegex = "(?i)(massgrave|get\.activated\.win|kmspico|kmsauto|kms[\s._-]*vl(?:[\s._-]*all)?|hwidgen|mas[\s._-]*aio|tsforge|ohook|microsoft[\s_-]+toolkit|irm\s+https?://.+\|\s*iex)"
+    $historyRegex = "(?i)(massgrave|get\.activated\.win|kmspico|kmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?|auto[\s._-]*kms|kms[\s._-]*(?:38|vl(?:[\s._-]*all)?)|aact(?:[\s._-]*(?:network|portable))?|hwidgen|mas[\s._-]*aio|tsforge|ohook|microsoft[\s_-]+toolkit|irm\s+https?://.+\|\s*iex)"
     $historyHitCount = @((Get-Content -LiteralPath $historyPath -ErrorAction SilentlyContinue) | Where-Object { $_ -match $historyRegex }).Count
 }
 $runtimeCount = $serviceHits.Count + $processHits.Count

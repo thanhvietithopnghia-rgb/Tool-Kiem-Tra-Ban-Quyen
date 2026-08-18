@@ -50,6 +50,33 @@ function Get-KnowledgeSigningCertificate {
     }
 }
 
+function ConvertTo-CanonicalKnowledgeJson {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    # CMS covers the exact byte stream.  JSON published through Git must be
+    # canonical UTF-8/LF before signing, otherwise GitHub's LF normalization
+    # makes a valid local signature fail after download.
+    $utf8 = New-Object Text.UTF8Encoding($false, $true)
+    $text = $utf8.GetString([IO.File]::ReadAllBytes($Path))
+    if ($text.Length -gt 0 -and [int][char]$text[0] -eq 0xFEFF) { $text = $text.Substring(1) }
+    $text = ($text -replace "`r`n", "`n") -replace "`r", "`n"
+    if (-not $text.EndsWith("`n", [StringComparison]::Ordinal)) { $text += "`n" }
+    return [pscustomobject]@{ Text=$text; Bytes=$utf8.GetBytes($text) }
+}
+
+function Write-KnowledgeBytesAtomically {
+    param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][byte[]]$Bytes)
+    $directory = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
+    $temporaryPath = Join-Path $directory ('.knowledge-canonical-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        [IO.File]::WriteAllBytes($temporaryPath, $Bytes)
+        Move-Item -LiteralPath $temporaryPath -Destination $Path -Force
+    } finally {
+        if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) { Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 if (-not [IO.Path]::IsPathRooted($KnowledgePath)) { $KnowledgePath = Join-Path $PSScriptRoot $KnowledgePath }
 $fullKnowledgePath = [IO.Path]::GetFullPath($KnowledgePath)
 if (-not (Test-Path -LiteralPath $fullKnowledgePath -PathType Leaf)) { throw "Khong tim thay tep tri thuc: $fullKnowledgePath" }
@@ -60,7 +87,8 @@ if (($knowledgeItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -o
 if ([string]::IsNullOrWhiteSpace($SignaturePath)) { $SignaturePath = $fullKnowledgePath + '.p7s' }
 elseif (-not [IO.Path]::IsPathRooted($SignaturePath)) { $SignaturePath = Join-Path $PSScriptRoot $SignaturePath }
 $fullSignaturePath = [IO.Path]::GetFullPath($SignaturePath)
-$knowledge = Get-Content -LiteralPath $fullKnowledgePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+$canonicalKnowledge = ConvertTo-CanonicalKnowledgeJson -Path $fullKnowledgePath
+$knowledge = $canonicalKnowledge.Text | ConvertFrom-Json -ErrorAction Stop
 if ([string]$knowledge.SchemaVersion -ne '1.1' -or [string]$knowledge.Scope -ne 'Tool-Kiem-Tra' -or
     [Version]([string]$knowledge.KnowledgeVersion) -lt [Version]'1.3.0' -or @($knowledge.Entries).Count -lt 20) {
     throw 'Tep tri thuc khong dung schema, pham vi hoac phien ban toi thieu.'
@@ -73,6 +101,7 @@ try {
     $now = Get-Date
     if ($now -lt $certificate.NotBefore -or $now -gt $certificate.NotAfter) { throw 'Chung thu chua hieu luc hoac da het han.' }
 
+    Write-KnowledgeBytesAtomically -Path $fullKnowledgePath -Bytes $canonicalKnowledge.Bytes
     $knowledgeBytes = [IO.File]::ReadAllBytes($fullKnowledgePath)
     $contentInfo = New-Object Security.Cryptography.Pkcs.ContentInfo -ArgumentList (,$knowledgeBytes)
     $signedCms = New-Object Security.Cryptography.Pkcs.SignedCms -ArgumentList @($contentInfo, $true)

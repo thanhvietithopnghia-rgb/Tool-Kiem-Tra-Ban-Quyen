@@ -645,7 +645,8 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'byte-identical') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
-        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.4.0.0' -or
+        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.4.0.1' -or
+            [string]$releaseManifest.SoftwareLicenseCatalogGeneratedAtUtc -ne '2026-08-18T14:00:00Z' -or
             [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 77 -or
             [string]$releaseManifest.SoftwareLicenseCatalogSignatureFile -ne 'software-license-catalog-v1.0.json.p7s' -or
             -not [bool]$releaseManifest.SoftwareLicenseCatalogSignatureRequired -or

@@ -18,7 +18,7 @@ $script:ToolSoftwareDeepSystemSnapshotCache = $null
 $script:ToolSoftwareLastDeepScanMetadata = $null
 $script:ToolSoftwareCatalogTrustCache = @{}
 $script:ToolSoftwareTrustedCatalogReferences = New-Object System.Collections.Generic.List[object]
-$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
+$script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*38\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:[\s._-]*(?:network|portable))?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
 $script:ToolSoftwareKnownActivationCommandPattern = '(?i)(?<![a-z0-9.-])(?:https?://)?erturk-dev\.netlify\.app/run(?:[/?#][^\s''"|]*)?(?![a-z0-9._-])'
 $script:ToolSoftwareSuspiciousArtifactPattern = '(?i)(\bcrack(?:ed)?\b|\bkeygen\b|\bactivator\b|\bactivation[\s._-]*(?:bypass|patch(?:er)?)\b|\blicen[cs]e[\s._-]*(?:bypass|patch(?:er)?)\b|\bserial[\s._-]*generator\b)'
 $script:ToolSoftwareDeepRelevantExtensions = @('.exe','.dll','.sys','.ocx','.cpl','.scr','.com','.msi','.cmd','.bat','.ps1','.vbs','.js','.jar','.zip','.rar','.7z')
@@ -1337,7 +1337,10 @@ function Get-ToolSoftwareLocationEvidence {
             if ($files.Count -ge 500) { break }
         }
         foreach ($file in $files) {
-            if ($executableArtifactExtensions -contains ([string]$file.Extension).ToLowerInvariant() -and [string]$file.Name -match $strictPattern) {
+            $artifactName = [string]$file.Name
+            $isKnownActivator = Test-ToolSoftwareKnownActivatorText -Text $artifactName
+            if ($executableArtifactExtensions -contains ([string]$file.Extension).ToLowerInvariant() -and
+                ($artifactName -match $strictPattern -or $isKnownActivator)) {
                 $evidence.Add([pscustomobject][ordered]@{ Code='UnauthorizedArtifactName'; Strength='Strong'; Source='InstallLocation'; Detail=[string]$file.FullName })
             }
         }
@@ -2073,7 +2076,7 @@ function Get-ToolSoftwareAssessments {
         Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource' -Default 'Unavailable'
     } else { 'UntrustedRejected' }
     $catalogVersionForResult = if ($catalogTrusted) { Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion' } else { '' }
-    $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
+    $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*38\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:[\s._-]*(?:network|portable))?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
     $script:ToolSoftwareDeepFileCache = @{}
     $script:ToolSoftwareDeepDirectoryCache = @{}
     $script:ToolSoftwareDeepSystemSnapshotCache = $null

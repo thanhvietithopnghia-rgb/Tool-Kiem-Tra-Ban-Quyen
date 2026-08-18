@@ -7,6 +7,24 @@ $root = [IO.Path]::GetFullPath($SourceDirectory)
 $failures = New-Object System.Collections.Generic.List[string]
 function Fail([string]$Message) { $failures.Add($Message) }
 
+function Test-CanonicalJsonFile {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    try {
+        $bytes = [IO.File]::ReadAllBytes($Path)
+        if ($bytes.Length -eq 0 -or
+            ($bytes.Length -ge 3 -and $bytes[0] -eq [byte]0xEF -and $bytes[1] -eq [byte]0xBB -and $bytes[2] -eq [byte]0xBF)) {
+            return $false
+        }
+        $utf8 = New-Object Text.UTF8Encoding -ArgumentList @($false, $true)
+        $text = $utf8.GetString($bytes)
+        return [bool]($text.Length -gt 0 -and $text[0] -ne [char]0xFEFF -and
+            $text.IndexOf([char]0x0D) -lt 0 -and $bytes[$bytes.Length - 1] -eq [byte]0x0A)
+    } catch {
+        return $false
+    }
+}
+
 $policyPath = Join-Path $root 'Tool-SafetyPolicy.ps1'
 if (-not (Test-Path -LiteralPath $policyPath -PathType Leaf)) {
     Fail 'Thiếu Tool-SafetyPolicy.ps1.'
@@ -840,6 +858,30 @@ if ($softwareInventory) {
         . (Join-Path $root 'Tool-SoftwareInventory.ps1')
         $catalogPath = Join-Path $root 'software-license-catalog-v1.0.json'
         $catalogSignaturePath = $catalogPath + '.p7s'
+        $knowledgePath = Join-Path $root 'tool-assistant-knowledge-v1.1.json'
+        $knowledgeSignaturePath = $knowledgePath + '.p7s'
+        $assistantModulePath = Join-Path $root 'Tool-Assistant.ps1'
+        $catalogBytes = [IO.File]::ReadAllBytes($catalogPath)
+        $catalogSignatureBytes = [IO.File]::ReadAllBytes($catalogSignaturePath)
+        if (-not (Test-CanonicalJsonFile -Path $catalogPath)) {
+            Fail 'Catalogue phần mềm phải là UTF-8 không BOM, chỉ LF và có LF cuối tệp.'
+        }
+        if (-not (Test-ToolSoftwareCatalogSignature -ContentBytes $catalogBytes -SignatureBytes $catalogSignatureBytes)) {
+            Fail 'Chữ ký detached CMS của catalogue phần mềm không hợp lệ.'
+        }
+        if (-not (Test-Path -LiteralPath $assistantModulePath -PathType Leaf)) {
+            Fail 'Thiếu Tool-Assistant.ps1 để kiểm tra gói tri thức đã ký.'
+        } else {
+            . $assistantModulePath
+            $knowledgeBytes = [IO.File]::ReadAllBytes($knowledgePath)
+            $knowledgeSignatureBytes = [IO.File]::ReadAllBytes($knowledgeSignaturePath)
+            if (-not (Test-CanonicalJsonFile -Path $knowledgePath)) {
+                Fail 'Kho tri thức Trợ lý phải là UTF-8 không BOM, chỉ LF và có LF cuối tệp.'
+            }
+            if (-not (Test-ToolAssistantKnowledgeSignature -ContentBytes $knowledgeBytes -SignatureBytes $knowledgeSignatureBytes)) {
+                Fail 'Chữ ký detached CMS của kho tri thức Trợ lý không hợp lệ.'
+            }
+        }
         $trustedBundledCatalog = Import-ToolSoftwareCatalogFile -Path $catalogPath -SignaturePath $catalogSignaturePath -Source 'Bundled' -RequireSignature
         if (-not $trustedBundledCatalog -or -not (Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $trustedBundledCatalog)) {
             throw 'Catalogue phần mềm tích hợp chưa mở được bằng chữ ký CMS và signer đã ghim.'
@@ -853,19 +895,33 @@ if ($softwareInventory) {
                 Fail "Ngày cài '$($dateFixture.Raw)' chưa chuẩn hóa thành $($dateFixture.Expected)."
             }
         }
-        foreach ($activatorFixture in @(
+        $activatorFixtures = @(
             'TSforge Activation','Office OHook','MAS_AIO','MAS Activation','Microsoft Activation Scripts',
             'PMAS','PMAS-HWID','Activation Program 1.17','KMS_VL_ALL','Microsoft Toolkit','KMSpico',
+            'KMS38','KMSAuto Net','KMSAuto Lite','KMSAuto Plus','AutoKMS','AAct Network',
             'irm erturk-dev.netlify.app/run | iex','powershell -NoProfile -c "irm https://erturk-dev.netlify.app/run | iex"'
-        )) {
+        )
+        foreach ($activatorFixture in $activatorFixtures) {
             if (-not (Test-ToolSoftwareKnownActivatorText -Text $activatorFixture)) { Fail "Thiếu mẫu activator: $activatorFixture" }
+        }
+        $catalogActivatorPatterns = @($trustedBundledCatalog.DeepScan.KnownActivatorNamePatterns)
+        foreach ($activatorFixture in @('KMS38','KMSAuto Net','KMSAuto Lite','KMSAuto Plus','AutoKMS','AAct Network')) {
+            if (@($catalogActivatorPatterns | Where-Object { $activatorFixture -match [string]$_ }).Count -eq 0) {
+                Fail "Catalogue phần mềm thiếu quy tắc activator: $activatorFixture"
+            }
         }
         foreach ($benignActivationFixture in @(
             'Microsoft.Toolkit.Win32.UI.XamlHost.dll','MassTransit Service','PMAScheduler.exe','Activation Program 1.18',
             'irm https://docs-site.netlify.app/runbook | iex','irm https://my-erturk-dev.netlify.app/run | iex',
-            'irm https://erturk-dev.netlify.app/runner | iex','irm https://api.example.com/status | ConvertFrom-Json'
+            'irm https://erturk-dev.netlify.app/runner | iex','irm https://api.example.com/status | ConvertFrom-Json',
+            'KMS38th Avenue','KMSAutomatic Service','AutoKMSService','AActNetworker'
         )) {
             if (Test-ToolSoftwareKnownActivatorText -Text $benignActivationFixture) { Fail "Mẫu hợp lệ bị nhận nhầm là activator: $benignActivationFixture" }
+        }
+        foreach ($benignCatalogFixture in @('KMS38th Avenue','KMSAutomatic Service','AutoKMSService','AActNetworker')) {
+            if (@($catalogActivatorPatterns | Where-Object { $benignCatalogFixture -match [string]$_ }).Count -ne 0) {
+                Fail "Catalogue phần mềm nhận nhầm activator: $benignCatalogFixture"
+            }
         }
         if ('Microsoft.Toolkit.Win32.UI.XamlHost.dll' -match $script:ToolSoftwareKnownActivatorPattern) {
             Fail 'Thư viện Microsoft.Toolkit hợp lệ đang bị nhầm với Microsoft Toolkit activator.'
@@ -1116,9 +1172,9 @@ if ($softwareInventory) {
         $catalogSignaturePath = $catalogPath + '.p7s'
         $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $catalogIds = @($catalog.Products | ForEach-Object { [string]$_.Id })
-        if ([string]$catalog.CatalogVersion -ne '1.4.0.0' -or [string]$catalog.GeneratedAtUtc -ne '2026-08-17T00:00:00Z' -or
+        if ([string]$catalog.CatalogVersion -ne '1.4.0.1' -or [string]$catalog.GeneratedAtUtc -ne '2026-08-18T14:00:00Z' -or
             $catalogIds.Count -lt 77 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
-            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.4.0.0 / ngày phát hành / 77 quy tắc duy nhất.'
+            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.4.0.1 / ngày phát hành / 77 quy tắc duy nhất.'
         }
         foreach ($requiredCatalogId in @('iobit-driver-booster','winrar','adobe-creative-cloud-paid','autodesk-commercial','commercial-pdf-editors','internet-download-manager','mathworks-matlab-simulink','wiris-mathtype','microsoft-visual-studio-community','microsoft-visual-studio-paid')) {
             if ($catalogIds -notcontains $requiredCatalogId) { Fail "Catalogue phần mềm thiếu quy tắc: $requiredCatalogId" }
@@ -1135,7 +1191,7 @@ if ($softwareInventory) {
         }
         $trustedBundledCatalog = Import-ToolSoftwareCatalogFile -Path $catalogPath -SignaturePath $catalogSignaturePath -Source 'Bundled' -RequireSignature
         if (-not $trustedBundledCatalog -or -not [bool]$trustedBundledCatalog.CatalogSignatureValid -or
-            [string]$trustedBundledCatalog.CatalogVersion -ne '1.4.0.0') {
+            [string]$trustedBundledCatalog.CatalogVersion -ne '1.4.0.1') {
             Fail 'Catalogue phần mềm tích hợp chưa mở được bằng chữ ký CMS và signer đã ghim.'
         }
         $forgedCatalog = (Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json)

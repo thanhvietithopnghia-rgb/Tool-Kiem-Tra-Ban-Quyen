@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.4.0.0",
-  "GeneratedAtUtc": "2026-08-17T00:00:00Z",
+  "CatalogVersion": "1.4.0.1",
+  "GeneratedAtUtc": "2026-08-18T14:00:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -22,13 +22,18 @@
       "\\bX[\\s._-]*Force\\b",
       "\\bKMSPico\\b",
       "\\bKMSAuto\\b",
+      "\\bKMS[\\s._-]*38\\b",
+      "\\bKMS[\\s._-]*VL(?:[\\s._-]*All)?\\b",
+      "\\bAuto[\\s._-]*KMS\\b",
       "\\bAAct(?:Portable)?\\b",
+      "\\bAAct[\\s._-]*(?:Network|Portable)?\\b",
       "\\bHWIDGen\\b",
       "\\bMassgrave\\b",
       "\\bMAS[\\s._-]*(?:AIO|All[\\s._-]*in[\\s._-]*One|Activat(?:ion|or)|HWID|KMS|OHook|TSforge)\\b",
       "\\bPMAS(?:[\\s._-]*(?:AIO|All[\\s._-]*in[\\s._-]*One|Activat(?:ion|or)|HWID|KMS|OHook|TSforge))?\\b",
       "\\bMicrosoft[\\s._-]*Activation[\\s._-]*Scripts?\\b",
       "\\bActivation[\\s._-]*Program[\\s._-]*(?:v(?:ersion)?[\\s._-]*)?1(?:\\.|\\s+|[_-])17\\b",
+      "\\b(?:OHook|TSforge)\\b",
       "(?<![a-z0-9.-])(?:https?://)?erturk-dev\\.netlify\\.app/run(?:[/?#][^\\s'\"|]*)?(?![a-z0-9._-])"
     ],
     "SuspiciousArtifactNamePatterns": [

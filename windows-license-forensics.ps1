@@ -358,7 +358,7 @@ if ($coreBad -gt 0 -or $coreMissing -gt 0) {
 }
 
 # 4. Dấu vết activator trong tiến trình, dịch vụ, task và startup.
-$activatorRegex = "(?i)(kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl(?:[\s._-]*all)?|aact|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation|get\.activated\.win)"
+$activatorRegex = "(?i)(kmspico|kmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?|auto[\s._-]*kms|kms[\s._-]*(?:38|vl(?:[\s._-]*all)?)|aact(?:[\s._-]*(?:network|portable))?|sppextcomobj(?:hook|patcher)|spp[\s._-]*(?:hook|patcher)|microsoft[\s_-]+toolkit|hwidgen|massgrave|mas[\s._-]*aio|tsforge|ohook|digital license activation|get\.activated\.win)"
 $artifactRows = New-Object System.Collections.Generic.List[object]
 foreach ($serviceItem in @(Safe-Cim Win32_Service | Where-Object { $_.Name -match $activatorRegex -or $_.DisplayName -match $activatorRegex -or $_.PathName -match $activatorRegex })) {
     $path = Get-ExecutablePath ([string]$serviceItem.PathName)

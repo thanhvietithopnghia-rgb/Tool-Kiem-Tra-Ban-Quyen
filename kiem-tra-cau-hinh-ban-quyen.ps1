@@ -100,7 +100,7 @@ $wantHardware = $Mode -in @("All", "Hardware")
 $wantWindows = $Mode -in @("All", "Windows")
 $wantOffice = $Mode -in @("All", "Office")
 $wantSoftware = $Mode -in @("All", "Software")
-$strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|erturk-dev\.netlify\.app/run|\btsforge\b|\bohook\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
+$strongCrackPattern = "(?i)(\bkmspico\b|\bkmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*38\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:[\s._-]*(?:network|portable))?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|erturk-dev\.netlify\.app/run|\btsforge\b|\bohook\b|\bget\.activated\.win\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force.{0,20}\b(?:autodesk|adsk)\b|\b(?:adobe|autodesk|adsk).{0,24}\b(?:patcher|activator|crack)\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b)"
 $reportActivatorArtifactExtensions = @('.exe','.dll','.com','.scr','.cmd','.bat','.ps1','.vbs','.js','.msi','.zip','.rar','.7z','.jar')
 $crackFindings = @()
 $manualReviewFindings = @()
@@ -702,7 +702,7 @@ function Get-ReportActivatorFamilyCode {
     if ($Text -match '(?i)\bohook\b|spp[\s._-]*hook') { return 'OHook' }
     if ($Text -match '(?i)\bmicrosoft[\s_-]+toolkit\b') { return 'MicrosoftToolkit' }
     if ($Text -match '(?i)\bmassgrave\b|\bmas[\s._-]*aio\b|get\.activated\.win') { return 'MAS' }
-    if ($Text -match '(?i)kmspico|kmsauto|auto[\s._-]*kms|kms[\s._-]*vl|aact') { return 'KmsActivator' }
+    if ($Text -match '(?i)kmspico|kmsauto(?:s|[\s._-]*(?:net|lite|portable|plus|\+\+))?|auto[\s._-]*kms|kms[\s._-]*(?:38|vl)|aact(?:[\s._-]*(?:network|portable))?') { return 'KmsActivator' }
     if ($Text -match '(?i)hwidgen|digital[\s._-]*license[\s._-]*activation') { return 'DigitalLicenseActivator' }
     if ($Text -match '(?i)sppextcomobj') { return 'SppHook' }
     if ($Text -match '(?i)adobe[\s._-]*genp|ccmaker|amtlib') { return 'AdobeActivator' }
@@ -2491,12 +2491,12 @@ if ($assessmentRows.Count -gt 0) {
     $assessmentTitle = Get-ReportText "report.text.066"
     $assessmentNote = Get-ReportText "report.text.067"
     $directInterferenceEvidence = New-Object System.Collections.Generic.List[string]
-    if ([string]$activationText -match '(?i)Rearm\s+successful|Rearms?\s+Remaining|AutoKMS|KMS\s*activator|Microsoft\s+Activation\s+Scripts|Activation[\s._-]*Program[\s._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
+    if ([string]$activationText -match '(?i)Rearm\s+successful|Rearms?\s+Remaining|KMS(?:Pico|Auto(?:S|[\s._-]*(?:Net|Lite|Portable|Plus|\+\+))?|[\s._-]*(?:38|VL(?:[\s._-]*All)?))|AAct(?:[\s._-]*(?:Network|Portable))?|Microsoft\s+Activation\s+Scripts|Activation[\s._-]*Program[\s._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
         $directInterferenceEvidence.Add('Windows licensing output')
     }
     foreach ($finding in @($crackFindings)) {
         $findingText = @([string]$finding.Nguon, [string]$finding.'Dau hieu', [string]$finding.'Vi tri') -join ' '
-        if ($findingText -match '(?i)AutoKMS|KMS(?:Pico|Auto|38)?|activator|rearm|Microsoft[ ._-]*Activation[ ._-]*Scripts|HWIDGEN|\bP?MAS\b|Activation[ ._-]*Program[ ._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
+        if ($findingText -match '(?i)AutoKMS|KMS(?:Pico|Auto(?:S|[ ._-]*(?:Net|Lite|Portable|Plus|\+\+))?|[ ._-]*(?:38|VL(?:[ ._-]*All)?))|AAct(?:[ ._-]*(?:Network|Portable))?|activator|rearm|Microsoft[ ._-]*Activation[ ._-]*Scripts|HWIDGEN|\bP?MAS\b|Activation[ ._-]*Program[ ._-]*1(?:\.|\s+|[_-])17|erturk-dev\.netlify\.app/run') {
             $directInterferenceEvidence.Add($findingText)
         }
     }

@@ -10,7 +10,7 @@ v4.8 giữ nguyên các nhóm nâng cấp trước và bổ sung:
 - lịch sử phiên bản trong Tool;
 - quét nhiều Office/nhiều nguồn tệp song song có giới hạn.
 - quét sâu phổ quát từng ứng dụng bằng nhiều EXE/DLL, Authenticode, hash và dấu vết hệ thống tương quan, có phân phối ngân sách công bằng và metadata độ phủ.
-- catalogue phần mềm 1.4.0.0 với 77 quy tắc và chữ ký CMS tách rời; gộp nhiều nguồn phát hiện, tách phần mềm hệ thống, tách mô hình giấy phép khỏi bằng chứng can thiệp và không suy diễn `HashMismatch` thành giấy phép không chính hãng;
+- catalogue phần mềm 1.4.0.1 với 77 quy tắc và chữ ký CMS tách rời; gộp nhiều nguồn phát hiện, tách phần mềm hệ thống, tách mô hình giấy phép khỏi bằng chứng can thiệp và không suy diễn `HashMismatch` thành giấy phép không chính hãng;
 - Trợ lý schema 1.1 / knowledge 1.3.1 với 63 nhóm và 481 từ khóa/cách hỏi; dữ liệu tăng thêm nằm ngoài EXE, dùng JSON + chữ ký CMS SHA-256, ghim chứng thư, chống hạ phiên bản, cache dự phòng theo người dùng và khóa phạm vi Tool;
 - báo cáo dùng một thư mục chung, PDF tách bảng rộng và mở phụ lục phần mềm hệ thống; Máy chủ/Máy trạm có tự dò/chẩn đoán LAN và hàng đợi gửi lại;
 - Dry Run lập kế hoạch target/action/backup/restorability mà không thay đổi hệ thống, sau đó yêu cầu chọn và xác nhận lại nếu thực hiện thật;
@@ -47,7 +47,7 @@ Không chuyển sang WPF/WebView2 trong v4.3. Modern WinForms được chọn đ
 | Offline policy | Hoàn thành ở cấp ứng dụng | `VERIFY-OFFLINE-I18N.ps1` |
 | HTML/PDF offline-safe | Hoàn thành | export schema 1.4, HTML tổng quan / PDF chi tiết và ngắt trang an toàn |
 | Quét sâu phần mềm phổ quát | Hoàn thành ở mức code + fixture + quét tích hợp máy thật | `VERIFY-SAFETY-REGRESSIONS.ps1` và metadata deep scan |
-| Catalogue phần mềm 1.4.0.0 | Hoàn thành ở mức JSON/regex/fixture/CMS | 77 quy tắc duy nhất, gộp trùng, phân loại hệ thống và chặn xử lý tự động từ mức `Low` |
+| Catalogue phần mềm 1.4.0.1 | Hoàn thành ở mức JSON/regex/fixture/CMS | 77 quy tắc duy nhất, gộp trùng, phân loại hệ thống và chặn xử lý tự động từ mức `Low` |
 | Dry Run không thay đổi | Hoàn thành ở mức code + AST/plan fixture | `VERIFY-SAFETY-REGRESSIONS.ps1` |
 | Data schema/migration/rollback | Hoàn thành ở mức code + fixture idempotent/rollback | `VERIFY-DATA-LIFECYCLE.ps1` |
 | Enterprise status tối giản | Hoàn thành ở mức AST/security fixture | `VERIFY-ENTERPRISE.ps1` |

@@ -122,7 +122,7 @@ Build/revision mới hơn catalog được trả về `AheadOfCatalog`/`FutureRe
 
 Metadata báo cáo ghi Administrator, Complete, số ứng dụng/root/tệp, chữ ký/hash, timeout, giới hạn và cảnh báo truy cập. Không có bằng chứng hoặc độ phủ chưa hoàn tất luôn giữ `Unverified`; pipeline không xác minh quyền sở hữu pháp lý từ tài khoản/hóa đơn của nhà sản xuất.
 
-Catalogue phần mềm `1.4.0.0` có 77 quy tắc duy nhất và chữ ký CMS tách rời, bổ sung IObit Driver Booster, WIRIS MathType, PDF editor thương mại và IDM, đồng thời bao phủ phần mềm kỹ thuật và nhiều ứng dụng văn phòng, phát triển, cơ sở dữ liệu, media, mạng và bảo mật. Record Registry/Appx/shortcut được gộp theo identity tương thích; thành phần hệ thống được gắn `IsSystemComponent`. Mô hình giấy phép và bằng chứng can thiệp được đánh giá độc lập; quy tắc chỉ tăng độ chính xác nhận diện/signature/domain/artifact, còn scoring fail-closed vẫn áp dụng như mọi phần mềm khác và mức `Low` không tạo hành động xóa.
+Catalogue phần mềm `1.4.0.1` có 77 quy tắc duy nhất và chữ ký CMS tách rời, bổ sung IObit Driver Booster, WIRIS MathType, PDF editor thương mại và IDM, đồng thời bao phủ phần mềm kỹ thuật và nhiều ứng dụng văn phòng, phát triển, cơ sở dữ liệu, media, mạng và bảo mật. Record Registry/Appx/shortcut được gộp theo identity tương thích; thành phần hệ thống được gắn `IsSystemComponent`. Mô hình giấy phép và bằng chứng can thiệp được đánh giá độc lập; quy tắc chỉ tăng độ chính xác nhận diện/signature/domain/artifact, còn scoring fail-closed vẫn áp dụng như mọi phần mềm khác và mức `Low` không tạo hành động xóa.
 
 ## Dry Run khắc phục
 

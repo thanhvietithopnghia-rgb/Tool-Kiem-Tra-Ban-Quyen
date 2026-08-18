@@ -632,17 +632,18 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             @($releaseManifest.ProgressUtilities).Count -ne 2) { throw 'Thiếu metadata cải tiến giao diện v4.6.' }
         if (@($releaseManifest.ThirdPartyLicenseRemediationAdapters).Count -ne 4 -or
             (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'WinRAR' -or
-            (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'rarreg\.key alone is never eligible' -or
-            [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'Verified decisive evidence' -or
+            (@($releaseManifest.ThirdPartyLicenseRemediationAdapters) -join ' ') -notmatch 'never automatically reset' -or
+            [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'No third-party license store is reset automatically' -or
+            [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'hash/size revalidation' -or
             [string]$releaseManifest.ThirdPartyAutomaticResetPolicy -notmatch 'manual-only' -or
             [string]$releaseManifest.ThirdPartyBackupPolicy -notmatch 'non-restorable') {
             throw 'Thiếu metadata khắc phục bản quyền phần mềm bên thứ ba v4.6.'
         }
         if (-not [bool]$releaseManifest.UniversalDeepSoftwareScan -or
             @($releaseManifest.DeepSoftwareScanEvidence).Count -lt 8 -or
-            [string]$releaseManifest.DeepSoftwareScanScoring -notmatch 'decisive evidence or two independent strong groups' -or
+            [string]$releaseManifest.DeepSoftwareScanScoring -notmatch 'direct known hash, active activator' -or
             [string]$releaseManifest.DeepSoftwareScanBudgetPolicy -notmatch 'weighted budgeting' -or
-            [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'byte-identical') {
+            [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'pinned-signer') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
         if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.4.0.1' -or
@@ -778,9 +779,16 @@ $sourceApplicationUpdateManifestPath = Join-Path $sourceDirectoryFull 'update-ma
 $applicationUpdateManifestPath = Join-Path $distributionDirectoryFull 'update-manifest-v1.json'
 if (-not (Test-Path -LiteralPath $sourceApplicationUpdateManifestPath -PathType Leaf)) {
     $failures.Add('Thiếu update-manifest-v1.json trong gói mã nguồn.')
-} elseif ((Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf) -and
+} elseif (-not $AllowDevelopmentManifest -and (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf) -and
     (Get-Sha256Hex $sourceApplicationUpdateManifestPath) -ne (Get-Sha256Hex $applicationUpdateManifestPath)) {
     $failures.Add('update-manifest-v1.json trong Source và Release không giống hệt từng byte.')
+} elseif ($AllowDevelopmentManifest) {
+    try {
+        $sourceApplicationUpdateManifest = Get-Content -LiteralPath $sourceApplicationUpdateManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([string]$sourceApplicationUpdateManifest.Channel -ne 'stable' -or -not [bool]$sourceApplicationUpdateManifest.AuthenticodeRequired) {
+            throw 'Build development đã thay thế manifest stable trong mã nguồn.'
+        }
+    } catch { $failures.Add("update-manifest-v1.json trong Source không hợp lệ: $($_.Exception.Message)") }
 }
 if (-not (Test-Path -LiteralPath $applicationUpdateManifestPath -PathType Leaf)) {
     $failures.Add('Thiếu update-manifest-v1.json.')

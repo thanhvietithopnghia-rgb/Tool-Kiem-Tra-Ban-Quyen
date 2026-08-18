@@ -192,7 +192,7 @@ This screen offers three ways to proceed; all three open the same Windows, Offic
 
 On an unfamiliar computer or when impact is uncertain, run Dry Run first, retain its report, and review it before authorizing real execution.
 
-Depending on evidence, a third-party plan can quarantine an exact artifact, restore an exact hosts entry, remove an exact application-correlated outbound-block Firewall rule, run a verified MSI Repair, reset a supported licensing component, or direct the user to an official reinstall. Firewall changes and uninstall/reinstall plans are never selected automatically; a removed Firewall rule is not automatically restorable.
+Depending on evidence, a third-party plan can quarantine an exact confirmed artifact or restore an exact blocked hosts entry. It never resets vendor licensing stores, runs MSI Repair, uninstalls an application, or automatically changes Firewall rules, processes, services, tasks, folders, or Registry entries. All other findings are preserved for manual review and may direct the user to an official repair or reinstall.
 
 After post-verification or Recheck, the remediation list shows only current activator/tampering evidence. An application that is merely Unverified remains in the inventory report for manual review but is not treated as failed cleanup. A standalone activator file in Downloads, Desktop, or TEMP is quarantined only after its exact row is selected and confirmed; protected backup/quarantine paths are excluded from rescans.
 

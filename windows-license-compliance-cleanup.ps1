@@ -67,7 +67,6 @@ try {
     $nativeRegPath = Get-ToolNativeSystemPath "reg.exe"
     $nativeCertutilPath = Get-ToolNativeSystemPath "certutil.exe"
     $nativeSfcPath = Get-ToolNativeSystemPath "sfc.exe"
-    $nativeMsiExecPath = Get-ToolNativeSystemPath "msiexec.exe"
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "Continue"
@@ -1256,20 +1255,34 @@ function Get-ThirdPartyCorrelationTokens {
 
 function Get-ThirdPartyEvidenceTargets {
     param([string]$Text, $ApplicationRecords, [string]$SpecificVendorScope = '')
-    $targets = New-Object System.Collections.Generic.List[object]
+    # A token such as "pro" or a shared vendor label is only a hint.  Preserve
+    # the match kind and prefer an exact install/representative path over a
+    # vendor-wide fallback, so remediation can only use direct evidence.
+    $exactTargets = New-Object System.Collections.Generic.List[object]
+    $vendorTargets = New-Object System.Collections.Generic.List[object]
+    $tokenTargets = New-Object System.Collections.Generic.List[object]
     foreach ($record in @($ApplicationRecords)) {
-        $matched = $false
-        if ($SpecificVendorScope -and [string]$record.VendorScope -eq $SpecificVendorScope) { $matched=$true }
-        if (-not $matched -and $record.InstallRoot -and $Text.IndexOf([string]$record.InstallRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $matched=$true }
-        if (-not $matched -and $record.RepresentativePath -and $Text.IndexOf([string]$record.RepresentativePath, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $matched=$true }
-        if (-not $matched) {
+        $matchKind = ''
+        if ($record.InstallRoot -and $Text.IndexOf([string]$record.InstallRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            $matchKind = 'ExactPath'
+        } elseif ($record.RepresentativePath -and $Text.IndexOf([string]$record.RepresentativePath, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            $matchKind = 'ExactPath'
+        } elseif ($SpecificVendorScope -and [string]$record.VendorScope -eq $SpecificVendorScope) {
+            $matchKind = 'VendorScope'
+        } else {
             foreach ($token in @($record.Tokens)) {
-                if ($Text -match ('(?i)(?<![a-z0-9])' + [regex]::Escape([string]$token) + '(?![a-z0-9])')) { $matched=$true; break }
+                if ($Text -match ('(?i)(?<![a-z0-9])' + [regex]::Escape([string]$token) + '(?![a-z0-9])')) { $matchKind='Token'; break }
             }
         }
-        if ($matched -and -not $targets.Contains($record)) { $targets.Add($record) }
+        if ([string]::IsNullOrWhiteSpace($matchKind)) { continue }
+        $match = [pscustomobject][ordered]@{ Record=$record; MatchKind=$matchKind }
+        if ($matchKind -eq 'ExactPath') { $exactTargets.Add($match) }
+        elseif ($matchKind -eq 'VendorScope') { $vendorTargets.Add($match) }
+        else { $tokenTargets.Add($match) }
     }
-    return $targets.ToArray()
+    if ($exactTargets.Count -gt 0) { return $exactTargets.ToArray() }
+    if ($vendorTargets.Count -gt 0) { return $vendorTargets.ToArray() }
+    return $tokenTargets.ToArray()
 }
 
 function Get-ThirdPartyStrongEvidence {
@@ -1294,17 +1307,22 @@ function Get-ThirdPartyStrongEvidence {
                 Code=('Uncorrelated' + $Type); Type=$Type; Source=$Type; Name=$Name; Location=$Location; RegistryPath=$RegistryPath
                 VendorScope='Uncorrelated'; ApplicationId=''; Strength=$(if ($KnownSpecific) {'Strong'} else {'Moderate'})
                 EvidenceGroup=$(if ($Active) {'ActivatorPersistence'} else {'ActivatorArtifact'}); Decisive=$false; Detail=$Detail
+                CorrelationLevel='Uncorrelated'
             })
             return
         }
         foreach ($target in $resolvedTargets) {
+            $targetRecord = if ($target.PSObject.Properties['Record']) { $target.Record } else { $target }
+            $matchKind = if ($target.PSObject.Properties['MatchKind']) { [string]$target.MatchKind } else { 'Token' }
             $decisive = [bool](-not $FolderOnly -and $KnownSpecific -and $Active)
             $strength = if ($decisive) { 'Strong' } else { 'Moderate' }
+            $correlationLevel = if ($matchKind -eq 'ExactPath' -and $resolvedTargets.Count -eq 1) { 'Direct' } elseif ($matchKind -eq 'VendorScope') { 'VendorShared' } else { 'Heuristic' }
             $evidence.Add([pscustomobject][ordered]@{
                 Code=$(if ($KnownSpecific) {'KnownActivator' + $Type} else {'SuspiciousActivator' + $Type})
                 Type=$Type; Source=$Type; Name=$Name; Location=$Location; RegistryPath=$RegistryPath
-                VendorScope=[string]$target.VendorScope; ApplicationId=[string]$target.ApplicationId; Strength=$strength
+                VendorScope=[string]$targetRecord.VendorScope; ApplicationId=[string]$targetRecord.ApplicationId; Strength=$strength
                 EvidenceGroup=$(if ($Active) {'ActivatorPersistence'} else {'ActivatorArtifact'}); Decisive=$decisive; Detail=$Detail
+                CorrelationLevel=$correlationLevel
             })
         }
     }
@@ -1316,7 +1334,7 @@ function Get-ThirdPartyStrongEvidence {
         $knownSpecific = [bool]($specificScope -or (Test-ToolSoftwareKnownActivatorText -Text $text))
         $generic = [bool]($knownSpecific -or $text -match $script:ToolSoftwareSuspiciousArtifactPattern)
         if (-not $generic) { continue }
-        $targets = if ($specificScope) { @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope) } else { @($record) }
+        $targets = @(Get-ThirdPartyEvidenceTargets -Text $text -ApplicationRecords $applicationRecords.ToArray() -SpecificVendorScope $specificScope)
         & $addEvidence 'InstalledActivator' ([string]$app.Name) ([string]$app.InstallLocation) ([string]$app.RegistryPath) `
             (Get-CleanupText "cleanupReport.thirdParty.evidence.installedActivator") $specificScope $knownSpecific $true $false $targets
     }
@@ -1425,44 +1443,11 @@ function Get-ThirdPartyLicenseStatePaths {
         [Parameter(Mandatory = $true)][ValidateSet('Adobe','Autodesk','WinRAR')][string]$RemediationAdapter,
         $Applications = @()
     )
-    $paths = New-Object System.Collections.Generic.List[object]
-    $candidates = @()
-    if ($RemediationAdapter -eq 'Adobe') {
-        $candidates = @(
-            (Join-Path $env:ProgramData 'Adobe\SLStore'),
-            (Join-Path $env:ProgramData 'Adobe\SLCache'),
-            $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Common Files\Adobe\Adobe PCD\cache\cache.db' }),
-            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Adobe\OOBE\opm.db' }),
-            $(if ($env:APPDATA) { Join-Path $env:APPDATA 'Adobe\OOBE\opm.db' })
-        ) | Where-Object { $_ }
-    } elseif ($RemediationAdapter -eq 'Autodesk') {
-        $candidates = @(
-            (Join-Path $env:ProgramData 'Autodesk\CLM\LGS'),
-            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Autodesk\Web Services\LoginState.xml' })
-        ) | Where-Object { $_ }
-        $flexRoot = Join-Path $env:ProgramData 'FLEXnet'
-        if (Test-Path -LiteralPath $flexRoot -PathType Container) {
-            $candidates += @(Get-ChildItem -LiteralPath $flexRoot -File -Filter 'adskflex_*_tsf.data*' -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
-        }
-    } else {
-        foreach ($application in @($Applications)) {
-            $root = Get-ThirdPartyNormalizedInstallRoot -Application $application
-            if ($root) { $candidates += (Join-Path $root 'rarreg.key') }
-        }
-        if ($env:APPDATA) { $candidates += (Join-Path $env:APPDATA 'WinRAR\rarreg.key') }
-        if ($env:ProgramData) { $candidates += (Join-Path $env:ProgramData 'WinRAR\rarreg.key') }
-    }
-    foreach ($path in @($candidates | Select-Object -Unique)) {
-        if (-not (Test-Path -LiteralPath $path)) { continue }
-        $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
-        if (-not $item -or (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { continue }
-        $paths.Add([pscustomobject][ordered]@{
-            Type=$(if ($item.PSIsContainer) { 'Folder' } else { 'File' })
-            Kind='ThirdPartyLicenseState'; Name=[string]$item.Name; Location=[string]$item.FullName
-            Detail=(Get-CleanupText "cleanupReport.thirdParty.plan.licenseState" @($RemediationAdapter)); Restorable=$false
-        })
-    }
-    return $paths.ToArray()
+    # A vendor licence store or local entitlement file may be legitimate.
+    # There is currently no vendor adapter that proves a precise
+    # local record is invalid, so never add it to an automatic plan.  Keep this
+    # function as an explicit fail-closed seam for a future verified adapter.
+    return @()
 }
 
 function Get-ThirdPartyRemediationPlan {
@@ -1490,26 +1475,26 @@ function Get-ThirdPartyRemediationPlan {
             'Folder' { $plan.Add([pscustomobject][ordered]@{ Type='Folder'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[string]$item.Name; Location=[string]$item.Location; Detail=[string]$item.Detail; Restorable=$false }) }
             'FileArtifact' {
                 if (Test-ThirdPartyArtifactPath -Path ([string]$item.Location) -Applications $Applications -AllowUserArtifactRoots) {
-                    $plan.Add([pscustomobject][ordered]@{
-                        Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[string]$item.Name; Location=[string]$item.Location
-                        Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.quarantineArtifact'); Restorable=$false
-                    })
+                    $artifactIdentity = Get-ThirdPartyArtifactExecutionIdentity -Path ([string]$item.Location)
+                    if ($artifactIdentity) {
+                        $plan.Add([pscustomobject][ordered]@{
+                            Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[string]$item.Name; Location=[string]$artifactIdentity.Path
+                            Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.quarantineArtifact'); Restorable=$false
+                            ExpectedSha256=[string]$artifactIdentity.Sha256; ExpectedLength=[int64]$artifactIdentity.Length
+                        })
+                    }
                 }
             }
         }
     }
-    # Vendor adapters reset shared licensing state, but the same applications
-    # can also carry exact hosts/firewall/file residue discovered by the
-    # per-application assessment. Include only those tightly scoped supporting
-    # actions so the post-check does not rediscover residue left beside a
-    # successful Adobe/Autodesk reset.
+    # Shared Adobe/Autodesk stores can belong to several products or accounts.
+    # Keep them intact; remediation is limited to direct artifacts and hosts
+    # entries belonging to a confirmed application.
     foreach ($supportingItem in @(Get-ThirdPartyGenericRemediationPlan -Applications $Applications | Where-Object {
-        [string]$_.Type -in @('File','Hosts','Firewall')
+        [string]$_.Type -in @('File','Hosts')
     })) { $plan.Add($supportingItem) }
-    # Preserve a vendor-confirmed shared license and every unverified rarreg.key.
-    if (-not $PreserveVendorLicenseState -and $RemediationAdapter -ne 'WinRAR') {
-        foreach ($statePath in @(Get-ThirdPartyLicenseStatePaths -RemediationAdapter $RemediationAdapter -Applications $Applications)) { $plan.Add($statePath) }
-    }
+    # State stores are deliberately never reset.  Proven artifacts are handled
+    # above; the product's actual entitlement remains for the vendor to verify.
     return @($plan.ToArray() |
         Group-Object { "$($_.Type)|$($_.Kind)|$($_.Name)|$($_.Location)" } |
         ForEach-Object { $_.Group[0] })
@@ -1535,25 +1520,6 @@ function Get-ThirdPartyNormalizedInstallRoot {
             }
             if (-not $isBroadRoot -and $full.Length -ge 8) { return $full }
         } catch {}
-    }
-    return ''
-}
-
-function Get-ThirdPartyMsiProductCode {
-    param($Applications)
-    $productCodePattern = '\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}'
-    foreach ($application in @($Applications | Sort-Object @{Expression={ if ([string]$_.SourceKind -eq 'Registry') { 0 } else { 1 } }})) {
-        $uninstall = [string]$application.UninstallString
-        $registryPath = [string]$application.RegistryPath
-        $isRegisteredMsi = [bool](
-            $uninstall -match '(?i)^\s*"?(?:[^"\\]+\\)?msiexec(?:\.exe)?"?\s+/(?:i|x)\s*\{[0-9a-f-]{36}\}' -or
-            $registryPath -match '(?i)\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\\{[0-9a-f-]{36}\}$'
-        )
-        if (-not $isRegisteredMsi) { continue }
-        foreach ($source in @($uninstall, $registryPath)) {
-            $match = [regex]::Match([string]$source, $productCodePattern)
-            if ($match.Success) { return $match.Value.ToUpperInvariant() }
-        }
     }
     return ''
 }
@@ -1616,6 +1582,34 @@ function Test-ThirdPartyArtifactPath {
     return $false
 }
 
+function Get-ThirdPartyArtifactExecutionIdentity {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+    try {
+        $fullPath = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path))
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) { return $null }
+        $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
+        $hash = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
+        if ($hash -notmatch '^[0-9A-F]{64}$') { return $null }
+        return [pscustomobject][ordered]@{
+            Path=$fullPath; Length=[int64]$item.Length; Sha256=$hash
+        }
+    } catch { return $null }
+}
+
+function Test-ThirdPartyArtifactExecutionIdentity {
+    param([AllowNull()][object]$Candidate)
+    if ($null -eq $Candidate -or [string]$Candidate.Type -ne 'File' -or [string]$Candidate.Kind -ne 'ThirdPartyUnauthorizedArtifact') { return $false }
+    if (-not ($Candidate.PSObject.Properties['ExpectedSha256'] -and $Candidate.PSObject.Properties['ExpectedLength'])) { return $false }
+    $expectedHash = [string]$Candidate.ExpectedSha256
+    $expectedLength = [int64]$Candidate.ExpectedLength
+    if ($expectedHash -notmatch '^[0-9A-F]{64}$' -or $expectedLength -lt 0) { return $false }
+    $current = Get-ThirdPartyArtifactExecutionIdentity -Path ([string]$Candidate.Location)
+    if ($null -eq $current) { return $false }
+    return [bool]($current.Sha256 -eq $expectedHash -and [int64]$current.Length -eq $expectedLength)
+}
+
 function Test-ThirdPartyApplicationPathScope {
     param([string]$Path, $Applications)
     if ([string]::IsNullOrWhiteSpace($Path) -or ([IO.Path]::GetExtension($Path)).ToLowerInvariant() -notin @('.exe','.com')) { return $false }
@@ -1629,7 +1623,7 @@ function Test-ThirdPartyApplicationPathScope {
         $representativePath = [string]$application.RepresentativePath
         if ($representativePath) {
             try {
-                if ([string]::Equals($fullPath, [IO.Path]::GetFullPath($representativePath), [StringComparison]::OrdinalIgnoreCase)) { return $true }
+            if ([string]::Equals($fullPath, [IO.Path]::GetFullPath($representativePath), [StringComparison]::OrdinalIgnoreCase)) { return $true }
             } catch {}
         }
         $root = Get-ThirdPartyNormalizedInstallRoot -Application $application
@@ -1691,7 +1685,9 @@ function Get-ThirdPartyHostsUpdate {
 function Get-ThirdPartyGenericRemediationPlan {
     param($Applications)
     $plan = New-Object System.Collections.Generic.List[object]
-    $allEvidence = @($Applications | ForEach-Object { @($_.Evidence) } |
+    $allEvidence = @($Applications | ForEach-Object { @($_.Evidence) } | Where-Object {
+        (Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -eq 'Direct'
+    } |
         Group-Object { "$($_.Code)|$($_.Source)|$($_.Detail)" } | ForEach-Object { $_.Group[0] })
 
     foreach ($item in $allEvidence) {
@@ -1699,10 +1695,14 @@ function Get-ThirdPartyGenericRemediationPlan {
         $detail = [string]$item.Detail
         if ($code -in @('UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName','KnownActivatorFileArtifact','SuspiciousActivatorFileArtifact') -and
             (Test-ThirdPartyArtifactPath -Path $detail -Applications $Applications -AllowUserArtifactRoots)) {
-            $plan.Add([pscustomobject][ordered]@{
-                Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[IO.Path]::GetFileName($detail)
-                Location=$detail; Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.quarantineArtifact'); Restorable=$false
-            })
+            $artifactIdentity = Get-ThirdPartyArtifactExecutionIdentity -Path $detail
+            if ($artifactIdentity) {
+                $plan.Add([pscustomobject][ordered]@{
+                    Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name=[IO.Path]::GetFileName([string]$artifactIdentity.Path)
+                    Location=[string]$artifactIdentity.Path; Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.quarantineArtifact'); Restorable=$false
+                    ExpectedSha256=[string]$artifactIdentity.Sha256; ExpectedLength=[int64]$artifactIdentity.Length
+                })
+            }
         } elseif ($code -eq 'LicenseDomainBlocked' -and $detail -match '^[A-Za-z0-9.-]{1,253}$') {
             $plan.Add([pscustomobject][ordered]@{
                 Type='Hosts'; Kind='ThirdPartyHostsEntry'; Name=$detail; Location=$detail
@@ -1713,31 +1713,19 @@ function Get-ThirdPartyGenericRemediationPlan {
             $applicationPath = ([string]$matches[2]).Trim()
             if ($ruleName.Length -le 256 -and (Test-ThirdPartyApplicationPathScope -Path $applicationPath -Applications $Applications)) {
                 $plan.Add([pscustomobject][ordered]@{
-                    Type='Firewall'; Kind='ThirdPartyFirewallBlock'; Name=$ruleName; Location=$applicationPath
+                    Type='Guidance'; Kind='ThirdPartyFirewallManualReview'; Name=$ruleName; Location=$applicationPath
                     Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.removeFirewallBlock'); Restorable=$false
                 })
             }
         }
     }
 
-    $productCode = Get-ThirdPartyMsiProductCode -Applications $Applications
     $hasUnauthorizedDistribution = [bool](@($allEvidence | Where-Object { [string]$_.Code -in @('KnownUnauthorizedName','CatalogUnauthorizedName') }).Count -gt 0)
-    $hasTamperedBinary = [bool](@($allEvidence | Where-Object { [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch','KnownBadFileHash','PaidBinaryNotSigned','ExpectedSignedFileNotSigned','UnexpectedCoreFileSigner') }).Count -gt 0)
     $displayName = @($Applications | Sort-Object @{Expression={ if ([string]$_.SourceKind -eq 'Registry') { 0 } else { 1 } }} | ForEach-Object { [string]$_.Name } | Where-Object { $_ } | Select-Object -First 1)
     if ($displayName.Count -eq 0) { $displayName = @((Get-CleanupText 'common.unknown')) }
-    # Không bao giờ gỡ ứng dụng để xử lý bản quyền. Với gói đóng lại/không
-    # chính thức, MSI Repair cũng không an toàn vì nguồn sửa chữa có thể tiếp
-    # tục chứa tệp đã can thiệp. Trường hợp đó chỉ được hướng dẫn cài lại thủ
-    # công từ nguồn chính thức; Tool chỉ tự Repair khi gói không bị nhận diện
-    # là bản phân phối trái phép và có bằng chứng tệp nhị phân bị sửa.
-    if ($productCode) {
-        if (-not $hasUnauthorizedDistribution -and $hasTamperedBinary) {
-            $plan.Add([pscustomobject][ordered]@{
-                Type='Repair'; Kind='ThirdPartyMsiRepair'; Name=[string]$displayName[0]; Location=$productCode
-                Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.msiRepair'); Restorable=$false
-            })
-        }
-    }
+    # Không chạy MSI Repair tự động cho phần mềm bên thứ ba. Nguồn cài đặt đã
+    # đăng ký có thể đã bị thay thế hoặc không còn cùng bản với lúc quét, nên
+    # việc sửa chỉ được hướng dẫn thủ công từ nguồn chính thức của hãng.
 
     $officialUrl = @($Applications | ForEach-Object { [string]$_.OfficialReferenceUrl } | Where-Object { $_ } | Select-Object -First 1)
     $plan.Add([pscustomobject][ordered]@{
@@ -1752,22 +1740,27 @@ function Get-ThirdPartyGenericRemediationPlan {
 
 function Test-ThirdPartyApplicationCleanupEligible {
     param([AllowNull()][object]$Application)
-    if ($null -eq $Application -or -not [bool]$Application.ManualEligible) { return $false }
-    if ($Application.PSObject.Properties['CleanupFinding'] -and -not [bool]$Application.CleanupFinding) { return $false }
-    if ($Application.PSObject.Properties['Confidence'] -and [string]$Application.Confidence -eq 'Low') { return $false }
-    foreach ($item in @($Application.Evidence)) {
-        if (Test-ToolSoftwareRemediationEvidence -Evidence $item) { return $true }
+    if ($null -eq $Application) { return $false }
+    if ($Application.PSObject.Properties['ArtifactCleanupAllowed']) { return [bool]$Application.ArtifactCleanupAllowed }
+    if ($Application.PSObject.Properties['RecoveryGate'] -and $Application.RecoveryGate) {
+        return [bool]$Application.RecoveryGate.ArtifactCleanupAllowed
     }
-    return $false
+    $adapter = if ($Application.PSObject.Properties['RemediationAdapter']) { [string]$Application.RemediationAdapter } else { '' }
+    $technicalState = if ($Application.PSObject.Properties['LicenseTechnicalState']) { [string]$Application.LicenseTechnicalState } else { '' }
+    $applicationEvidence = if ($Application.PSObject.Properties['Evidence']) { @($Application.Evidence) } else { @() }
+    $isSystemComponent = [bool]($Application.PSObject.Properties['IsSystemComponent'] -and [bool]$Application.IsSystemComponent)
+    $gate = Get-ToolSoftwareRecoveryGate -TechnicalState $technicalState -Evidence $applicationEvidence `
+        -IsSystemComponent:$isSystemComponent -RemediationAdapter $adapter
+    return [bool]$gate.ArtifactCleanupAllowed
 }
 
 function Get-ThirdPartyLicenseCandidates {
     param($Applications, $Evidence)
     $candidates = New-Object System.Collections.Generic.List[object]
     $adapterDefinitions = @(
-        [pscustomobject]@{ Adapter='Adobe'; EvidenceScope='Adobe'; Mode='VendorSharedReset' },
-        [pscustomobject]@{ Adapter='Autodesk'; EvidenceScope='Autodesk'; Mode='VendorSharedReset' },
-        [pscustomobject]@{ Adapter='WinRAR'; EvidenceScope='RARLAB'; Mode='LocalLicenseFileReset' }
+        [pscustomobject]@{ Adapter='Adobe'; EvidenceScope='Adobe'; Mode='ArtifactCleanupOnly' },
+        [pscustomobject]@{ Adapter='Autodesk'; EvidenceScope='Autodesk'; Mode='ArtifactCleanupOnly' },
+        [pscustomobject]@{ Adapter='WinRAR'; EvidenceScope='RARLAB'; Mode='ArtifactCleanupOnly' }
     )
     foreach ($adapterDefinition in $adapterDefinitions) {
         $adapter = [string]$adapterDefinition.Adapter
@@ -1776,17 +1769,18 @@ function Get-ThirdPartyLicenseCandidates {
         $vendorApps = @($vendorFamilyApps | Where-Object {
             [string]$_.RemediationAdapter -eq $adapter -and (Test-ThirdPartyApplicationCleanupEligible -Application $_)
         })
-        $vendorEvidence = @($Evidence | Where-Object { [string]$_.VendorScope -eq $vendorScope })
         if ($vendorApps.Count -eq 0) { continue }
-        $verifiedVendorLicense = [bool](@($vendorFamilyApps | Where-Object {
-            -not ($_.PSObject.Properties['CleanupFinding'] -and [bool]$_.CleanupFinding) -and
-            ([string]$_.AssessmentCode -eq 'GenuineVerified' -or [string]$_.LicenseTechnicalState -eq 'LocalLicenseVerified')
-        }).Count -gt 0)
-        $preserveVendorLicenseState = [bool]($adapter -eq 'WinRAR' -or $verifiedVendorLicense)
+        $vendorApplicationIds = @($vendorApps | ForEach-Object { [string]$_.Id } | Where-Object { $_ } | Select-Object -Unique)
+        $vendorEvidence = @($Evidence | Where-Object {
+            [string]$_.VendorScope -eq $vendorScope -and
+            (Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -eq 'Direct' -and
+            $vendorApplicationIds -contains [string]$_.ApplicationId
+        })
+        $licenseStateResetAllowed = $false
+        $preserveVendorLicenseState = $true
         $plan = @(Get-ThirdPartyRemediationPlan -RemediationAdapter $adapter -EvidenceScope $vendorScope -Evidence $vendorEvidence -Applications $vendorApps -PreserveVendorLicenseState:$preserveVendorLicenseState)
         if ($plan.Count -eq 0) { continue }
         $licenseStateCount = @($plan | Where-Object { [string]$_.Kind -eq 'ThirdPartyLicenseState' }).Count
-        $manualOnlyPlanCount = @($plan | Where-Object { [string]$_.Type -eq 'Firewall' }).Count
         $applicationNames = @($vendorApps | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
         $familyName = if ($adapter -in @('Adobe','Autodesk')) {
             Get-CleanupText ("cleanupReport.thirdParty.family." + $adapter.ToLowerInvariant())
@@ -1795,13 +1789,14 @@ function Get-ThirdPartyLicenseCandidates {
         }
         $strongEvidenceCount = [int](($vendorApps | Measure-Object -Property StrongEvidenceCount -Sum).Sum)
         $manualOnlyCount = [int]@($vendorApps | Where-Object { -not [bool]$_.AutoEligible }).Count
-        $remediationMode = if ($preserveVendorLicenseState) { 'ArtifactCleanupPreserveVerifiedLicense' } else { [string]$adapterDefinition.Mode }
+        $remediationMode = 'ArtifactCleanupOnly'
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $familyName `
             -Location ($applicationNames -join '; ') -TargetId $adapter `
             -Detail (Get-CleanupText "cleanupReport.thirdParty.candidateDetailExtended" @($vendorApps.Count, $strongEvidenceCount, $manualOnlyCount, $licenseStateCount)) `
-            -DefaultSelected $false -VendorScope $vendorScope -AutoEligible:([bool]($licenseStateCount -gt 0 -and $manualOnlyPlanCount -eq 0 -and @($vendorApps | Where-Object { [bool]$_.AutoEligible }).Count -gt 0)) `
+            -DefaultSelected $false -VendorScope $vendorScope -AutoEligible:$false `
             -ApplicationNames $applicationNames -ApplicationIds @($vendorApps | ForEach-Object { [string]$_.Id }) `
-            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode $remediationMode -ComponentScope 'ThirdParty'
+            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode $remediationMode -ComponentScope 'ThirdParty' `
+            -ArtifactCleanupAllowed $true -LicenseStateResetAllowed $licenseStateResetAllowed -RecoveryMode $remediationMode
         $candidates.Add($candidate)
     }
 
@@ -1819,7 +1814,9 @@ function Get-ThirdPartyLicenseCandidates {
         $plan = @(Get-ThirdPartyGenericRemediationPlan -Applications $groupApplications)
         $applicationNames = @($groupApplications | ForEach-Object { [string]$_.Name } | Where-Object { $_ } | Sort-Object -Unique)
         $applicationIds = @($groupApplications | ForEach-Object { [string]$_.Id } | Where-Object { $_ } | Select-Object -Unique)
-        $allEvidence = @($groupApplications | ForEach-Object { @($_.Evidence) } |
+        $allEvidence = @($groupApplications | ForEach-Object { @($_.Evidence) } | Where-Object {
+            (Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -eq 'Direct'
+        } |
             Group-Object { "$($_.Code)|$($_.Source)|$($_.Detail)" } | ForEach-Object { $_.Group[0] })
         $strongEvidenceCount = [int]@($allEvidence | Where-Object { [string]$_.Strength -in @('Conclusive','Strong') }).Count
         $decisiveEvidenceCount = [int]@($allEvidence | Where-Object {
@@ -1827,11 +1824,9 @@ function Get-ThirdPartyLicenseCandidates {
             return [bool]([string]$_.Strength -eq 'Conclusive' -or
                 [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch','KnownBadFileHash','KnownActivatorArtifact'))
         }).Count
-        $hasRepair = [bool](@($plan | Where-Object { [string]$_.Type -eq 'Repair' }).Count -gt 0)
-        $hasFirewallChange = [bool](@($plan | Where-Object { [string]$_.Type -eq 'Firewall' }).Count -gt 0)
-        $hasSafeAutomaticAction = [bool](@($plan | Where-Object { [string]$_.Type -in @('File','Hosts','Repair') }).Count -gt 0)
+        $hasSafeAutomaticAction = [bool](@($plan | Where-Object { [string]$_.Type -in @('File','Hosts') }).Count -gt 0)
         $hasUnauthorizedDistribution = [bool](@($allEvidence | Where-Object { [string]$_.Code -in @('KnownUnauthorizedName','CatalogUnauthorizedName') }).Count -gt 0)
-        $mode = if ($hasUnauthorizedDistribution) { 'ManualOfficialReinstall' } elseif ($hasRepair) { 'AutomaticOfficialRepair' } elseif ($hasSafeAutomaticAction) { 'ArtifactCleanup' } else { 'GuidedOfficialRepair' }
+        $mode = if ($hasUnauthorizedDistribution) { 'ManualOfficialReinstall' } elseif ($hasSafeAutomaticAction) { 'ArtifactCleanup' } else { 'GuidedOfficialRepair' }
         $displayName = if ($applicationNames.Count -le 1) { [string]$applicationNames[0] } else { ([string]$applicationNames[0] + ' (+' + ($applicationNames.Count - 1) + ')') }
         $location = @($groupApplications | ForEach-Object { Get-ThirdPartyNormalizedInstallRoot -Application $_ } | Where-Object { $_ } | Select-Object -First 1)
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $displayName `
@@ -1839,8 +1834,9 @@ function Get-ThirdPartyLicenseCandidates {
             -TargetId $(if ($applicationIds.Count -gt 0) { [string]$applicationIds[0] } else { [guid]::NewGuid().ToString('N') }) `
             -Detail (Get-CleanupText 'cleanupReport.thirdParty.candidateDetailGeneric' @($applicationNames.Count, $strongEvidenceCount, @($plan).Count, $mode)) `
             -DefaultSelected $false -VendorScope ([string]$groupApplications[0].VendorScope) `
-            -AutoEligible:([bool]($decisiveEvidenceCount -gt 0 -and $hasSafeAutomaticAction -and -not $hasUnauthorizedDistribution -and -not $hasFirewallChange)) `
-            -ApplicationNames $applicationNames -ApplicationIds $applicationIds -Evidence $allEvidence -PlanItems $plan -RemediationMode $mode -ComponentScope 'ThirdParty'
+            -AutoEligible:$false `
+            -ApplicationNames $applicationNames -ApplicationIds $applicationIds -Evidence $allEvidence -PlanItems $plan -RemediationMode $mode -ComponentScope 'ThirdParty' `
+            -ArtifactCleanupAllowed $true -LicenseStateResetAllowed $false -RecoveryMode 'ArtifactCleanupOnly'
         $candidates.Add($candidate)
     }
 
@@ -1858,17 +1854,22 @@ function Get-ThirdPartyLicenseCandidates {
         $artifactEvidence = @($artifactGroup.Group)[0]
         $artifactPath = [string]$artifactEvidence.Location
         if (-not (Test-ThirdPartyArtifactPath -Path $artifactPath -Applications $Applications -AllowUserArtifactRoots)) { continue }
+        $artifactIdentity = Get-ThirdPartyArtifactExecutionIdentity -Path $artifactPath
+        if (-not $artifactIdentity) { continue }
+        $artifactPath = [string]$artifactIdentity.Path
         $artifactName = [IO.Path]::GetFileName($artifactPath)
         $planItem = [pscustomobject][ordered]@{
             Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name=$artifactName; Location=$artifactPath
             Detail=(Get-CleanupText 'cleanupReport.thirdParty.plan.quarantineArtifact'); Restorable=$false
+            ExpectedSha256=[string]$artifactIdentity.Sha256; ExpectedLength=[int64]$artifactIdentity.Length
         }
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $artifactName `
             -Location $artifactPath -TargetId $artifactPath `
             -Detail (Get-CleanupText 'cleanupReport.thirdParty.candidateDetailStandalone' @($artifactName)) `
             -DefaultSelected $false -VendorScope 'Uncorrelated' -AutoEligible:$false `
             -ApplicationNames @($artifactName) -ApplicationIds @() -Evidence @($artifactGroup.Group) `
-            -PlanItems @($planItem) -RemediationMode 'ArtifactCleanup' -ComponentScope 'ThirdParty'
+            -PlanItems @($planItem) -RemediationMode 'ArtifactCleanupOnly' -ComponentScope 'ThirdParty' `
+            -ArtifactCleanupAllowed $true -LicenseStateResetAllowed $false -RecoveryMode 'ArtifactCleanupOnly'
         $candidates.Add($candidate)
     }
     return $candidates.ToArray()
@@ -1880,14 +1881,19 @@ function Connect-ThirdPartyApplicationsToCandidates {
         $applicationId = [string]$application.Id
         $candidate = @($Candidates | Where-Object { @($_.ApplicationIds) -contains $applicationId } | Select-Object -First 1)
         $application.TechnicalStatus = Get-ThirdPartyAssessmentStatusLabel -StatusCode ([string]$application.AssessmentCode)
-        $hasExecutablePlan = [bool]($candidate.Count -gt 0 -and @($candidate[0].PlanItems | Where-Object { [string]$_.Type -ne 'Guidance' }).Count -gt 0)
-        $supported = [bool]($candidate.Count -gt 0 -and [bool]$application.ManualEligible -and $hasExecutablePlan)
+        $safePlan = if ($candidate.Count -gt 0) { @(Get-ThirdPartyCandidateSafePlan -Candidate $candidate[0]) } else { @() }
+        $hasExecutablePlan = [bool](@($safePlan | Where-Object { [string]$_.Type -ne 'Guidance' }).Count -gt 0)
+        $applicationGateAllowed = [bool]($application.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$application.ArtifactCleanupAllowed)
+        $candidateGateAllowed = [bool]($candidate.Count -gt 0 -and $candidate[0].PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$candidate[0].ArtifactCleanupAllowed)
+        $supported = [bool]($candidate.Count -gt 0 -and $applicationGateAllowed -and $candidateGateAllowed -and $hasExecutablePlan)
         $assessmentAutoEligible = [bool]$application.AutoEligible
         $application.RemediationSupported = $supported
         $application | Add-Member -NotePropertyName AssessmentAutoEligible -NotePropertyValue $assessmentAutoEligible -Force
         $application.AutoEligible = [bool]($candidate.Count -gt 0 -and [bool]$candidate[0].AutoEligible)
         $application | Add-Member -NotePropertyName CleanupCandidateId -NotePropertyValue $(if ($candidate.Count -gt 0) { [string]$candidate[0].Id } else { '' }) -Force
         $application | Add-Member -NotePropertyName CleanupRemediationMode -NotePropertyValue $(if ($candidate.Count -gt 0) { [string]$candidate[0].RemediationMode } else { '' }) -Force
+        $application | Add-Member -NotePropertyName CleanupArtifactCleanupAllowed -NotePropertyValue $candidateGateAllowed -Force
+        $application | Add-Member -NotePropertyName CleanupLicenseStateResetAllowed -NotePropertyValue $(if ($candidate.Count -gt 0) {[bool]$candidate[0].LicenseStateResetAllowed} else {$false}) -Force
         $application | Add-Member -NotePropertyName CleanupGuidanceOnly -NotePropertyValue ([bool]($candidate.Count -gt 0 -and -not $hasExecutablePlan)) -Force
     }
 }
@@ -1959,7 +1965,13 @@ function New-CleanupItem {
         $PlanItems = @(),
         [string]$RemediationMode = '',
         [string]$ComponentScope = '',
-        [string]$IdentitySeed = ''
+        [bool]$ArtifactCleanupAllowed = $false,
+        [bool]$LicenseStateResetAllowed = $false,
+        [string]$RecoveryMode = '',
+        [string]$RecoveryBlockReason = '',
+        [string]$IdentitySeed = '',
+        [string]$ExpectedSha256 = '',
+        [int64]$ExpectedLength = -1
     )
     $idMaterial = if ([string]::IsNullOrWhiteSpace($IdentitySeed)) {
         $Type + "|" + $Kind + "|" + $Name + "|" + $Location
@@ -1985,7 +1997,39 @@ function New-CleanupItem {
         PlanItems = @($PlanItems)
         RemediationMode = $RemediationMode
         ComponentScope = $ComponentScope
+        ArtifactCleanupAllowed = $ArtifactCleanupAllowed
+        LicenseStateResetAllowed = $LicenseStateResetAllowed
+        RecoveryMode = $RecoveryMode
+        RecoveryBlockReason = $RecoveryBlockReason
+        ExpectedSha256 = $ExpectedSha256
+        ExpectedLength = $ExpectedLength
     }
+}
+
+function Get-ThirdPartyCandidateSafePlan {
+    param([AllowNull()][object]$Candidate)
+    if ($null -eq $Candidate -or [string]$Candidate.Type -ne 'Application') { return @() }
+    # Candidate IDs, not plan content, cross the elevation boundary.  Still
+    # enforce the recovery gate here so an older/forged plan cannot reset a
+    # license store merely by reaching the Administrator process.
+    if (-not ($Candidate.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$Candidate.ArtifactCleanupAllowed)) { return @() }
+    $allowLicenseStateReset = [bool]($Candidate.PSObject.Properties['LicenseStateResetAllowed'] -and [bool]$Candidate.LicenseStateResetAllowed)
+    $safe = New-Object System.Collections.Generic.List[object]
+    foreach ($planItem in @($Candidate.PlanItems)) {
+        $type = [string]$planItem.Type
+        $kind = [string]$planItem.Kind
+        if ($type -in @('Uninstall','Firewall') -or $kind -notmatch '^ThirdParty') { continue }
+        if ($kind -eq 'ThirdPartyLicenseState' -and -not $allowLicenseStateReset) { continue }
+        # The elevated executor can revalidate an exact file path or a bounded
+        # hosts entry.  Process/service/task/registry/folder operations are
+        # vulnerable to target replacement between scan and execution, so they
+        # remain visible as guidance until they gain identity revalidation.
+        if ($type -notin @('File','Hosts','Guidance')) { continue }
+        if ($type -eq 'File' -and $kind -ne 'ThirdPartyUnauthorizedArtifact') { continue }
+        if ($type -eq 'Hosts' -and $kind -ne 'ThirdPartyHostsEntry') { continue }
+        $safe.Add($planItem)
+    }
+    return $safe.ToArray()
 }
 
 function Get-DeepCleanupCandidates {
@@ -2848,7 +2892,7 @@ function Get-ThirdPartyOfficialLicenseOutcomes {
             LicenseModel=$licenseModel; Applicable=$applicable; StateCode=$stateCode
             OfficiallyLicensed=$confirmed; VendorConfirmed=$confirmed; CrackFree=[bool]($stateCode -ne 'CrackEvidencePresent')
             RequiresOfficialActivation=[bool]($stateCode -in @('Unactivated','Unverified'))
-            NeedsRepair=[bool]($stateCode -eq 'NeedsRepair'); Source='VendorSpecificProbe'
+            NeedsRepair=[bool]($stateCode -eq 'NeedsRepair'); Source='DerivedLocalAssessment'
             OfficialActionCode=$actionCode; OfficialActionTarget=$officialUrl
         })
     }
@@ -3640,17 +3684,20 @@ function Invoke-DeepCleanupV35 {
     $expanded = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in @($selectedTopLevel | Where-Object { $_.Type -ne 'Application' })) { $expanded.Add($candidate) }
     foreach ($applicationCandidate in @($selectedTopLevel | Where-Object { $_.Type -eq 'Application' })) {
-        foreach ($planItem in @($applicationCandidate.PlanItems)) {
+        $safePlan = @(Get-ThirdPartyCandidateSafePlan -Candidate $applicationCandidate)
+        foreach ($planItem in $safePlan) {
             $child = New-CleanupItem -Type ([string]$planItem.Type) -Kind ([string]$planItem.Kind) `
                 -Name ([string]$planItem.Name) -Location ([string]$planItem.Location) -Detail ([string]$planItem.Detail) `
-                -TargetId ([string]$applicationCandidate.TargetId) -VendorScope ([string]$applicationCandidate.VendorScope) -ComponentScope 'ThirdParty'
+                -TargetId ([string]$applicationCandidate.TargetId) -VendorScope ([string]$applicationCandidate.VendorScope) -ComponentScope 'ThirdParty' `
+                -ExpectedSha256 $(if ($planItem.PSObject.Properties['ExpectedSha256']) { [string]$planItem.ExpectedSha256 } else { '' }) `
+                -ExpectedLength $(if ($planItem.PSObject.Properties['ExpectedLength']) { [int64]$planItem.ExpectedLength } else { -1 })
             $restorable = $true
             if ($planItem.PSObject.Properties['Restorable']) { $restorable = [bool]$planItem.Restorable }
             $child | Add-Member -NotePropertyName Restorable -NotePropertyValue $restorable -Force
             $child | Add-Member -NotePropertyName ParentCandidateId -NotePropertyValue ([string]$applicationCandidate.Id) -Force
             $expanded.Add($child)
         }
-        $actions.Add((Get-CleanupText "cleanupReport.thirdParty.action.planExpanded" @($applicationCandidate.Name, @($applicationCandidate.PlanItems).Count)))
+        $actions.Add((Get-CleanupText "cleanupReport.thirdParty.action.planExpanded" @($applicationCandidate.Name, $safePlan.Count)))
     }
     $selected = @($expanded.ToArray() | Group-Object Id | ForEach-Object { $_.Group[0] })
 
@@ -3949,6 +3996,12 @@ function Invoke-DeepCleanupV35 {
 
     foreach ($candidate in @($selected | Where-Object { $_.Type -eq "File" })) {
         try {
+            if ([string]$candidate.Kind -eq 'ThirdPartyUnauthorizedArtifact' -and -not (Test-ThirdPartyArtifactExecutionIdentity -Candidate $candidate)) {
+                $message = Get-CleanupText 'cleanupReport.thirdParty.execution.identityChanged'
+                $actions.Add($message)
+                Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'PolicyBlocked' -Changed $false -Message $message
+                continue
+            }
             if (-not (Test-Path -LiteralPath $candidate.Location -PathType Leaf)) {
                 Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'NoChange' -Changed $false -Message (Get-CleanupText 'cleanupReport.thirdParty.execution.targetMissing')
                 continue
@@ -4204,26 +4257,6 @@ function Invoke-DeepCleanupV35 {
         }
     }
 
-    foreach ($candidate in @($selected | Where-Object { [string]$_.Type -eq 'Repair' -and [string]$_.Kind -eq 'ThirdPartyMsiRepair' })) {
-        try {
-            $productCode = ([string]$candidate.Location).Trim().ToUpperInvariant()
-            if ($productCode -notmatch '^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$') { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiScopeRejected') }
-            Add-RestoreItem ([pscustomobject]@{
-                Type='RepairNotice'; Name=[string]$candidate.Name; OriginalPath=$productCode
-                BackupPath=''; Kind=[string]$candidate.Kind; Restorable=$false
-            })
-            $result = Invoke-CleanupNativeCommandWithTimeout -FilePath $nativeMsiExecPath -Arguments @('/fa', $productCode, '/qn', '/norestart') -TimeoutSeconds 300
-            if ($result.TimedOut) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiTimedOut' @(300)) }
-            if ([int]$result.ExitCode -notin @(0, 3010)) { throw (Get-CleanupText 'cleanupReport.thirdParty.action.msiExitCode' @($result.ExitCode, $result.Output)) }
-            $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiRepairCompleted' @($candidate.Name, $result.ExitCode)))
-            $systemChangeCount++
-            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'SucceededNeedsVerification' -Changed $true -Message ([string]$candidate.Detail)
-        } catch {
-            $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.msiRepairFailed' @($candidate.Name, $_.Exception.Message)))
-            Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'Failed' -Changed $false -Message ([string]$_.Exception.Message)
-        }
-    }
-
     foreach ($candidate in @($selected | Where-Object { [string]$_.Type -eq 'Guidance' -and [string]$_.Kind -eq 'ThirdPartyOfficialSource' })) {
         $actions.Add((Get-CleanupText 'cleanupReport.thirdParty.action.officialSourceRequired' @($candidate.Name, $(if ($candidate.Location) { [string]$candidate.Location } else { Get-CleanupText 'common.unknown' }))))
         Add-ThirdPartyExecutionResult -Candidate $candidate -Status 'GuidanceOnly' -Changed $false -Message ([string]$candidate.Detail)
@@ -4362,10 +4395,12 @@ function Expand-SelectedCleanupCandidates {
             $expanded.Add($candidate)
             continue
         }
-        foreach ($planItem in @($candidate.PlanItems)) {
+        foreach ($planItem in @(Get-ThirdPartyCandidateSafePlan -Candidate $candidate)) {
             $child = New-CleanupItem -Type ([string]$planItem.Type) -Kind ([string]$planItem.Kind) `
                 -Name ([string]$planItem.Name) -Location ([string]$planItem.Location) -Detail ([string]$planItem.Detail) `
-                -TargetId ([string]$candidate.TargetId) -VendorScope ([string]$candidate.VendorScope) -ComponentScope 'ThirdParty'
+                -TargetId ([string]$candidate.TargetId) -VendorScope ([string]$candidate.VendorScope) -ComponentScope 'ThirdParty' `
+                -ExpectedSha256 $(if ($planItem.PSObject.Properties['ExpectedSha256']) { [string]$planItem.ExpectedSha256 } else { '' }) `
+                -ExpectedLength $(if ($planItem.PSObject.Properties['ExpectedLength']) { [int64]$planItem.ExpectedLength } else { -1 })
             $restorable = $true
             if ($planItem.PSObject.Properties['Restorable']) { $restorable = [bool]$planItem.Restorable }
             $child | Add-Member -NotePropertyName Restorable -NotePropertyValue $restorable -Force
@@ -4425,7 +4460,6 @@ function Get-DryRunRemediationPlan {
             'Folder' { $actionCode='QuarantineFolder'; $action=Get-CleanupText 'cleanupReport.dryRun.action.quarantineFolder'; $changesSystem=$true; $backupPlanned=$true; $restorable=[bool]([string]$kind -notmatch '^(Activator|ThirdParty)') }
             'Hosts' { $actionCode='BackupAndRemoveHostsEntry'; $action=Get-CleanupText 'cleanupReport.dryRun.action.cleanHosts'; $changesSystem=$true; $backupPlanned=$true; $restorable=$true }
             'Firewall' { $actionCode='RemoveScopedFirewallBlock'; $action=Get-CleanupText 'cleanupReport.dryRun.action.removeFirewallBlock'; $changesSystem=$true; $backupPlanned=$true; $restorable=$false }
-            'Repair' { $actionCode='RepairMsiProduct'; $action=Get-CleanupText 'cleanupReport.dryRun.action.repairMsi'; $changesSystem=$true }
             'Uninstall' { $actionCode='BlockApplicationUninstall'; $action=Get-CleanupText 'cleanupReport.thirdParty.action.softwareUninstallBlocked' @($candidate.Name); $changesSystem=$false }
             'License' {
                 if ($kind -eq 'WindowsKmsLicense') { $actionCode='RemoveWindowsKmsLicense'; $action=Get-CleanupText 'cleanupReport.dryRun.action.removeWindowsKms' }

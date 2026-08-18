@@ -3116,6 +3116,16 @@ function Start-SoftwareCatalogOnlineUpdate {
 
     $script:softwareCatalogAutoScan = $false
     $script:softwareCatalogAutoScanScope = "ThirdParty"
+    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne '0' -or
+        -not (Test-ToolNetworkActionAllowed -Scope Internet)) {
+        $offlineMessage = Get-DashboardText 'foundation.offline.actionBlocked' @((Get-DashboardText 'software.online.action'))
+        $status.Text = $offlineMessage
+        $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        [System.Windows.Forms.MessageBox]::Show(
+            $offlineMessage,
+            (Get-DashboardText 'software.online.consentTitle'), 'OK', 'Warning') | Out-Null
+        return
+    }
     $consent = [System.Windows.Forms.MessageBox]::Show(
         (Get-DashboardText "software.online.consentMessage"),
         (Get-DashboardText "software.online.consentTitle"),
@@ -3572,6 +3582,8 @@ function Invoke-PendingApplicationUpdateWork {
 function Get-AutomaticSafeCleanupItems {
     param($CleanupItems)
 
+    # Third-party licensing actions are always manual-selection only.  The
+    # automatic path is limited to the Windows registry allowlist below.
     return @($CleanupItems | Where-Object {
         $type = [string]$_.Type
         $kind = [string]$_.Kind
@@ -3579,7 +3591,7 @@ function Get-AutomaticSafeCleanupItems {
         ($type -eq "Registry" -and (
             ($kind -eq "KmsOverride" -and (Test-ToolRegistryValueRestoreAllowed -Path $path -ValueName "KeyManagementServiceName")) -or
             ($kind -eq "SppNoGenTicketPolicy" -and (Test-ToolRegistryValueRestoreAllowed -Path $path -ValueName "NoGenTicket"))
-        )) -or ($type -eq 'Application' -and [bool]$_.AutoEligible)
+        ))
     })
 }
 
@@ -3980,8 +3992,16 @@ function Test-GuiThirdPartyDirectRemediationEvidence {
     if (-not (Test-GuiThirdPartyCleanupFinding -Application $Application)) { return $false }
     if (-not $Application.PSObject.Properties['CleanupCandidateId'] -or
         -not $Application.PSObject.Properties['RemediationSupported']) { return $false }
-    return [bool](-not [string]::IsNullOrWhiteSpace([string]$Application.CleanupCandidateId) -and
+    $hasCandidate = [bool](-not [string]::IsNullOrWhiteSpace([string]$Application.CleanupCandidateId) -and
         [bool]$Application.RemediationSupported)
+    if (-not $hasCandidate) { return $false }
+    if ($Application.PSObject.Properties['StandaloneArtifact'] -and [bool]$Application.StandaloneArtifact) {
+        return [bool]($Application.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$Application.ArtifactCleanupAllowed -and
+            $Application.PSObject.Properties['CleanupArtifactCleanupAllowed'] -and [bool]$Application.CleanupArtifactCleanupAllowed)
+    }
+    if (-not ($Application.PSObject.Properties['LicenseTechnicalState'] -and [string]$Application.LicenseTechnicalState -eq 'CrackConfirmed')) { return $false }
+    if (-not ($Application.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$Application.ArtifactCleanupAllowed)) { return $false }
+    return [bool]($Application.PSObject.Properties['CleanupArtifactCleanupAllowed'] -and [bool]$Application.CleanupArtifactCleanupAllowed)
 }
 
 function Get-GuiThirdPartyCleanupFindings {
@@ -4002,6 +4022,11 @@ function Get-GuiThirdPartyStandaloneCleanupRows {
             Confidence='Medium'; Evidence=@($candidate.Evidence); NeedsReview=$true; CleanupFinding=$true
             RemediationSupported=$true; CleanupCandidateId=[string]$candidate.Id
             CleanupRemediationMode=[string]$candidate.RemediationMode; OfficialReferenceUrl=''
+            StandaloneArtifact=$true; LicenseTechnicalState='ArtifactConfirmed'
+            ArtifactCleanupAllowed=[bool]$candidate.ArtifactCleanupAllowed
+            CleanupArtifactCleanupAllowed=[bool]$candidate.ArtifactCleanupAllowed
+            CleanupLicenseStateResetAllowed=[bool]$candidate.LicenseStateResetAllowed
+            RecoveryMode=[string]$candidate.RecoveryMode
         })
     }
     return $rows.ToArray()
@@ -4210,8 +4235,7 @@ function Show-ThirdPartyAssessmentResults {
         $actionText = if ($actionable) {
             $actionDetail = switch ($remediationMode) {
                 'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
-                'LocalLicenseFileReset' { Get-DashboardText "software.results.action.localLicenseReset" }
-                'AutomaticOfficialRepair' { Get-DashboardText "software.results.action.automaticRepair" }
+                'ArtifactCleanupOnly' { Get-DashboardText "software.results.action.artifactCleanupOnly" }
                 'ArtifactCleanup' { Get-DashboardText "software.results.action.artifactCleanup" }
                 'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
                 default { Get-DashboardText "software.results.action.guidedRepair" }

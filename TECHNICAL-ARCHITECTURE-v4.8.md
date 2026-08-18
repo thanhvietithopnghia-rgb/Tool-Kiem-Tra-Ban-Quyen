@@ -116,13 +116,13 @@ Build/revision mới hơn catalog được trả về `AheadOfCatalog`/`FutureRe
 1. tạo tối đa hai root an toàn, riêng cho ứng dụng; loại ổ đĩa gốc, `Windows`, `Program Files`, `ProgramData`, profile/AppData gốc và reparse point;
 2. duyệt breadth-first có giới hạn thời gian, độ sâu, entry và số tệp; cache snapshot theo root để các bản ghi trùng ứng dụng không quét lại;
 3. ưu tiên executable/DLL quan trọng, tệp cấp phép, artifact và EXE tầng nông; phân phối ngân sách Authenticode có trọng số cao hơn cho phần mềm trả phí/dùng thử/có dấu vết nhưng vẫn dự trù lượt cho nhóm chưa biết và miễn phí;
-4. chỉ tính SHA-256 khi catalog cung cấp hash xấu, cache theo đường dẫn/kích thước/mtime và chỉ cho hash từ catalog tích hợp hoặc bản cache giống byte-for-byte tạo bằng chứng quyết định;
-5. tương quan IFEO, outbound firewall block, dịch vụ cấp phép Disabled, autorun, task/service/process/folder và hosts với đúng application ID hoặc phạm vi hãng thực;
+4. chỉ tính SHA-256 khi catalog cung cấp hash xấu, cache theo đường dẫn/kích thước/mtime và chỉ cho hash từ catalog tích hợp hoặc cache online đã qua signer ghim/schema/chống rollback đóng góp bằng chứng quyết định;
+5. ghi rõ mức tương quan `Direct`, `VendorShared`, `Heuristic` hoặc `Uncorrelated`: chỉ exact install/representative path hoặc hash đã kiểm chứng mới là `Direct`; token tên phần mềm chỉ là `Heuristic` và phạm vi hãng không mở quyền khắc phục;
 6. gom bằng chứng theo `Conclusive`, `Strong`, `Moderate`, `Weak` và nhóm độc lập. `NonGenuine` cần bằng chứng quyết định hoặc ít nhất hai nhóm mạnh độc lập; một dấu hiệu không đủ chỉ là `Suspicious`.
 
 Metadata báo cáo ghi Administrator, Complete, số ứng dụng/root/tệp, chữ ký/hash, timeout, giới hạn và cảnh báo truy cập. Không có bằng chứng hoặc độ phủ chưa hoàn tất luôn giữ `Unverified`; pipeline không xác minh quyền sở hữu pháp lý từ tài khoản/hóa đơn của nhà sản xuất.
 
-Catalogue phần mềm `1.4.0.1` có 77 quy tắc duy nhất và chữ ký CMS tách rời, bổ sung IObit Driver Booster, WIRIS MathType, PDF editor thương mại và IDM, đồng thời bao phủ phần mềm kỹ thuật và nhiều ứng dụng văn phòng, phát triển, cơ sở dữ liệu, media, mạng và bảo mật. Record Registry/Appx/shortcut được gộp theo identity tương thích; thành phần hệ thống được gắn `IsSystemComponent`. Mô hình giấy phép và bằng chứng can thiệp được đánh giá độc lập; quy tắc chỉ tăng độ chính xác nhận diện/signature/domain/artifact, còn scoring fail-closed vẫn áp dụng như mọi phần mềm khác và mức `Low` không tạo hành động xóa.
+Catalogue phần mềm `1.4.0.1` có 77 quy tắc duy nhất và chữ ký CMS tách rời, bổ sung IObit Driver Booster, WIRIS MathType, PDF editor thương mại và IDM, đồng thời bao phủ phần mềm kỹ thuật và nhiều ứng dụng văn phòng, phát triển, cơ sở dữ liệu, media, mạng và bảo mật. Record Registry/Appx/shortcut được gộp theo identity tương thích; thành phần hệ thống được gắn `IsSystemComponent`. Mô hình giấy phép và bằng chứng can thiệp được đánh giá độc lập; quy tắc chỉ tăng độ chính xác nhận diện/signature/domain/artifact, còn scoring fail-closed vẫn áp dụng như mọi phần mềm khác và mức `Low` không tạo hành động xóa. Khi đã có bằng chứng trực tiếp, Tool chỉ cách ly đúng artifact có hash/kích thước được kiểm tra lại hoặc sửa hosts có giới hạn; không reset kho license Adobe/Autodesk/WinRAR, và process/service/task/registry/folder chỉ để hướng dẫn thủ công cho tới khi có identity revalidation riêng.
 
 ## Dry Run khắc phục
 
@@ -155,7 +155,7 @@ Mỗi descriptor gồm:
 - điều kiện: `RequiredCapabilities`;
 - ánh xạ `ExitCodeMap`.
 
-`NetworkScope=LocalOnly` là offline-capable. `license.manager` chỉ mở giao diện chứa đủ ba chức năng nên là `LocalOnly`; `enterprise.server` và `enterprise.agent` khai báo `Lan`. `software.catalog.update` khai báo `Internet`; trình cập nhật ứng dụng và đồng bộ tri thức Trợ lý cũng đi qua Offline gate riêng, chỉ dùng HTTPS GET tới host/path allowlist và không thay đổi mặc định Offline của lần mở sau. Đồng bộ Trợ lý tải đúng hai byte-stream cố định (JSON và `.p7s`), giới hạn lần lượt 2 MiB/64 KiB, không redirect, xác minh detached CMS SHA-256 bằng fingerprint SHA-256 của chứng thư RSA đã ghim, rồi mới kiểm tra schema/phạm vi/phiên bản và cài cache có rollback. Không có POST, telemetry hoặc mô hình tự huấn luyện từ Internet.
+`NetworkScope=LocalOnly` là offline-capable. `license.manager` chỉ mở giao diện chứa đủ ba chức năng nên là `LocalOnly`; `enterprise.server` và `enterprise.agent` khai báo `Lan`. `software.catalog.update` khai báo `Internet`; GUI, worker và cả network boundary trong module catalog đều nạp/kiểm tra Offline policy fail-closed, nên gọi trực tiếp module cũng không thể mở HTTP khi Offline. Trình cập nhật ứng dụng và đồng bộ tri thức Trợ lý cũng đi qua Offline gate riêng, chỉ dùng HTTPS GET tới host/path allowlist và không thay đổi mặc định Offline của lần mở sau. Đồng bộ Trợ lý tải đúng hai byte-stream cố định (JSON và `.p7s`), giới hạn lần lượt 2 MiB/64 KiB, không redirect, xác minh detached CMS SHA-256 bằng fingerprint SHA-256 của chứng thư RSA đã ghim, rồi mới kiểm tra schema/phạm vi/phiên bản và cài cache có rollback. Không có POST, telemetry hoặc mô hình tự huấn luyện từ Internet.
 
 ## Báo cáo
 

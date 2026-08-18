@@ -46,9 +46,9 @@ Mục 8 dùng preference riêng, mặc định `Allowed=false`, độc lập v�
 
 - Không tự chạy và không phụ thuộc công tắc LAN của Mục 8.
 - Mỗi lần chạy đều hiển thị nội dung sẽ tải, dữ liệu không gửi đi và yêu cầu xác nhận Yes/No; mặc định là No.
-- Chỉ chấp nhận HTTPS, host `raw.githubusercontent.com`, phương thức GET, không redirect và tối đa 2 MiB.
+- Chỉ chấp nhận đúng hai URL HTTPS cố định trên `raw.githubusercontent.com` (JSON và `.p7s`), phương thức GET, không redirect và tối đa 2 MiB.
 - Catalog tải về phải qua kiểm tra schema/quy tắc trước khi ghi cache. Nếu tải lỗi, người dùng có thể tiếp tục quét bằng catalog cục bộ/cache hợp lệ.
-- Catalog cache khác catalog tích hợp không được tạo bằng chứng hash/tên activator mang tính quyết định; không có kết nối mạng nào được dùng để tải inventory lên hoặc hỏi trạng thái giấy phép tài khoản.
+- Chỉ catalog tích hợp hoặc cache online có chữ ký CMS hợp lệ từ signer đã ghim, qua schema và chống rollback mới được đóng góp bằng chứng hash/tên activator. GUI, worker và module catalog đều tự chặn ở network boundary khi Offline, kể cả khi module bị gọi trực tiếp. Dù vậy, Tool vẫn cần bằng chứng crack trực tiếp gắn đúng ứng dụng trước khi cho phép cách ly đúng artifact; không có kết nối mạng nào được dùng để tải inventory lên hoặc hỏi trạng thái giấy phép tài khoản.
 
 ## Kiểm tra và cài phiên bản mới
 

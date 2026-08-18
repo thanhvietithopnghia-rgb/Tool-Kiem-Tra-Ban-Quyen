@@ -5,9 +5,12 @@ $script:ToolSoftwareCatalogSignatureFileName = 'software-license-catalog-v1.0.js
 $script:ToolSoftwareCatalogDefaultUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json'
 $script:ToolSoftwareCatalogSignatureDefaultUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json.p7s'
 $script:ToolSoftwareCatalogAllowedHosts = @('raw.githubusercontent.com')
+$script:ToolSoftwareCatalogAllowedUris = @($script:ToolSoftwareCatalogDefaultUrl, $script:ToolSoftwareCatalogSignatureDefaultUrl)
+$script:ToolSoftwareCatalogAllowedRemediationAdapters = @('Adobe','Autodesk','WinRAR')
 $script:ToolSoftwareCatalogSignerCertificateSha256 = '90857DC1698CDDEAF7C405F5991992E6615D28299A78C7D1445A1B504F8044C3'
 $script:ToolSoftwareCatalogMaximumBytes = 2097152
 $script:ToolSoftwareCatalogMaximumSignatureBytes = 65536
+$script:ToolSoftwareOfflinePolicyPath = Join-Path $PSScriptRoot 'Tool-OfflinePolicy.ps1'
 $script:ToolSoftwareSignatureCache = @{}
 $script:ToolSoftwareFileHashCache = @{}
 $script:ToolSoftwareLocationEvidenceCache = @{}
@@ -34,6 +37,25 @@ function Reset-ToolSoftwareInventoryCaches {
     $script:ToolSoftwareDeepSystemSnapshotCache = $null
     $script:ToolSoftwareLastDeepScanMetadata = $null
     $script:ToolSoftwareCatalogTrustCache = @{}
+}
+
+function Assert-ToolSoftwareCatalogNetworkAllowed {
+    # This module is callable directly, outside the GUI/worker that normally
+    # loads Tool-OfflinePolicy.ps1.  Load it here or fail closed before any
+    # HTTP request is created, so direct callers cannot bypass Offline mode.
+    if (-not (Get-Command Test-ToolNetworkActionAllowed -CommandType Function -ErrorAction SilentlyContinue)) {
+        if (-not (Test-Path -LiteralPath $script:ToolSoftwareOfflinePolicyPath -PathType Leaf)) {
+            throw 'Catalog update is blocked because the Offline policy is unavailable.'
+        }
+        . $script:ToolSoftwareOfflinePolicyPath
+    }
+    if (-not (Get-Command Test-ToolNetworkActionAllowed -CommandType Function -ErrorAction SilentlyContinue)) {
+        throw 'Catalog update is blocked because the Offline policy could not be loaded.'
+    }
+    if (-not (Test-ToolNetworkActionAllowed -Scope Internet)) {
+        throw 'Catalog update is blocked by Offline mode.'
+    }
+    return $true
 }
 
 function Test-ToolSoftwareKnownActivatorText {
@@ -98,6 +120,18 @@ function Get-ToolSoftwareCatalogCachePath {
 
 function Get-ToolSoftwareCatalogCacheSignaturePath {
     $catalogPath = Get-ToolSoftwareCatalogCachePath
+    if ([string]::IsNullOrWhiteSpace($catalogPath)) { return '' }
+    return $catalogPath + '.p7s'
+}
+
+function Get-ToolSoftwareCatalogPreviousCachePath {
+    $catalogPath = Get-ToolSoftwareCatalogCachePath
+    if ([string]::IsNullOrWhiteSpace($catalogPath)) { return '' }
+    return $catalogPath + '.previous'
+}
+
+function Get-ToolSoftwareCatalogPreviousCacheSignaturePath {
+    $catalogPath = Get-ToolSoftwareCatalogPreviousCachePath
     if ([string]::IsNullOrWhiteSpace($catalogPath)) { return '' }
     return $catalogPath + '.p7s'
 }
@@ -201,10 +235,12 @@ function Test-ToolSoftwareCatalogObject {
         $productId = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'Id'
         $rawLicenseModel = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'LicenseModel'
         $officialUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'OfficialUrl'
+        $remediationAdapter = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'RemediationAdapter'
         if ([string]::IsNullOrWhiteSpace($productId) -or $productId -notmatch '^[a-z0-9][a-z0-9-]{1,95}$' -or $productIds.ContainsKey($productId) -or
             [string]::IsNullOrWhiteSpace($rawLicenseModel) -or
             $rawLicenseModel -notin @('Free','Freeware','OpenSource','Freemium','Trial','Trialware','Paid','Commercial','Perpetual','Subscription','Unknown','Mixed','SystemComponent','Driver','Runtime') -or
             ($officialUrl -and $officialUrl -notmatch '^https://') -or
+            ($remediationAdapter -and $script:ToolSoftwareCatalogAllowedRemediationAdapters -notcontains $remediationAdapter) -or
             $namePatterns.Count -eq 0) { return $false }
         $productIds[$productId] = $true
         $allPatterns = New-Object System.Collections.Generic.List[object]
@@ -253,7 +289,7 @@ function Import-ToolSoftwareCatalogFile {
         $catalog | Add-Member -NotePropertyName CatalogSha256 -NotePropertyValue (Get-ToolSoftwareSha256Bytes -Bytes $contentBytes) -Force
         $catalog | Add-Member -NotePropertyName CatalogSignatureValid -NotePropertyValue ([bool]$signatureValid) -Force
         $catalog | Add-Member -NotePropertyName CatalogSignaturePath -NotePropertyValue $(if ($signatureValid) {[IO.Path]::GetFullPath($SignaturePath)} else {''}) -Force
-        if ($signatureValid -and $Source -in @('Bundled','OnlineCache')) {
+        if ($signatureValid -and $Source -in @('Bundled','OnlineCache','OnlinePreviousCache')) {
             $semanticSha256 = Get-ToolSoftwareCatalogSemanticSha256 -Catalog $catalog
             if (-not [string]::IsNullOrWhiteSpace($semanticSha256)) {
                 if ($script:ToolSoftwareTrustedCatalogReferences.Count -ge 32) { $script:ToolSoftwareTrustedCatalogReferences.RemoveAt(0) }
@@ -273,7 +309,13 @@ function Get-ToolSoftwareLicenseCatalog {
     $cache = $null
     $cachePath = Get-ToolSoftwareCatalogCachePath
     if ($PreferCache -and -not [string]::IsNullOrWhiteSpace($cachePath)) {
-        $cache = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath (Get-ToolSoftwareCatalogCacheSignaturePath) -Source 'OnlineCache' -RequireSignature
+        $currentCache = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath (Get-ToolSoftwareCatalogCacheSignaturePath) -Source 'OnlineCache' -RequireSignature
+        $previousCache = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogPreviousCachePath) -SignaturePath (Get-ToolSoftwareCatalogPreviousCacheSignaturePath) -Source 'OnlinePreviousCache' -RequireSignature
+        $cacheCandidates = New-Object System.Collections.Generic.List[object]
+        if ($currentCache) { $cacheCandidates.Add($currentCache) }
+        if ($previousCache) { $cacheCandidates.Add($previousCache) }
+        $cachedCatalogs = @($cacheCandidates.ToArray() | Sort-Object { [version]$_.CatalogVersion } -Descending)
+        if ($cachedCatalogs.Count -gt 0) { $cache = $cachedCatalogs[0] }
     }
     if ($cache) {
         $cacheVersion = [version]'0.0'
@@ -290,7 +332,7 @@ function Test-ToolSoftwareCatalogTrustedForDecisiveEvidence {
     if (-not $Catalog) { return $false }
     $catalogSource = Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource'
     $catalogSha256 = Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSha256'
-    if ($catalogSource -notin @('Bundled','OnlineCache') -or [string]::IsNullOrWhiteSpace($catalogSha256) -or
+    if ($catalogSource -notin @('Bundled','OnlineCache','OnlinePreviousCache') -or [string]::IsNullOrWhiteSpace($catalogSha256) -or
         -not [bool](Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'CatalogSignatureValid' | Select-Object -First 1)) { return $false }
     foreach ($entry in $script:ToolSoftwareTrustedCatalogReferences) {
         if (-not [object]::ReferenceEquals($entry.Catalog, $Catalog)) { continue }
@@ -307,8 +349,10 @@ function Invoke-ToolSoftwareCatalogHttpGetBytes {
         [int]$TimeoutMilliseconds = 15000,
         [ValidateRange(128, 2097152)][int]$MaximumBytes = 2097152
     )
-    if ($Uri.Scheme -ne 'https' -or $script:ToolSoftwareCatalogAllowedHosts -notcontains $Uri.DnsSafeHost.ToLowerInvariant()) {
-        throw 'Catalog URL is outside the HTTPS allowlist.'
+    [void](Assert-ToolSoftwareCatalogNetworkAllowed)
+    if ($Uri.Scheme -ne 'https' -or $script:ToolSoftwareCatalogAllowedHosts -notcontains $Uri.DnsSafeHost.ToLowerInvariant() -or
+        $script:ToolSoftwareCatalogAllowedUris -notcontains $Uri.AbsoluteUri) {
+        throw 'Catalog URL is outside the fixed HTTPS allowlist.'
     }
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $request = [Net.HttpWebRequest]::Create($Uri)
@@ -356,12 +400,17 @@ function Update-ToolSoftwareLicenseCatalog {
     )
     if (-not $ConsentGranted) { throw 'Explicit user consent is required.' }
     $started = [DateTime]::UtcNow
-    $uri = [uri]$CatalogUrl
-    if ([string]::IsNullOrWhiteSpace($SignatureUrl)) { $SignatureUrl = $uri.AbsoluteUri + '.p7s' }
-    $signatureUri = [uri]$SignatureUrl
+    $uri = $null
+    $signatureUri = $null
     $tempPath = ''
     $tempSignaturePath = ''
+    $previousTempPath = ''
+    $previousTempSignaturePath = ''
     try {
+        [void](Assert-ToolSoftwareCatalogNetworkAllowed)
+        $uri = [uri]$CatalogUrl
+        if ([string]::IsNullOrWhiteSpace($SignatureUrl)) { $SignatureUrl = $uri.AbsoluteUri + '.p7s' }
+        $signatureUri = [uri]$SignatureUrl
         $contentBytes = Invoke-ToolSoftwareCatalogHttpGetBytes -Uri $uri -MaximumBytes $script:ToolSoftwareCatalogMaximumBytes
         $signatureBytes = Invoke-ToolSoftwareCatalogHttpGetBytes -Uri $signatureUri -MaximumBytes $script:ToolSoftwareCatalogMaximumSignatureBytes
         if (-not (Test-ToolSoftwareCatalogSignature -ContentBytes $contentBytes -SignatureBytes $signatureBytes)) {
@@ -373,14 +422,17 @@ function Update-ToolSoftwareLicenseCatalog {
         if (-not (Test-ToolSoftwareCatalogObject -Catalog $catalog)) { throw 'Downloaded catalog failed schema validation.' }
         $cachePath = Get-ToolSoftwareCatalogCachePath
         $cacheSignaturePath = Get-ToolSoftwareCatalogCacheSignaturePath
+        $previousCachePath = Get-ToolSoftwareCatalogPreviousCachePath
+        $previousCacheSignaturePath = Get-ToolSoftwareCatalogPreviousCacheSignaturePath
         if ([string]::IsNullOrWhiteSpace($cachePath)) { throw 'Local catalog cache is unavailable.' }
         $bundled = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogBundledPath) `
             -SignaturePath (Get-ToolSoftwareCatalogBundledSignaturePath) -Source 'Bundled' -RequireSignature
         $existing = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath $cacheSignaturePath -Source 'OnlineCache' -RequireSignature
+        $previous = Import-ToolSoftwareCatalogFile -Path $previousCachePath -SignaturePath $previousCacheSignaturePath -Source 'OnlinePreviousCache' -RequireSignature
         $candidateVersion = [version](Get-ToolSoftwareOptionalPropertyString -InputObject $catalog -Name 'CatalogVersion')
-        $trustedBaselines = @($bundled,$existing | Where-Object { $null -ne $_ })
-        $baseline = @($trustedBaselines | Sort-Object { [version]$_.CatalogVersion } -Descending | Select-Object -First 1)
-        $baselineCatalog = if ($baseline.Count -gt 0) { $baseline[0] } else { $null }
+        $trustedBaselines = New-Object System.Collections.Generic.List[object]
+        foreach ($trustedCatalog in @($bundled,$existing,$previous)) { if ($trustedCatalog) { $trustedBaselines.Add($trustedCatalog) } }
+        $baselineCatalog = @($trustedBaselines.ToArray() | Sort-Object { [version]$_.CatalogVersion } -Descending | Select-Object -First 1)[0]
         if ($baselineCatalog) {
             $baselineVersion = [version](Get-ToolSoftwareOptionalPropertyString -InputObject $baselineCatalog -Name 'CatalogVersion')
             $candidateSha = Get-ToolSoftwareSha256Bytes -Bytes $contentBytes
@@ -399,8 +451,26 @@ function Update-ToolSoftwareLicenseCatalog {
         [IO.File]::WriteAllBytes($tempSignaturePath, $signatureBytes)
         $verified = Import-ToolSoftwareCatalogFile -Path $tempPath -SignaturePath $tempSignaturePath -Source 'OnlineCache' -RequireSignature
         if (-not $verified) { throw 'Downloaded catalog could not be reopened safely.' }
+
+        # Retain the last complete, signed pair before replacing the active
+        # cache.  If a crash interrupts either Move-Item below, catalog loading
+        # falls back to this pair and then to the bundled signed catalog.
+        if ($existing) {
+            $previousTempPath = Join-Path $cacheDirectory ('.catalog-previous-' + [guid]::NewGuid().ToString('N') + '.tmp')
+            $previousTempSignaturePath = $previousTempPath + '.p7s'
+            [IO.File]::WriteAllBytes($previousTempPath, [IO.File]::ReadAllBytes($cachePath))
+            [IO.File]::WriteAllBytes($previousTempSignaturePath, [IO.File]::ReadAllBytes($cacheSignaturePath))
+            $previousVerified = Import-ToolSoftwareCatalogFile -Path $previousTempPath -SignaturePath $previousTempSignaturePath -Source 'OnlinePreviousCache' -RequireSignature
+            if (-not $previousVerified) { throw 'Existing signed catalog backup could not be verified.' }
+            Move-Item -LiteralPath $previousTempSignaturePath -Destination $previousCacheSignaturePath -Force
+            Move-Item -LiteralPath $previousTempPath -Destination $previousCachePath -Force
+            $previousTempPath = ''
+            $previousTempSignaturePath = ''
+        }
         Move-Item -LiteralPath $tempSignaturePath -Destination $cacheSignaturePath -Force
         Move-Item -LiteralPath $tempPath -Destination $cachePath -Force
+        $committed = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath $cacheSignaturePath -Source 'OnlineCache' -RequireSignature
+        if (-not $committed) { throw 'Catalog cache could not be reopened after commit; the previous signed cache remains available.' }
         return [pscustomobject][ordered]@{
             Success=$true
             CatalogVersion=(Get-ToolSoftwareOptionalPropertyString -InputObject $catalog -Name 'CatalogVersion')
@@ -413,7 +483,7 @@ function Update-ToolSoftwareLicenseCatalog {
     } catch {
         return [pscustomobject][ordered]@{
             Success=$false; CatalogVersion=''; ProductRuleCount=0; CachePath=(Get-ToolSoftwareCatalogCachePath); SignaturePath=(Get-ToolSoftwareCatalogCacheSignaturePath)
-            SourceUrl=$uri.AbsoluteUri; SignatureUrl=$signatureUri.AbsoluteUri; Sha256=''; SignatureValid=$false; StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
+            SourceUrl=$(if ($uri) {$uri.AbsoluteUri} else {[string]$CatalogUrl}); SignatureUrl=$(if ($signatureUri) {$signatureUri.AbsoluteUri} else {[string]$SignatureUrl}); Sha256=''; SignatureValid=$false; StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
             Error=[string]$_.Exception.Message; UploadedInventory=$false; SentLicenseKeys=$false
         }
     } finally {
@@ -422,6 +492,12 @@ function Update-ToolSoftwareLicenseCatalog {
         }
         if ($tempSignaturePath -and (Test-Path -LiteralPath $tempSignaturePath -PathType Leaf)) {
             Remove-Item -LiteralPath $tempSignaturePath -Force -ErrorAction SilentlyContinue
+        }
+        if ($previousTempPath -and (Test-Path -LiteralPath $previousTempPath -PathType Leaf)) {
+            Remove-Item -LiteralPath $previousTempPath -Force -ErrorAction SilentlyContinue
+        }
+        if ($previousTempSignaturePath -and (Test-Path -LiteralPath $previousTempSignaturePath -PathType Leaf)) {
+            Remove-Item -LiteralPath $previousTempSignaturePath -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -1664,12 +1740,102 @@ function Get-ToolSoftwareDeepSystemSnapshot {
 function New-ToolSoftwareTechnicalEvidence {
     param(
         [string]$Code, [ValidateSet('Conclusive','Strong','Moderate','Weak')][string]$Strength,
-        [string]$Source, [string]$Detail, [string]$EvidenceGroup = '', [switch]$Decisive
+        [string]$Source, [string]$Detail, [string]$EvidenceGroup = '', [switch]$Decisive,
+        [ValidateSet('Direct','VendorShared','Heuristic','Uncorrelated')][string]$CorrelationLevel = 'Direct'
     )
     return [pscustomobject][ordered]@{
         Code=$Code; Strength=$Strength; Source=$Source; Detail=$Detail
         EvidenceGroup=$(if ($EvidenceGroup) { $EvidenceGroup } else { $Source }); Decisive=[bool]$Decisive
+        CorrelationLevel=$CorrelationLevel
     }
+}
+
+function Get-ToolSoftwareEvidenceCorrelationLevel {
+    param([AllowNull()][object]$Evidence)
+    if ($null -eq $Evidence) { return 'Uncorrelated' }
+    # Older/externally supplied evidence without an explicit correlation proof
+    # cannot silently gain the authority of an exact application match.
+    $level = if ($Evidence.PSObject.Properties['CorrelationLevel']) { [string]$Evidence.CorrelationLevel } else { 'Uncorrelated' }
+    if ($level -in @('Direct','VendorShared','Heuristic','Uncorrelated')) { return $level }
+    return 'Uncorrelated'
+}
+
+function Get-ToolSoftwareDirectCrackEvidenceSummary {
+    param([object[]]$Evidence = @())
+
+    # A product can share a vendor's licensing infrastructure, but that is not
+    # proof that this particular product is cracked.  Only evidence attached to
+    # the exact application (or its install root) may unlock remediation.
+    $directStrong = @($Evidence | Where-Object {
+        (Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -eq 'Direct' -and
+        ([string]$_.Strength -in @('Conclusive','Strong') -or
+            ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive))
+    })
+    $knownBadHash = @($directStrong | Where-Object {
+        [string]$_.Code -eq 'KnownBadFileHash' -and
+        ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive))
+    })
+    $activeActivator = @($directStrong | Where-Object {
+        [string]$_.Code -in @(
+            'KnownActivatorInstalledActivator','KnownActivatorScheduledTask','KnownActivatorService','KnownActivatorProcess',
+            'ApplicationIfeoDebugger','SuspiciousApplicationAutorun'
+        ) -and ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive)
+    })
+    $directArtifacts = @($directStrong | Where-Object {
+        [string]$_.Code -in @(
+            'KnownActivatorArtifact','KnownActivatorFileArtifact','UnauthorizedArtifactName'
+        )
+    })
+    $corroboration = @($directStrong | Where-Object {
+        [string]$_.Code -in @(
+            'KnownBadFileHash','ApplicationIfeoDebugger','SuspiciousApplicationAutorun',
+            'KnownActivatorInstalledActivator','KnownActivatorScheduledTask','KnownActivatorService','KnownActivatorProcess',
+            'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','UnexpectedCoreFileSigner',
+            'KnownUnauthorizedName','CatalogUnauthorizedName'
+        )
+    })
+    $confirmed = [bool]($knownBadHash.Count -gt 0 -or $activeActivator.Count -gt 0 -or
+        ($directArtifacts.Count -gt 0 -and $corroboration.Count -gt 0))
+    $reason = if ($knownBadHash.Count -gt 0) {
+        'KnownBadHashDirectlyMatched'
+    } elseif ($activeActivator.Count -gt 0) {
+        'ActiveKnownActivatorDirectlyLinked'
+    } elseif ($directArtifacts.Count -gt 0 -and $corroboration.Count -gt 0) {
+        'DirectArtifactHasIndependentCorroboration'
+    } elseif ($directStrong.Count -eq 0) {
+        'NoDirectStrongEvidence'
+    } elseif (@($Evidence | Where-Object { (Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -ne 'Direct' }).Count -gt 0) {
+        'OnlyVendorSharedOrUncorrelatedEvidence'
+    } else {
+        'DirectEvidenceNeedsIndependentCorroboration'
+    }
+    return [pscustomobject][ordered]@{
+        Confirmed=$confirmed; Reason=$reason; DirectStrongEvidence=@($directStrong)
+        DirectStrongEvidenceCount=[int]$directStrong.Count; DirectArtifactEvidenceCount=[int]$directArtifacts.Count
+        CorroboratingEvidenceCount=[int]$corroboration.Count
+    }
+}
+
+function Get-ToolSoftwareRecoveryGate {
+    param(
+        [string]$TechnicalState,
+        [object[]]$Evidence = @(),
+        [bool]$IsSystemComponent = $false,
+        [string]$RemediationAdapter = ''
+    )
+
+    $summary = Get-ToolSoftwareDirectCrackEvidenceSummary -Evidence $Evidence
+    if ($IsSystemComponent) {
+        return [pscustomobject][ordered]@{ Mode='Blocked'; ArtifactCleanupAllowed=$false; LicenseStateResetAllowed=$false; Reason='SystemComponent'; EvidenceSummary=$summary }
+    }
+    if ($TechnicalState -ne 'CrackConfirmed' -or -not [bool]$summary.Confirmed) {
+        return [pscustomobject][ordered]@{ Mode='Blocked'; ArtifactCleanupAllowed=$false; LicenseStateResetAllowed=$false; Reason=[string]$summary.Reason; EvidenceSummary=$summary }
+    }
+    # A local license store/key is not proof of an illegitimate entitlement.
+    # Until a vendor adapter can verify one exact record before and after a
+    # repair, the Tool only quarantines independently proven crack artifacts.
+    # This deliberately keeps valid WinRAR rarreg.key files intact too.
+    return [pscustomobject][ordered]@{ Mode='ArtifactCleanupOnly'; ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; Reason='DirectCrackEvidenceConfirmed'; EvidenceSummary=$summary }
 }
 
 function Get-ToolSoftwareTechnicalState {
@@ -1738,18 +1904,18 @@ function ConvertTo-ToolSoftwareLicenseModel {
 function Test-ToolSoftwareRemediationEvidence {
     param([AllowNull()][object]$Evidence)
     if ($null -eq $Evidence) { return $false }
+    if ((Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $Evidence) -ne 'Direct') { return $false }
     $code = if ($Evidence.PSObject.Properties['Code']) { [string]$Evidence.Code } else { '' }
     if ([string]::IsNullOrWhiteSpace($code)) { return $false }
     $strength = if ($Evidence.PSObject.Properties['Strength']) { [string]$Evidence.Strength } else { '' }
     $decisive = [bool]($strength -eq 'Conclusive' -or ($Evidence.PSObject.Properties['Decisive'] -and [bool]$Evidence.Decisive))
     $strong = [bool]($decisive -or $strength -eq 'Strong')
     if (-not $strong) { return $false }
-    if ($code -match '^KnownActivator') { return $true }
+    if ($code -match '^KnownActivator(?:InstalledActivator|ScheduledTask|Service|Process|FileArtifact)?$') { return $true }
     return [bool]($code -in @(
-        'LicenseDomainBlocked','UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
-        'ApplicationIfeoDebugger','ApplicationOutboundBlocked','SuspiciousApplicationAutorun',
-        'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','CriticalFileNotSigned',
-        'UnexpectedCoreFileSigner','KnownBadFileHash','KnownUnauthorizedName','CatalogUnauthorizedName'
+        'UnauthorizedArtifactName','KnownActivatorArtifact','ApplicationIfeoDebugger','SuspiciousApplicationAutorun',
+        'SignatureHashMismatch','DeepSignatureHashMismatch','ExpectedSignedFileNotSigned','UnexpectedCoreFileSigner',
+        'KnownBadFileHash','KnownUnauthorizedName','CatalogUnauthorizedName'
     ))
 }
 
@@ -2312,8 +2478,9 @@ function Get-ToolSoftwareAssessments {
             $externalGroup = if ($item.PSObject.Properties['EvidenceGroup'] -and $item.EvidenceGroup) { [string]$item.EvidenceGroup } else { $externalSource }
             $externalDetail = if ($item.PSObject.Properties['Location'] -and $item.Location) { [string]$item.Location } else { [string]$item.Detail }
             $externalDecisive = [bool](($item.PSObject.Properties['Decisive'] -and [bool]$item.Decisive) -or $strength -eq 'Conclusive')
+            $externalCorrelation = Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $item
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code $externalCode -Strength $strength -Source $externalSource `
-                -EvidenceGroup $externalGroup -Detail $externalDetail -Decisive:$externalDecisive))
+                -EvidenceGroup $externalGroup -Detail $externalDetail -Decisive:$externalDecisive -CorrelationLevel $externalCorrelation))
         }
         $uniqueEvidence = @($evidence.ToArray() | Group-Object { "$($_.Code)|$($_.Source)|$($_.Detail)" } | ForEach-Object { $_.Group[0] })
         $conclusiveCount = @($uniqueEvidence | Where-Object { [string]$_.Strength -eq 'Conclusive' }).Count
@@ -2356,9 +2523,10 @@ function Get-ToolSoftwareAssessments {
             Test-ToolSoftwareRemediationEvidence -Evidence $_
         }).Count
         $knownActivationState = Get-ToolSoftwareKnownActivationState -Application $application -CatalogProduct $catalogProduct
+        $directCrackSummary = Get-ToolSoftwareDirectCrackEvidenceSummary -Evidence $uniqueEvidence
         $statusCode = 'Unverified'
         $confidence = 'Low'
-        if ($licensingDecisiveCount -gt 0 -or ($independentLicenseRiskCount -gt 0 -and $strongCount -ge 2 -and $strongEvidenceGroupCount -ge 2)) { $statusCode='NonGenuine'; $confidence='High' }
+        if ([bool]$directCrackSummary.Confirmed) { $statusCode='NonGenuine'; $confidence='High' }
         elseif ($integrityEvidenceCount -gt 0 -and $independentLicenseRiskCount -eq 0) { $statusCode='IntegrityCompromised'; $confidence='High' }
         elseif ($strongCount -gt 0 -or $moderateCount -gt 0 -or $weakCount -ge 2) { $statusCode='Suspicious'; $confidence='Medium' }
         elseif ($localLicenseVerifiedCount -gt 0) { $statusCode='GenuineVerified'; $confidence='High' }
@@ -2397,29 +2565,20 @@ function Get-ToolSoftwareAssessments {
             if ($vendorScope -eq 'Adobe' -and [string]$application.SourceKind -ne 'Appx' -and [string]$application.Name -match '(?i)\b(?:Acrobat|Distiller|Photoshop|Illustrator|InDesign|Lightroom|Premiere|After Effects|Audition|Animate|Dreamweaver)\b') { $remediationAdapter = 'Adobe' }
             elseif ($vendorScope -eq 'Autodesk' -and [string]$application.SourceKind -ne 'Appx' -and [string]$application.Name -match '(?i)\b(?:Autodesk|AutoCAD|Revit|3ds Max|Civil 3D|Navisworks|Inventor|Fusion 360)\b') { $remediationAdapter = 'Autodesk' }
         }
-        # Tách khả năng nhận diện/chọn khỏi adapter theo hãng. Chỉ ứng dụng có
-        # bằng chứng activator/can thiệp thuộc allowlist mới được đưa vào hàng
-        # đợi; nhãn NonGenuine/Suspicious hoặc trạng thái license cục bộ đơn lẻ
-        # không đủ. Adapter Generic chỉ cho phép các thao tác đã khóa phạm vi.
-        $cleanupFinding = [bool](
-            -not $isSystemComponent -and
-            $confidence -in @('Medium','High') -and
-            $remediationEvidenceCount -gt 0 -and
-            $statusCode -in @('NonGenuine','Suspicious')
-        )
-        $manualEligible = [bool](
-            $cleanupFinding -and
-            $confidence -ne 'Low' -and
-            -not $isSystemComponent
-        )
+        # A label such as Paid, Suspicious, or a vendor-wide artifact is never
+        # enough to change a local licensing state.  The one central gate below
+        # is consumed by the UI, candidate builder, dry run, and execution.
+        $recoveryGate = Get-ToolSoftwareRecoveryGate -TechnicalState $technicalState -Evidence $uniqueEvidence `
+            -IsSystemComponent:$isSystemComponent -RemediationAdapter $remediationAdapter
+        $cleanupFinding = [bool]$recoveryGate.ArtifactCleanupAllowed
+        $manualEligible = [bool]$recoveryGate.ArtifactCleanupAllowed
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
             $remediationAdapter = 'Generic'
         }
         if ($isSystemComponent) { $remediationAdapter = '' }
-        # AutoEligible ở lớp đánh giá chỉ biểu thị có bằng chứng mạnh. Lớp lập
-        # kế hoạch còn phải chứng minh tồn tại hành động tự động an toàn trước
-        # khi mục thực sự được đưa vào chế độ Tự động an toàn.
-        $autoEligible = [bool]($manualEligible -and $decisiveCount -gt 0)
+        # Automatic mode is intentionally stricter than manual selection.  A
+        # later plan can opt in only after its concrete actions are checked.
+        $autoEligible = $false
         $needsReview = [bool]($statusCode -notin @('FreeOrIncluded','GenuineVerified','Unactivated'))
         $referenceUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'OfficialUrl'
         $catalogMatchReason = if ($catalogMatch) { [string]$catalogMatch.Reason } else { 'NoSignedCatalogRuleMatched' }
@@ -2432,13 +2591,7 @@ function Get-ToolSoftwareAssessments {
         } elseif ($catalogMatchReason -eq 'AmbiguousCatalogMatch') {
             'Multiple signed catalog rules matched; license model remains Unknown.'
         } else { 'No signed catalog rule matched; license model remains Unknown.' }
-        $remediationImpact = if (-not $manualEligible) {
-            'NoChangeProposed'
-        } elseif ($remediationAdapter -in @('Adobe','Autodesk')) {
-            'VendorSharedLicenseState'
-        } else {
-            'GenericArtifactCleanupOrOfficialRepair'
-        }
+        $remediationImpact = if ($manualEligible) { 'ArtifactCleanupOnly' } else { 'NoChangeProposed' }
         # Building an ordered property bag is materially faster than thousands
         # of Add-Member calls and produces the same PSCustomObject contract.
         $resultData = [ordered]@{}
@@ -2456,12 +2609,17 @@ function Get-ToolSoftwareAssessments {
             @('PublisherVerification',$publisherVerification),
             @('NeedsReview',$needsReview), @('CleanupFinding',$cleanupFinding),
             @('RemediationEvidenceCount',[int]$remediationEvidenceCount), @('ActivationStateProbe',$knownActivationState),
+            @('DirectCrackEvidenceCount',[int]$directCrackSummary.DirectStrongEvidenceCount),
+            @('RecoveryGate',$recoveryGate), @('RecoveryMode',[string]$recoveryGate.Mode),
+            @('ArtifactCleanupAllowed',[bool]$recoveryGate.ArtifactCleanupAllowed),
+            @('LicenseStateResetAllowed',[bool]$recoveryGate.LicenseStateResetAllowed),
+            @('RecoveryBlockReason',[string]$recoveryGate.Reason),
             @('DeepScanEnabled',[bool]$DeepScan), @('DeepScanStatus',[string]$deepResult.Status), @('DeepScanComplete',[bool]$deepResult.Complete),
             @('DeepScanRoots',@($deepResult.Roots)), @('DeepScanFilesEnumerated',[int]$deepResult.FilesEnumerated),
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),
             @('RemediationAdapter',$remediationAdapter), @('RemediationSupported',$manualEligible), @('ManualEligible',$manualEligible),
             @('AutoEligible',$autoEligible), @('RemediationImpact',$remediationImpact),
-            @('PostRemediationStateExpectation',$(if (-not $manualEligible) {'NoChange'} elseif ($remediationAdapter -eq 'Generic') {'EvidenceRemovedLicenseStateUnverified'} else {'VendorAdapterPostCheckRequired'})),
+            @('PostRemediationStateExpectation',$(if (-not $manualEligible) {'NoChange'} elseif ([bool]$recoveryGate.LicenseStateResetAllowed) {'LocalLicenseFileRemovedThenVerify'} else {'ArtifactsRemovedLicenseStateUnverified'})),
             @('IsSystemComponent',$isSystemComponent), @('SystemComponentReason',$systemComponentReason),
             @('CatalogSource',$catalogSourceForResult), @('CatalogVersion',$catalogVersionForResult)
         )) { $resultData[[string]$pair[0]] = $pair[1] }

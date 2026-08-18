@@ -512,11 +512,11 @@ No licenses found.
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
-    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyMsiRepair','ThirdPartyOfficialSource','LocalLicenseFileReset','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed','softwareUninstallBlocked','PolicyBlocked','BlockApplicationUninstall','Test-CleanupKnownActivatorText','Win32_StartupCommand','erturk-dev\.netlify\.app/run','Get-OfficialLicensePostCheck','OfficiallyLicensed','VendorConfirmed','OpenWindowsActivation','OpenOfficeActivation','OpenVendorActivation','OpenVendorRepair','ReviewVendorActivation')) {
+    foreach ($requiredToken in @('Get-InstalledSoftwareInventory','Get-ThirdPartyStrongEvidence','Get-ThirdPartyLicenseCandidates','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyHostsUpdate','Connect-ThirdPartyApplicationsToCandidates','ThirdPartyLicenseReset','ThirdPartyLicenseState','ThirdPartyUninstallEntry','ThirdPartyHostsEntry','ThirdPartyFirewallBlock','FirewallNotice','RemoveScopedFirewallBlock','ThirdPartyOfficialSource','FileArtifact','CleanupFinding','ThirdPartyRemediationFindingCount','SystemChangeCount','ThirdPartyExecutionResults','NoAutomaticChange','SelectionAccepted','SelectionContainsUnknownIds','AllowCurrentUserForUserScope','SelectionSchemaInvalid','SelectedThirdPartyResolvedCount','SelectedThirdPartyRemainingCount','PostCheckStatus','RemediationFailed','softwareUninstallBlocked','PolicyBlocked','BlockApplicationUninstall','Test-CleanupKnownActivatorText','Win32_StartupCommand','erturk-dev\.netlify\.app/run','Get-OfficialLicensePostCheck','OfficiallyLicensed','VendorConfirmed','OpenWindowsActivation','OpenOfficeActivation','OpenVendorActivation','OpenVendorRepair','ReviewVendorActivation')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Thiếu thành phần khắc phục phần mềm bên thứ ba: $requiredToken" }
     }
-    if ($cleanup.Text -notmatch '(?s)ThirdPartyLicenseState.+?Restorable=\$false' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
-        Fail 'Kế hoạch Adobe/Autodesk chưa khóa token activator khỏi restore hoặc chưa xử lý theo phạm vi hãng.'
+    if ($cleanup.Text -notmatch '(?s)function Get-ThirdPartyLicenseStatePaths.+?return @\(\)' -or $cleanup.Text -match '(?i)rarreg\.key' -or $cleanup.Text -notmatch 'selectedVendorScopes') {
+        Fail 'Kế hoạch còn có thể reset kho license dùng chung hoặc khoá local license file chưa đủ chứng cứ.'
     }
     foreach ($requiredToken in @('ScanScope','Get-ScopedCleanupCandidates','Test-CleanupScopeReady','restoreBundleReady','backupRequiredBlocked','OperationTimeoutSec 20','OperationTimeoutSec 25')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Luồng theo phạm vi/chống treo/backup fail-closed thiếu: $requiredToken" }
@@ -524,10 +524,9 @@ No licenses found.
     foreach ($requiredToken in @('Get-ToolSoftwareAssessments','ThirdPartyApplications','ThirdPartyNeedsReviewCount')) {
         if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Luồng kiểm kê/đánh giá toàn bộ phần mềm thiếu: $requiredToken" }
     }
-    if ($cleanup.Text -notmatch 'Get-ToolNativeSystemPath\s+"msiexec\.exe"' -or
-        $cleanup.Text -notmatch [regex]::Escape("-Arguments @('/fa', `$productCode, '/qn', '/norestart')") -or
+    if ($cleanup.Text -match 'ThirdPartyMsiRepair|AutomaticOfficialRepair|Get-ThirdPartyMsiProductCode|nativeMsiExecPath' -or
         $cleanup.Text -notmatch [regex]::Escape("Kind='ThirdPartyHostsEntry'; Restorable=`$true")) {
-        Fail 'Fallback tổng quát chưa khóa MSI Repair vào đường dẫn hệ thống/product code hoặc chưa cho phép hoàn tác hosts.'
+        Fail 'Khắc phục phần mềm bên thứ ba còn cho phép MSI Repair tự động hoặc không cho phép hoàn tác hosts.'
     }
     if ($cleanup.Text -match [regex]::Escape("-Arguments @('/x', `$productCode") -or
         $cleanup.Text -match 'ThirdPartyMsiUninstall') {
@@ -549,7 +548,7 @@ No licenses found.
             Invoke-Expression ("function script:" + $Name + " " + $functionAst.Body.Extent.Text)
         }
         function Get-CleanupText { param([string]$Key, [object[]]$Arguments=@()); return ($Key + ':' + (@($Arguments) -join '|')) }
-        foreach ($inventoryFunctionName in @('Get-ToolSoftwareHostsLineMappings','Test-ToolSoftwareRemediationEvidence')) {
+        foreach ($inventoryFunctionName in @('Get-ToolSoftwareHostsLineMappings','Get-ToolSoftwareEvidenceCorrelationLevel','Get-ToolSoftwareDirectCrackEvidenceSummary','Get-ToolSoftwareRecoveryGate','Test-ToolSoftwareRemediationEvidence')) {
             $inventoryFunctionAst = $softwareInventory.Ast.Find({
                 param($node)
                 $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $inventoryFunctionName
@@ -557,7 +556,7 @@ No licenses found.
             if (-not $inventoryFunctionAst) { throw "Missing function: $inventoryFunctionName" }
             Invoke-Expression ('function script:' + $inventoryFunctionName + ' ' + $inventoryFunctionAst.Body.Extent.Text)
         }
-        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Test-CleanupScanScopeIncludes','Get-CleanupRecordComponentScope','Test-CleanupRecordMatchesScope','Get-ScopedCleanupCandidates','Get-ThirdPartyNormalizedInstallRoot','Get-ThirdPartyMsiProductCode','Test-ThirdPartyArtifactPath','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseStatePaths','Get-ThirdPartyRemediationPlan','Test-ThirdPartyApplicationCleanupEligible','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady','Test-CleanupKnownActivatorText','Get-LicenseChannel','Test-ApprovedKms','Get-WindowsOfficialLicenseOutcome','Get-OfficeOfficialLicenseOutcome','Get-ThirdPartyOfficialLicenseOutcomes','Get-CleanupNextActions')) {
+        foreach ($name in @('Get-ToolDataOwnerSid','Set-ProtectedBackupAcl','Test-ProtectedDirectoryAcl','Get-SelectedCleanupIds','Test-CleanupScanScopeIncludes','Get-CleanupRecordComponentScope','Test-CleanupRecordMatchesScope','Get-ScopedCleanupCandidates','Get-ThirdPartyNormalizedInstallRoot','Test-ThirdPartyArtifactPath','Get-ThirdPartyArtifactExecutionIdentity','Test-ThirdPartyArtifactExecutionIdentity','Test-ThirdPartyApplicationPathScope','Get-ThirdPartyHostsUpdate','Get-ThirdPartyGenericRemediationPlan','Get-ThirdPartyLicenseStatePaths','Get-ThirdPartyRemediationPlan','Test-ThirdPartyApplicationCleanupEligible','Get-ThirdPartyLicenseCandidates','New-CleanupItem','Get-ThirdPartyCandidateSafePlan','Expand-SelectedCleanupCandidates','Get-DryRunRemediationPlan','Add-ThirdPartyVerification','Test-CleanupScopeReady','Test-CleanupKnownActivatorText','Get-LicenseChannel','Test-ApprovedKms','Get-ThirdPartyEvidenceTargets','Get-ThirdPartyCorrelationTokens','Get-WindowsOfficialLicenseOutcome','Get-OfficeOfficialLicenseOutcome','Get-ThirdPartyOfficialLicenseOutcomes','Get-CleanupNextActions')) {
             Import-CleanupFunctionForFixture $name
         }
         $broadRootFixture = [pscustomobject]@{ InstallLocation=$env:ProgramFiles; RepresentativePath='' }
@@ -567,6 +566,41 @@ No licenses found.
         $scopedRootFixture = [pscustomobject]@{ InstallLocation=(Join-Path $env:ProgramFiles 'Example Fixture App'); RepresentativePath='' }
         if ((Get-ThirdPartyNormalizedInstallRoot -Application $scopedRootFixture) -notmatch '(?i)Example Fixture App$') {
             Fail 'Install root riêng của ứng dụng bị loại bỏ nhầm.'
+        }
+        if ((Get-ToolSoftwareEvidenceCorrelationLevel -Evidence ([pscustomobject]@{ Code='FixtureWithoutCorrelation' })) -ne 'Uncorrelated') {
+            Fail 'Bằng chứng thiếu CorrelationLevel vẫn mặc định là Direct.'
+        }
+        $correlationRecords = @(
+            [pscustomobject]@{ ApplicationId='photoshop'; VendorScope='Adobe'; InstallRoot='C:\Program Files\Adobe\Photoshop'; RepresentativePath='C:\Program Files\Adobe\Photoshop\Photoshop.exe'; Tokens=@('photoshop','adobe') },
+            [pscustomobject]@{ ApplicationId='acrobat'; VendorScope='Adobe'; InstallRoot='C:\Program Files\Adobe\Acrobat'; RepresentativePath='C:\Program Files\Adobe\Acrobat\Acrobat.exe'; Tokens=@('acrobat','adobe') }
+        )
+        $tokenOnlyTargets = @(Get-ThirdPartyEvidenceTargets -Text 'C:\Temp\photoshop-kms-helper.exe' -ApplicationRecords $correlationRecords)
+        if ($tokenOnlyTargets.Count -ne 1 -or [string]$tokenOnlyTargets[0].MatchKind -ne 'Token') {
+            Fail 'Token tên phần mềm đơn lẻ vẫn được nâng thành liên kết trực tiếp.'
+        }
+        $exactPathTargets = @(Get-ThirdPartyEvidenceTargets -Text 'C:\Program Files\Adobe\Photoshop\patcher.exe' -ApplicationRecords $correlationRecords -SpecificVendorScope 'Adobe')
+        if ($exactPathTargets.Count -ne 1 -or [string]$exactPathTargets[0].MatchKind -ne 'ExactPath' -or [string]$exactPathTargets[0].Record.ApplicationId -ne 'photoshop') {
+            Fail 'Đường dẫn cài đặt chính xác không được ưu tiên hơn phạm vi vendor dùng chung.'
+        }
+        $confirmedWinRarGate = Get-ToolSoftwareRecoveryGate -TechnicalState 'CrackConfirmed' -RemediationAdapter 'WinRAR' -Evidence @(
+            [pscustomobject]@{ Code='KnownBadFileHash'; Strength='Conclusive'; Decisive=$true; CorrelationLevel='Direct' }
+        )
+        if ([bool]$confirmedWinRarGate.LicenseStateResetAllowed -or [string]$confirmedWinRarGate.Mode -ne 'ArtifactCleanupOnly' -or @(Get-ThirdPartyLicenseStatePaths -RemediationAdapter 'WinRAR').Count -ne 0) {
+            Fail 'WinRAR vẫn có thể xóa local license file khi chưa có adapter xác minh vendor.'
+        }
+        $executionPlanFixture = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name 'Fixture' -Location 'Fixture' `
+            -ArtifactCleanupAllowed $true -PlanItems @(
+                [pscustomobject]@{ Type='File'; Kind='ThirdPartyUnauthorizedArtifact'; Name='artifact.exe'; Location='C:\Fixture\artifact.exe' },
+                [pscustomobject]@{ Type='Process'; Kind='ThirdPartyUnauthorizedArtifact'; Name='artifact'; Location='C:\Fixture\artifact.exe' },
+                [pscustomobject]@{ Type='Service'; Kind='ThirdPartyUnauthorizedArtifact'; Name='artifact'; Location='C:\Fixture\artifact.exe' },
+                [pscustomobject]@{ Type='ScheduledTask'; Kind='ThirdPartyUnauthorizedArtifact'; Name='\\Fixture'; Location='fixture' },
+                [pscustomobject]@{ Type='Folder'; Kind='ThirdPartyUnauthorizedArtifact'; Name='Fixture'; Location='C:\Fixture' },
+                [pscustomobject]@{ Type='Hosts'; Kind='ThirdPartyHostsEntry'; Name='license.example.test'; Location='license.example.test' },
+                [pscustomobject]@{ Type='Guidance'; Kind='ThirdPartyOfficialSource'; Name='Official'; Location='https://example.invalid/' }
+            )
+        $executionPlanTypes = @(Get-ThirdPartyCandidateSafePlan -Candidate $executionPlanFixture | ForEach-Object { [string]$_.Type } | Sort-Object -Unique)
+        if (($executionPlanTypes -join ',') -ne 'File,Guidance,Hosts') {
+            Fail 'Kế hoạch elevated vẫn cho Process/Service/Task/Folder chưa có identity revalidation.'
         }
         $hostsFixture = Get-ThirdPartyHostsUpdate -Lines @(
             '# keep comment',
@@ -666,7 +700,7 @@ No licenses found.
                 Id='artifact-app'; Name='Example Pro'; SourceKind='Registry'; Publisher='Example'; VendorScope='Example'
                 InstallLocation=$artifactInstallRoot; RepresentativePath=''; RegistryPath=''; UninstallString=''
                 ManualEligible=$true; AutoEligible=$false; RemediationAdapter='Generic'; OfficialReferenceUrl='https://example.invalid/'
-                Evidence=@([pscustomobject]@{ Code='SuspiciousActivatorFileArtifact'; Source='FileArtifact'; Detail=$artifactPath; Strength='Moderate'; Decisive=$false })
+                Evidence=@([pscustomobject]@{ Code='SuspiciousActivatorFileArtifact'; Source='FileArtifact'; Detail=$artifactPath; Strength='Moderate'; Decisive=$false; CorrelationLevel='Direct' })
             }
             if (-not (Test-ThirdPartyArtifactPath -Path $artifactPath -Applications @($artifactApp) -AllowUserArtifactRoots)) {
                 Fail 'Tệp activator chính xác trong vùng người dùng không được chấp nhận vào kế hoạch cách ly.'
@@ -675,25 +709,38 @@ No licenses found.
             if (@($artifactPlan | Where-Object { $_.Type -eq 'File' -and $_.Kind -eq 'ThirdPartyUnauthorizedArtifact' -and $_.Location -eq $artifactPath }).Count -ne 1) {
                 Fail 'FileArtifact phát hiện trong Downloads/TEMP chưa được chuyển thành hành động cách ly chính xác.'
             }
+            $artifactPlanItem = @($artifactPlan | Where-Object { $_.Type -eq 'File' -and $_.Kind -eq 'ThirdPartyUnauthorizedArtifact' } | Select-Object -First 1)[0]
+            if (-not $artifactPlanItem -or [string]$artifactPlanItem.ExpectedSha256 -notmatch '^[0-9A-F]{64}$' -or [int64]$artifactPlanItem.ExpectedLength -lt 0) {
+                Fail 'Kế hoạch cách ly tệp chưa ghi nhận hash/kích thước để chống thay mục tiêu sau quét.'
+            } else {
+                $identityCandidate = New-CleanupItem -Type 'File' -Kind 'ThirdPartyUnauthorizedArtifact' -Name 'license-crack.zip' `
+                    -Location $artifactPath -Detail 'fixture' -ExpectedSha256 ([string]$artifactPlanItem.ExpectedSha256) -ExpectedLength ([int64]$artifactPlanItem.ExpectedLength)
+                if (-not (Test-ThirdPartyArtifactExecutionIdentity -Candidate $identityCandidate)) {
+                    Fail 'Tệp không đổi bị identity gate elevated từ chối sai.'
+                }
+                [IO.File]::WriteAllText($artifactPath, 'fixture-replaced-after-plan', (New-Object Text.UTF8Encoding($false)))
+                if (Test-ThirdPartyArtifactExecutionIdentity -Candidate $identityCandidate) {
+                    Fail 'Tệp thay sau lúc lập kế hoạch vẫn vượt identity gate elevated.'
+                }
+            }
             $firewallApp = [pscustomobject]@{
                 Id='firewall-app'; Name='Firewall Fixture'; SourceKind='Registry'; Publisher='Example'; VendorScope='Example'
                 InstallLocation=$artifactInstallRoot; RepresentativePath=$firewallApplicationPath; RegistryPath=''; UninstallString=''
                 ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'; OfficialReferenceUrl='https://example.invalid/'
                 Evidence=@(
-                    [pscustomobject]@{ Code='KnownUnauthorizedName'; Source='Identity'; Detail='fixture activator'; Strength='Strong'; Decisive=$true },
-                    [pscustomobject]@{ Code='LicenseDomainBlocked'; Source='Hosts'; Detail='license.example.test'; Strength='Moderate'; Decisive=$false },
-                    [pscustomobject]@{ Code='ApplicationOutboundBlocked'; Source='Firewall'; Detail=('Fixture outbound block | ' + $firewallApplicationPath); Strength='Moderate'; Decisive=$false }
+                    [pscustomobject]@{ Code='KnownUnauthorizedName'; Source='Identity'; Detail='fixture activator'; Strength='Strong'; Decisive=$true; CorrelationLevel='Direct' },
+                    [pscustomobject]@{ Code='LicenseDomainBlocked'; Source='Hosts'; Detail='license.example.test'; Strength='Moderate'; Decisive=$false; CorrelationLevel='Direct' },
+                    [pscustomobject]@{ Code='ApplicationOutboundBlocked'; Source='Firewall'; Detail=('Fixture outbound block | ' + $firewallApplicationPath); Strength='Moderate'; Decisive=$false; CorrelationLevel='Direct' }
                 )
             }
             $firewallPlan = @(Get-ThirdPartyGenericRemediationPlan -Applications @($firewallApp))
-            if (@($firewallPlan | Where-Object { $_.Type -eq 'Firewall' -and $_.Kind -eq 'ThirdPartyFirewallBlock' -and $_.Location -eq $firewallApplicationPath -and -not [bool]$_.Restorable }).Count -ne 1) {
-                Fail 'Quy tắc Firewall outbound-block đúng đường dẫn ứng dụng chưa vào kế hoạch thủ công.'
+            if (@($firewallPlan | Where-Object { $_.Type -eq 'Firewall' }).Count -ne 0 -or
+                @($firewallPlan | Where-Object { $_.Type -eq 'Guidance' -and $_.Kind -eq 'ThirdPartyFirewallManualReview' -and $_.Location -eq $firewallApplicationPath }).Count -ne 1) {
+                Fail 'Quy tắc Firewall outbound-block không được hạ xuống bước kiểm tra thủ công an toàn.'
             }
             $firewallCandidate = @(Get-ThirdPartyLicenseCandidates -Applications @($firewallApp) -Evidence @())
-            if ($firewallCandidate.Count -ne 1 -or [bool]$firewallCandidate[0].AutoEligible -or
-                @($firewallCandidate[0].PlanItems | Where-Object { $_.Type -eq 'Hosts' }).Count -ne 1 -or
-                @($firewallCandidate[0].PlanItems | Where-Object { $_.Type -eq 'Firewall' }).Count -ne 1) {
-                Fail 'Candidate có Firewall không giữ manual-only hoặc thiếu hành động hosts/Firewall chính xác.'
+            if ($firewallCandidate.Count -ne 0) {
+                Fail 'Firewall/hosts đơn lẻ vẫn mở candidate khôi phục dù chưa có bằng chứng crack trực tiếp.'
             }
             $standaloneEvidence = [pscustomobject]@{
                 Code='UncorrelatedFileArtifact'; Type='FileArtifact'; Source='FileArtifact'; Name='license-crack.zip'
@@ -764,10 +811,13 @@ No licenses found.
             Fail 'Candidate tệp activator độc lập không chặn hậu kiểm hoặc vẫn giữ kết luận ĐẠT mâu thuẫn trước khi được cách ly.'
         }
         $abbyyGuid = '{CEEB2A9C-3D5F-4E95-90BD-7EB73650105C}'
-        $abbyyEvidence = @([pscustomobject]@{ Code='KnownUnauthorizedName'; Source='Identity'; Detail='by sandyd'; Strength='Strong' })
+        $abbyyEvidence = @(
+            [pscustomobject]@{ Code='KnownActivatorArtifact'; Source='Fixture'; Detail='C:\Fixture\abbyy-genp.exe'; Strength='Strong'; Decisive=$true; CorrelationLevel='Direct' },
+            [pscustomobject]@{ Code='KnownUnauthorizedName'; Source='Identity'; Detail='by sandyd'; Strength='Strong'; Decisive=$true; CorrelationLevel='Direct' }
+        )
         $abbyyApps = @(
-            [pscustomobject]@{ Id='abbyy-shortcut'; Name='ABBYY FineReader'; SourceKind='Shortcut'; Publisher='ABBYY'; VendorScope='ABBYY'; InstallLocation='C:\Program Files\ABBYY FineReader 16'; RepresentativePath='C:\Program Files\ABBYY FineReader 16\HotFolder.exe'; RegistryPath=''; UninstallString=''; ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'; OfficialReferenceUrl='https://pdf.abbyy.com/finereader-pdf/'; Evidence=@([pscustomobject]@{ Code='SignatureHashMismatch'; Source='Authenticode'; Detail='C:\Program Files\ABBYY FineReader 16\HotFolder.exe'; Strength='Strong' }) },
-            [pscustomobject]@{ Id='abbyy-registry'; Name='ABBYY FineReader PDF by sandyd'; SourceKind='Registry'; Publisher='ABBYY'; VendorScope='ABBYY'; InstallLocation='C:\Program Files\ABBYY FineReader 16'; RepresentativePath='C:\Program Files\ABBYY FineReader 16\FineReader.exe'; RegistryPath=('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $abbyyGuid); UninstallString=('MsiExec.exe /I' + $abbyyGuid); ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'; OfficialReferenceUrl='https://pdf.abbyy.com/finereader-pdf/'; Evidence=$abbyyEvidence }
+            [pscustomobject]@{ Id='abbyy-shortcut'; Name='ABBYY FineReader'; SourceKind='Shortcut'; Publisher='ABBYY'; VendorScope='ABBYY'; InstallLocation='C:\Program Files\ABBYY FineReader 16'; RepresentativePath='C:\Program Files\ABBYY FineReader 16\HotFolder.exe'; RegistryPath=''; UninstallString=''; LicenseTechnicalState='CrackConfirmed'; ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; ManualEligible=$true; AutoEligible=$false; RemediationAdapter='Generic'; OfficialReferenceUrl='https://pdf.abbyy.com/finereader-pdf/'; Evidence=$abbyyEvidence },
+            [pscustomobject]@{ Id='abbyy-registry'; Name='ABBYY FineReader PDF by sandyd'; SourceKind='Registry'; Publisher='ABBYY'; VendorScope='ABBYY'; InstallLocation='C:\Program Files\ABBYY FineReader 16'; RepresentativePath='C:\Program Files\ABBYY FineReader 16\FineReader.exe'; RegistryPath=('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $abbyyGuid); UninstallString=('MsiExec.exe /I' + $abbyyGuid); LicenseTechnicalState='CrackConfirmed'; ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; ManualEligible=$true; AutoEligible=$false; RemediationAdapter='Generic'; OfficialReferenceUrl='https://pdf.abbyy.com/finereader-pdf/'; Evidence=$abbyyEvidence }
         )
         $candidates = @(Get-ThirdPartyLicenseCandidates -Applications $abbyyApps -Evidence @())
         if ($candidates.Count -ne 1 -or [string]$candidates[0].RemediationMode -ne 'ManualOfficialReinstall' -or [bool]$candidates[0].AutoEligible -or @($candidates[0].ApplicationIds).Count -ne 2) {
@@ -782,23 +832,25 @@ No licenses found.
         $repairGuid = '{11111111-2222-3333-4444-555555555555}'
         $repairApp = [pscustomobject]@{ Id='example-pro'; Name='Example Pro'; SourceKind='Registry'; Publisher='Example'; VendorScope='Example'; InstallLocation='C:\Program Files\Example Pro'; RepresentativePath='C:\Program Files\Example Pro\Example.exe'; RegistryPath=('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $repairGuid); UninstallString=('MsiExec.exe /I' + $repairGuid); ManualEligible=$true; AutoEligible=$true; RemediationAdapter='Generic'; OfficialReferenceUrl='https://example.invalid/'; Evidence=@([pscustomobject]@{ Code='SignatureHashMismatch'; Source='Authenticode'; Detail='C:\Program Files\Example Pro\Example.exe'; Strength='Strong' }) }
         $repairCandidate = @(Get-ThirdPartyLicenseCandidates -Applications @($repairApp) -Evidence @())
-        if ($repairCandidate.Count -ne 1 -or -not [bool]$repairCandidate[0].AutoEligible -or [string]$repairCandidate[0].RemediationMode -ne 'AutomaticOfficialRepair' -or @($repairCandidate[0].PlanItems | Where-Object { $_.Type -eq 'Repair' -and $_.Location -eq $repairGuid }).Count -ne 1) {
-            Fail 'Fixture MSI bị sửa chưa tạo đúng kế hoạch Repair tự động an toàn.'
+        if ($repairCandidate.Count -ne 0) {
+            Fail 'Chỉ sai chữ ký tệp vẫn mở candidate Repair dù chưa có bằng chứng crack trực tiếp.'
         }
 
-        $adobeRiskEvidence = [pscustomobject]@{ Code='KnownActivatorArtifact'; Source='Fixture'; Detail='Adobe GenP'; Strength='Strong'; Decisive=$true }
+        $adobeRiskEvidence = @(
+            [pscustomobject]@{ Code='KnownActivatorArtifact'; Source='Fixture'; Detail='C:\Fixture\Adobe-GenP.exe'; Strength='Strong'; Decisive=$true; CorrelationLevel='Direct' },
+            [pscustomobject]@{ Code='DeepSignatureHashMismatch'; Source='Authenticode'; Detail='C:\Program Files\Adobe\Photoshop\core.dll'; Strength='Strong'; Decisive=$true; CorrelationLevel='Direct' }
+        )
         $adobeFamily = @(
-            [pscustomobject]@{ Id='adobe-risk'; Name='Adobe Photoshop'; Publisher='Adobe'; VendorScope='Adobe'; InstallLocation='C:\Program Files\Adobe\Photoshop'; RepresentativePath=''; SourceKind='Registry'; RegistryPath=''; UninstallString=''; AssessmentCode='NonGenuine'; LicenseTechnicalState='CrackConfirmed'; CleanupFinding=$true; ManualEligible=$true; AutoEligible=$true; StrongEvidenceCount=1; RemediationAdapter='Adobe'; OfficialReferenceUrl='https://account.adobe.com/'; Evidence=@($adobeRiskEvidence) },
+            [pscustomobject]@{ Id='adobe-risk'; Name='Adobe Photoshop'; Publisher='Adobe'; VendorScope='Adobe'; InstallLocation='C:\Program Files\Adobe\Photoshop'; RepresentativePath=''; SourceKind='Registry'; RegistryPath=''; UninstallString=''; AssessmentCode='NonGenuine'; LicenseTechnicalState='CrackConfirmed'; CleanupFinding=$true; ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; ManualEligible=$true; AutoEligible=$false; StrongEvidenceCount=2; RemediationAdapter='Adobe'; OfficialReferenceUrl='https://account.adobe.com/'; Evidence=$adobeRiskEvidence },
             [pscustomobject]@{ Id='adobe-valid'; Name='Adobe Acrobat'; Publisher='Adobe'; VendorScope='Adobe'; InstallLocation='C:\Program Files\Adobe\Acrobat'; RepresentativePath=''; SourceKind='Registry'; RegistryPath=''; UninstallString=''; AssessmentCode='GenuineVerified'; LicenseTechnicalState='LocalLicenseVerified'; CleanupFinding=$false; ManualEligible=$false; AutoEligible=$false; StrongEvidenceCount=0; RemediationAdapter='Adobe'; OfficialReferenceUrl='https://account.adobe.com/'; Evidence=@() }
         )
         $adobeExternalEvidence = [pscustomobject]@{
             Type='InstalledActivator'; VendorScope='Adobe'; Name='Adobe GenP'; RegistryPath='HKEY_LOCAL_MACHINE\SOFTWARE\Fixture\AdobeGenP'
-            Location=''; Detail='fixture'; Strength='Strong'; Decisive=$true
+            Location=''; Detail='fixture'; Strength='Strong'; Decisive=$true; CorrelationLevel='VendorShared'
         }
         $adobePreserveCandidate = @(Get-ThirdPartyLicenseCandidates -Applications $adobeFamily -Evidence @($adobeExternalEvidence))
-        if ($adobePreserveCandidate.Count -ne 1 -or [string]$adobePreserveCandidate[0].RemediationMode -ne 'ArtifactCleanupPreserveVerifiedLicense' -or
-            @($adobePreserveCandidate[0].PlanItems | Where-Object { [string]$_.Kind -eq 'ThirdPartyLicenseState' }).Count -ne 0) {
-            Fail 'Adapter Adobe chưa bảo toàn shared license đã được vendor xác nhận.'
+        if ($adobePreserveCandidate.Count -ne 0) {
+            Fail 'Dấu vết Adobe không có artifact cụ thể vẫn mở candidate có thể thay đổi trạng thái shared license.'
         }
 
         $dryRunAst = $cleanup.Ast.Find({
@@ -1177,11 +1229,11 @@ if ($gui) {
             )
             $autoSelected = @(& $autoSafeFilter -CleanupItems $autoFixture)
             $autoIds = @($autoSelected | ForEach-Object { [string]$_.Id })
-            if ($autoSelected.Count -ne 5 -or $autoIds -notcontains 'win-kms' -or $autoIds -notcontains 'office-kms' -or $autoIds -notcontains 'nogen' -or $autoIds -notcontains 'adobe-auto' -or $autoIds -notcontains 'generic-repair-auto') {
-                Fail 'Bộ lọc tự động không chọn đúng Registry allowlist và ứng dụng đã đủ điều kiện.'
+            if ($autoSelected.Count -ne 3 -or $autoIds -notcontains 'win-kms' -or $autoIds -notcontains 'office-kms' -or $autoIds -notcontains 'nogen') {
+                Fail 'Bộ lọc tự động không chọn đúng Registry allowlist an toàn.'
             }
-            if ($autoIds -contains 'wrong-path' -or $autoIds -contains 'license' -or $autoIds -contains 'file' -or $autoIds -contains 'history' -or $autoIds -contains 'generic-uninstall-manual' -or $autoIds -contains 'autodesk-review') {
-                Fail 'Bộ lọc tự động đã chọn mục ngoài allowlist hoặc ứng dụng chưa đủ điều kiện.'
+            if ($autoIds -contains 'wrong-path' -or $autoIds -contains 'license' -or $autoIds -contains 'file' -or $autoIds -contains 'history' -or $autoIds -contains 'adobe-auto' -or $autoIds -contains 'generic-repair-auto' -or $autoIds -contains 'generic-uninstall-manual' -or $autoIds -contains 'autodesk-review') {
+                Fail 'Bộ lọc tự động đã chọn mục ngoài Registry allowlist hoặc ứng dụng bên thứ ba.'
             }
         } catch {
             Fail "Không chạy được fixture tự động làm sạch an toàn: $($_.Exception.Message)"
@@ -1197,7 +1249,7 @@ if ($gui) {
         if ($gui.Text -notmatch [regex]::Escape($requiredToken)) { Fail "GUI thiếu kết quả phần mềm/Kết nối online/trạng thái ban đầu: $requiredToken" }
     }
     try {
-        foreach ($functionName in @('Test-GuiThirdPartyCleanupFinding','Get-GuiThirdPartyCleanupFindings','Get-GuiThirdPartyStandaloneCleanupRows')) {
+        foreach ($functionName in @('Test-GuiThirdPartyCleanupFinding','Test-GuiThirdPartyDirectRemediationEvidence','Get-GuiThirdPartyCleanupFindings','Get-GuiThirdPartyStandaloneCleanupRows')) {
             $functionAst = $gui.Ast.Find({
                 param($node)
                 $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
@@ -1213,13 +1265,29 @@ if ($gui) {
         if ($visibleCleanupFindings.Count -ne 1 -or [string]$visibleCleanupFindings[0].Name -ne 'Residual App') {
             Fail 'GUI vẫn đưa phần mềm đã sạch bằng chứng quay lại danh sách làm sạch sau quét lại.'
         }
+        $confirmedDirectRow = [pscustomobject]@{
+            Name='Confirmed direct'; AssessmentCode='NonGenuine'; CleanupFinding=$true; CleanupCandidateId='candidate-1'; RemediationSupported=$true
+            LicenseTechnicalState='CrackConfirmed'; ArtifactCleanupAllowed=$true; CleanupArtifactCleanupAllowed=$true
+        }
+        $suspiciousRow = [pscustomobject]@{
+            Name='Suspicious only'; AssessmentCode='Suspicious'; CleanupFinding=$true; CleanupCandidateId='candidate-2'; RemediationSupported=$true
+            LicenseTechnicalState='Suspicious'; ArtifactCleanupAllowed=$false; CleanupArtifactCleanupAllowed=$false
+        }
+        if (-not (Test-GuiThirdPartyDirectRemediationEvidence -Application $confirmedDirectRow) -or
+            (Test-GuiThirdPartyDirectRemediationEvidence -Application $suspiciousRow)) {
+            Fail 'GUI vẫn mở checkbox cho nghi vấn hoặc không mở cho CrackConfirmed trực tiếp.'
+        }
         $standaloneRows = @(Get-GuiThirdPartyStandaloneCleanupRows -Candidates @([pscustomobject]@{
             Id='standalone-file'; Name='license-crack.zip'; ApplicationIds=@(); RemediationMode='ArtifactCleanup'
             Evidence=@([pscustomobject]@{ Code='UncorrelatedFileArtifact'; Location='C:\Fixture\license-crack.zip' })
             PlanItems=@([pscustomobject]@{ Type='File'; Kind='ThirdPartyUnauthorizedArtifact' })
+            ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; RecoveryMode='ArtifactCleanupOnly'
         }))
         if ($standaloneRows.Count -ne 1 -or -not [bool]$standaloneRows[0].CleanupFinding -or [string]$standaloneRows[0].CleanupCandidateId -ne 'standalone-file') {
             Fail 'GUI không hiển thị candidate tệp activator độc lập để người dùng chọn cách ly.'
+        }
+        if (-not (Test-GuiThirdPartyDirectRemediationEvidence -Application $standaloneRows[0])) {
+            Fail 'GUI khóa nhầm candidate tệp activator độc lập đã qua phạm vi/path allowlist.'
         }
     } catch {
         Fail "Không chạy được fixture lọc danh sách làm sạch sau quét lại: $($_.Exception.Message)"
@@ -1227,7 +1295,7 @@ if ($gui) {
 }
 
 if ($softwareInventory) {
-    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareKnownActivationState','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','Merge-ToolSoftwareInventoryRecords','Test-ToolSoftwareLikelySystemComponent','CleanupFinding','RemediationEvidenceCount','IsSystemComponent','KnownBadFileHash','DeepSignatureHashMismatch','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt $MaximumBytes','UploadedInventory=$false','SentLicenseKeys=$false')) {
+    foreach ($requiredToken in @('Get-ToolSoftwareInventory','Get-ToolSoftwareAssessments','Get-ToolSoftwareKnownActivationState','Get-ToolSoftwareDeepScanEvidence','Get-ToolSoftwareDeepSystemSnapshot','Get-ToolSoftwareLastDeepScanMetadata','Merge-ToolSoftwareInventoryRecords','Test-ToolSoftwareLikelySystemComponent','CleanupFinding','RemediationEvidenceCount','IsSystemComponent','KnownBadFileHash','DeepSignatureHashMismatch','Get-ToolSoftwareRecoveryGate','CorrelationLevel','Assert-ToolSoftwareCatalogNetworkAllowed','Update-ToolSoftwareLicenseCatalog','Explicit user consent is required','raw.githubusercontent.com','Catalog URL is outside the fixed HTTPS allowlist',"`$request.Method = 'GET'",'AllowAutoRedirect = $false','ContentLength -gt $MaximumBytes','UploadedInventory=$false','SentLicenseKeys=$false')) {
         if ($softwareInventory.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Mô-đun kiểm kê/danh mục online thiếu ràng buộc an toàn: $requiredToken" }
     }
     if ($softwareInventory.Text -match '(?i)\b(method\s*=\s*["''](?:POST|PUT|PATCH)|uploadfile|invoke-restmethod\b.+-(?:method\s+)?(?:post|put|patch))') {
@@ -1334,8 +1402,9 @@ if ($softwareInventory) {
             InstallLocation=''; RepresentativePath=''; SourceKind='Registry'; SignatureStatus='NotChecked'; IsMicrosoft=$false
         }
         $assessment = @(Get-ToolSoftwareAssessments -Applications @($fixtureApp) -Catalog $trustedBundledCatalog)
-        if ($assessment.Count -ne 1 -or [string]$assessment[0].AssessmentCode -ne 'NonGenuine' -or -not [bool]$assessment[0].ManualEligible -or [string]$assessment[0].RemediationAdapter -ne 'Generic') {
-            Fail 'Đánh giá ABBYY tổng quát chưa mở chọn thủ công từ bằng chứng mạnh.'
+        if ($assessment.Count -ne 1 -or [string]$assessment[0].AssessmentCode -ne 'Suspicious' -or [bool]$assessment[0].ManualEligible -or
+            [bool]$assessment[0].ArtifactCleanupAllowed -or [string]$assessment[0].RecoveryBlockReason -notmatch 'Corroboration|Direct') {
+            Fail 'Tên package crack đơn lẻ vẫn được phép khắc phục thay vì chỉ hiện nghi vấn để kiểm tra.'
         }
         $unsignedFixtureApp = [pscustomobject]@{
             Id='unsigned-fixture-app'; Name='Raw Catalog App raw-only-marker'; Version='1'; Publisher='Example'
@@ -1364,7 +1433,7 @@ if ($softwareInventory) {
             VendorScope='Example'; Strength='Conclusive'; EvidenceGroup='Inventory'; Decisive=$true; Detail='fixture only'
         }
         $unlinkedAssessment = @(Get-ToolSoftwareAssessments -Applications @($lowAssessmentApp) -Catalog $null -ExternalEvidence @($unlinkedDecisiveEvidence))[0]
-        if ([string]$unlinkedAssessment.AssessmentCode -ne 'NonGenuine' -or [int]$unlinkedAssessment.RemediationEvidenceCount -ne 0 -or
+        if ([string]$unlinkedAssessment.AssessmentCode -ne 'Suspicious' -or [int]$unlinkedAssessment.RemediationEvidenceCount -ne 0 -or
             [bool]$unlinkedAssessment.CleanupFinding -or [bool]$unlinkedAssessment.ManualEligible) {
             Fail 'Bằng chứng quyết định không gắn activator/tampering vẫn tạo finding khắc phục.'
         }
@@ -1389,13 +1458,20 @@ if ($softwareInventory) {
             RepresentativePath=''; SourceKind='Registry'; SignatureStatus='NotChecked'; IsMicrosoft=$false
             RegistryPath=''; UninstallString=''
         }
-        $rescanEvidence = [pscustomobject]@{
-            Code='KnownActivatorFileArtifact'; Type='FileArtifact'; Source='FileArtifact'; Name='known-activator.zip'
-            Location=$rescanArtifact; ApplicationId='rescan-app'; VendorScope='Example'; Strength='Strong'
-            EvidenceGroup='ActivatorArtifact'; Decisive=$true; Detail='fixture'
-        }
-        $beforeCleanup = @(Get-ToolSoftwareAssessments -Applications @($rescanApp) -Catalog $trustedBundledCatalog -ExternalEvidence @($rescanEvidence))[0]
-        $beforeCandidates = @(Get-ThirdPartyLicenseCandidates -Applications @($beforeCleanup) -Evidence @($rescanEvidence))
+        $rescanEvidence = @(
+            [pscustomobject]@{
+                Code='KnownActivatorFileArtifact'; Type='FileArtifact'; Source='FileArtifact'; Name='known-activator.zip'
+                Location=$rescanArtifact; ApplicationId='rescan-app'; VendorScope='Example'; Strength='Strong'
+                EvidenceGroup='ActivatorArtifact'; Decisive=$true; Detail='fixture'; CorrelationLevel='Direct'
+            },
+            [pscustomobject]@{
+                Code='KnownUnauthorizedName'; Type='Identity'; Source='Identity'; Name='Rescan Fixture by patcher'
+                Location=''; ApplicationId='rescan-app'; VendorScope='Example'; Strength='Strong'
+                EvidenceGroup='KnownUnauthorizedPackage'; Decisive=$true; Detail='fixture package'; CorrelationLevel='Direct'
+            }
+        )
+        $beforeCleanup = @(Get-ToolSoftwareAssessments -Applications @($rescanApp) -Catalog $trustedBundledCatalog -ExternalEvidence $rescanEvidence)[0]
+        $beforeCandidates = @(Get-ThirdPartyLicenseCandidates -Applications @($beforeCleanup) -Evidence $rescanEvidence)
         if (-not [bool]$beforeCleanup.CleanupFinding -or $beforeCandidates.Count -ne 1 -or
             @($beforeCandidates[0].PlanItems | Where-Object { $_.Type -eq 'File' -and $_.Location -eq $rescanArtifact }).Count -ne 1) {
             Fail 'Fixture trước làm sạch chưa tạo đúng finding/candidate cho FileArtifact.'
@@ -1465,11 +1541,11 @@ if ($softwareInventory) {
             @($suspiciousResult.Evidence | Where-Object { $_.Code -eq 'SuspiciousArtifactName' }).Count -ne 1) {
             Fail 'Tên crack tổng quát phải chỉ tạo trạng thái Suspicious để xem xét, không được tự kết luận NonGenuine hoặc đưa vào khắc phục.'
         }
-        if ([string]$tamperedResult.AssessmentCode -ne 'NonGenuine' -or [int]$tamperedResult.DecisiveEvidenceCount -lt 1 -or
+        if ([string]$tamperedResult.AssessmentCode -ne 'Suspicious' -or [bool]$tamperedResult.CleanupFinding -or [int]$tamperedResult.DecisiveEvidenceCount -lt 1 -or
             @($tamperedResult.Evidence | Where-Object { $_.Code -eq 'KnownActivatorArtifact' -and $_.Decisive }).Count -lt 1 -or
             @($tamperedResult.Evidence | Where-Object { $_.Code -eq 'KnownBadFileHash' }).Count -ne 0 -or
             [string]$tamperedResult.CatalogMatchReason -ne 'CatalogUntrusted') {
-            Fail 'Quét sâu chưa ưu tiên dấu vết activator tích hợp hoặc vẫn tin hash từ catalogue raw.'
+            Fail 'Catalog raw hoặc tên activator đơn lẻ vẫn được coi là crack đã xác nhận.'
         }
         $deepMetadata = Get-ToolSoftwareLastDeepScanMetadata
         if (-not [bool]$deepMetadata.Enabled -or [int]$deepMetadata.ApplicationsScanned -ne 3 -or [int]$deepMetadata.RelevantFiles -lt 4) {
@@ -1770,7 +1846,7 @@ if ($softwareInventory) {
 }
 
 if ($softwareCatalogUpdater) {
-    foreach ($requiredToken in @('[switch]$ConsentGranted','Update-ToolSoftwareLicenseCatalog','UploadedInventory=$false','SentLicenseKeys=$false')) {
+    foreach ($requiredToken in @('[switch]$ConsentGranted','Tool-OfflinePolicy.ps1','Assert-ToolNetworkActionAllowed','Update-ToolSoftwareLicenseCatalog','UploadedInventory=$false','SentLicenseKeys=$false')) {
         if ($softwareCatalogUpdater.Text -notmatch [regex]::Escape($requiredToken)) { Fail "Trình cập nhật danh mục thiếu consent/khẳng định riêng tư: $requiredToken" }
     }
     if ($softwareCatalogUpdater.Text -notmatch 'if\s*\(\s*-not\s+\$ConsentGranted\s*\)\s*\{\s*(?:#[^\r\n]*\s*)?exit\s+2\s*\}' -or
@@ -1782,6 +1858,7 @@ if ($softwareCatalogUpdater) {
     if (-not (Test-Path -LiteralPath $nativePowerShell -PathType Leaf)) { $nativePowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source }
     $softwareCatalogUpdaterPath = Join-Path $root 'software-license-online-update.ps1'
     $consentResult = Join-Path ([IO.Path]::GetTempPath()) ('ToolCatalogConsent-' + [Guid]::NewGuid().ToString('N') + '.json')
+    $offlineResult = Join-Path ([IO.Path]::GetTempPath()) ('ToolCatalogOffline-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
         & $nativePowerShell -NoProfile -ExecutionPolicy RemoteSigned -File $softwareCatalogUpdaterPath -ResultFile $consentResult
         if ($LASTEXITCODE -ne 2 -or (Test-Path -LiteralPath $consentResult)) { Fail 'Không truyền consent không fail-closed với mã 2.' }
@@ -1791,8 +1868,44 @@ if ($softwareCatalogUpdater) {
         $falseConsentEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($falseConsentCommand))
         & $nativePowerShell -NoProfile -ExecutionPolicy RemoteSigned -EncodedCommand $falseConsentEncoded
         if ($LASTEXITCODE -ne 2 -or (Test-Path -LiteralPath $consentResult)) { Fail 'Consent false không fail-closed với mã 2.' }
+        $escapedOfflineResultPath = $offlineResult.Replace("'", "''")
+        $offlineCommand = "`$env:TOOL_OFFLINE_MODE='1'; & '$escapedUpdaterPath' -ResultFile '$escapedOfflineResultPath' -ConsentGranted; exit `$LASTEXITCODE"
+        $offlineEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($offlineCommand))
+        & $nativePowerShell -NoProfile -ExecutionPolicy RemoteSigned -EncodedCommand $offlineEncoded
+        $offlinePayload = if (Test-Path -LiteralPath $offlineResult -PathType Leaf) { Get-Content -LiteralPath $offlineResult -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+        if ($LASTEXITCODE -ne 3 -or -not $offlinePayload -or [bool]$offlinePayload.Success -or [string]$offlinePayload.Error -notmatch 'OFFLINE_MODE_BLOCKED') {
+            Fail 'Updater danh mục vẫn có thể chạy khi TOOL_OFFLINE_MODE=1 hoặc không báo lỗi Offline rõ ràng.'
+        }
     } finally {
         if (Test-Path -LiteralPath $consentResult -PathType Leaf) { Remove-Item -LiteralPath $consentResult -Force -ErrorAction SilentlyContinue }
+        if (Test-Path -LiteralPath $offlineResult -PathType Leaf) { Remove-Item -LiteralPath $offlineResult -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+if ($softwareInventory) {
+    $nativePowerShell = Join-Path $PSHOME 'powershell.exe'
+    if (-not (Test-Path -LiteralPath $nativePowerShell -PathType Leaf)) { $nativePowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source }
+    $softwareInventoryPath = Join-Path $root 'Tool-SoftwareInventory.ps1'
+    try {
+        # Invoke the public catalog functions from a clean process which has
+        # loaded only the inventory module.  Both routes must load Offline
+        # policy themselves and fail before any HTTP request can begin.
+        $escapedInventoryPath = $softwareInventoryPath.Replace("'", "''")
+        $directOfflineCommand = @'
+$env:TOOL_OFFLINE_MODE='1'
+. '__INVENTORY_PATH__'
+$updateBlocked = $false
+$httpBlocked = $false
+try { $updateResult = Update-ToolSoftwareLicenseCatalog -ConsentGranted; $updateBlocked = (-not [bool]$updateResult.Success -and [string]$updateResult.Error -match '(?i)offline') } catch { $updateBlocked = ([string]$_.Exception.Message -match '(?i)offline') }
+try { [void](Invoke-ToolSoftwareCatalogHttpGetBytes -Uri ([uri]'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json')) } catch { $httpBlocked = ([string]$_.Exception.Message -match '(?i)offline') }
+if ($updateBlocked -and $httpBlocked) { exit 0 }
+exit 91
+'@.Replace('__INVENTORY_PATH__', $escapedInventoryPath)
+        $directOfflineEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($directOfflineCommand))
+        & $nativePowerShell -NoProfile -ExecutionPolicy RemoteSigned -EncodedCommand $directOfflineEncoded
+        if ($LASTEXITCODE -ne 0) { Fail 'Gọi trực tiếp Tool-SoftwareInventory vẫn có thể vượt Offline hoặc chạm đường HTTP.' }
+    } catch {
+        Fail "Không chạy được fixture Offline trực tiếp của Tool-SoftwareInventory: $($_.Exception.Message)"
     }
 }
 

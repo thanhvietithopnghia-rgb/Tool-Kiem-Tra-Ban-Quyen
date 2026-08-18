@@ -739,11 +739,11 @@ $releaseManifest = [ordered]@{
     SystemSoftwarePresentation = 'Hidden from main application tables; available through HTML internal link and a full PDF/JSON appendix'
     FileIntegrityAssessment = 'HashMismatch maps to IntegrityCompromised and does not alone prove non-genuine entitlement'
     DeepSoftwareScanEvidence = @('Multiple EXE/DLL Authenticode','Trusted known-bad SHA-256','Activator/artifact identity','IFEO','Firewall','Disabled licensing service','Autorun','Task/service/process/folder correlation','Blocked licensing domains')
-    DeepSoftwareScanScoring = 'NonGenuine requires decisive evidence or two independent strong groups; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
+    DeepSoftwareScanScoring = 'CrackConfirmed requires direct known hash, active activator, or a direct artifact with independent corroboration; generic/moderate evidence remains Suspicious; incomplete coverage remains Unverified'
     DeepSoftwareScanBudgetPolicy = 'Bounded time/depth/files/signatures/hashes; weighted budgeting prioritizes paid/trial/evidence-bearing software while reserving coverage for unknown/free applications'
-    DeepSoftwareScanCatalogTrust = 'Online-cache rules cannot create decisive hash/name evidence unless byte-identical to the bundled catalog'
-    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing scope','Autodesk/AutoCAD shared licensing scope','WinRAR adapter gated by independent activator/tampering evidence; rarreg.key alone is never eligible','Generic exact-artifact/hosts cleanup + exact application-scoped firewall cleanup + validated MSI Repair + manual official-reinstall fallback')
-    ThirdPartyAutomaticResetPolicy = 'Verified decisive evidence + scope-locked safe action + complete scan sources; firewall changes and uninstall/reinstall are manual-only'
+    DeepSoftwareScanCatalogTrust = 'Only bundled or pinned-signer, schema-validated online-cache rules may contribute to decisive evidence; raw or forged catalog objects are rejected'
+    ThirdPartyLicenseRemediationAdapters = @('Adobe shared licensing stores are never reset','Autodesk/AutoCAD shared licensing stores are never reset','WinRAR local license files are observed only and never automatically reset','Generic direct-artifact quarantine + bounded hosts repair; firewall/process/service/task/registry/folder/reinstall stay manual-only')
+    ThirdPartyAutomaticResetPolicy = 'No third-party license store is reset automatically; verified decisive direct evidence permits only exact artifact quarantine with hash/size revalidation or bounded hosts repair, and all other actions are manual-only'
     ThirdPartyBackupPolicy = 'HMAC-protected inventory and quarantine; unauthorized activators and licensing tokens are non-restorable'
     ThirdPartyPostCleanupQueuePolicy = 'Post-verification requeues only current activator/tampering evidence; inventory-only Unverified state remains reportable but is not remediation residue'
     ThirdPartyStandaloneArtifactPolicy = 'Exact-path activator files in user Downloads/Desktop/TEMP are manual-only quarantine candidates; protected backup/quarantine roots are excluded'
@@ -910,12 +910,18 @@ $applicationUpdateManifest = [ordered]@{
 $applicationUpdateManifestJson = $applicationUpdateManifest | ConvertTo-Json -Depth 8
 $sourceUpdateManifestPath = Join-Path $sourceDirectory 'update-manifest-v1.json'
 $outputUpdateManifestPath = Join-Path $OutputDirectory 'update-manifest-v1.json'
-[IO.File]::WriteAllText($sourceUpdateManifestPath, $applicationUpdateManifestJson, (New-Object Text.UTF8Encoding($false)))
-if (-not $sourceUpdateManifestPath.Equals($outputUpdateManifestPath, [StringComparison]::OrdinalIgnoreCase)) {
-    Copy-Item -LiteralPath $sourceUpdateManifestPath -Destination $outputUpdateManifestPath -Force
-}
-if ((Get-Sha256Hex $sourceUpdateManifestPath) -ne (Get-Sha256Hex $outputUpdateManifestPath)) {
-    throw 'Manifest cập nhật trong mã nguồn và thư mục phát hành không giống hệt từng byte.'
+if ($AllowUnsignedDevelopmentBuild) {
+    # Một build phát triển không được làm hỏng manifest stable đang dùng để cập nhật
+    # từ nguồn. Manifest development chỉ tồn tại trong thư mục artefact cục bộ.
+    [IO.File]::WriteAllText($outputUpdateManifestPath, $applicationUpdateManifestJson, (New-Object Text.UTF8Encoding($false)))
+} else {
+    [IO.File]::WriteAllText($sourceUpdateManifestPath, $applicationUpdateManifestJson, (New-Object Text.UTF8Encoding($false)))
+    if (-not $sourceUpdateManifestPath.Equals($outputUpdateManifestPath, [StringComparison]::OrdinalIgnoreCase)) {
+        Copy-Item -LiteralPath $sourceUpdateManifestPath -Destination $outputUpdateManifestPath -Force
+    }
+    if ((Get-Sha256Hex $sourceUpdateManifestPath) -ne (Get-Sha256Hex $outputUpdateManifestPath)) {
+        throw 'Manifest cập nhật trong mã nguồn và thư mục phát hành không giống hệt từng byte.'
+    }
 }
 Write-SourcePackageHashManifest
 
@@ -961,7 +967,7 @@ $infoLines = @(
     'Toi uu hieu nang v4.8: descriptor inventory tinh mot lan, chi muc nhom ten/bang chung ngoai, dung property bag thay Add-Member lap lai, tai su dung snapshot Scheduled Tasks, bang dich nguoc cho report va Authenticode theo lo toi da 4 worker; doi chung cung du lieu cho 0 khac biet, giu nguyen nguon, do sau, artifact va dau vet he thong.',
     'Chi ket luan NonGenuine khi co bang chung quyet dinh hoac hai nhom bang chung manh doc lap; dau hieu chung giu Suspicious, thieu do phu giu Unverified.',
     'Bao cao phan mem va dau hieu can thiep giu nguyen hop dong v4.3.0.3; kiem ke ung dung va trang thai ky thuat ben thu ba duoc noi them o cuoi bao cao va DetailedInventory JSON.',
-    'Khac phuc ben thu ba: moi phan mem NonGenuine/Suspicious deu co the chon thu cong; tu dong chi dung ke hoach da khoa pham vi (adapter hang, artifact/hosts chinh xac hoac Repair MSI hop le). Go/cai lai luon la thu cong.',
+    'Khac phuc ben thu ba: chi bang chung CrackConfirmed truc tiep moi mo quyen chon; tu dong chi co the cach ly artifact da xac nhan hoac khoi phuc dong hosts chinh xac, sau khi kiem tra lai hash/kich thuoc. Khong reset kho license cua hang, khong chay MSI Repair, go/cai lai luon la thu cong.',
     'Backup HMAC luu kiem ke va cach ly truoc thay doi; activator va token cap phep da loai bo khong duoc khoi phuc.',
     'Offline toan ung dung mac dinh; trung tam doanh nghiep co cong tac mang rieng mac dinh tat, co the bat/tat lai ma khong an chuc nang hoac xoa cau hinh.',
     'Ket noi online chi chay sau khi nguoi dung xac nhan, tai catalog JSON HTTPS tu host allowlist; khong gui inventory, duong dan, khoa hoac token va khong doi preference Offline.',

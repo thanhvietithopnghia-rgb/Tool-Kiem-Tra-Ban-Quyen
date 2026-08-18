@@ -11,14 +11,18 @@ if (-not $ConsentGranted) {
     exit 2
 }
 $localizationHelper = Join-Path $PSScriptRoot 'Tool-Localization.ps1'
+$offlinePolicyHelper = Join-Path $PSScriptRoot 'Tool-OfflinePolicy.ps1'
 $softwareInventoryHelper = Join-Path $PSScriptRoot 'Tool-SoftwareInventory.ps1'
 if (-not (Test-Path -LiteralPath $localizationHelper -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $offlinePolicyHelper -PathType Leaf) -or
     -not (Test-Path -LiteralPath $softwareInventoryHelper -PathType Leaf)) { exit 12 }
 . $localizationHelper
+. $offlinePolicyHelper
 . $softwareInventoryHelper
 $env:TOOL_UI_CULTURE = $Culture
 
 try {
+    [void](Assert-ToolNetworkActionAllowed -Scope Internet -Action (Get-ToolTextCurrent 'software.online.action'))
     $arguments = @{ ConsentGranted=$ConsentGranted }
     if (-not [string]::IsNullOrWhiteSpace($CatalogUrl)) { $arguments.CatalogUrl = $CatalogUrl }
     $result = Update-ToolSoftwareLicenseCatalog @arguments

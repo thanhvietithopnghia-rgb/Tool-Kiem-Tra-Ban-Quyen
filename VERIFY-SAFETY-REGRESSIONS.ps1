@@ -171,6 +171,344 @@ LICENSE STATUS: ---UNLICENSED---
         }
     }
 
+    $officeSkuBlockAssessmentAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeOsppSkuBlockAssessment' }, $true)
+    if (-not $officeSkuBlockAssessmentAst) {
+        Fail 'Không tìm thấy bộ đánh giá đầy đủ SKU block OSPP.'
+    } else {
+        try {
+            Invoke-Expression ('function script:Get-OfficeOsppSkuBlockAssessment ' + $officeSkuBlockAssessmentAst.Body.Extent.Text)
+            $completeSkuFixture = @'
+---------------------------------------
+SKU ID: dddddddd-dddd-dddd-dddd-dddddddddddd
+LICENSE NAME: Office 16, Office16O365BusinessR_Subscription edition
+LICENSE DESCRIPTION: Office 16, TIMEBASED_SUB channel
+LICENSE STATUS: ---UNLICENSED---
+---------------------------------------
+'@
+            $completeSkuAssessment = Get-OfficeOsppSkuBlockAssessment -StatusText $completeSkuFixture -Path 'C:\Office\OSPP.VBS'
+            if (-not [bool]$completeSkuAssessment.Complete -or [int]$completeSkuAssessment.SkuBlockCount -ne 1 -or
+                [int]$completeSkuAssessment.IncompleteSkuBlockCount -ne 0) {
+                Fail 'OSPP /dstatusall đầy đủ không được nhận Complete.'
+            }
+            $partialSkuFixture = @'
+---------------------------------------
+SKU ID:
+LICENSE NAME: Office 16, Office16O365BusinessR_Subscription edition
+LICENSE DESCRIPTION: Office 16, TIMEBASED_SUB channel
+LICENSE STATUS: ---UNLICENSED---
+---------------------------------------
+'@
+            $partialSkuAssessment = Get-OfficeOsppSkuBlockAssessment -StatusText $partialSkuFixture -Path 'C:\Office\OSPP.VBS'
+            if ([bool]$partialSkuAssessment.Complete -or [int]$partialSkuAssessment.SkuBlockCount -ne 1 -or
+                [int]$partialSkuAssessment.IncompleteSkuBlockCount -ne 1) {
+                Fail 'OSPP có SKU block thiếu identity vẫn được coi là Complete.'
+            }
+        } catch {
+            Fail "Không chạy được regression coverage SKU block OSPP: $($_.Exception.Message)"
+        }
+    }
+
+    # Office remediation is allowed only after a complete, current /dstatusall
+    # observation.  These checks intentionally cover the authorization gate,
+    # not just the display parser: a fallback /dstatus can omit another SKU.
+    $officeProbeAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeLicenseProbe' }, $true)
+    $officeProbeForPathAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeLicenseProbeForPath' }, $true)
+    $vNextProbeAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeVNextEntitlementProbe' }, $true)
+    $vNextTrustAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-OfficeVNextDiagTrustedPath' }, $true)
+    $officePathKeyAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeKmsPathKey' }, $true)
+    $officeTargetIdentityAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeKmsTargetIdentity' }, $true)
+    $officeOutcomeAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficeOfficialLicenseOutcome' }, $true)
+    $officePostCheckAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OfficialLicensePostCheck' }, $true)
+    $officeTargetGateAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-OfficeKmsRemediationTarget' }, $true)
+    $officePathGateAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-OfficeKmsRemediationPath' }, $true)
+    $newCleanupItemAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-CleanupItem' }, $true)
+    $allCleanupCandidatesAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-AllCleanupCandidates' }, $true)
+    $remediationAst = $cleanup.Ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-Remediation' }, $true)
+    if (-not $officeProbeAst -or -not $officeProbeForPathAst -or -not $vNextProbeAst -or -not $vNextTrustAst -or -not $officePathKeyAst -or -not $officeTargetIdentityAst -or -not $officeOutcomeAst -or -not $officePostCheckAst -or -not $officeTargetGateAst -or -not $officePathGateAst -or -not $newCleanupItemAst -or -not $allCleanupCandidatesAst -or -not $remediationAst) {
+        Fail 'Cleanup Office thiếu OfficeProbe, hậu kiểm hoặc hàm tái xác minh trước khi gỡ key.'
+    } else {
+        $officeProbeText = $officeProbeAst.Extent.Text
+        $officeProbeForPathText = $officeProbeForPathAst.Extent.Text
+        $vNextProbeText = $vNextProbeAst.Extent.Text
+        $vNextTrustText = $vNextTrustAst.Extent.Text
+        $officeTargetIdentityText = $officeTargetIdentityAst.Extent.Text
+        $officeOutcomeText = $officeOutcomeAst.Extent.Text
+        $officePostCheckText = $officePostCheckAst.Extent.Text
+        $officeTargetGateText = $officeTargetGateAst.Extent.Text
+        $officePathGateText = $officePathGateAst.Extent.Text
+        $allCleanupCandidatesText = $allCleanupCandidatesAst.Extent.Text
+        $remediationText = $remediationAst.Extent.Text
+
+        foreach ($requiredToken in @('Installed','Coverage','OsppPaths','PathResults','ParsedSkuCount','SkuBlockCount','FullyParsedSkuBlockCount','IncompleteSkuBlockCount','UsedFallback','TimedOut','PrimaryExitCode','Readable','Complete','Partial','Unavailable','Failed','RequiresVNextEntitlement','EntitlementCoverage','VNextEntitlementProbe')) {
+            if ($officeProbeText -notmatch [regex]::Escape($requiredToken)) { Fail "OfficeProbe chưa công bố/gate đủ trạng thái: $requiredToken" }
+        }
+        foreach ($requiredToken in @('Get-OfficeOsppSkuBlockAssessment','Get-OfficeVNextEntitlementProbe','Get-OfficeVNextDiagPaths','Test-OfficeSubscriptionDeployment')) {
+            if ($cleanup.Text -notmatch [regex]::Escape($requiredToken)) { Fail "OfficeProbe thiếu phần fail-closed Microsoft 365/vNext: $requiredToken" }
+        }
+        foreach ($requiredToken in @('Get-AuthenticodeSignature','CN=Microsoft Corporation','Microsoft Office\root\Office16\vNextDiag.ps1','Test-OfficeVNextDiagTrustedPath','Trusted=$true')) {
+            if (($vNextTrustText + $vNextProbeText) -notmatch [regex]::Escape($requiredToken)) { Fail "vNextDiag chưa được xác minh tin cậy trước khi chạy: $requiredToken" }
+        }
+        if ($vNextProbeText -match '(?i)-ExecutionPolicy\s+Bypass') {
+            Fail 'vNextDiag list không được chạy với ExecutionPolicy Bypass.'
+        }
+        if ($vNextProbeText -match '(?s)\$userStates\s*\+\s*\$deviceStates\s*\|\s*ForEach-Object\s*\{\s*\$_\.Groups') {
+            Fail 'vNextDiag có thể xử lý MatchCollection trống như một Match và gây lỗi null-array.'
+        }
+        if ($officeProbeText -notmatch '(?s)-not\s+\[bool\]\$result\.UsedFallback.+?\[int\]\$result\.PrimaryExitCode\s+-eq\s+0.+?\$parsed\.Count\s+-gt\s+0.+?\$blockAssessment\.Complete') {
+            Fail 'OfficeProbe vẫn có thể coi fallback, exit lỗi hoặc output không parse là Complete.'
+        }
+        if ($officeProbeForPathText -notmatch '(?s)-not\s+\[bool\]\$result\[0\]\.UsedFallback.+?\[int\]\$result\[0\]\.PrimaryExitCode\s+-eq\s+0.+?Coverage=\$\(if\s*\(\$complete\)\s*\{\s*''Complete''\s*\}\s*else\s*\{\s*''Partial''\s*\}\)') {
+            Fail 'Tái xác minh từng OSPP path chưa fail-closed khi dùng fallback/partial probe.'
+        }
+        if ($officeOutcomeText -notmatch '(?s)OfficeProbe.+?Coverage.+?-ne\s+''Complete''.+?StateCode=''Unverified''') {
+            Fail 'Hậu kiểm Office không chuyển probe không đầy đủ sang Unverified.'
+        }
+        if ($officeOutcomeText -notmatch '(?s)subscriptionDeployment.+?vNextCoverage.+?-ne\s+''Complete''.+?StateCode=''Unverified''') {
+            Fail 'Hậu kiểm Microsoft 365 vẫn có thể kết luận chưa kích hoạt khi vNext chưa được xác minh.'
+        }
+        if ($officePostCheckText -notmatch '(?s)\$OfficeProbe.+?Get-OfficeOfficialLicenseOutcome.+?-OfficeProbe\s+\$OfficeProbe') {
+            Fail 'Hậu kiểm tổng hợp không truyền OfficeProbe vào kết quả Office.'
+        }
+        foreach ($requiredToken in @('Get-OfficeKmsTargetIdentity','Get-OfficeLicenseProbeForPath','Coverage -ne ''Complete''','TargetNotSelectedByCompositeIdentity','SkuOrKeyChanged','TargetNoLongerUnapprovedKms','LicensedOfficialSkuSharesOsppPath','ApprovedKmsSkuSharesOsppPath','Last5NotUniqueOnOsppPath','Test-ApprovedKms')) {
+            if ($officeTargetGateText -notmatch [regex]::Escape($requiredToken)) { Fail "Tái xác minh Office thiếu khóa an toàn: $requiredToken" }
+        }
+        foreach ($requiredToken in @('AllowedTargetIds','UnselectedKmsOnSameOsppPath','UnvalidatedKmsOnSameOsppPath','KmsTargetIdentityMissing','Test-OfficeKmsRemediationTarget')) {
+            if ($officePathGateText -notmatch [regex]::Escape($requiredToken)) { Fail "Gate OSPP path thiếu khóa an toàn: $requiredToken" }
+        }
+        if ($officeTargetIdentityText -notmatch '(?s)Get-OfficeKmsPathKey.+?SkuId.+?Last5') {
+            Fail 'Office target identity không bao gồm đầy đủ OSPP path, SKU và Last5.'
+        }
+        if ($allCleanupCandidatesText -notmatch '(?s)Get-OfficeKmsTargetIdentity.+?-TargetId\s+\$targetId.+?-IdentitySeed\s+\$targetId') {
+            Fail 'Candidate Office không dùng composite identity cho TargetId và Selection ID.'
+        }
+        if ($remediationText -notmatch '(?s)Test-OfficeKmsRemediationTarget\s+-Entry\s+\$entry.+?-not\s+\[bool\]\$targetValidation\.Allowed.+?allowedOfficeTargetSet.+?Test-OfficeKmsRemediationPath.+?-AllowedTargetIds.+?Invoke-OfficeOsppCommand.+?/remhst.+?Test-OfficeKmsRemediationTarget.+?Invoke-OfficeOsppCommand.+?/unpkey:') {
+            Fail 'Invoke-Remediation chưa gate đúng composite identity trước /remhst và /unpkey.'
+        }
+
+        try {
+            & {
+                param([string]$VNextProbeBody)
+
+                $emptyVNextOutput = @'
+========== vNext licenses found ==========
+
+No licenses found.
+
+========== Device licenses found ==========
+
+No licenses found.
+'@
+                function Get-OfficeVNextDiagPaths {
+                    param([string[]]$OsppPaths = @())
+                    return @('C:\Fixture\Microsoft Office\root\Office16\vNextDiag.ps1')
+                }
+                function Test-OfficeVNextDiagTrustedPath {
+                    param([Parameter(Mandatory = $true)][string]$Path)
+                    return $true
+                }
+                function Get-ToolNativePowerShellPath { return 'C:\Fixture\powershell.exe' }
+                function Invoke-CleanupNativeCommandWithTimeout {
+                    param([string]$FilePath, [string[]]$Arguments, [int]$TimeoutSeconds)
+                    return [pscustomobject]@{ Completed=$true; TimedOut=$false; ExitCode=0; Output=$emptyVNextOutput }
+                }
+
+                Invoke-Expression ('function Get-OfficeVNextEntitlementProbe ' + $VNextProbeBody)
+                $emptyProbe = Get-OfficeVNextEntitlementProbe -OsppPaths @('C:\Fixture\OSPP.VBS')
+                if ([string]$emptyProbe.Coverage -ne 'Complete' -or [int]$emptyProbe.RecordCount -ne 0 -or
+                    [int]$emptyProbe.LicensedCount -ne 0 -or [int]$emptyProbe.GraceCount -ne 0 -or
+                    [int]$emptyProbe.RestrictedFunctionalityCount -ne 0 -or -not [bool]$emptyProbe.NoActiveEntitlement) {
+                    throw 'Empty vNext sections did not produce a complete zero-entitlement result.'
+                }
+            } $vNextProbeAst.Body.Extent.Text
+        } catch {
+            Fail "vNextDiag empty-entitlement probe raised an error or did not fail closed: $($_.Exception.Message)"
+        }
+
+        try {
+            & {
+                param([string]$PathKeyBody, [string]$TargetIdentityBody, [string]$TargetGateBody, [string]$PathGateBody)
+
+                function Test-ApprovedKms {
+                    param([string]$Server)
+                    return ([string]$Server -eq 'approved-kms.fixture.test')
+                }
+                $probeFixture = $null
+                function Get-OfficeLicenseProbeForPath {
+                    param([Parameter(Mandatory = $true)][string]$Path)
+                    return $probeFixture
+                }
+                Invoke-Expression ('function Get-OfficeKmsPathKey ' + $PathKeyBody)
+                Invoke-Expression ('function Get-OfficeKmsTargetIdentity ' + $TargetIdentityBody)
+                Invoke-Expression ('function Test-OfficeKmsRemediationTarget ' + $TargetGateBody)
+                Invoke-Expression ('function Test-OfficeKmsRemediationPath ' + $PathGateBody)
+
+                $target = [pscustomobject]@{
+                    Path='C:\Fixture\OSPP.VBS'; SkuId='sku-kms-one'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Office KMS fixture'
+                }
+                $targetIdentity = Get-OfficeKmsTargetIdentity -Entry $target
+                if ($targetIdentity -notmatch '^c:\\fixture\\ospp\.vbs\|sku-kms-one\|ABCDE$') {
+                    throw 'Office target identity did not include normalized OSPP path, SKU, and Last5.'
+                }
+
+                $legacySelection = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @('sku-kms-one')
+                if ([bool]$legacySelection.Allowed -or [string]$legacySelection.Reason -ne 'TargetNotSelectedByCompositeIdentity') {
+                    throw 'Legacy SKU-only Office selection was not rejected.'
+                }
+
+                $probeFixture = [pscustomobject]@{ Coverage='Partial'; Entries=@($target) }
+                $partialResult = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($targetIdentity)
+                if ([bool]$partialResult.Allowed -or [bool]$partialResult.RemhstSafe -or [string]$partialResult.Reason -ne 'ProbePartial') {
+                    throw 'Partial/fallback Office probe was not blocked.'
+                }
+
+                $sameLast5OtherSku = [pscustomobject]@{
+                    Path='C:\Fixture\OSPP.VBS'; SkuId='sku-kms-two'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Office KMS duplicate Last5 fixture'
+                }
+                $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($target, $sameLast5OtherSku) }
+                $duplicateLast5Result = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($targetIdentity, (Get-OfficeKmsTargetIdentity -Entry $sameLast5OtherSku))
+                if ([bool]$duplicateLast5Result.Allowed -or [string]$duplicateLast5Result.Reason -ne 'Last5NotUniqueOnOsppPath') {
+                    throw 'Duplicate Last5 was not blocked.'
+                }
+
+                $changedSku = [pscustomobject]@{
+                    Path='C:\Fixture\OSPP.VBS'; SkuId='sku-kms-replaced'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Office KMS changed SKU fixture'
+                }
+                $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($changedSku) }
+                $changedSkuResult = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($targetIdentity)
+                if ([bool]$changedSkuResult.Allowed -or [string]$changedSkuResult.Reason -ne 'SkuOrKeyChanged') {
+                    throw 'Changed SKU passed Office revalidation.'
+                }
+
+                foreach ($officialChannel in @('Retail','MAK','Subscription')) {
+                    $officialLast5 = switch ($officialChannel) {
+                        'Retail' { 'RTL01' }
+                        'MAK' { 'MAK01' }
+                        default { 'SUB01' }
+                    }
+                    $officialSku = [pscustomobject]@{
+                        Path='C:\Fixture\OSPP.VBS'; SkuId=('sku-' + $officialChannel.ToLowerInvariant()); Last5=$officialLast5
+                        Channel=$officialChannel; Server=''; LicenseStatusCode='Licensed'; LicenseName=('Office ' + $officialChannel + ' fixture')
+                    }
+                    $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($target, $officialSku) }
+                    $officialResult = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($targetIdentity)
+                    if ([bool]$officialResult.Allowed -or [string]$officialResult.Reason -ne 'LicensedOfficialSkuSharesOsppPath') {
+                        throw ("Licensed {0} SKU was not protected." -f $officialChannel)
+                    }
+                }
+
+                $approvedTarget = [pscustomobject]@{
+                    Path='C:\Fixture\OSPP.VBS'; SkuId='sku-approved-kms'; Last5='QWERT'; Channel='KMS'
+                    Server='approved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Approved KMS fixture'
+                }
+                $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($approvedTarget) }
+                $approvedResult = Test-OfficeKmsRemediationTarget -Entry $approvedTarget -SelectedTargetIds @((Get-OfficeKmsTargetIdentity -Entry $approvedTarget))
+                if ([bool]$approvedResult.Allowed -or [string]$approvedResult.Reason -ne 'TargetNoLongerUnapprovedKms') {
+                    throw 'Approved KMS SKU was not protected.'
+                }
+
+                $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($target) }
+                $validResult = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($targetIdentity)
+                if (-not [bool]$validResult.Allowed -or [bool]$validResult.RemhstSafe) {
+                    throw 'Single Office target incorrectly authorized a path-wide KMS override.'
+                }
+
+                $sameSkuDifferentPath = [pscustomobject]@{
+                    Path='C:\Fixture-Other\OSPP.VBS'; SkuId='sku-kms-one'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Office KMS other OSPP path fixture'
+                }
+                $differentPathIdentity = Get-OfficeKmsTargetIdentity -Entry $sameSkuDifferentPath
+                if ([string]::Equals($targetIdentity, $differentPathIdentity, [StringComparison]::OrdinalIgnoreCase)) {
+                    throw 'Different OSPP paths produced the same Office target identity.'
+                }
+                $crossPathSelection = Test-OfficeKmsRemediationTarget -Entry $target -SelectedTargetIds @($differentPathIdentity)
+                if ([bool]$crossPathSelection.Allowed -or [string]$crossPathSelection.Reason -ne 'TargetNotSelectedByCompositeIdentity') {
+                    throw 'Selection from a different OSPP path was accepted.'
+                }
+
+                $secondKmsTarget = [pscustomobject]@{
+                    Path='C:\Fixture\OSPP.VBS'; SkuId='sku-kms-two'; Last5='VWXYZ'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatusCode='Licensed'; LicenseName='Office KMS second target fixture'
+                }
+                $secondIdentity = Get-OfficeKmsTargetIdentity -Entry $secondKmsTarget
+                $probeFixture = [pscustomobject]@{ Coverage='Complete'; Entries=@($target, $secondKmsTarget) }
+                $pathPartiallyAllowed = Test-OfficeKmsRemediationPath -Path $target.Path `
+                    -SelectedTargetIds @($targetIdentity, $secondIdentity) -AllowedTargetIds @($targetIdentity)
+                if ([bool]$pathPartiallyAllowed.Allowed -or [bool]$pathPartiallyAllowed.RemhstSafe -or [string]$pathPartiallyAllowed.Reason -ne 'UnvalidatedKmsOnSameOsppPath') {
+                    throw 'KMS override path was not blocked when a same-path KMS target lacked allowed revalidation.'
+                }
+                $pathFullyAllowed = Test-OfficeKmsRemediationPath -Path $target.Path `
+                    -SelectedTargetIds @($targetIdentity, $secondIdentity) -AllowedTargetIds @($targetIdentity, $secondIdentity)
+                if (-not [bool]$pathFullyAllowed.Allowed -or -not [bool]$pathFullyAllowed.RemhstSafe) {
+                    throw 'Fully selected and revalidated KMS path was blocked unexpectedly.'
+                }
+            } $officePathKeyAst.Body.Extent.Text $officeTargetIdentityAst.Body.Extent.Text $officeTargetGateAst.Body.Extent.Text $officePathGateAst.Body.Extent.Text
+        } catch {
+            Fail "Không chạy được regression tái xác minh Office: $($_.Exception.Message)"
+        }
+
+        try {
+            & {
+                param([string]$PathKeyBody, [string]$TargetIdentityBody, [string]$NewCleanupItemBody, [string]$AllCandidatesBody)
+
+                function Test-ApprovedKms { param([string]$Server) return $false }
+                function Get-DeepCleanupCandidates { param($Findings) return @() }
+                function Get-LicenseChannel { param($Product) return 'KMS' }
+                function Get-CleanupText { param([string]$Key, [object[]]$Arguments = @()) return $Key }
+                Invoke-Expression ('function Get-OfficeKmsPathKey ' + $PathKeyBody)
+                Invoke-Expression ('function Get-OfficeKmsTargetIdentity ' + $TargetIdentityBody)
+                Invoke-Expression ('function New-CleanupItem ' + $NewCleanupItemBody)
+                Invoke-Expression ('function Get-AllCleanupCandidates ' + $AllCandidatesBody)
+
+                $firstPath = [pscustomobject]@{
+                    Path='C:\Fixture\OfficeA\OSPP.VBS'; SkuId='same-sku'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatus='Licensed'; LicenseName='Office KMS A'
+                }
+                $secondPath = [pscustomobject]@{
+                    Path='C:\Fixture\OfficeB\OSPP.VBS'; SkuId='same-sku'; Last5='ABCDE'; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatus='Licensed'; LicenseName='Office KMS B'
+                }
+                $officeCandidates = @(Get-AllCleanupCandidates -Products @() -Findings @() -OfficeEntries @($firstPath, $secondPath) -ThirdPartyCandidates @() |
+                    Where-Object { [string]$_.Kind -eq 'OfficeKmsLicense' })
+                if ($officeCandidates.Count -ne 2) { throw 'Office candidate builder merged two same-SKU keys from different OSPP paths.' }
+                $expectedIdentities = @(@($firstPath, $secondPath) | ForEach-Object { Get-OfficeKmsTargetIdentity -Entry $_ })
+                $actualIdentities = @($officeCandidates | ForEach-Object { [string]$_.TargetId } | Sort-Object)
+                if (($actualIdentities -join ';') -ne (($expectedIdentities | Sort-Object) -join ';')) {
+                    throw 'Office candidate TargetId was not the exact OSPP/SKU/Last5 identity.'
+                }
+                if (@($officeCandidates | ForEach-Object { [string]$_.Id } | Select-Object -Unique).Count -ne 2 -or
+                    @($officeCandidates | Where-Object { [string]$_.TargetIdentity -ne [string]$_.TargetId }).Count -ne 0) {
+                    throw 'Office candidate Selection ID did not remain bound to its composite target identity.'
+                }
+                $missingLast5 = [pscustomobject]@{
+                    Path='C:\Fixture\OfficeC\OSPP.VBS'; SkuId='kms-override-without-key'; Last5=''; Channel='KMS'
+                    Server='unapproved-kms.fixture.test'; LicenseStatus='Licensed'; LicenseName='Office KMS incomplete identity'
+                }
+                if (@(Get-AllCleanupCandidates -Products @() -Findings @() -OfficeEntries @($missingLast5) -ThirdPartyCandidates @() |
+                    Where-Object { [string]$_.Kind -eq 'OfficeKmsLicense' }).Count -ne 0) {
+                    throw 'Office KMS with incomplete identity was made selectable.'
+                }
+            } $officePathKeyAst.Body.Extent.Text $officeTargetIdentityAst.Body.Extent.Text $newCleanupItemAst.Body.Extent.Text $allCleanupCandidatesAst.Body.Extent.Text
+        } catch {
+            Fail "Không chạy được regression candidate composite identity Office: $($_.Exception.Message)"
+        }
+
+        # Never extend the remediation surface to Office sign-in/token stores or
+        # broad activation reset commands.  Windows key removal remains guarded
+        # by the explicitly protected OEM/Retail/MAK (and approved KMS) channel.
+        foreach ($forbiddenPattern in @(
+            '(?i)\b(?:OSPPREARM|/rearm|/inpkey(?::|\b)|/act\b)'
+            '(?i)(?:Remove-Item|Clear-Content|Move-Item|Rename-Item)\b[^\r\n]*(?:\bWAM\b|\bAAD\b|\bToken(?:s)?\b|Office[^\r\n]*(?:license|licensing))'
+        )) {
+            if ($cleanup.Text -match $forbiddenPattern) { Fail "Cleanup chứa thao tác xóa/reset license hoặc token bị cấm: $forbiddenPattern" }
+        }
+        if ($cleanup.Text -notmatch '(?s)\$protectedActiveChannel\s*=\s*\[bool\]\(\$activeWindowsChannel\s+-in\s+@\("OEM",\s*"Retail",\s*"MAK"\)\s+-or\s+\$activeApprovedKms\).+?\$removeWindowsLicense\s*=\s*\[bool\]\(\$unapprovedWindowsKms\s+-and\s+-not\s+\$protectedActiveChannel\)') {
+            Fail 'Windows cleanup không còn khóa OEM/Retail/MAK hoặc digital entitlement trước /upk.'
+        }
+    }
+
     if ($cleanup.Text -notmatch '/dstatusall' -or $cleanup.Text -notmatch 'selectedOfficeTargetIds' -or $cleanup.Text -notmatch 'Get-AllCleanupCandidates') {
         Fail 'Cleanup Office chưa quét /dstatusall, chọn theo SKU hoặc tái tạo danh sách tồn dư sau hậu kiểm.'
     }
@@ -580,6 +918,47 @@ LICENSE STATUS: ---UNLICENSED---
         if ([bool]$officeUnactivated.OfficiallyLicensed -or [string]$officeUnactivated.StateCode -ne 'Unactivated' -or
             [string]$officeUnactivated.OfficialActionCode -ne 'OpenOfficeActivation') {
             Fail 'Office Unlicensed không giữ False hoặc thiếu hành động kích hoạt chính thức.'
+        }
+
+        $officeSubscriptionUnlicensed = [pscustomobject]@{
+            LicenseStatusCode='Unlicensed'; Channel='Subscription'; Server=''
+            LicenseName='Office 16, Office16O365BusinessR_Subscription edition'
+            Description='Office 16, TIMEBASED_SUB channel'
+        }
+        $subscriptionUnavailableProbe = [pscustomobject]@{
+            Coverage='Complete'; RequiresVNextEntitlement=$true; EntitlementCoverage='Unavailable'
+            VNextEntitlementProbe=[pscustomobject]@{ Coverage='Unavailable'; LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0 }
+        }
+        $subscriptionUnverified = Get-OfficeOfficialLicenseOutcome -LicenseEntries @($officeSubscriptionUnlicensed) -Verification $officialVerification -Included $true -Installed $true -OfficeProbe $subscriptionUnavailableProbe
+        if ([bool]$subscriptionUnverified.OfficiallyLicensed -or [string]$subscriptionUnverified.StateCode -ne 'Unverified' -or
+            [string]$subscriptionUnverified.Source -notmatch '^OSPP\+vNextDiag:Unavailable$') {
+            Fail 'Microsoft 365 không có vNext entitlement probe vẫn bị kết luận khác Unverified.'
+        }
+        $subscriptionNoEntitlementProbe = [pscustomobject]@{
+            Coverage='Complete'; RequiresVNextEntitlement=$true; EntitlementCoverage='Complete'
+            VNextEntitlementProbe=[pscustomobject]@{ Coverage='Complete'; LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0 }
+        }
+        $subscriptionUnactivated = Get-OfficeOfficialLicenseOutcome -LicenseEntries @($officeSubscriptionUnlicensed) -Verification $officialVerification -Included $true -Installed $true -OfficeProbe $subscriptionNoEntitlementProbe
+        if ([bool]$subscriptionUnactivated.OfficiallyLicensed -or [string]$subscriptionUnactivated.StateCode -ne 'Unactivated' -or
+            [string]$subscriptionUnactivated.Channel -ne 'Subscription') {
+            Fail 'Microsoft 365 chỉ được kết luận Unactivated sau khi vNext đã xác minh không có entitlement hoạt động.'
+        }
+        $subscriptionLicensedProbe = [pscustomobject]@{
+            Coverage='Complete'; RequiresVNextEntitlement=$true; EntitlementCoverage='Complete'
+            VNextEntitlementProbe=[pscustomobject]@{ Coverage='Complete'; LicensedCount=1; GraceCount=0; RestrictedFunctionalityCount=0 }
+        }
+        $subscriptionLicensed = Get-OfficeOfficialLicenseOutcome -LicenseEntries @($officeSubscriptionUnlicensed) -Verification $officialVerification -Included $true -Installed $true -OfficeProbe $subscriptionLicensedProbe
+        if (-not [bool]$subscriptionLicensed.OfficiallyLicensed -or [string]$subscriptionLicensed.StateCode -ne 'Licensed' -or
+            [string]$subscriptionLicensed.Channel -ne 'Subscription') {
+            Fail 'vNext Licensed entitlement chưa được phản ánh là Office Subscription Licensed.'
+        }
+        $subscriptionGraceProbe = [pscustomobject]@{
+            Coverage='Complete'; RequiresVNextEntitlement=$true; EntitlementCoverage='Complete'
+            VNextEntitlementProbe=[pscustomobject]@{ Coverage='Complete'; LicensedCount=0; GraceCount=1; RestrictedFunctionalityCount=0 }
+        }
+        $subscriptionGrace = Get-OfficeOfficialLicenseOutcome -LicenseEntries @($officeSubscriptionUnlicensed) -Verification $officialVerification -Included $true -Installed $true -OfficeProbe $subscriptionGraceProbe
+        if ([string]$subscriptionGrace.StateCode -ne 'NeedsRepair' -or -not [bool]$subscriptionGrace.NeedsRepair) {
+            Fail 'Microsoft 365 vNext Grace bị kết luận nhầm là Unactivated.'
         }
 
         $thirdPartyOutcomes = @(Get-ThirdPartyOfficialLicenseOutcomes -Applications @(

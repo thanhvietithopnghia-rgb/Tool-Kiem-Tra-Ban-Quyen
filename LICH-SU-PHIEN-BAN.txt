@@ -7,6 +7,10 @@ FileVersion: **4.8.0.1** · Build **2026.08.18**
 
 ## v4.8.0.1 — 18/08/2026
 
+- **Trạng thái kích hoạt được xác minh riêng:** Windows và Office không còn bị gộp vào thông báo “không phát hiện KMS/crack”. Office chỉ được kết luận khi `OSPP.VBS /dstatusall` đọc đầy đủ; thiếu OSPP, timeout, fallback hoặc không đọc được sẽ hiển thị **Chưa xác minh** và chặn mọi xử lý tự động.
+- **Khôi phục Office KMS an toàn hơn:** trước khi gỡ KMS, Tool quét lại đúng OSPP/SKU/key, chặn key 5 ký tự cuối bị trùng, KMS được phê duyệt hoặc cùng đường dẫn có Retail/MAK/Subscription đang Licensed. Không xóa token/tài khoản Office, không rearm và không can thiệp OEM/digital entitlement Windows để ép watermark.
+- **Kết quả phần mềm minh bạch:** sau khi kiểm kê, Tool luôn mở danh sách toàn bộ phần mềm đã quét. Mục có bằng chứng trực tiếp mới được chọn để xử lý; mục Chưa xác minh/Cần kiểm tra thủ công chỉ hiển thị và không tự đưa về trạng thái gốc.
+- **Ngôn ngữ giao diện:** loại bỏ cách xưng hô cá nhân khỏi nội dung hiển thị cho người dùng.
 - **Cập nhật ứng dụng an toàn:** bản cũ chỉ được đề nghị cập nhật khi release mới hơn, hoặc khi cùng phiên bản nhưng hash EXE đã được xác minh là khác; thiếu/sai hash đều fail-closed. Luồng Check và Apply đều đối chiếu lại hash launcher, giữ backup và rollback nếu bản mới không khởi động ổn định.
 - **Phát hành có phiên bản mới:** nâng FileVersion/ProductVersion lên `4.8.0.1` để thiết bị đang chạy `4.8.0.0` nhận bản mới qua luồng cập nhật đã được người dùng cho phép Online; không có cập nhật im lặng hoặc telemetry.
 

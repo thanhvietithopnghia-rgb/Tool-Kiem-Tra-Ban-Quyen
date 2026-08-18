@@ -85,6 +85,7 @@ $script:ScanWarnings = New-Object System.Collections.Generic.List[string]
 $script:CimCache = @{}
 $script:ScheduledTaskRecordsCache = $null
 $script:WindowsLicenseSourceNote = ""
+$script:OfficeLicenseProbe = $null
 
 function Test-CleanupKnownActivatorText {
     param([AllowNull()][string]$Text)
@@ -104,6 +105,7 @@ function Add-ScanWarning([string]$Message) {
 function Reset-ScanCaches {
     $script:CimCache = @{}
     $script:ScheduledTaskRecordsCache = $null
+    $script:OfficeLicenseProbe = $null
     if (Get-Command Reset-ToolSoftwareInventoryCaches -ErrorAction SilentlyContinue) { Reset-ToolSoftwareInventoryCaches }
 }
 
@@ -522,8 +524,8 @@ function ConvertFrom-OfficeOfficialLicenseStatus {
         $statusMatch = [regex]::Match($block, '(?im)^\s*LICENSE STATUS\s*:\s*(?<Value>[^\r\n]+)')
         if (-not $nameMatch.Success -and -not $descriptionMatch.Success -and -not $statusMatch.Success) { continue }
 
-        $keyMatch = [regex]::Match($block, '(?im)^\s*(?:Last 5 characters of installed product key|5 .{0,24} cu.i[^:]*)\s*:\s*(?<Value>[A-Z0-9]{5})\s*$')
-        $serverMatch = [regex]::Match($block, '(?im)^\s*(?:KMS machine name(?: from DNS)?|KMS machine registry override defined|Key Management Service machine name)\s*:\s*(?<Value>[^\r\n]+)')
+        $keyMatch = [regex]::Match($block, '(?im)^\s*(?:Last 5 characters of installed product key|5 .{0,24} cu.i[^:]*)\s*:[ \t]*(?<Value>[A-Z0-9]{5})\s*$')
+        $serverMatch = [regex]::Match($block, '(?im)^\s*(?:KMS machine name(?: from DNS)?|KMS machine registry override defined|Key Management Service machine name)\s*:[ \t]*(?<Value>[^\r\n]+)')
         $description = if ($descriptionMatch.Success) { $descriptionMatch.Groups['Value'].Value.Trim() } else { '' }
         $rawStatus = if ($statusMatch.Success) { $statusMatch.Groups['Value'].Value.Trim(' ', '-') } else { '' }
         $normalizedStatus = ($rawStatus -replace '[^A-Za-z]', '').ToUpperInvariant()
@@ -555,20 +557,317 @@ function ConvertFrom-OfficeOfficialLicenseStatus {
     return @($entries.ToArray())
 }
 
-function Get-OfficeLicenseEntries {
-    $entries = New-Object System.Collections.Generic.List[object]
-    $osppPaths = @(Get-ToolOptimizedOfficeOsppPaths)
-    foreach ($statusResult in @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths $osppPaths)) {
-        $ospp = [string]$statusResult.Path
-        if (-not $statusResult.Readable) {
-            Add-ScanWarning (Get-CleanupText "cleanupReport.scan.officeStatusFailed" @($ospp))
-            continue
-        }
-        foreach ($entry in @(ConvertFrom-OfficeOfficialLicenseStatus -StatusText ([string]$statusResult.Output) -Path $ospp)) {
-            $entries.Add($entry)
+function Get-OfficeOsppSkuBlockAssessment {
+    param(
+        [Parameter(Mandatory = $true)][string]$StatusText,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    # ConvertFrom-OfficeOfficialLicenseStatus is intentionally tolerant so that
+    # reports can preserve what OSPP returned.  Remediation and the official
+    # outcome need a stricter contract: every SKU-shaped /dstatusall block must
+    # have a stable identity and the fields needed to interpret it.
+    $normalized = ([string]$StatusText) -replace "`0", "" -replace "`r", ""
+    $blocks = @([regex]::Split($normalized, '(?m)^\s*-{20,}\s*$'))
+    $blockResults = New-Object System.Collections.Generic.List[object]
+    foreach ($block in $blocks) {
+        if ([string]::IsNullOrWhiteSpace($block)) { continue }
+        if ($block -notmatch '(?im)^\s*(?:SKU ID|LICENSE NAME|LICENSE DESCRIPTION|LICENSE STATUS)\s*:') { continue }
+
+        $skuMatch = [regex]::Match($block, '(?im)^\s*SKU ID\s*:[ \t]*(?<Value>[^\r\n]+)')
+        $nameMatch = [regex]::Match($block, '(?im)^\s*LICENSE NAME\s*:[ \t]*(?<Value>[^\r\n]+)')
+        $descriptionMatch = [regex]::Match($block, '(?im)^\s*LICENSE DESCRIPTION\s*:[ \t]*(?<Value>[^\r\n]+)')
+        $statusMatch = [regex]::Match($block, '(?im)^\s*LICENSE STATUS\s*:[ \t]*(?<Value>[^\r\n]+)')
+        $skuId = if ($skuMatch.Success) { $skuMatch.Groups['Value'].Value.Trim() } else { '' }
+        $licenseName = if ($nameMatch.Success) { $nameMatch.Groups['Value'].Value.Trim() } else { '' }
+        $description = if ($descriptionMatch.Success) { $descriptionMatch.Groups['Value'].Value.Trim() } else { '' }
+        $licenseStatus = if ($statusMatch.Success) { $statusMatch.Groups['Value'].Value.Trim() } else { '' }
+        $complete = [bool](
+            -not [string]::IsNullOrWhiteSpace($skuId) -and
+            -not [string]::IsNullOrWhiteSpace($licenseName) -and
+            -not [string]::IsNullOrWhiteSpace($description) -and
+            -not [string]::IsNullOrWhiteSpace($licenseStatus)
+        )
+        $blockResults.Add([pscustomobject][ordered]@{
+            SkuId=$skuId; LicenseName=$licenseName; Description=$description
+            LicenseStatus=$licenseStatus; Complete=$complete
+        })
+    }
+
+    $parsed = @(ConvertFrom-OfficeOfficialLicenseStatus -StatusText $StatusText -Path $Path)
+    $completeBlocks = @($blockResults | Where-Object { [bool]$_.Complete })
+    $parsedWithIdentity = @($parsed | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_.SkuId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.LicenseName) -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.Description) -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.LicenseStatus)
+    })
+    $allBlocksComplete = [bool](
+        $blockResults.Count -gt 0 -and
+        $completeBlocks.Count -eq $blockResults.Count -and
+        $parsed.Count -eq $blockResults.Count -and
+        $parsedWithIdentity.Count -eq $blockResults.Count
+    )
+    return [pscustomobject][ordered]@{
+        Entries=@($parsed); SkuBlockCount=[int]$blockResults.Count
+        FullyParsedSkuBlockCount=[int]$completeBlocks.Count
+        IncompleteSkuBlockCount=[int]($blockResults.Count - $completeBlocks.Count)
+        Complete=$allBlocksComplete
+    }
+}
+
+function Get-OfficeVNextDiagPaths {
+    param([string[]]$OsppPaths = @())
+
+    $result = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $candidates = New-Object System.Collections.Generic.List[string]
+    foreach ($osppPath in @($OsppPaths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })) {
+        $directory = Split-Path -Parent ([string]$osppPath)
+        if (-not [string]::IsNullOrWhiteSpace($directory)) {
+            [void]$candidates.Add((Join-Path $directory 'vNextDiag.ps1'))
         }
     }
-    return @($entries.ToArray() | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)|$($_.Channel)" } | ForEach-Object { $_.Group[0] })
+    foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432) | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_)
+    }) {
+        [void]$candidates.Add((Join-Path ([string]$root) 'Microsoft Office\root\Office16\vNextDiag.ps1'))
+    }
+    foreach ($candidate in @($candidates)) {
+        try {
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+            $fullPath = [IO.Path]::GetFullPath([string]$candidate)
+            if ($seen.Add($fullPath)) { [void]$result.Add($fullPath) }
+        } catch {}
+    }
+    return @($result.ToArray() | Sort-Object)
+}
+
+function Test-OfficeVNextDiagTrustedPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    try {
+        $fullPath = [IO.Path]::GetFullPath($Path)
+        $expectedPaths = New-Object System.Collections.Generic.List[string]
+        foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432) | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_)
+        }) {
+            [void]$expectedPaths.Add([IO.Path]::GetFullPath((Join-Path ([string]$root) 'Microsoft Office\root\Office16\vNextDiag.ps1')))
+        }
+        if (@($expectedPaths | Where-Object {
+            [string]::Equals($_, $fullPath, [StringComparison]::OrdinalIgnoreCase)
+        }).Count -eq 0) { return $false }
+        $signature = Get-AuthenticodeSignature -LiteralPath $fullPath -ErrorAction Stop
+        $subject = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { '' }
+        $issuer = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Issuer } else { '' }
+        return [bool](
+            [string]$signature.Status -eq 'Valid' -and
+            $subject -match '(?i)(?:^|,\s*)CN=Microsoft Corporation(?:,|$)' -and
+            $issuer -match '(?i)Microsoft'
+        )
+    } catch {
+        return $false
+    }
+}
+
+function Get-OfficeVNextEntitlementProbe {
+    param([string[]]$OsppPaths = @())
+
+    # vNextDiag's explicit `list` action is Microsoft-supplied and read-only.
+    # Keep its raw output in memory only: it can include account identifiers,
+    # while the report needs only aggregate technical state.
+    $paths = @(Get-OfficeVNextDiagPaths -OsppPaths $OsppPaths)
+    if ($paths.Count -eq 0) {
+        return [pscustomobject][ordered]@{
+            Coverage='Unavailable'; VNextDiagPaths=@(); PathResults=@(); RecordCount=0
+            LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0
+            NoActiveEntitlement=$false
+        }
+    }
+
+    $pathResults = New-Object System.Collections.Generic.List[object]
+    $trustedPaths = New-Object System.Collections.Generic.List[string]
+    foreach ($path in $paths) {
+        if (Test-OfficeVNextDiagTrustedPath -Path $path) {
+            [void]$trustedPaths.Add($path)
+        } else {
+            $pathResults.Add([pscustomobject][ordered]@{
+                Path=[string]$path; Trusted=$false; TimedOut=$false; ExitCode=-1
+                UserSectionComplete=$false; DeviceSectionComplete=$false; RecordCount=0; Complete=$false
+            })
+        }
+    }
+    if ($trustedPaths.Count -eq 0) {
+        return [pscustomobject][ordered]@{
+            Coverage='Unavailable'; VNextDiagPaths=@($paths); PathResults=@($pathResults.ToArray()); RecordCount=0
+            LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0
+            NoActiveEntitlement=$false
+        }
+    }
+
+    $nativePowerShell = try { Get-ToolNativePowerShellPath } catch { '' }
+    if ([string]::IsNullOrWhiteSpace($nativePowerShell)) {
+        return [pscustomobject][ordered]@{
+            Coverage='Failed'; VNextDiagPaths=@($paths); PathResults=@($pathResults.ToArray()); RecordCount=0
+            LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0
+            NoActiveEntitlement=$false
+        }
+    }
+
+    [int]$recordCount = 0
+    [int]$licensedCount = 0
+    [int]$graceCount = 0
+    [int]$restrictedFunctionalityCount = 0
+    foreach ($path in $trustedPaths) {
+        $result = Invoke-CleanupNativeCommandWithTimeout -FilePath $nativePowerShell -Arguments @(
+            '-NoLogo','-NoProfile','-NonInteractive','-File',$path,'-action','list'
+        ) -TimeoutSeconds 45
+        $output = [string]$result.Output
+        $userSection = [regex]::Match($output, '(?is)={3,}\s*vNext licenses found\s*={3,}(?<Body>.*?)(?=={3,}\s*Device licenses found\s*={3,}|$)')
+        $deviceSection = [regex]::Match($output, '(?is)={3,}\s*Device licenses found\s*={3,}(?<Body>.*)$')
+        # Materialize MatchCollection through a pipeline.  Wrapping a
+        # MatchCollection directly in @() keeps the collection itself as an
+        # item on some Windows PowerShell builds; with no licenses that item
+        # has no Groups['Value'] and causes a non-terminating null-array
+        # error.  Keep only normalized state strings from this point onward.
+        [string[]]$userStates = @()
+        [string[]]$deviceStates = @()
+        if ($userSection.Success) {
+            $userStates = @(
+                [regex]::Matches($userSection.Groups['Body'].Value, '(?im)^\s*"LicenseState"\s*:\s*"(?<Value>[^"]+)"') |
+                    ForEach-Object { $_.Groups['Value'].Value.Trim() } | Where-Object { $_ }
+            )
+        }
+        if ($deviceSection.Success) {
+            $deviceStates = @(
+                [regex]::Matches($deviceSection.Groups['Body'].Value, '(?im)^\s*"LicenseState"\s*:\s*"(?<Value>[^"]+)"') |
+                    ForEach-Object { $_.Groups['Value'].Value.Trim() } | Where-Object { $_ }
+            )
+        }
+        $userNoLicenses = [bool]($userSection.Success -and $userSection.Groups['Body'].Value -match '(?im)^\s*No licenses found\.\s*$')
+        $deviceNoLicenses = [bool]($deviceSection.Success -and $deviceSection.Groups['Body'].Value -match '(?im)^\s*No licenses found\.\s*$')
+        $userComplete = [bool]($userSection.Success -and ($userStates.Count -gt 0 -or $userNoLicenses))
+        $deviceComplete = [bool]($deviceSection.Success -and ($deviceStates.Count -gt 0 -or $deviceNoLicenses))
+        $states = @($userStates) + @($deviceStates)
+        $recordCount += [int]$states.Count
+        $licensedCount += [int]@($states | Where-Object { $_ -match '(?i)^Licensed$' }).Count
+        $graceCount += [int]@($states | Where-Object { $_ -match '(?i)^Grace$' }).Count
+        $restrictedFunctionalityCount += [int]@($states | Where-Object { $_ -match '(?i)^(?:RFM|RestrictedFunctionality)$' }).Count
+        $complete = [bool]($result.Completed -and -not $result.TimedOut -and [int]$result.ExitCode -eq 0 -and $userComplete -and $deviceComplete)
+        $pathResults.Add([pscustomobject][ordered]@{
+            Path=[string]$path; Trusted=$true; TimedOut=[bool]$result.TimedOut; ExitCode=[int]$result.ExitCode
+            UserSectionComplete=$userComplete; DeviceSectionComplete=$deviceComplete
+            RecordCount=[int]$states.Count; Complete=$complete
+        })
+    }
+
+    $coverage = if ($pathResults.Count -ne $paths.Count -or $pathResults.Count -eq 0) { 'Failed' }
+        elseif (@($pathResults | Where-Object { -not [bool]$_.Complete }).Count -eq 0) { 'Complete' }
+        elseif (@($pathResults | Where-Object { [bool]$_.Complete }).Count -gt 0) { 'Partial' }
+        else { 'Failed' }
+    return [pscustomobject][ordered]@{
+        Coverage=$coverage; VNextDiagPaths=@($paths); PathResults=@($pathResults.ToArray())
+        RecordCount=[int]$recordCount; LicensedCount=[int]$licensedCount; GraceCount=[int]$graceCount
+        RestrictedFunctionalityCount=[int]$restrictedFunctionalityCount
+        NoActiveEntitlement=[bool]($coverage -eq 'Complete' -and $recordCount -eq 0)
+    }
+}
+
+function Test-OfficeSubscriptionDeployment {
+    param($LicenseEntries = @())
+
+    foreach ($entry in @($LicenseEntries)) {
+        $entryText = (([string]$entry.LicenseName) + ' ' + ([string]$entry.Description)).Trim()
+        if ([string]$entry.Channel -eq 'Subscription' -or $entryText -match '(?i)\b(?:O365|M365|Office\s*365|Microsoft\s*365|ProPlus|TIMEBASED_SUB)') {
+            return $true
+        }
+    }
+    foreach ($path in @(
+        'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\Configuration'
+    )) {
+        try {
+            $configuration = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
+            foreach ($propertyName in @('ProductReleaseIds','ProductReleaseIDs','ProductReleaseId','ProductReleaseID')) {
+                $value = if ($configuration.PSObject.Properties[$propertyName]) { [string]$configuration.$propertyName } else { '' }
+                if ($value -match '(?i)\b(?:O365|M365|Office\s*365|Microsoft\s*365|ProPlus)') { return $true }
+            }
+        } catch {}
+    }
+    return $false
+}
+
+function Get-OfficeLicenseProbe {
+    # Office may contain several SKUs under one OSPP.VBS.  A fallback
+    # /dstatus result is useful for display, but is deliberately not enough to
+    # authorize a key-removal action: it can omit other licensed SKUs.
+    $osppPaths = @(Get-ToolOptimizedOfficeOsppPaths)
+    $installed = Test-OfficeProductInstalled -LicenseEntries @()
+    $entries = New-Object System.Collections.Generic.List[object]
+    $pathResults = New-Object System.Collections.Generic.List[object]
+    $rawResults = @()
+    if ($osppPaths.Count -gt 0) {
+        $rawResults = @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths $osppPaths)
+    }
+
+    foreach ($result in $rawResults) {
+        $path = [string]$result.Path
+        $blockAssessment = Get-OfficeOsppSkuBlockAssessment -StatusText ([string]$result.Output) -Path $path
+        $parsed = @($blockAssessment.Entries)
+        foreach ($entry in $parsed) { $entries.Add($entry) }
+        $complete = [bool](
+            -not [bool]$result.UsedFallback -and
+            -not [bool]$result.TimedOut -and
+            [bool]$result.Readable -and
+            [int]$result.PrimaryExitCode -eq 0 -and
+            $parsed.Count -gt 0 -and
+            [bool]$blockAssessment.Complete
+        )
+        $pathResults.Add([pscustomobject][ordered]@{
+            Path=$path; UsedFallback=[bool]$result.UsedFallback; TimedOut=[bool]$result.TimedOut
+            PrimaryExitCode=[int]$result.PrimaryExitCode; ExitCode=[int]$result.ExitCode
+            Readable=[bool]$result.Readable; ParsedSkuCount=[int]$parsed.Count
+            SkuBlockCount=[int]$blockAssessment.SkuBlockCount
+            FullyParsedSkuBlockCount=[int]$blockAssessment.FullyParsedSkuBlockCount
+            IncompleteSkuBlockCount=[int]$blockAssessment.IncompleteSkuBlockCount
+            Complete=$complete
+        })
+    }
+
+    $coverage = if (-not $installed) { 'NotDetected' }
+        elseif ($osppPaths.Count -eq 0) { 'Unavailable' }
+        elseif ($rawResults.Count -ne $osppPaths.Count) { 'Failed' }
+        elseif ($pathResults.Count -gt 0 -and @($pathResults | Where-Object { -not [bool]$_.Complete }).Count -eq 0) { 'Complete' }
+        else { 'Partial' }
+    $requiresVNextEntitlement = [bool]($installed -and (Test-OfficeSubscriptionDeployment -LicenseEntries @($entries.ToArray())))
+    $vNextEntitlementProbe = if ($requiresVNextEntitlement) {
+        Get-OfficeVNextEntitlementProbe -OsppPaths $osppPaths
+    } else {
+        [pscustomobject][ordered]@{
+            Coverage='NotRequired'; VNextDiagPaths=@(); PathResults=@(); RecordCount=0
+            LicensedCount=0; GraceCount=0; RestrictedFunctionalityCount=0; NoActiveEntitlement=$false
+        }
+    }
+    $probe = [pscustomobject][ordered]@{
+        Installed=[bool]$installed; Coverage=$coverage; OsppPaths=@($osppPaths)
+        PathResults=@($pathResults.ToArray()); Entries=@($entries.ToArray())
+        ParsedSkuCount=[int]$entries.Count
+        RequiresVNextEntitlement=$requiresVNextEntitlement
+        EntitlementCoverage=[string]$vNextEntitlementProbe.Coverage
+        VNextEntitlementProbe=$vNextEntitlementProbe
+    }
+    if ($probe.Installed -and $probe.Coverage -ne 'Complete') {
+        Add-ScanWarning (Get-CleanupText 'cleanupReport.scan.officeProbeIncomplete' @($probe.Coverage))
+    }
+    if ($probe.RequiresVNextEntitlement -and $probe.EntitlementCoverage -ne 'Complete') {
+        Add-ScanWarning (Get-CleanupText 'cleanupReport.scan.officeEntitlementProbeIncomplete' @($probe.EntitlementCoverage))
+    }
+    return $probe
+}
+
+function Get-OfficeLicenseEntries {
+    $script:OfficeLicenseProbe = Get-OfficeLicenseProbe
+    return @($script:OfficeLicenseProbe.Entries | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)|$($_.Channel)" } | ForEach-Object { $_.Group[0] })
 }
 
 function Get-OfficeKmsEntries {
@@ -585,6 +884,31 @@ function Get-OfficeKmsEntries {
             -not [string]::IsNullOrWhiteSpace([string]$_.Server)
         )
     } | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)" } | ForEach-Object { $_.Group[0] })
+}
+
+function Get-OfficeKmsPathKey {
+    param([AllowEmptyString()][string]$Path)
+
+    $candidate = ([string]$Path).Trim()
+    if ([string]::IsNullOrWhiteSpace($candidate)) { return '' }
+    try { $candidate = [IO.Path]::GetFullPath($candidate) } catch {}
+    return $candidate.Trim().ToLowerInvariant()
+}
+
+function Get-OfficeKmsTargetIdentity {
+    param([Parameter(Mandatory = $true)]$Entry)
+
+    $pathKey = Get-OfficeKmsPathKey -Path ([string]$Entry.Path)
+    $skuId = ([string]$Entry.SkuId).Trim().ToLowerInvariant()
+    $last5 = ([string]$Entry.Last5).Trim().ToUpperInvariant()
+    if ([string]::IsNullOrWhiteSpace($pathKey) -or
+        [string]::IsNullOrWhiteSpace($skuId) -or
+        [string]::IsNullOrWhiteSpace($last5)) {
+        return ''
+    }
+    # A selected Office key is never identified by SKU alone: OSPP path, SKU,
+    # and the installed-key suffix must all still agree at remediation time.
+    return "$pathKey|$skuId|$last5"
 }
 
 function Status-Text {
@@ -1634,9 +1958,15 @@ function New-CleanupItem {
         $Evidence = @(),
         $PlanItems = @(),
         [string]$RemediationMode = '',
-        [string]$ComponentScope = ''
+        [string]$ComponentScope = '',
+        [string]$IdentitySeed = ''
     )
-    $id = (($Type + "|" + $Kind + "|" + $Name + "|" + $Location).ToLowerInvariant())
+    $idMaterial = if ([string]::IsNullOrWhiteSpace($IdentitySeed)) {
+        $Type + "|" + $Kind + "|" + $Name + "|" + $Location
+    } else {
+        $Type + "|" + $Kind + "|" + $IdentitySeed
+    }
+    $id = $idMaterial.ToLowerInvariant()
     return [pscustomobject]@{
         Id = $id
         Type = $Type
@@ -1645,6 +1975,7 @@ function New-CleanupItem {
         Location = $Location
         Detail = $Detail
         TargetId = $TargetId
+        TargetIdentity = $IdentitySeed
         DefaultSelected = $DefaultSelected
         VendorScope = $VendorScope
         AutoEligible = $AutoEligible
@@ -1755,13 +2086,17 @@ function Get-AllCleanupCandidates {
     foreach ($entry in $unapprovedOfficeEntries) {
         $last5Label = if ([string]::IsNullOrWhiteSpace([string]$entry.Last5)) { Get-CleanupText "cleanupReport.value.noKey" } else { [string]$entry.Last5 }
         $serverLabel = if ([string]::IsNullOrWhiteSpace([string]$entry.Server)) { Get-CleanupText "cleanupReport.value.dnsNoOverride" } else { [string]$entry.Server }
-        $targetId = if (-not [string]::IsNullOrWhiteSpace([string]$entry.SkuId)) { [string]$entry.SkuId } else { "$($entry.Path)|$($entry.Last5)" }
+        $targetId = Get-OfficeKmsTargetIdentity -Entry $entry
+        # A KMS override without a stable path/SKU/key identity remains visible
+        # in the verification result, but is not an automatically selectable
+        # Office key-removal candidate.
+        if ([string]::IsNullOrWhiteSpace($targetId)) { continue }
         $items.Add((New-CleanupItem -Type "License" -Kind "OfficeKmsLicense" `
             -Name ("Office KMS $last5Label - " + [string]$entry.LicenseName) `
             -Location ([string]$entry.Path) `
             -TargetId $targetId `
             -Detail (Get-CleanupText "cleanupReport.candidate.officeKmsDetail" @([string]$entry.SkuId, [string]$entry.LicenseStatus, $serverLabel)) `
-            -ComponentScope 'Office'))
+            -ComponentScope 'Office' -IdentitySeed $targetId))
     }
 
     foreach ($thirdPartyCandidate in @($ThirdPartyCandidates)) { $items.Add($thirdPartyCandidate) }
@@ -2406,7 +2741,8 @@ function Get-OfficeOfficialLicenseOutcome {
         $LicenseEntries = @(),
         $Verification,
         [bool]$Included = $true,
-        [bool]$Installed = $true
+        [bool]$Installed = $true,
+        [AllowNull()][object]$OfficeProbe = $null
     )
 
     if (-not $Included) {
@@ -2425,26 +2761,62 @@ function Get-OfficeOfficialLicenseOutcome {
             OfficialActionCode=''; OfficialActionTarget=''
         }
     }
+    if ($null -ne $OfficeProbe -and [string]$OfficeProbe.Coverage -ne 'Complete') {
+        return [pscustomobject][ordered]@{
+            Component='Office'; Applicable=$true; StateCode='Unverified'
+            OfficiallyLicensed=$false; VendorConfirmed=$false; CrackFree=$false
+            RequiresOfficialActivation=$false; NeedsRepair=$true; Channel=''
+            Source=('OSPP:' + [string]$OfficeProbe.Coverage); OfficialActionCode=''; OfficialActionTarget=''
+        }
+    }
+
+    $subscriptionDeployment = [bool](@($LicenseEntries | Where-Object {
+        $entryDescription = if ($_.PSObject.Properties['Description']) { [string]$_.Description } else { '' }
+        [string]$_.Channel -eq 'Subscription' -or
+        ((([string]$_.LicenseName) + ' ' + $entryDescription) -match '(?i)\b(?:O365|M365|Office\s*365|Microsoft\s*365|ProPlus|TIMEBASED_SUB)')
+    }).Count -gt 0)
+    if ($null -ne $OfficeProbe -and $OfficeProbe.PSObject.Properties['RequiresVNextEntitlement']) {
+        $subscriptionDeployment = [bool]$OfficeProbe.RequiresVNextEntitlement
+    }
+    $vNextProbe = if ($null -ne $OfficeProbe -and $OfficeProbe.PSObject.Properties['VNextEntitlementProbe']) {
+        $OfficeProbe.VNextEntitlementProbe
+    } else { $null }
+    $vNextCoverage = if ($null -ne $vNextProbe -and $vNextProbe.PSObject.Properties['Coverage']) { [string]$vNextProbe.Coverage } else { 'Unavailable' }
+    if ($subscriptionDeployment -and $vNextCoverage -ne 'Complete') {
+        return [pscustomobject][ordered]@{
+            Component='Office'; Applicable=$true; StateCode='Unverified'
+            OfficiallyLicensed=$false; VendorConfirmed=$false; CrackFree=$false
+            RequiresOfficialActivation=$false; NeedsRepair=$true; Channel='Subscription'
+            Source=('OSPP+vNextDiag:' + $vNextCoverage); OfficialActionCode=''; OfficialActionTarget=''
+        }
+    }
 
     $crackFree = [bool](Test-CleanupScopeReady -Verification $Verification -Scope 'Office')
     $officialLicensedEntry = @($LicenseEntries | Where-Object {
         if ([string]$_.LicenseStatusCode -ne 'Licensed') { return $false }
+        if ([string]$_.Channel -eq 'Subscription') { return $false }
         if ([string]$_.Channel -ne 'KMS') { return $true }
         return [bool](Test-ApprovedKms -Server ([string]$_.Server))
     } | Select-Object -First 1)
+    $vNextLicensedCount = if ($null -ne $vNextProbe -and $vNextProbe.PSObject.Properties['LicensedCount']) { [int]$vNextProbe.LicensedCount } else { 0 }
+    $vNextGraceCount = if ($null -ne $vNextProbe -and $vNextProbe.PSObject.Properties['GraceCount']) { [int]$vNextProbe.GraceCount } else { 0 }
+    $vNextRestrictedFunctionalityCount = if ($null -ne $vNextProbe -and $vNextProbe.PSObject.Properties['RestrictedFunctionalityCount']) { [int]$vNextProbe.RestrictedFunctionalityCount } else { 0 }
     $stateCode = if (-not $crackFree) { 'CrackEvidencePresent' }
+        elseif ($subscriptionDeployment -and $vNextLicensedCount -gt 0) { 'Licensed' }
         elseif ($officialLicensedEntry.Count -gt 0) { 'Licensed' }
+        elseif ($subscriptionDeployment -and ($vNextGraceCount -gt 0 -or $vNextRestrictedFunctionalityCount -gt 0)) { 'NeedsRepair' }
         elseif (@($LicenseEntries).Count -gt 0) { 'Unactivated' }
         else { 'Unverified' }
     $confirmed = [bool]($crackFree -and $stateCode -eq 'Licensed')
     return [pscustomobject][ordered]@{
         Component='Office'; Applicable=$true; StateCode=$stateCode
         OfficiallyLicensed=$confirmed; VendorConfirmed=$confirmed; CrackFree=$crackFree
-        RequiresOfficialActivation=[bool]($crackFree -and $stateCode -in @('Unactivated','Unverified'))
-        NeedsRepair=[bool]($crackFree -and $stateCode -eq 'Unverified')
-        Channel=$(if ($officialLicensedEntry.Count -gt 0) { [string]$officialLicensedEntry[0].Channel } else { '' })
-        Source='OSPP'; OfficialActionCode=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified')) { 'OpenOfficeActivation' } else { '' })
-        OfficialActionTarget=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified')) { 'LocalLicenseManager:Office' } else { '' })
+        RequiresOfficialActivation=[bool]($crackFree -and $stateCode -in @('Unactivated','Unverified','NeedsRepair'))
+        NeedsRepair=[bool]($crackFree -and $stateCode -in @('Unverified','NeedsRepair'))
+        Channel=$(if ($subscriptionDeployment) { 'Subscription' } elseif ($officialLicensedEntry.Count -gt 0) { [string]$officialLicensedEntry[0].Channel } else { '' })
+        Source=$(if ($subscriptionDeployment) { 'OSPP+vNextDiag' } else { 'OSPP' })
+        OfficialActionCode=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified','NeedsRepair')) { 'OpenOfficeActivation' } else { '' })
+        OfficialActionTarget=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified','NeedsRepair')) { 'LocalLicenseManager:Office' } else { '' })
     }
 }
 
@@ -2488,6 +2860,7 @@ function Get-OfficialLicensePostCheck {
         $Verification,
         $Products = @(),
         $OfficeLicenseEntries = @(),
+        [AllowNull()][object]$OfficeProbe = $null,
         $ThirdPartyApplications = @(),
         [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')]
         [string]$Scope = 'All'
@@ -2498,7 +2871,7 @@ function Get-OfficialLicensePostCheck {
     $includeThirdParty = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'ThirdParty'
     $windows = Get-WindowsOfficialLicenseOutcome -Products $Products -Verification $Verification -Included:$includeWindows
     $officeInstalled = if ($includeOffice) { Test-OfficeProductInstalled -LicenseEntries $OfficeLicenseEntries } else { $false }
-    $office = Get-OfficeOfficialLicenseOutcome -LicenseEntries $OfficeLicenseEntries -Verification $Verification -Included:$includeOffice -Installed:$officeInstalled
+    $office = Get-OfficeOfficialLicenseOutcome -LicenseEntries $OfficeLicenseEntries -Verification $Verification -Included:$includeOffice -Installed:$officeInstalled -OfficeProbe $OfficeProbe
     $thirdParty = @(Get-ThirdPartyOfficialLicenseOutcomes -Applications $ThirdPartyApplications -Included:$includeThirdParty)
     $outcomes = @($windows, $office) + @($thirdParty)
     $applicable = @($outcomes | Where-Object { [bool]$_.Applicable })
@@ -2849,6 +3222,154 @@ function Invoke-OfficeOsppCommand {
     }
 }
 
+function Get-OfficeLicenseProbeForPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [pscustomobject]@{ Coverage='Unavailable'; Entries=@(); Path=[string]$Path }
+    }
+    $result = @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths @($Path) -ThrottleLimit 1 | Select-Object -First 1)
+    if ($result.Count -ne 1) {
+        return [pscustomobject]@{ Coverage='Failed'; Entries=@(); Path=[string]$Path }
+    }
+    $blockAssessment = Get-OfficeOsppSkuBlockAssessment -StatusText ([string]$result[0].Output) -Path ([string]$Path)
+    $entrySet = @($blockAssessment.Entries)
+    $complete = [bool](
+        -not [bool]$result[0].UsedFallback -and
+        -not [bool]$result[0].TimedOut -and
+        [bool]$result[0].Readable -and
+        [int]$result[0].PrimaryExitCode -eq 0 -and
+        $entrySet.Count -gt 0 -and
+        [bool]$blockAssessment.Complete
+    )
+    return [pscustomobject]@{
+        Coverage=$(if ($complete) { 'Complete' } else { 'Partial' })
+        Entries=@($entrySet); Path=[string]$Path
+        SkuBlockCount=[int]$blockAssessment.SkuBlockCount
+        FullyParsedSkuBlockCount=[int]$blockAssessment.FullyParsedSkuBlockCount
+        IncompleteSkuBlockCount=[int]$blockAssessment.IncompleteSkuBlockCount
+    }
+}
+
+function Test-OfficeKmsRemediationTarget {
+    param(
+        [Parameter(Mandatory = $true)]$Entry,
+        [string[]]$SelectedTargetIds = @()
+    )
+
+    $targetIdentity = Get-OfficeKmsTargetIdentity -Entry $Entry
+    $path = [string]$Entry.Path
+    $pathKey = Get-OfficeKmsPathKey -Path $path
+    if ([string]::IsNullOrWhiteSpace($targetIdentity) -or [string]::IsNullOrWhiteSpace($pathKey)) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='MissingPathSkuOrLast5'; TargetIdentity=''; Entries=@() }
+    }
+
+    $selectedTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($selectedTargetId in @($SelectedTargetIds)) {
+        $value = ([string]$selectedTargetId).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($value)) { [void]$selectedTargetSet.Add($value) }
+    }
+    # Legacy selections that contain only SKU ID intentionally do not match.
+    # They are rejected rather than guessing which OSPP/key instance was meant.
+    if (-not $selectedTargetSet.Contains($targetIdentity)) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='TargetNotSelectedByCompositeIdentity'; TargetIdentity=$targetIdentity; Entries=@() }
+    }
+
+    $probe = Get-OfficeLicenseProbeForPath -Path $path
+    if ([string]$probe.Coverage -ne 'Complete') {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason=('Probe' + [string]$probe.Coverage); TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+    $matches = @($probe.Entries | Where-Object {
+        [string]::Equals((Get-OfficeKmsTargetIdentity -Entry $_), $targetIdentity, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($matches.Count -ne 1) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='SkuOrKeyChanged'; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+    $target = $matches[0]
+    if ([string]$target.Channel -ne 'KMS' -or (Test-ApprovedKms -Server ([string]$target.Server))) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='TargetNoLongerUnapprovedKms'; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+    if (@($probe.Entries | Where-Object {
+        [string]$_.LicenseStatusCode -eq 'Licensed' -and [string]$_.Channel -in @('Retail','MAK','Subscription')
+    }).Count -gt 0) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='LicensedOfficialSkuSharesOsppPath'; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+    if (@($probe.Entries | Where-Object {
+        [string]$_.Channel -eq 'KMS' -and (Test-ApprovedKms -Server ([string]$_.Server))
+    }).Count -gt 0) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='ApprovedKmsSkuSharesOsppPath'; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+    if (@($probe.Entries | Where-Object {
+        [string]$_.Channel -eq 'KMS' -and
+        [string]::Equals(([string]$_.Last5).Trim(), ([string]$target.Last5).Trim(), [StringComparison]::OrdinalIgnoreCase)
+    }).Count -ne 1) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='Last5NotUniqueOnOsppPath'; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+    }
+
+    # A single validated target is never sufficient to alter a path-wide KMS
+    # override.  Invoke-Remediation validates every current KMS target first.
+    return [pscustomobject]@{ Allowed=$true; RemhstSafe=$false; Reason=''; TargetIdentity=$targetIdentity; Entries=@($probe.Entries) }
+}
+
+function Test-OfficeKmsRemediationPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string[]]$SelectedTargetIds = @(),
+        [string[]]$AllowedTargetIds = @()
+    )
+
+    $pathKey = Get-OfficeKmsPathKey -Path $Path
+    if ([string]::IsNullOrWhiteSpace($pathKey)) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='MissingOsppPath'; Entries=@() }
+    }
+
+    $selectedTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($selectedTargetId in @($SelectedTargetIds)) {
+        $value = ([string]$selectedTargetId).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($value)) { [void]$selectedTargetSet.Add($value) }
+    }
+    $allowedTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($allowedTargetId in @($AllowedTargetIds)) {
+        $value = ([string]$allowedTargetId).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($value)) { [void]$allowedTargetSet.Add($value) }
+    }
+
+    $probe = Get-OfficeLicenseProbeForPath -Path $Path
+    if ([string]$probe.Coverage -ne 'Complete') {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason=('Probe' + [string]$probe.Coverage); Entries=@($probe.Entries) }
+    }
+    $currentKmsEntries = @($probe.Entries | Where-Object {
+        [string]$_.Channel -eq 'KMS' -and
+        [string]::Equals((Get-OfficeKmsPathKey -Path ([string]$_.Path)), $pathKey, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($currentKmsEntries.Count -eq 0) {
+        return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='NoKmsOnOsppPath'; Entries=@($probe.Entries) }
+    }
+
+    $currentTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($currentEntry in $currentKmsEntries) {
+        $identity = Get-OfficeKmsTargetIdentity -Entry $currentEntry
+        if ([string]::IsNullOrWhiteSpace($identity)) {
+            return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='KmsTargetIdentityMissing'; Entries=@($probe.Entries) }
+        }
+        if (-not $currentTargetSet.Add($identity)) {
+            return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='DuplicateKmsTargetIdentityOnOsppPath'; Entries=@($probe.Entries) }
+        }
+        if (-not $selectedTargetSet.Contains($identity)) {
+            return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='UnselectedKmsOnSameOsppPath'; Entries=@($probe.Entries) }
+        }
+        if (-not $allowedTargetSet.Contains($identity)) {
+            return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason='UnvalidatedKmsOnSameOsppPath'; Entries=@($probe.Entries) }
+        }
+        $revalidated = Test-OfficeKmsRemediationTarget -Entry $currentEntry -SelectedTargetIds $SelectedTargetIds
+        if (-not [bool]$revalidated.Allowed) {
+            return [pscustomobject]@{ Allowed=$false; RemhstSafe=$false; Reason=('CurrentKmsValidationFailed:' + [string]$revalidated.Reason); Entries=@($probe.Entries) }
+        }
+    }
+
+    return [pscustomobject]@{ Allowed=$true; RemhstSafe=$true; Reason=''; Entries=@($probe.Entries) }
+}
+
 function Invoke-Remediation {
     param(
         $Products,
@@ -2952,12 +3473,73 @@ function Invoke-Remediation {
         $actions.Add((Get-CleanupText "cleanupReport.action.keepWindowsKey"))
     }
 
-    # Đưa Office KMS về trạng thái chưa kích hoạt: xóa KMS override một lần
-    # cho mỗi OSPP.VBS, sau đó gỡ riêng từng Last5/SKU mà người dùng đã chọn.
-    # /dstatusall ở bước quét bảo đảm nhiều SKU trên cùng đường dẫn không bị
-    # che khuất lẫn nhau.
-    $officeEntries = @($OfficeEntries)
-    foreach ($path in @($officeEntries | ForEach-Object { [string]$_.Path } | Where-Object { $_ } | Select-Object -Unique)) {
+    # Đưa Office KMS về trạng thái chưa kích hoạt chỉ khi OSPP /dstatusall
+    # vừa được đọc đầy đủ.  Tuyệt đối không suy diễn từ fallback /dstatus,
+    # không gỡ theo Last5 trùng, và không đổi KMS override nếu còn SKU KMS
+    # khác chưa được người dùng chọn trên cùng OSPP.VBS.
+    $requestedOfficeEntries = New-Object System.Collections.Generic.List[object]
+    $selectedOfficeTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $requestedOfficePathEntries = @{}
+    $officePathDisplay = @{}
+    $blockedOfficePathSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($candidateEntry in @($OfficeEntries)) {
+        $targetIdentity = Get-OfficeKmsTargetIdentity -Entry $candidateEntry
+        $pathKey = Get-OfficeKmsPathKey -Path ([string]$candidateEntry.Path)
+        if ([string]::IsNullOrWhiteSpace($targetIdentity) -or [string]::IsNullOrWhiteSpace($pathKey)) {
+            if (-not [string]::IsNullOrWhiteSpace($pathKey)) { [void]$blockedOfficePathSet.Add($pathKey) }
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(
+                ("SKU={0}; Last5={1}; MissingPathSkuOrLast5" -f [string]$candidateEntry.SkuId, [string]$candidateEntry.Last5)
+            )))
+            continue
+        }
+        if (-not $selectedOfficeTargetSet.Add($targetIdentity)) { continue }
+        [void]$requestedOfficeEntries.Add($candidateEntry)
+        $officePathDisplay[$pathKey] = [string]$candidateEntry.Path
+        if (-not $requestedOfficePathEntries.ContainsKey($pathKey)) {
+            $requestedOfficePathEntries[$pathKey] = New-Object System.Collections.Generic.List[object]
+        }
+        [void]$requestedOfficePathEntries[$pathKey].Add($candidateEntry)
+    }
+    $selectedOfficeTargetIds = @($selectedOfficeTargetSet | ForEach-Object { [string]$_ })
+    $allowedOfficeTargetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $officeEntries = New-Object System.Collections.Generic.List[object]
+    foreach ($entry in @($requestedOfficeEntries)) {
+        $targetIdentity = Get-OfficeKmsTargetIdentity -Entry $entry
+        $pathKey = Get-OfficeKmsPathKey -Path ([string]$entry.Path)
+        $targetValidation = Test-OfficeKmsRemediationTarget -Entry $entry -SelectedTargetIds $selectedOfficeTargetIds
+        if (-not [bool]$targetValidation.Allowed -or
+            -not [string]::Equals([string]$targetValidation.TargetIdentity, $targetIdentity, [StringComparison]::OrdinalIgnoreCase)) {
+            [void]$blockedOfficePathSet.Add($pathKey)
+            $reason = if ([string]::IsNullOrWhiteSpace([string]$targetValidation.Reason)) { 'TargetIdentityChanged' } else { [string]$targetValidation.Reason }
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(
+                ("SKU={0}; Last5={1}; {2}" -f [string]$entry.SkuId, [string]$entry.Last5, $reason)
+            )))
+            continue
+        }
+        [void]$allowedOfficeTargetSet.Add($targetIdentity)
+        [void]$officeEntries.Add($entry)
+    }
+    $officeEntries = @($officeEntries.ToArray() | Group-Object { Get-OfficeKmsTargetIdentity -Entry $_ } | ForEach-Object { $_.Group[0] })
+    $allowedOfficeTargetIds = @($allowedOfficeTargetSet | ForEach-Object { [string]$_ })
+    $officePathValidation = @{}
+    foreach ($pathKey in @($requestedOfficePathEntries.Keys)) {
+        $path = [string]$officePathDisplay[$pathKey]
+        if ($blockedOfficePathSet.Contains($pathKey)) {
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(("KMS host override at {0}; SelectedKmsTargetFailedValidation" -f $path))))
+            continue
+        }
+        # /remhst changes the shared OSPP path.  It is allowed only after every
+        # current KMS record on that path is selected, uniquely identified, and
+        # individually revalidated into the allowed composite-identity set.
+        $pathValidation = Test-OfficeKmsRemediationPath -Path $path `
+            -SelectedTargetIds $selectedOfficeTargetIds -AllowedTargetIds $allowedOfficeTargetIds
+        if (-not [bool]$pathValidation.Allowed -or -not [bool]$pathValidation.RemhstSafe) {
+            [void]$blockedOfficePathSet.Add($pathKey)
+            $reason = if ([string]::IsNullOrWhiteSpace([string]$pathValidation.Reason)) { 'UnvalidatedKmsOnSameOsppPath' } else { [string]$pathValidation.Reason }
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(("KMS host override at {0}; {1}" -f $path, $reason))))
+            continue
+        }
+        $officePathValidation[$pathKey] = $pathValidation
         $remhst = Invoke-OfficeOsppCommand -Path $path -Arguments @('/remhst') -SuccessPattern '(?i)Successfully applied setting|thành công'
         if ([bool]$remhst.Success) {
             $actions.Add((Get-CleanupText "cleanupReport.action.officeRemhstPass" @($path, $remhst.Summary)))
@@ -2967,7 +3549,25 @@ function Invoke-Remediation {
         }
     }
     $officeRemoved = 0
-    foreach ($entry in @($officeEntries | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)" } | ForEach-Object { $_.Group[0] })) {
+    foreach ($entry in @($officeEntries | Group-Object { Get-OfficeKmsTargetIdentity -Entry $_ } | ForEach-Object { $_.Group[0] })) {
+        $pathKey = Get-OfficeKmsPathKey -Path ([string]$entry.Path)
+        if ($blockedOfficePathSet.Contains($pathKey) -or -not $officePathValidation.ContainsKey($pathKey)) {
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(
+                ("SKU={0}; Last5={1}; KmsPathNotSafeForKeyRemoval" -f [string]$entry.SkuId, [string]$entry.Last5)
+            )))
+            continue
+        }
+        # The exact path/SKU/key suffix must still resolve immediately before
+        # the key command; a stale candidate never falls back to SKU-only.
+        $finalTargetValidation = Test-OfficeKmsRemediationTarget -Entry $entry -SelectedTargetIds $selectedOfficeTargetIds
+        if (-not [bool]$finalTargetValidation.Allowed -or
+            -not [string]::Equals([string]$finalTargetValidation.TargetIdentity, (Get-OfficeKmsTargetIdentity -Entry $entry), [StringComparison]::OrdinalIgnoreCase)) {
+            $reason = if ([string]::IsNullOrWhiteSpace([string]$finalTargetValidation.Reason)) { 'TargetIdentityChangedBeforeUnpkey' } else { [string]$finalTargetValidation.Reason }
+            $actions.Add((Get-CleanupText 'cleanupReport.action.officeTargetBlocked' @(
+                ("SKU={0}; Last5={1}; {2}" -f [string]$entry.SkuId, [string]$entry.Last5, $reason)
+            )))
+            continue
+        }
         if (-not [string]::IsNullOrWhiteSpace($entry.Last5)) {
             $unpkey = Invoke-OfficeOsppCommand -Path ([string]$entry.Path) -Arguments @("/unpkey:$($entry.Last5)") -SuccessPattern '(?i)product key uninstall successful|gỡ.+khóa.+thành công'
             if ([bool]$unpkey.Success) {
@@ -2981,10 +3581,10 @@ function Invoke-Remediation {
             $actions.Add((Get-CleanupText "cleanupReport.action.officeNoLast5" @($entry.SkuId)))
         }
     }
-    if ($officeEntries.Count -eq 0) {
+    if ($requestedOfficeEntries.Count -eq 0) {
         $actions.Add((Get-CleanupText "cleanupReport.action.noOfficeKms"))
     } else {
-        $actions.Add((Get-CleanupText "cleanupReport.action.officeRemovalSummary" @($officeRemoved, @($officeEntries | Where-Object { $_.Last5 }).Count)))
+        $actions.Add((Get-CleanupText "cleanupReport.action.officeRemovalSummary" @($officeRemoved, @($requestedOfficeEntries | Where-Object { $_.Last5 }).Count)))
     }
     return [pscustomobject]@{
         Actions = @($actions)
@@ -3875,7 +4475,8 @@ $verification = Get-CleanupVerification -Products $products -Findings $findings 
 $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
 $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
 $officialLicensePostCheck = Get-OfficialLicensePostCheck -Verification $verification -Products $products `
-    -OfficeLicenseEntries $officeLicenseEntries -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
+    -OfficeLicenseEntries $officeLicenseEntries -OfficeProbe $script:OfficeLicenseProbe `
+    -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
 $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
     ScanScope = $ScanScope
     CrackDetected = $crackDetected
@@ -3889,6 +4490,7 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     ConfigurationResidueCount = [int]$configurationResidues.Count
     WindowsKmsCount = [int]$unapprovedWindowsKmsProducts.Count
     OfficeKmsCount = [int]$unapprovedOfficeKmsEntries.Count
+    OfficeProbe = $script:OfficeLicenseProbe
     InstalledApplicationCount = [int]$installedApplications.Count
     ThirdPartyApplicationCount = [int]$thirdPartyApplications.Count
     ThirdPartyEvidenceCount = [int]$thirdPartyEvidence.Count
@@ -4021,9 +4623,9 @@ if ($Remediate) {
         $windowsProductsToRemove = @($unapprovedWindowsKmsProducts | Where-Object {
             $selectedWindowsActivationIds -contains [string]$_.ID
         })
-        $selectedOfficeTargetIds = @($selectedCandidates | Where-Object { $_.Kind -eq "OfficeKmsLicense" } | ForEach-Object { [string]$_.TargetId })
+        $selectedOfficeTargetIds = @($selectedCandidates | Where-Object { $_.Kind -eq "OfficeKmsLicense" } | ForEach-Object { [string]$_.TargetId } | Where-Object { $_ } | Select-Object -Unique)
         $officeEntriesToClean = @($unapprovedOfficeKmsEntries | Where-Object {
-            $entryTargetId = if (-not [string]::IsNullOrWhiteSpace([string]$_.SkuId)) { [string]$_.SkuId } else { "$($_.Path)|$($_.Last5)" }
+            $entryTargetId = Get-OfficeKmsTargetIdentity -Entry $_
             $selectedOfficeTargetIds -contains $entryTargetId
         })
 
@@ -4100,7 +4702,8 @@ if ($Remediate) {
     $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
     $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
     $officialLicensePostCheck = Get-OfficialLicensePostCheck -Verification $verification -Products $products `
-        -OfficeLicenseEntries $officeLicenseEntries -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
+        -OfficeLicenseEntries $officeLicenseEntries -OfficeProbe $script:OfficeLicenseProbe `
+        -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
     $postProtectedLicense = if ($includeWindowsScan) { Get-ProtectedLicenseInfo -Products $products } else {
         [pscustomobject]@{ Protected=$false; Channel=(Get-CleanupText 'common.unknown'); Reason=(Get-CleanupText 'cleanupReport.protected.none') }
     }
@@ -4179,6 +4782,7 @@ if ($Remediate) {
         ConfigurationResidueCount = [int]$verification.ConfigurationResidueCount
         WindowsKmsCount = [int]$verification.UnapprovedWindowsKmsCount
         OfficeKmsCount = [int]$verification.UnapprovedOfficeKmsCount
+        OfficeProbe = $script:OfficeLicenseProbe
         InstalledApplicationCount = [int]$installedApplications.Count
         ThirdPartyApplicationCount = [int]$thirdPartyApplications.Count
         ThirdPartyEvidenceCount = [int]$thirdPartyEvidence.Count
@@ -4319,6 +4923,7 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ConfigurationResidueCount = [int]$verification.ConfigurationResidueCount
     WindowsKmsCount = [int]$verification.UnapprovedWindowsKmsCount
     OfficeKmsCount = [int]$verification.UnapprovedOfficeKmsCount
+    OfficeProbe = $script:OfficeLicenseProbe
     InstalledApplicationCount = [int]$installedApplications.Count
     ThirdPartyApplicationCount = [int]$thirdPartyApplications.Count
     ThirdPartyEvidenceCount = [int]$thirdPartyEvidence.Count

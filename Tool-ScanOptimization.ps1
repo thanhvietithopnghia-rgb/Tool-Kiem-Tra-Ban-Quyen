@@ -110,19 +110,26 @@ function Invoke-BoundedCscript([string]$StatusArgument) {
 $primary = Invoke-BoundedCscript '/dstatusall'
 $output = [string]$primary.Output
 $usedFallback = $false
+$fallbackExitCode = $null
 if (-not $primary.TimedOut -and ([string]::IsNullOrWhiteSpace($output) -or $output -notmatch '(?im)^\s*(?:SKU ID|LICENSE NAME)\s*:')) {
     $fallback = Invoke-BoundedCscript '/dstatus'
     $output = [string]$fallback.Output
     $usedFallback = $true
     $timedOut = [bool]$fallback.TimedOut
+    $fallbackExitCode = [int]$fallback.ExitCode
+    $effectiveExitCode = [int]$fallback.ExitCode
 } else {
     $timedOut = [bool]$primary.TimedOut
+    $effectiveExitCode = [int]$primary.ExitCode
 }
 [pscustomobject][ordered]@{
     Path = $OsppPath
     Output = $output
     UsedFallback = $usedFallback
     TimedOut = $timedOut
+    PrimaryExitCode = [int]$primary.ExitCode
+    FallbackExitCode = $fallbackExitCode
+    ExitCode = $effectiveExitCode
     Readable = [bool](-not $timedOut -and -not [string]::IsNullOrWhiteSpace($output) -and $output -match '(?im)^\s*(?:SKU ID|LICENSE NAME|LICENSE STATUS)\s*:')
 }
 '@

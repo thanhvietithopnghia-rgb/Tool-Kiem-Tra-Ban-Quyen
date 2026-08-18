@@ -7,6 +7,10 @@ FileVersion: **4.8.0.1** · Build **2026.08.18**
 
 ## v4.8.0.1 — August 18, 2026
 
+- **Separately verified activation state:** Windows and Office are no longer collapsed into a generic “no KMS/crack detected” message. Office is only concluded when `OSPP.VBS /dstatusall` has complete readable coverage; a missing OSPP utility, timeout, fallback, or unreadable output is shown as **Unverified** and blocks automatic remediation.
+- **Safer Office KMS restoration:** before any KMS removal, the Tool rechecks the exact OSPP path/SKU/key and blocks duplicate last-five key values, approved KMS, or a shared path with a licensed Retail/MAK/Subscription SKU. It does not delete Office accounts/tokens, rearm Office, or alter Windows OEM/digital entitlement to force a watermark.
+- **Transparent software results:** after inventory, the Tool always opens the full scanned-software list. Only items with direct remediation evidence can be selected; Unverified/Manual-review items remain visible but cannot be automatically reset.
+- **Interface wording:** removed personal forms of address from user-visible text.
 - **Safe application updates:** an update is offered only for a newer release, or for a same-version replacement when the installed EXE hash is verified and differs. Missing or invalid hashes fail closed. Check and Apply revalidate the launcher hash, retain a backup, and roll back if the replacement does not start reliably.
 - **A new public version:** FileVersion/ProductVersion is now `4.8.0.1` so devices on `4.8.0.0` can receive this release through the user-consented Online update flow; there are no silent updates or telemetry.
 

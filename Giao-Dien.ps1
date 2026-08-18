@@ -3974,6 +3974,16 @@ function Test-GuiThirdPartyCleanupFinding {
     return [bool]([string]$Application.AssessmentCode -in @('NonGenuine','Suspicious','IntegrityCompromised'))
 }
 
+function Test-GuiThirdPartyDirectRemediationEvidence {
+    param($Application)
+
+    if (-not (Test-GuiThirdPartyCleanupFinding -Application $Application)) { return $false }
+    if (-not $Application.PSObject.Properties['CleanupCandidateId'] -or
+        -not $Application.PSObject.Properties['RemediationSupported']) { return $false }
+    return [bool](-not [string]::IsNullOrWhiteSpace([string]$Application.CleanupCandidateId) -and
+        [bool]$Application.RemediationSupported)
+}
+
 function Get-GuiThirdPartyCleanupFindings {
     param($Applications)
     return @($Applications | Where-Object { Test-GuiThirdPartyCleanupFinding -Application $_ })
@@ -3997,25 +4007,109 @@ function Get-GuiThirdPartyStandaloneCleanupRows {
     return $rows.ToArray()
 }
 
+function Get-GuiScanIntegerProperty {
+    param($Scan, [string]$Name, [int]$Default = 0)
+
+    if (-not $Scan -or -not $Scan.PSObject.Properties[$Name]) { return $Default }
+    $value = 0
+    if ([int]::TryParse([string]$Scan.PSObject.Properties[$Name].Value, [ref]$value)) { return $value }
+    return $Default
+}
+
+function Get-GuiCleanupComponentLicenseState {
+    param(
+        $Scan,
+        [ValidateSet('Windows','Office')][string]$Component
+    )
+
+    if (-not $Scan -or -not $Scan.PSObject.Properties['OfficialLicensePostCheck']) { return 'Unverified' }
+    $postCheck = $Scan.PSObject.Properties['OfficialLicensePostCheck'].Value
+    if (-not $postCheck -or -not $postCheck.PSObject.Properties[$Component]) { return 'Unverified' }
+    $componentResult = $postCheck.PSObject.Properties[$Component].Value
+    if ($componentResult -and $componentResult.PSObject.Properties['StateCode'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$componentResult.StateCode)) {
+        return [string]$componentResult.StateCode
+    }
+    return 'Unverified'
+}
+
+function Get-GuiCleanupLicenseStateLabel {
+    param([string]$StateCode)
+
+    $key = switch ($StateCode) {
+        'Licensed' { 'cleanup.scan.state.licensed' }
+        'Unactivated' { 'cleanup.scan.state.unactivated' }
+        'NeedsRepair' { 'cleanup.scan.state.needsRepair' }
+        'NotDetected' { 'cleanup.scan.state.notDetected' }
+        'NotScanned' { 'cleanup.scan.state.notScanned' }
+        'CrackEvidencePresent' { 'cleanup.scan.state.crackEvidence' }
+        'ActivationRequired' { 'cleanup.scan.state.activationRequired' }
+        default { 'cleanup.scan.state.unverified' }
+    }
+    return Get-DashboardText $key
+}
+
+function Get-GuiCleanupComponentStatusLines {
+    param(
+        $Scan,
+        [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')][string]$Scope
+    )
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    if (Test-GuiCleanupScopeIncludes -Scope $Scope -Component 'Windows') {
+        $lines.Add((Get-DashboardText 'cleanup.scan.component.windows' @(
+            (Get-GuiCleanupLicenseStateLabel (Get-GuiCleanupComponentLicenseState -Scan $Scan -Component 'Windows')),
+            (Get-GuiScanIntegerProperty -Scan $Scan -Name 'WindowsKmsCount'))))
+    }
+    if (Test-GuiCleanupScopeIncludes -Scope $Scope -Component 'Office') {
+        $lines.Add((Get-DashboardText 'cleanup.scan.component.office' @(
+            (Get-GuiCleanupLicenseStateLabel (Get-GuiCleanupComponentLicenseState -Scan $Scan -Component 'Office')),
+            (Get-GuiScanIntegerProperty -Scan $Scan -Name 'OfficeKmsCount'))))
+    }
+    if (Test-GuiCleanupScopeIncludes -Scope $Scope -Component 'ThirdParty') {
+        $lines.Add((Get-DashboardText 'cleanup.scan.component.thirdParty' @(
+            (Get-GuiScanIntegerProperty -Scan $Scan -Name 'ThirdPartyApplicationCount'),
+            (Get-GuiScanIntegerProperty -Scan $Scan -Name 'ThirdPartyRemediationFindingCount'))))
+    }
+    if ($lines.Count -eq 0) { $lines.Add((Get-DashboardText 'cleanup.scan.component.none')) }
+    return $lines.ToArray()
+}
+
+function Get-GuiCleanupNoFindingMessage {
+    param(
+        $Scan,
+        [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')][string]$Scope
+    )
+
+    $conclusion = if ($Scan -and $Scan.PSObject.Properties['CleanupConclusion'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$Scan.CleanupConclusion)) {
+        [string]$Scan.CleanupConclusion
+    } else {
+        Get-DashboardText 'common.unknown'
+    }
+    return Get-DashboardText 'cleanup.scan.noFindingResult' @(
+        (Get-CleanupScopeLabel -Scope $Scope),
+        (@(Get-GuiCleanupComponentStatusLines -Scan $Scan -Scope $Scope) -join "`r`n"),
+        (Get-GuiScanIntegerProperty -Scan $Scan -Name 'HistoryFindingCount'),
+        $conclusion)
+}
+
 function Show-ThirdPartyAssessmentResults {
-    param($Scan)
+    param(
+        $Scan,
+        [switch]$ReadOnly
+    )
 
     $inventoryApplications = @($Scan.ThirdPartyApplications)
     $standaloneRows = @(Get-GuiThirdPartyStandaloneCleanupRows -Candidates @($Scan.ThirdPartyCandidates))
     $allApplications = @($inventoryApplications) + @($standaloneRows)
-    if ($allApplications.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show(
-            (Get-DashboardText "software.results.noApplications"),
-            (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
-        return [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
-    }
-    $applications = @(Get-GuiThirdPartyCleanupFindings -Applications $allApplications)
-    if ($applications.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show(
-            (Get-DashboardText "cleanup.scan.noThirdPartyResult" @($allApplications.Count)),
-            (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
-        return [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
-    }
+    $sortProperties = @(
+        @{ Expression = { if (Test-GuiThirdPartyDirectRemediationEvidence -Application $_) { 0 } else { 1 } }; Ascending = $true }
+        @{ Expression = { [string]$_.Name }; Ascending = $true }
+        @{ Expression = { [string]$_.Publisher }; Ascending = $true }
+    )
+    $applications = @($allApplications | Sort-Object -Property $sortProperties)
+    $actionableCount = @($applications | Where-Object { Test-GuiThirdPartyDirectRemediationEvidence -Application $_ }).Count
 
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = Get-DashboardText "software.results.title"
@@ -4032,7 +4126,7 @@ function Show-ThirdPartyAssessmentResults {
     $dialog.Tag = [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
 
     $heading = New-Object System.Windows.Forms.Label
-    $heading.Text = Get-DashboardText "software.results.heading"
+    $heading.Text = Get-DashboardText $(if ($ReadOnly) { "software.results.heading.readOnly" } else { "software.results.heading" })
     $heading.Font = $fontTitle
     $heading.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
     $heading.TextAlign = "MiddleCenter"
@@ -4044,9 +4138,9 @@ function Show-ThirdPartyAssessmentResults {
     $summary = New-Object System.Windows.Forms.Label
     $summary.Text = Get-DashboardText "software.results.summary" @(
         $allApplications.Count,
-        $applications.Count,
-        @($applications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count,
-        @($applications | Where-Object { [string]$_.AssessmentCode -eq 'Suspicious' }).Count,
+        $actionableCount,
+        @($allApplications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count,
+        @($allApplications | Where-Object { [string]$_.AssessmentCode -eq 'Suspicious' }).Count,
         @($allApplications | Where-Object { [string]$_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count)
     $summary.Font = $fontBold
     $summary.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
@@ -4056,7 +4150,7 @@ function Show-ThirdPartyAssessmentResults {
     $dialog.Controls.Add($summary)
 
     $hint = New-Object System.Windows.Forms.Label
-    $hint.Text = Get-DashboardText "software.results.hint"
+    $hint.Text = Get-DashboardText $(if ($ReadOnly) { "software.results.hint.readOnly" } elseif ($allApplications.Count -eq 0) { "software.results.noApplications" } else { "software.results.hint" })
     if ($Scan.PSObject.Properties['DeepSoftwareScanEnabled'] -and [bool]$Scan.DeepSoftwareScanEnabled) {
         $deepCompleteText = Get-DashboardText $(if ([bool]$Scan.DeepSoftwareScanComplete) { 'common.yes' } else { 'common.no' })
         $hint.Text = (Get-DashboardText "software.results.deepSummary" @(
@@ -4074,7 +4168,7 @@ function Show-ThirdPartyAssessmentResults {
     $dialog.Controls.Add($hint)
 
     $list = New-Object System.Windows.Forms.ListView
-    $list.CheckBoxes = $true
+    $list.CheckBoxes = -not [bool]$ReadOnly
     $list.View = [System.Windows.Forms.View]::Details
     $list.FullRowSelect = $true
     $list.GridLines = $true
@@ -4106,7 +4200,7 @@ function Show-ThirdPartyAssessmentResults {
     }
     foreach ($application in $applications) {
         $candidateId = if ($application.PSObject.Properties['CleanupCandidateId']) { [string]$application.CleanupCandidateId } else { '' }
-        $actionable = [bool](-not [string]::IsNullOrWhiteSpace($candidateId) -and [bool]$application.RemediationSupported -and (Test-GuiThirdPartyCleanupFinding -Application $application))
+        $actionable = Test-GuiThirdPartyDirectRemediationEvidence -Application $application
         $evidenceText = @($application.Evidence | ForEach-Object {
             $detail = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) { [string]$_.Location } else { [string]$_.Detail }
             if ([string]::IsNullOrWhiteSpace($detail)) { [string]$_.Code } else { "$([string]$_.Code): $detail" }
@@ -4114,7 +4208,7 @@ function Show-ThirdPartyAssessmentResults {
         if ([string]::IsNullOrWhiteSpace($evidenceText)) { $evidenceText = Get-DashboardText "software.results.noEvidence" }
         $remediationMode = if ($application.PSObject.Properties['CleanupRemediationMode']) { [string]$application.CleanupRemediationMode } else { '' }
         $actionText = if ($actionable) {
-            switch ($remediationMode) {
+            $actionDetail = switch ($remediationMode) {
                 'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
                 'LocalLicenseFileReset' { Get-DashboardText "software.results.action.localLicenseReset" }
                 'AutomaticOfficialRepair' { Get-DashboardText "software.results.action.automaticRepair" }
@@ -4122,8 +4216,18 @@ function Show-ThirdPartyAssessmentResults {
                 'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
                 default { Get-DashboardText "software.results.action.guidedRepair" }
             }
+            Get-DashboardText 'software.results.action.classified' @(
+                (Get-DashboardText 'software.results.classification.actionable'),
+                $actionDetail)
         } elseif (Test-GuiThirdPartyCleanupFinding -Application $application) {
-            Get-DashboardText "software.results.action.officialRepair"
+            Get-DashboardText 'software.results.action.classified' @(
+                (Get-DashboardText 'software.results.classification.manualReview'),
+                (Get-DashboardText "software.results.action.officialRepair"))
+        } elseif (($application.PSObject.Properties['NeedsReview'] -and [bool]$application.NeedsReview) -or
+            [string]$application.AssessmentCode -in @('Unverified','TrialOrUnverified','IntegrityCompromised')) {
+            Get-DashboardText 'software.results.action.classified' @(
+                (Get-DashboardText 'software.results.classification.manualReview'),
+                (Get-DashboardText 'software.results.action.manualReview'))
         } else {
             Get-DashboardText "software.results.action.none"
         }
@@ -4171,17 +4275,19 @@ function Show-ThirdPartyAssessmentResults {
     $rightButtons.WrapContents = $false
     $buttonLayout.Controls.Add($rightButtons, 1, 0)
 
-    $selectAllButton = New-Object System.Windows.Forms.Button
-    $selectAllButton.Text = Get-DashboardText "common.selectAll"
-    $selectAllButton.Size = New-Object System.Drawing.Size(138, 38)
-    $selectAllButton.Add_Click({ foreach ($row in $list.Items) { if ([bool]$row.Tag.Actionable) { $row.Checked = $true } } })
-    $leftButtons.Controls.Add($selectAllButton)
+    if (-not $ReadOnly -and $actionableCount -gt 0) {
+        $selectAllButton = New-Object System.Windows.Forms.Button
+        $selectAllButton.Text = Get-DashboardText "common.selectAll"
+        $selectAllButton.Size = New-Object System.Drawing.Size(138, 38)
+        $selectAllButton.Add_Click({ foreach ($row in $list.Items) { if ([bool]$row.Tag.Actionable) { $row.Checked = $true } } })
+        $leftButtons.Controls.Add($selectAllButton)
 
-    $clearButton = New-Object System.Windows.Forms.Button
-    $clearButton.Text = Get-DashboardText "common.clearAll"
-    $clearButton.Size = New-Object System.Drawing.Size(138, 38)
-    $clearButton.Add_Click({ foreach ($row in $list.Items) { $row.Checked = $false } })
-    $leftButtons.Controls.Add($clearButton)
+        $clearButton = New-Object System.Windows.Forms.Button
+        $clearButton.Text = Get-DashboardText "common.clearAll"
+        $clearButton.Size = New-Object System.Drawing.Size(138, 38)
+        $clearButton.Add_Click({ foreach ($row in $list.Items) { $row.Checked = $false } })
+        $leftButtons.Controls.Add($clearButton)
+    }
 
     $officialButton = New-Object System.Windows.Forms.Button
     $officialButton.Text = Get-DashboardText "software.results.openOfficial"
@@ -4209,28 +4315,30 @@ function Show-ThirdPartyAssessmentResults {
     $dialog.CancelButton = $closeButton
     $rightButtons.Controls.Add($closeButton)
 
-    $continueButton = New-Object System.Windows.Forms.Button
-    $continueButton.Text = Get-DashboardText "software.results.continueCleanup"
-    $continueButton.Font = $fontBold
-    $continueButton.Size = New-Object System.Drawing.Size(210, 38)
-    $continueButton.Add_Click({
-        $candidateIds = @($list.CheckedItems | ForEach-Object { [string]$_.Tag.CandidateId } | Where-Object { $_ } | Select-Object -Unique)
-        if ($candidateIds.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.selectionRequired"), (Get-DashboardText "software.results.selectionRequiredTitle"), "OK", "Warning") | Out-Null
-            return
-        }
-        $warning = [System.Windows.Forms.MessageBox]::Show(
-            (Get-DashboardText "software.results.sharedResetWarning" @($candidateIds.Count)),
-            (Get-DashboardText "software.results.sharedResetTitle"),
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Warning,
-            [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
-        if ($warning -eq [System.Windows.Forms.DialogResult]::Yes) {
-            $dialog.Tag = [pscustomobject]@{ Proceed=$true; SelectedCandidateIds=$candidateIds }
-            $dialog.Close()
-        }
-    })
-    $rightButtons.Controls.Add($continueButton)
+    if (-not $ReadOnly -and $actionableCount -gt 0) {
+        $continueButton = New-Object System.Windows.Forms.Button
+        $continueButton.Text = Get-DashboardText "software.results.continueCleanup"
+        $continueButton.Font = $fontBold
+        $continueButton.Size = New-Object System.Drawing.Size(210, 38)
+        $continueButton.Add_Click({
+            $candidateIds = @($list.CheckedItems | ForEach-Object { [string]$_.Tag.CandidateId } | Where-Object { $_ } | Select-Object -Unique)
+            if ($candidateIds.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.selectionRequired"), (Get-DashboardText "software.results.selectionRequiredTitle"), "OK", "Warning") | Out-Null
+                return
+            }
+            $warning = [System.Windows.Forms.MessageBox]::Show(
+                (Get-DashboardText "software.results.sharedResetWarning" @($candidateIds.Count)),
+                (Get-DashboardText "software.results.sharedResetTitle"),
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Warning,
+                [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
+            if ($warning -eq [System.Windows.Forms.DialogResult]::Yes) {
+                $dialog.Tag = [pscustomobject]@{ Proceed=$true; SelectedCandidateIds=$candidateIds }
+                $dialog.Close()
+            }
+        })
+        $rightButtons.Controls.Add($continueButton)
+    }
 
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
     [void]$dialog.ShowDialog($form)
@@ -4295,6 +4403,13 @@ function Complete-CleanupScan {
             return
         }
 
+        if (Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "ThirdParty") {
+            # In a combined scan, present the complete third-party inventory for review
+            # before continuing with the Windows/Office cleanup flow. This dialog never
+            # selects or changes third-party software in a mixed scope.
+            [void](Show-ThirdPartyAssessmentResults -Scan $scan -ReadOnly)
+        }
+
         if ($scopedCleanupItems.Count -gt 0) {
             if ([bool]$script:cleanupAutoSafeMode) {
                 $automaticSafeItems = @(Get-AutomaticSafeCleanupItems -CleanupItems $scopedCleanupItems)
@@ -4347,13 +4462,15 @@ function Complete-CleanupScan {
 
         $script:cleanupAutoSafeMode = $false
         Set-ButtonsEnabled $true
+        $componentSummary = @(Get-GuiCleanupComponentStatusLines -Scan $scan -Scope $script:cleanupScanScope) -join "`r`n"
+        $scopeLabel = Get-CleanupScopeLabel -Scope $script:cleanupScanScope
         if ([bool]$scan.ProtectedLicense) {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "cleanup.scan.protectedResult" @($scan.ProtectedChannel, $scan.HistoryFindingCount, $scan.CleanupConclusion)), (Get-DashboardText "cleanup.scan.protectedTitle"), "OK", "Information") | Out-Null
+            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "cleanup.scan.protectedResult" @($scan.ProtectedChannel, $componentSummary, (Get-GuiScanIntegerProperty -Scan $scan -Name 'HistoryFindingCount'), $scan.CleanupConclusion)), (Get-DashboardText "cleanup.scan.protectedTitle"), "OK", "Information") | Out-Null
             $status.Text = Get-DashboardText "cleanup.scan.protectedStatus" @($scan.ProtectedChannel)
-            Write-ProgressLog (Get-DashboardText "cleanup.scan.cleanLog")
+            Write-ProgressLog (Get-DashboardText "cleanup.scan.cleanLog" @($scopeLabel))
             $status.ForeColor = [System.Drawing.Color]::DarkGreen
         } else {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "cleanup.scan.noFindingResult" @($scan.HistoryFindingCount, $scan.CleanupConclusion)), (Get-DashboardText "cleanup.scan.resultTitle"), "OK", "Information") | Out-Null
+            [System.Windows.Forms.MessageBox]::Show((Get-GuiCleanupNoFindingMessage -Scan $scan -Scope $script:cleanupScanScope), (Get-DashboardText "cleanup.scan.resultTitle"), "OK", "Information") | Out-Null
             $status.Text = Get-DashboardText "cleanup.scan.noFindingStatus"
             Write-ProgressLog (Get-DashboardText "cleanup.scan.noFindingLog")
             $status.ForeColor = [System.Drawing.Color]::DarkOrange

@@ -206,7 +206,11 @@ function Write-SourcePackageHashManifest {
     $sourcePackageFiles = @(Get-ChildItem -LiteralPath $sourceDirectory -Recurse -File -Force | Where-Object {
         $_.FullName -ne $sourcePackageManifestPath -and
         -not $_.FullName.StartsWith($outputRootPrefix, [StringComparison]::OrdinalIgnoreCase) -and
-        $_.FullName -notmatch '\\(?:\.git|dist(?:-[^\\]+)?|test)(?:\\|$)'
+        # Keep all generated build/release verification directories out of the
+        # source package.  They are local artifacts, may contain a complete
+        # prior source archive, and must never change the fixed source-manifest
+        # count or be published accidentally.
+        $_.FullName -notmatch '\\(?:\.git|dist(?:-[^\\]+)?|test|release-upload(?:-[^\\]+)?|verify-archive(?:-[^\\]+)?)(?:\\|$)'
     } | Sort-Object { $_.FullName.Substring($sourcePackageRootPrefix.Length) })
     $sourcePackageManifestLines = @(
         "# SHA-256 cua toan bo goi ma nguon v$productVersion.0; khong tu liet ke tep manifest nay."

@@ -527,6 +527,12 @@ try {
         "/win32manifest:$(Join-Path $sourceDirectory $applicationManifestName)",
         "/out:$outputPath"
     )
+    if ($RequireAuthenticode) {
+        # This compile-time marker is deliberately absent from unsigned
+        # development builds, even when they have the same version number as
+        # the public stable release.
+        $compilerArguments += '/define:TOOL_SIGNED_STABLE_BUILD'
+    }
     if ($target.HighEntropy) { $compilerArguments += '/highentropyva+' }
     foreach ($resource in $embeddedPayloadResources) {
         $compilerArguments += "/resource:$($resource.Path),$($resource.ResourceName)"

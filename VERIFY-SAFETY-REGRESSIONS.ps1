@@ -1116,7 +1116,7 @@ if ($gui) {
         if ([regex]::Matches($gui.Text, 'New-ToolElevatedBootstrapArguments\s+-BridgeScriptPath\s+\$elevatedBridgeScript\s+-TargetFilePath\s+\$toolPowerShellPath').Count -lt 2) {
             Fail 'Luồng tiến trình quản trị chưa dùng cầu nối môi trường cho cả tác vụ theo dõi và tác vụ tách rời.'
         }
-        $bridgeEnvironmentNames = @('TOOL_SECURE_LAUNCH','TOOL_SECURE_RUNTIME_DIR','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID','TOOL_DATA_SCOPE','TOOL_DATA_OWNER_SID')
+        $bridgeEnvironmentNames = @('TOOL_SECURE_LAUNCH','TOOL_SECURE_RUNTIME_DIR','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID','TOOL_DATA_SCOPE','TOOL_DATA_OWNER_SID','TOOL_SELF_UPDATE_ALLOWED','TOOL_OFFLINE_MODE')
         $previousBridgeEnvironment = [ordered]@{}
         $bridgeFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('Tool-Elevated-Bridge-Fixture-' + [guid]::NewGuid().ToString('N'))
         foreach ($name in $bridgeEnvironmentNames) {
@@ -1143,8 +1143,10 @@ if ($gui) {
             }
             $bridgeFixtureScript = Join-Path $bridgeFixtureRoot 'Tool-ElevatedBridge.ps1'
             $cleanupFixtureScript = Join-Path $bridgeFixtureRoot 'windows-license-compliance-cleanup.ps1'
+            $updateManagerFixtureScript = Join-Path $bridgeFixtureRoot 'Tool-UpdateManager.ps1'
             Copy-Item -LiteralPath (Join-Path $root 'Tool-ElevatedBridge.ps1') -Destination $bridgeFixtureScript -Force
             Copy-Item -LiteralPath (Join-Path $root 'windows-license-compliance-cleanup.ps1') -Destination $cleanupFixtureScript -Force
+            Copy-Item -LiteralPath (Join-Path $root 'Tool-UpdateManager.ps1') -Destination $updateManagerFixtureScript -Force
             $env:TOOL_SECURE_LAUNCH = '1'
             $env:TOOL_SECURE_RUNTIME_DIR = $bridgeRuntimeRoot
             $env:TOOL_DATA_SCOPE = 'User'
@@ -1169,6 +1171,26 @@ if ($gui) {
                 $blockedWithoutSecureLaunch = [string]$_.Exception.Message -eq 'ElevatedBridgeSecureLaunchRequired'
             }
             if (-not $blockedWithoutSecureLaunch) { Fail 'Cầu nối UAC không fail-closed khi nguồn gọi thiếu secure launch.' }
+
+            # A same-version development build must never reach the updater.
+            # Conversely, a stable build marker captured before the RunAs
+            # boundary must survive the bridge.  The deliberately incomplete
+            # Apply request fails before any network or file operation with
+            # exit 3; exit 2 would mean the bridge lost the captured marker.
+            $env:TOOL_SECURE_LAUNCH = '1'
+            $env:TOOL_SELF_UPDATE_ALLOWED = '1'
+            $env:TOOL_OFFLINE_MODE = '0'
+            $env:TOOL_MODULE_ID = 'application.update.apply'
+            $env:TOOL_MODULE_INVOCATION_ID = [guid]::NewGuid().ToString('N')
+            $updateBridgeChildArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$updateManagerFixtureScript`" -Mode Apply -ConsentGranted -NoUi -NoRestart"
+            $updateBridgeArguments = New-ToolElevatedBootstrapArguments -BridgeScriptPath $bridgeFixtureScript -TargetFilePath $bridgePowerShell -TargetArguments $updateBridgeChildArguments -HiddenWindow $true
+            $env:TOOL_SELF_UPDATE_ALLOWED = '0'
+            $env:TOOL_OFFLINE_MODE = '1'
+            $env:TOOL_MODULE_ID = 'wrong-module'
+            $updateBridgeProcess = Start-Process -FilePath $bridgePowerShell -ArgumentList $updateBridgeArguments -WindowStyle Hidden -Wait -PassThru
+            if (-not $updateBridgeProcess -or [int]$updateBridgeProcess.ExitCode -ne 3) {
+                Fail "Cầu nối UAC làm mất self-update gate khi áp dụng cập nhật (exit $([int]$updateBridgeProcess.ExitCode))."
+            }
         } finally {
             foreach ($name in $bridgeEnvironmentNames) {
                 [Environment]::SetEnvironmentVariable($name, $previousBridgeEnvironment[$name], [EnvironmentVariableTarget]::Process)

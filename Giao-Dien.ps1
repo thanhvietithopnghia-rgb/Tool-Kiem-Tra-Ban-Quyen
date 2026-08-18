@@ -2756,6 +2756,7 @@ function Get-ToolElevatedEnvironmentSnapshot {
         'TOOL_LOG_PATH','TOOL_MODULE_CONTRACT_SCHEMA','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID',
         'TOOL_OFFLINE_MODE','TOOL_OFFLINE_POLICY_SCHEMA','TOOL_OFFLINE_SETTINGS_PATH','TOOL_PLUGIN_DIR',
         'TOOL_POWERSHELL_PATH','TOOL_REPORT_SCHEMA','TOOL_SAFETY_POLICY_SCHEMA','TOOL_SECURE_LAUNCH',
+        'TOOL_SELF_UPDATE_ALLOWED',
         'TOOL_SECURE_RUNTIME_DIR','TOOL_SECURE_RUNTIME_FAILED','TOOL_TIMELINE_KEY_PATH','TOOL_TIMELINE_PATH',
         'TOOL_TOOL_VERSION','TOOL_UI_CULTURE','TOOL_UI_CULTURE_SETTINGS_PATH','TOOL_UI_THEME',
         'TOOL_UI_THEME_SETTINGS_PATH','TOOL_UPDATE_CACHE_ROOT'
@@ -2859,7 +2860,8 @@ function Start-DetachedToolModuleProcess {
     param(
         [Parameter(Mandatory = $true)][string]$ModuleId,
         [Parameter(Mandatory = $true)][string]$Arguments,
-        [switch]$Elevate
+        [switch]$Elevate,
+        [switch]$Hidden
     )
 
     $descriptor = Get-ReadyToolModule -moduleId $ModuleId -elevatedLaunch ([bool]$Elevate)
@@ -2871,9 +2873,10 @@ function Start-DetachedToolModuleProcess {
         $env:TOOL_MODULE_INVOCATION_ID = $invocation.InvocationId
         $startParameters = @{ FilePath=$toolPowerShellPath; ArgumentList=$Arguments; PassThru=$true }
         if ($Elevate) {
-            $startParameters.ArgumentList = New-ToolElevatedBootstrapArguments -BridgeScriptPath $elevatedBridgeScript -TargetFilePath $toolPowerShellPath -TargetArguments $Arguments
+            $startParameters.ArgumentList = New-ToolElevatedBootstrapArguments -BridgeScriptPath $elevatedBridgeScript -TargetFilePath $toolPowerShellPath -TargetArguments $Arguments -HiddenWindow ([bool]$Hidden)
             $startParameters.Verb = "RunAs"
         }
+        if ($Hidden) { $startParameters.WindowStyle = "Hidden" }
         $process = Start-Process @startParameters
         if (-not $process) { throw (Get-DashboardText "module.processMissing") }
     } finally {
@@ -3225,6 +3228,13 @@ function Get-ApplicationUpdateFileSha256 {
     }
 }
 
+function Test-ApplicationSelfUpdateAllowed {
+    # The EXE launcher creates this value from a compile-time marker.  Missing
+    # or malformed values fail closed so extracted/source/dev payloads cannot
+    # hand off to the public self-updater.
+    return ([string]$env:TOOL_SECURE_LAUNCH -eq '1' -and [string]$env:TOOL_SELF_UPDATE_ALLOWED -eq '1')
+}
+
 function Remove-ApplicationUpdateResultFile {
     if ($script:applicationUpdateResultFile -and (Test-Path -LiteralPath $script:applicationUpdateResultFile -PathType Leaf)) {
         Remove-Item -LiteralPath $script:applicationUpdateResultFile -Force -ErrorAction SilentlyContinue
@@ -3251,7 +3261,7 @@ function Reset-ApplicationUpdateForOffline {
 }
 
 function Request-ApplicationUpdateCheck {
-    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+    if (-not (Test-ApplicationSelfUpdateAllowed) -or $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
         $script:applicationUpdateDismissedForSession -or $script:applicationUpdateApplyStarted) {
         return
     }
@@ -3261,9 +3271,11 @@ function Request-ApplicationUpdateCheck {
 }
 
 function Start-ApplicationUpdateCheck {
-    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+    if (-not (Test-ApplicationSelfUpdateAllowed) -or $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
         $script:applicationUpdateDismissedForSession -or $script:applicationUpdateApplyStarted) {
         $script:applicationUpdateCheckPending = $false
+        $script:applicationUpdatePromptPending = $false
+        $script:availableApplicationUpdate = $null
         return
     }
     try {
@@ -3495,6 +3507,7 @@ function Start-ApplicationUpdateApply {
     param([Parameter(Mandatory = $true)][object]$Candidate)
 
     try {
+        if (-not (Test-ApplicationSelfUpdateAllowed)) { throw (Get-DashboardText "update.selfUpdateUnavailable") }
         if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0") { throw (Get-DashboardText "foundation.offline.actionBlocked" @((Get-DashboardText "update.check.action"))) }
         if (-not [bool]$Candidate.CanSelfUpdate) { throw (Get-DashboardText "update.selfUpdateUnavailable") }
         if ([string]$env:TOOL_SECURE_LAUNCH -ne "1") { throw (Get-DashboardText "update.secureLauncherRequired") }
@@ -3508,14 +3521,10 @@ function Start-ApplicationUpdateApply {
         if (-not $freshIntegrity.Valid) { throw $freshIntegrity.Message }
         $currentLauncherSha256 = Get-ApplicationUpdateFileSha256 $launcherPath
         $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$applicationUpdateScript`" -Mode Apply -ConsentGranted -Culture `"$script:dashboardCulture`" -CurrentVersion `"$releaseVersion`" -ExpectedVersion `"$($Candidate.LatestVersion)`" -ManifestUrl `"$applicationUpdateManifestUrl`" -LauncherPath `"$launcherPath`" -LauncherProcessId $launcherProcessId -ExpectedCurrentSha256 `"$currentLauncherSha256`""
-        $updateApplyStartParameters = @{
-            FilePath = $toolPowerShellPath
-            ArgumentList = $arguments
-            WindowStyle = "Hidden"
-            PassThru = $true
-            Verb = "RunAs"
-        }
-        $updaterProcess = Start-Process @updateApplyStartParameters
+        # Do not call RunAs directly here.  The Windows RunAs broker may drop
+        # the secure-launch variables; the bridge restores only the reviewed
+        # environment and binds this request to Tool-UpdateManager.ps1.
+        $updaterProcess = Start-DetachedToolModuleProcess -ModuleId "application.update.apply" -Arguments $arguments -Elevate -Hidden
         if (-not $updaterProcess) { throw (Get-DashboardText "module.processMissing") }
         $script:applicationUpdateApplyStarted = $true
         $script:applicationUpdatePromptPending = $false
@@ -3538,7 +3547,7 @@ function Start-ApplicationUpdateApply {
 
 function Invoke-PendingApplicationUpdateWork {
     if ($script:applicationUpdateApplyStarted -or $script:applicationUpdateDialogVisible -or
-        $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
+        -not (Test-ApplicationSelfUpdateAllowed) -or $script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne "0" -or
         $script:applicationUpdateDismissedForSession) {
         return
     }

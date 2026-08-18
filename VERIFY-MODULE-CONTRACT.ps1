@@ -15,7 +15,7 @@ try {
 
     $metadata = Get-ToolModuleContractMetadata
 if ([string]$metadata.ContractSchemaVersion -ne "1.0" -or [string]$metadata.ResultSchemaVersion -ne "1.0" -or [string]$metadata.ToolVersion -ne "4.8") { throw "Metadata hợp đồng mô-đun không hợp lệ." }
-    if ([int]$metadata.ModuleCount -ne 27 -or [int]$metadata.EntryPointCount -ne 24) { throw "Catalog không đúng 27 mô-đun/24 entry point." }
+    if ([int]$metadata.ModuleCount -ne 28 -or [int]$metadata.EntryPointCount -ne 24) { throw "Catalog không đúng 28 mô-đun/24 entry point." }
     foreach ($category in @("Windows", "Office", "OEM", "Registry", "Service", "Task", "Backup", "Restore", "Forensics", "Report", "Security", "Assurance", "Enterprise", "Foundation")) {
         if ($metadata.Categories -notcontains $category) { throw "Catalog thiếu category: $category" }
     }
@@ -53,6 +53,14 @@ if ([string]$descriptor.ContractSchemaVersion -ne "1.0" -or [string]$descriptor.
     $updateDescriptor = Get-ToolModuleDescriptor -ModuleId "application.update.check"
     if (-not $updateDescriptor -or [string]$updateDescriptor.NetworkScope -ne "Internet" -or [string]$updateDescriptor.AccessMode -ne "ReadOnly" -or [string]$updateDescriptor.ScriptFile -ne "Tool-UpdateManager.ps1") {
         throw "Descriptor kiểm tra cập nhật ứng dụng không hợp lệ."
+    }
+    $updateApplyDescriptor = Get-ToolModuleDescriptor -ModuleId "application.update.apply"
+    if (-not $updateApplyDescriptor -or [bool]$updateApplyDescriptor.IsEntryPoint -or
+        [string]$updateApplyDescriptor.NetworkScope -ne "Internet" -or
+        [string]$updateApplyDescriptor.AccessMode -ne "SystemChange" -or
+        -not [bool]$updateApplyDescriptor.RequiresElevation -or
+        [string]$updateApplyDescriptor.ScriptFile -ne "Tool-UpdateManager.ps1") {
+        throw "Descriptor áp dụng cập nhật ứng dụng không hợp lệ."
     }
 
     $limitedProfile = $profile.PSObject.Copy()

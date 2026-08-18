@@ -318,7 +318,7 @@ if ($moduleContractText -notmatch 'ToolModuleContractSchemaVersion\s*=\s*"1\.0"'
     $moduleContractText -notmatch 'Complete-ToolModuleInvocation' -or
     $moduleContractText -notmatch 'assurance\.certificates' -or $moduleContractText -notmatch 'assurance\.plugins' -or $moduleContractText -notmatch 'assurance\.timeline' -or
     $moduleContractText -notmatch 'inventory\.registry' -or $moduleContractText -notmatch 'inventory\.service' -or $moduleContractText -notmatch 'inventory\.task' -or
-    $moduleContractText -notmatch 'application\.update\.check') {
+    $moduleContractText -notmatch 'application\.update\.check' -or $moduleContractText -notmatch 'application\.update\.apply') {
     $failures.Add('Tool-ModuleContract.ps1 thiếu schema, capability gate, ModuleResult hoặc nhóm logical bắt buộc.')
 }
 if ($guiText -notmatch 'Start-ToolModuleProcess' -or $guiText -notmatch 'Module\.Complete' -or
@@ -771,7 +771,7 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.PdfProfileCleanup -notmatch 'Bounded retry') {
             throw 'Thiếu metadata profile PDF v4.3.'
         }
-        if ([string]$releaseManifest.ModuleContractSchemaVersion -ne '1.0' -or [string]$releaseManifest.ModuleResultSchemaVersion -ne '1.0' -or [int]$releaseManifest.ModuleCount -ne 27 -or [int]$releaseManifest.ModuleEntryPointCount -ne 24) { throw 'Thiếu metadata module contract v4.8.' }
+        if ([string]$releaseManifest.ModuleContractSchemaVersion -ne '1.0' -or [string]$releaseManifest.ModuleResultSchemaVersion -ne '1.0' -or [int]$releaseManifest.ModuleCount -ne 28 -or [int]$releaseManifest.ModuleEntryPointCount -ne 24) { throw 'Thiếu metadata module contract v4.8.' }
     } catch { $failures.Add("RELEASE-MANIFEST.json không hợp lệ: $($_.Exception.Message)") }
 }
 

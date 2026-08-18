@@ -43,6 +43,15 @@ namespace ThanhViet.ToolKiemTra
         private const int MaximumPayloadDataBytes = 16 * 1024 * 1024;
         private const int MaximumSinglePayloadBytes = 8 * 1024 * 1024;
         private const string PayloadBundleFailureCode = "PAYLOAD_BUNDLE_INVALID";
+#if TOOL_SIGNED_STABLE_BUILD
+        // Only a build that is required to pass Authenticode verification may
+        // hand control to the self-updater.  Development artefacts must stay
+        // runnable in place and must never replace themselves from the public
+        // stable manifest merely because their hash is different.
+        private const string SelfUpdateAllowed = "1";
+#else
+        private const string SelfUpdateAllowed = "0";
+#endif
         private static readonly byte[] PayloadBundleMagic = Encoding.ASCII.GetBytes("TVPBNDL1");
         private static readonly object PayloadBundleLock = new object();
         private static byte[] CachedPayloadBundle;
@@ -914,6 +923,7 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_DATA_SCHEMA_VERSION"] = "2.0";
                 startInfo.EnvironmentVariables["TOOL_SECURE_RUNTIME_DIR"] = Path.Combine(tempDirectory, "runtime");
                 startInfo.EnvironmentVariables["TOOL_SECURE_LAUNCH"] = "1";
+                startInfo.EnvironmentVariables["TOOL_SELF_UPDATE_ALLOWED"] = SelfUpdateAllowed;
                 startInfo.EnvironmentVariables["TOOL_BUILD_ARCHITECTURE"] = "AnyCPU";
                 startInfo.EnvironmentVariables["TOOL_EXPECTED_PROCESS_ARCHITECTURE"] = RuntimeArchitecture;
                 startInfo.EnvironmentVariables["TOOL_POWERSHELL_PATH"] = powershellPath;

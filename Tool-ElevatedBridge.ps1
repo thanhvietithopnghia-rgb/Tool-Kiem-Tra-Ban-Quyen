@@ -77,6 +77,7 @@ try {
         'TOOL_LOG_PATH','TOOL_MODULE_CONTRACT_SCHEMA','TOOL_MODULE_ID','TOOL_MODULE_INVOCATION_ID',
         'TOOL_OFFLINE_MODE','TOOL_OFFLINE_POLICY_SCHEMA','TOOL_OFFLINE_SETTINGS_PATH','TOOL_PLUGIN_DIR',
         'TOOL_POWERSHELL_PATH','TOOL_REPORT_SCHEMA','TOOL_SAFETY_POLICY_SCHEMA','TOOL_SECURE_LAUNCH',
+        'TOOL_SELF_UPDATE_ALLOWED',
         'TOOL_SECURE_RUNTIME_DIR','TOOL_SECURE_RUNTIME_FAILED','TOOL_TIMELINE_KEY_PATH','TOOL_TIMELINE_PATH',
         'TOOL_TOOL_VERSION','TOOL_UI_CULTURE','TOOL_UI_CULTURE_SETTINGS_PATH','TOOL_UI_THEME',
         'TOOL_UI_THEME_SETTINGS_PATH','TOOL_UPDATE_CACHE_ROOT'
@@ -106,6 +107,7 @@ try {
         'cleanup.scan' = 'windows-license-compliance-cleanup.ps1'
         'cleanup.deep' = 'windows-license-compliance-cleanup.ps1'
         'cleanup.repair' = 'windows-license-compliance-cleanup.ps1'
+        'application.update.apply' = 'Tool-UpdateManager.ps1'
         'oem.apply' = 'windows-oem-license-assistant.ps1'
         'license.deep-scan' = 'windows-license-deep-scan.ps1'
         'forensics.scan' = 'windows-license-forensics.ps1'

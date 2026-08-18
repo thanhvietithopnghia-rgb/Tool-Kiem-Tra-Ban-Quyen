@@ -29,7 +29,11 @@ $script:ToolUpdateRestartAttempted = $false
 
 # Every executable entry point fails closed before loading helpers or making a
 # request. Library mode exists only for deterministic local verification.
-if ($Mode -ne 'Library' -and (-not $ConsentGranted -or [string]$env:TOOL_OFFLINE_MODE -ne '0')) {
+if ($Mode -ne 'Library' -and (
+    -not $ConsentGranted -or
+    [string]$env:TOOL_OFFLINE_MODE -ne '0' -or
+    [string]$env:TOOL_SELF_UPDATE_ALLOWED -ne '1'
+)) {
     exit 2
 }
 
@@ -676,6 +680,7 @@ function Invoke-ToolUpdateApply {
         [Parameter(Mandatory = $true)][string]$CurrentLauncherSha256
     )
     if ([string]$env:TOOL_SECURE_LAUNCH -ne '1') { throw 'Self-update is available only from the verified EXE launcher.' }
+    if ([string]$env:TOOL_SELF_UPDATE_ALLOWED -ne '1') { throw 'Self-update is unavailable for this build.' }
     if (-not $ConsentGranted -or [string]$env:TOOL_OFFLINE_MODE -ne '0') { throw 'Update requires explicit Online mode.' }
     if ([string]$env:TOOL_LAUNCHER_PID -notmatch '^[0-9]{1,10}$' -or [int]$env:TOOL_LAUNCHER_PID -ne $CurrentLauncherProcessId) {
         throw 'Launcher process identifier does not match the secure launch environment.'

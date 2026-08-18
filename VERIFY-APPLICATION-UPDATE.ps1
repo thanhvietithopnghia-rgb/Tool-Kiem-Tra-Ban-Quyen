@@ -18,6 +18,7 @@ function Assert-UpdateThrows {
 }
 
 $oldOfflineMode = [string]$env:TOOL_OFFLINE_MODE
+$oldSelfUpdateAllowed = [string]$env:TOOL_SELF_UPDATE_ALLOWED
 $oldUpdateCacheRoot = [string]$env:TOOL_UPDATE_CACHE_ROOT
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('tool-v470-update-verify-' + [Guid]::NewGuid().ToString('N'))
 
@@ -135,6 +136,16 @@ try {
     $env:TOOL_OFFLINE_MODE = '0'
     $onlineNoConsentProcess = Start-Process -FilePath $verificationPowerShell -ArgumentList $deniedArguments -WindowStyle Hidden -Wait -PassThru
     Assert-UpdateTest ($onlineNoConsentProcess.ExitCode -eq 2) 'Updater checked Online without explicit consent.'
+    $developmentDeniedResultPath = Join-Path $temporaryRoot 'development-denied-result.json'
+    $developmentDeniedArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$updateManagerPath`" -Mode Check -ConsentGranted -CurrentVersion 4.8.0.0 -ResultFile `"$developmentDeniedResultPath`""
+    $env:TOOL_SELF_UPDATE_ALLOWED = '0'
+    $developmentDeniedProcess = Start-Process -FilePath $verificationPowerShell -ArgumentList $developmentDeniedArguments -WindowStyle Hidden -Wait -PassThru
+    Assert-UpdateTest ($developmentDeniedProcess.ExitCode -eq 2) 'An unsigned development build was allowed to contact the updater.'
+    Assert-UpdateTest (-not (Test-Path -LiteralPath $developmentDeniedResultPath)) 'Development update denial wrote a result after the pre-network gate.'
+    $env:TOOL_SELF_UPDATE_ALLOWED = '1'
+    $positiveGateArguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$updateManagerPath`" -Mode Apply -ConsentGranted -NoUi -NoRestart"
+    $positiveGateProcess = Start-Process -FilePath $verificationPowerShell -ArgumentList $positiveGateArguments -WindowStyle Hidden -Wait -PassThru
+    Assert-UpdateTest ($positiveGateProcess.ExitCode -eq 3) 'The stable self-update marker did not pass the pre-network gate.'
     $env:TOOL_OFFLINE_MODE = '1'
 
     $stagedPath = Join-Path $temporaryRoot 'staged.exe'
@@ -164,21 +175,38 @@ try {
     Assert-UpdateTest (-not [bool]$offlineMetadata.BackgroundUpdateService -and -not [bool]$offlineMetadata.SilentUpdate) 'Metadata permits a background service or silent update.'
     $updateDescriptor = Get-ToolModuleDescriptor -ModuleId 'application.update.check'
     Assert-UpdateTest ($updateDescriptor.NetworkScope -eq 'Internet' -and $updateDescriptor.AccessMode -eq 'ReadOnly') 'Update module contract is invalid.'
+    $applyDescriptor = Get-ToolModuleDescriptor -ModuleId 'application.update.apply'
+    Assert-UpdateTest ($applyDescriptor -and -not [bool]$applyDescriptor.IsEntryPoint -and $applyDescriptor.NetworkScope -eq 'Internet' -and $applyDescriptor.AccessMode -eq 'SystemChange' -and [bool]$applyDescriptor.RequiresElevation) 'Update apply module does not require the secure elevated bridge.'
 
     $dashboardText = Get-Content -LiteralPath (Join-Path $root 'Giao-Dien.ps1') -Raw -Encoding UTF8
     foreach ($pattern in @(
         'Request-ApplicationUpdateCheck', 'Reset-ApplicationUpdateForOffline', 'applicationUpdateReminderDueUtc',
         'AddHours(2)', 'update.choice.updateNow', 'update.choice.remindLater', 'update.choice.dismissSession',
         'TOOL_LAUNCHER_PID', '-Mode Apply', '-Mode Check', 'ExpectedCurrentSha256', 'currentHashArgument',
+        'Test-ApplicationSelfUpdateAllowed', 'TOOL_SELF_UPDATE_ALLOWED',
+        'Start-DetachedToolModuleProcess -ModuleId "application.update.apply" -Arguments $arguments -Elevate -Hidden',
         'if (-not $script:offlineMode) { Request-ApplicationUpdateCheck }'
     )) {
         Assert-UpdateTest ($dashboardText.Contains($pattern)) "GUI is missing required update flow: $pattern"
     }
-    Assert-UpdateTest ($dashboardText -match 'Verb\s*=\s*"RunAs"') 'Update apply is not elevated on demand.'
+    Assert-UpdateTest ($dashboardText -notmatch '\$updateApplyStartParameters|Start-Process\s+@updateApplyStartParameters') 'Update apply bypasses the secure elevated bridge.'
+    $dashboardTokens = $null
+    $dashboardParseErrors = $null
+    $dashboardAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'Giao-Dien.ps1'), [ref]$dashboardTokens, [ref]$dashboardParseErrors)
+    Assert-UpdateTest ($dashboardParseErrors.Count -eq 0) 'Dashboard cannot be parsed for update handoff verification.'
+    $applyFunctionAst = $dashboardAst.Find({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Start-ApplicationUpdateApply'
+    }, $true)
+    Assert-UpdateTest ($applyFunctionAst -and $applyFunctionAst.Body.Extent.Text.Contains('Start-DetachedToolModuleProcess -ModuleId "application.update.apply" -Arguments $arguments -Elevate -Hidden')) 'Update apply does not use the detached elevated bridge call.'
+    Assert-UpdateTest ($applyFunctionAst.Body.Extent.Text -notmatch '(?i)\bStart-Process\b') 'Update apply still invokes Start-Process directly.'
+    $elevatedBridgeText = Get-Content -LiteralPath (Join-Path $root 'Tool-ElevatedBridge.ps1') -Raw -Encoding UTF8
+    Assert-UpdateTest ($elevatedBridgeText.Contains("'application.update.apply' = 'Tool-UpdateManager.ps1'")) 'The elevated bridge does not bind the update apply module to the updater script.'
+    Assert-UpdateTest ($elevatedBridgeText.Contains("'TOOL_SELF_UPDATE_ALLOWED'")) 'The elevated bridge does not preserve the self-update build gate.'
     $launcherText = Get-Content -LiteralPath (Join-Path $root 'Tool-Kiem-Tra-v4.8-OneFile.cs') -Raw -Encoding UTF8
-    Assert-UpdateTest ($launcherText.Contains('"Tool-UpdateManager.ps1"') -and $launcherText.Contains('TOOL_LAUNCHER_PID') -and $launcherText.Contains('TOOL_TOOL_VERSION"] = "4.8.0.1"')) 'Launcher does not embed or pin the v4.8.0.1 update foundation.'
+    Assert-UpdateTest ($launcherText.Contains('"Tool-UpdateManager.ps1"') -and $launcherText.Contains('TOOL_LAUNCHER_PID') -and $launcherText.Contains('TOOL_TOOL_VERSION"] = "4.8.0.1"') -and $launcherText.Contains('TOOL_SIGNED_STABLE_BUILD') -and $launcherText.Contains('TOOL_SELF_UPDATE_ALLOWED')) 'Launcher does not embed or pin the v4.8.0.1 update foundation.'
     $buildText = Get-Content -LiteralPath (Join-Path $root 'BUILD.ps1') -Raw -Encoding UTF8
-    Assert-UpdateTest ($buildText.Contains("'Tool-UpdateManager.ps1'") -and $buildText.Contains("'VERIFY-APPLICATION-UPDATE.ps1'")) 'Build does not package or verify the updater.'
+    Assert-UpdateTest ($buildText.Contains("'Tool-UpdateManager.ps1'") -and $buildText.Contains("'VERIFY-APPLICATION-UPDATE.ps1'") -and $buildText.Contains("'/define:TOOL_SIGNED_STABLE_BUILD'")) 'Build does not package or verify the updater.'
 
     foreach ($catalogName in @('Tool-Strings.vi-VN.json','Tool-Strings.en-US.json')) {
         $catalog = Get-Content -LiteralPath (Join-Path $root $catalogName) -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -189,6 +217,7 @@ try {
 
     $updateManagerText = Get-Content -LiteralPath $updateManagerPath -Raw -Encoding UTF8
     Assert-UpdateTest ($updateManagerText.Contains('-InstalledSha256 $CurrentLauncherSha256')) 'Apply-time manifest recheck does not preserve same-version hash detection.'
+    Assert-UpdateTest ($updateManagerText.Contains('TOOL_SELF_UPDATE_ALLOWED')) 'Updater does not fail closed for development builds.'
 
     Write-Host 'VERIFY-APPLICATION-UPDATE: OK (Offline/consent gates + signed-stable policy + anti-downgrade + same-version hash replacement + version/asset/hash/size/signer validation + verified swap/backup)' -ForegroundColor Green
     exit 0
@@ -197,6 +226,7 @@ try {
     exit 1
 } finally {
     $env:TOOL_OFFLINE_MODE = $oldOfflineMode
+    $env:TOOL_SELF_UPDATE_ALLOWED = $oldSelfUpdateAllowed
     $env:TOOL_UPDATE_CACHE_ROOT = $oldUpdateCacheRoot
     $temporaryFull = [IO.Path]::GetFullPath($temporaryRoot)
     $systemTempFull = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())

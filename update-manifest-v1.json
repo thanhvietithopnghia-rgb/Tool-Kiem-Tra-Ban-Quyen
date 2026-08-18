@@ -1,9 +1,9 @@
 {
     "SchemaVersion":  "1.0",
     "Channel":  "stable",
-    "LatestVersion":  "4.8.0.0",
+    "LatestVersion":  "4.8.0.1",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-14T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-18T00:00:00Z",
     "Title":  {
                   "vi-VN":  "v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn",
                   "en-US":  "v4.8.0 - Faster, clearer, and safer"
@@ -15,7 +15,7 @@
                                   "WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.",
                                   "Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tự tách bảng rộng và sửa lỗi báo cáo Toàn bộ/Phần mềm không xuất PDF khi có liên kết chính thức.",
                                   "Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.",
-                                  "Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0."
+                                  "Mặc định Offline, không telemetry; v4.8.0.1 bổ sung cập nhật ứng dụng an toàn theo phiên bản và hash."
                               ],
                     "en-US":  [
                                   "Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.",
@@ -23,13 +23,13 @@
                                   "A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.",
                                   "The software appendix uses a clearer teal palette; detailed PDFs add spacing, split wide tables, and fix Full/Software PDF export when official references are present.",
                                   "Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.",
-                                  "Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0."
+                                  "Offline remains the default with no telemetry; v4.8.0.1 adds safe application updates by version and hash."
                               ]
                 },
-    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0",
-    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe",
-    "DownloadSha256":  "568C2AD9646C0AC41D2273A3166154F00810DEBF93DBE2DBC312F453145F8310",
-    "DownloadSize":  886704,
+    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.1",
+    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe",
+    "DownloadSha256":  "6E3FDD6CE6706BFCF0199DDD6141FA43EF1327B2F88BC1714C63862813AC2D08",
+    "DownloadSize":  885168,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ACF45ABCB9842701652F75BA58E13DC0ACFA79FE"

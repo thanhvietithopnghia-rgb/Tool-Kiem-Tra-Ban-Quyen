@@ -38,7 +38,7 @@ try {
     . $modulePath
     $state = Initialize-ToolDataLifecycle
     Assert-DataLifecycle ([string]$state.DataSchemaVersion -eq '2.0') 'Sai DataSchemaVersion.'
-    Assert-DataLifecycle ([string]$state.ProducerVersion -eq '4.8.0.0') 'Thiếu ProducerVersion v4.8.0.0.'
+    Assert-DataLifecycle ([string]$state.ProducerVersion -eq '4.8.0.1') 'Thiếu ProducerVersion v4.8.0.1.'
     Assert-DataLifecycle ([string]$state.StorageGeneration -eq 'v4.6') 'Sai StorageGeneration.'
     Assert-DataLifecycle ([string]$state.MigrationStatus -eq 'Migrated' -and [bool]$state.MigrationVerified) 'Migration chưa được xác minh.'
     Assert-DataLifecycle ([bool]$state.LegacyDataPreserved) 'Migration không công bố việc giữ nguyên dữ liệu cũ.'

@@ -59,7 +59,7 @@ try {
     . (Join-Path $SourceDirectory "Tool-Enterprise.ps1")
 
     $metadata = Get-ToolEnterpriseMetadata
-    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.8.0.0") "Enterprise ToolVersion không phải 4.8.0.0."
+    Assert-Enterprise ([string]$metadata.ToolVersion -eq "4.8.0.1") "Enterprise ToolVersion không phải 4.8.0.1."
     Assert-Enterprise ([string]$metadata.ProtocolVersion -eq "1.0") "Enterprise protocol không phải 1.0."
     Assert-Enterprise (-not [bool]$metadata.FullProductKeysInReports) "Metadata không được cho phép full product key trong báo cáo."
 
@@ -95,7 +95,7 @@ try {
     $queuedReportPath = Add-ToolEnterpriseOutboxReport -Report $report
     Assert-Enterprise (Test-Path -LiteralPath $queuedReportPath -PathType Leaf) "Mất kết nối không tạo được hàng đợi báo cáo."
     Assert-Enterprise ((Get-Content -LiteralPath $queuedReportPath -Raw) -notmatch 'EnterpriseInventory') "Hàng đợi báo cáo lưu dữ liệu rõ thay vì bảo vệ bằng DPAPI."
-    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.8.0.0"
+    $validation = Test-ToolReportEnvelope -Report $report -ExpectedReportKind "EnterpriseInventory" -ExpectedToolVersion "4.8.0.1"
     Assert-Enterprise ([bool]$validation.Valid) "Báo cáo EnterpriseInventory không đạt schema: $($validation.Errors -join '; ')"
     Assert-Enterprise (-not [bool]$report.Privacy.FullProductKeyIncluded) "Báo cáo khai báo chứa full product key."
     $reportJson = $report | ConvertTo-Json -Depth 14
@@ -160,7 +160,7 @@ try {
     $clientSecret = New-ToolEnterpriseRandomBytes -Length 32
     Set-ToolEnterpriseServerClientSecret -ClientId $client.ClientId -Secret $clientSecret
     $record = [pscustomobject][ordered]@{
-    SchemaVersion="1.0"; ToolVersion="4.8.0.0"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
+    SchemaVersion="1.0"; ToolVersion="4.8.0.1"; ClientId=$client.ClientId; ComputerName="VERIFY-CLIENT"
         RemoteAddress="127.0.0.1"; NetworkAddresses=@("127.0.0.1"); LastSeenUtc=[DateTime]::UtcNow.ToString("o")
         FirstSeenUtc=[DateTime]::UtcNow.ToString("o"); AllowRemoteLicenseChanges=$true
         WindowsStatus="NotReported"; WindowsChannel=""; WindowsLast5=""
@@ -321,12 +321,81 @@ try {
         $enterpriseUiText -match '\$script:enterpriseDark' -and
         $enterpriseUiText -match '\$env:TOOL_UI_THEME\s*=\s*\$script:enterpriseTheme' -and
         $enterpriseUiText -match 'Get-ToolUiContrastRatio') "Chức năng 8 chưa nhận dark mode chung, truyền theme qua UAC hoặc kiểm tra tương phản."
-    $localManagerText = Get-Content -LiteralPath (Join-Path $SourceDirectory "windows-office-license-manager.ps1") -Raw -Encoding UTF8
+    $localManagerPath = Join-Path $SourceDirectory "windows-office-license-manager.ps1"
+    $localManagerText = Get-Content -LiteralPath $localManagerPath -Raw -Encoding UTF8
     Assert-Enterprise ($localManagerText -match 'Tool-UiTheme\.ps1' -and
         $localManagerText -match 'Get-ToolUiTheme' -and
         $localManagerText -match 'Set-ToolWindowTheme\s+-Root\s+\$form' -and
         $localManagerText -match 'Get-LocalLicenseText' -and
         $localManagerText -match 'Test-ToolEnterpriseNetworkActionAllowed') "Trình quản lý cục bộ Windows/Office chưa nhận theme, ngôn ngữ hoặc công tắc mạng Mục 8."
+    $localManagerTokens = $null
+    $localManagerParseErrors = $null
+    $localManagerAst = [Management.Automation.Language.Parser]::ParseFile($localManagerPath, [ref]$localManagerTokens, [ref]$localManagerParseErrors)
+    Assert-Enterprise (@($localManagerParseErrors).Count -eq 0) 'Trình quản lý cục bộ Windows/Office lỗi cú pháp.'
+    foreach ($functionName in @(
+        'ConvertTo-LocalLicenseStateCode','Get-WindowsActivationState','Get-OfficeLicenseRecordsFromStatus',
+        'Get-OfficeActivationState','Test-LocalLicenseActivationConfirmed','Wait-LocalLicensePostCheck'
+    )) {
+        $functionAst = $localManagerAst.Find({
+            param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+        }, $true)
+        Assert-Enterprise ($null -ne $functionAst) "Trình quản lý cục bộ thiếu hậu kiểm: $functionName"
+        if ($functionAst) {
+            $functionDefinition = $functionAst.Extent.Text -replace ('^function\s+' + [regex]::Escape($functionName)), ('function script:' + $functionName)
+            Invoke-Expression $functionDefinition
+        }
+    }
+    Assert-Enterprise ($localManagerText -match '/dstatusall' -and
+        $localManagerText -match 'LICENSE STATUS' -and
+        $localManagerText -match 'RequestedKeyActivationConfirmed' -and
+        $localManagerText -match 'ms-settings:activation') 'Trình quản lý cục bộ chưa hậu kiểm Windows/Office hoặc chưa mở Activation chính thức.'
+    Assert-Enterprise ($localManagerText -notmatch 'Write-(?:ToolLog|LicenseTimelineEvent)' -and
+        $localManagerText -notmatch 'TOOL_(?:LOG|TIMELINE)') 'Trình quản lý cục bộ không được ghi product key vào log/timeline.'
+
+    $windowsLicensedFixture = Get-WindowsActivationState -ExpectedLast5 'ABCDE' -LicenseQuery {
+        [pscustomobject]@{ Name='Windows(R), Professional edition'; LicenseStatus=1; PartialProductKey='ABCDE' }
+    }
+    $windowsWrongKeyFixture = Get-WindowsActivationState -ExpectedLast5 'ZZZZZ' -LicenseQuery {
+        [pscustomobject]@{ Name='Windows(R), Professional edition'; LicenseStatus=1; PartialProductKey='ABCDE' }
+    }
+    $windowsNotificationFixture = Get-WindowsActivationState -ExpectedLast5 'ABCDE' -LicenseQuery {
+        [pscustomobject]@{ Name='Windows(R), Professional edition'; LicenseStatus=5; PartialProductKey='ABCDE' }
+    }
+    Assert-Enterprise ((Test-LocalLicenseActivationConfirmed $windowsLicensedFixture) -and
+        -not (Test-LocalLicenseActivationConfirmed $windowsWrongKeyFixture) -and
+        -not (Test-LocalLicenseActivationConfirmed $windowsNotificationFixture) -and
+        [string]$windowsNotificationFixture.StateCode -eq 'Notification') 'Windows đang coi exit code/key khác/Notification là ActivationConfirmed=True.'
+
+    $officeStatusFixture = @'
+---------------------------------------
+LICENSE NAME: Office 24, Office24ProPlus2024VL_MAK_AE edition
+LICENSE STATUS:  ---LICENSED---
+Last 5 characters of installed product key: ABCDE
+---------------------------------------
+LICENSE NAME: Office 24, Office24Visio2024VL_MAK_AE edition
+LICENSE STATUS:  ---NOTIFICATIONS---
+Last 5 characters of installed product key: ZZZZZ
+---------------------------------------
+'@
+    $officeLicensedFixture = Get-OfficeActivationState -OsppPaths @('fixture-ospp.vbs') -ExpectedLast5 'ABCDE' -StatusInvoker {
+        param($Path)
+        [pscustomobject]@{ ExitCode=0; Output=$officeStatusFixture }
+    }
+    $officeWrongKeyFixture = Get-OfficeActivationState -OsppPaths @('fixture-ospp.vbs') -ExpectedLast5 'ZZZZZ' -StatusInvoker {
+        param($Path)
+        [pscustomobject]@{ ExitCode=0; Output=$officeStatusFixture }
+    }
+    Assert-Enterprise ((Test-LocalLicenseActivationConfirmed $officeLicensedFixture) -and
+        -not (Test-LocalLicenseActivationConfirmed $officeWrongKeyFixture) -and
+        [string]$officeLicensedFixture.ProductKeyLast5 -eq 'ABCDE') 'Office chưa buộc /dstatusall báo ---LICENSED--- cho đúng Last5/SKU sau /act.'
+    foreach ($activationKey in @(
+        'localLicense.windows.status.activated','localLicense.windows.status.notActivated','localLicense.windows.activationConfirmed','localLicense.windows.activationPending',
+        'localLicense.office.status.activated','localLicense.office.status.notActivated','localLicense.office.activationConfirmed','localLicense.office.activationPending'
+    )) {
+        Assert-Enterprise ($null -ne $viCatalog.PSObject.Properties[$activationKey] -and
+            $null -ne $enCatalog.PSObject.Properties[$activationKey]) "Thiếu chuỗi hậu kiểm kích hoạt vi/en: $activationKey"
+    }
     $enterpriseCoreText = Get-Content -LiteralPath (Join-Path $SourceDirectory "Tool-Enterprise.ps1") -Raw -Encoding UTF8
     Assert-Enterprise ($enterpriseCoreText -match 'function\s+Remove-ToolEnterpriseServerConfiguration' -and
         $enterpriseCoreText -match 'Test-ToolEnterpriseAdminCode' -and

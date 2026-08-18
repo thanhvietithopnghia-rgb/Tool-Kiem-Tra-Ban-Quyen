@@ -79,42 +79,104 @@ try {
         }
     }
 
+    $resourceName = "payload.bundle.deflate.v1"
     $resourceNames = @($assembly.GetManifestResourceNames())
-    if ($resourceNames.Count -ne $payloadFiles.Count) {
-        throw "Số tài nguyên nhúng không khớp: $($resourceNames.Count)/$($payloadFiles.Count)."
+    if ($resourceNames.Count -ne 1 -or [string]$resourceNames[0] -cne $resourceName) {
+        throw "EXE phải chứa đúng một solid payload resource: $resourceName."
     }
 
-    $deflateCount = 0
-    $rawCount = 0
-    for ($index = 0; $index -lt $payloadFiles.Count; $index++) {
-        $deflateResourceName = "payload.deflate.$index"
-        $rawResourceName = "payload.raw.$index"
-        $matchingNames = @($deflateResourceName, $rawResourceName | Where-Object { $resourceNames -contains $_ })
-        if ($matchingNames.Count -ne 1) {
-            throw "EXE phải chứa đúng một tài nguyên raw/deflate cho $($payloadFiles[$index])."
+    [int64]$maximumCompressedBytes = 16MB
+    [int64]$maximumDecodedBytes = 32MB
+    [int64]$maximumPayloadDataBytes = 16MB
+    [int64]$maximumSinglePayloadBytes = 8MB
+    $compressed = $assembly.GetManifestResourceStream($resourceName)
+    if (-not $compressed) { throw "Không đọc được $resourceName." }
+    try {
+        if ($compressed.CanSeek -and ($compressed.Length -le 0 -or $compressed.Length -gt $maximumCompressedBytes)) {
+            throw "Kích thước solid payload resource không hợp lệ."
         }
+        $deflate = New-Object IO.Compression.DeflateStream($compressed, [IO.Compression.CompressionMode]::Decompress, $false)
+        try {
+            $decoded = New-Object IO.MemoryStream
+            try {
+                $buffer = New-Object byte[] 81920
+                while (($bytesRead = $deflate.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    if ($decoded.Length -gt ($maximumDecodedBytes - $bytesRead)) {
+                        throw "Solid payload bundle giải nén vượt giới hạn."
+                    }
+                    $decoded.Write($buffer, 0, $bytesRead)
+                }
+                [byte[]]$decodedBytes = $decoded.ToArray()
+            } finally { $decoded.Dispose() }
+        } finally { $deflate.Dispose() }
+    } finally { $compressed.Dispose() }
 
-        $resourceName = $matchingNames[0]
-        $stream = $assembly.GetManifestResourceStream($resourceName)
-        if (-not $stream) { throw "Không đọc được $resourceName." }
-        if ($resourceName -eq $deflateResourceName) {
-            $deflateCount++
-            $decodedStream = New-Object IO.Compression.DeflateStream($stream, [IO.Compression.CompressionMode]::Decompress, $false)
-            try { $embeddedHash = Get-Sha256HexFromStream $decodedStream }
-            finally { $decodedStream.Dispose() }
-        } else {
-            $rawCount++
-            try { $embeddedHash = Get-Sha256HexFromStream $stream }
-            finally { $stream.Dispose() }
-        }
+    [byte[]]$expectedMagic = [Text.Encoding]::ASCII.GetBytes('TVPBNDL1')
+    $lengths = New-Object System.Collections.Generic.List[int]
+    $bundleStream = New-Object IO.MemoryStream(,$decodedBytes)
+    try {
+        $reader = New-Object IO.BinaryReader($bundleStream)
+        try {
+            [byte[]]$actualMagic = $reader.ReadBytes($expectedMagic.Length)
+            if ($actualMagic.Length -ne $expectedMagic.Length) { throw "Header solid payload bundle bị cắt ngắn." }
+            for ($index = 0; $index -lt $expectedMagic.Length; $index++) {
+                if ($actualMagic[$index] -ne $expectedMagic[$index]) { throw "Magic solid payload bundle không hợp lệ." }
+            }
+            [uint32]$formatVersion = $reader.ReadUInt32()
+            [uint32]$payloadCount = $reader.ReadUInt32()
+            [uint64]$declaredPayloadBytes = $reader.ReadUInt64()
+            if ($formatVersion -ne 1 -or $payloadCount -ne $payloadFiles.Count) {
+                throw "Version/count solid payload bundle không hợp lệ."
+            }
+            if ($declaredPayloadBytes -gt [uint64]$maximumPayloadDataBytes) {
+                throw "Solid payload bundle khai báo quá nhiều dữ liệu."
+            }
+
+            [uint64]$measuredPayloadBytes = 0
+            for ($index = 0; $index -lt $payloadFiles.Count; $index++) {
+                [uint64]$payloadLength = $reader.ReadUInt64()
+                if ($payloadLength -gt [uint64]$maximumSinglePayloadBytes -or
+                    $measuredPayloadBytes -gt ([uint64]$maximumPayloadDataBytes - $payloadLength)) {
+                    throw "Độ dài segment solid payload bundle không hợp lệ."
+                }
+                [void]$lengths.Add([int]$payloadLength)
+                $measuredPayloadBytes += $payloadLength
+            }
+            if ($measuredPayloadBytes -ne $declaredPayloadBytes) {
+                throw "Bảng độ dài solid payload bundle không nhất quán."
+            }
+            [int64]$payloadDataOffset = $bundleStream.Position
+            if (($payloadDataOffset + [int64]$declaredPayloadBytes) -ne $bundleStream.Length) {
+                throw "Kích thước giải nén solid payload bundle không khớp header."
+            }
+        } finally { $reader.Dispose() }
+    } finally { $bundleStream.Dispose() }
+
+    $openPayloadMethod = $launcherType.GetMethod("OpenPayloadStream", $bindingFlags)
+    if (-not $openPayloadMethod) { throw "Launcher thiếu bộ đọc segment solid payload bundle." }
+    for ($index = 0; $index -lt $payloadFiles.Count; $index++) {
         $sourcePath = Join-Path $SourceDirectory $payloadFiles[$index]
         if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw "Thiếu payload nguồn: $($payloadFiles[$index])" }
+        if ([int64](Get-Item -LiteralPath $sourcePath).Length -ne [int64]$lengths[$index]) {
+            throw "Độ dài payload nhúng không khớp: $($payloadFiles[$index])"
+        }
+        try {
+            $segment = [IO.Stream]$openPayloadMethod.Invoke($null, @($assembly, [int]$index))
+        } catch {
+            $detail = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
+            throw "Launcher từ chối payload $($payloadFiles[$index]): $detail"
+        }
+        if (-not $segment) { throw "Launcher không trả về payload: $($payloadFiles[$index])" }
+        try {
+            if ($segment.Length -ne [int64]$lengths[$index]) { throw "Segment payload sai độ dài: $($payloadFiles[$index])" }
+            $embeddedHash = Get-Sha256HexFromStream $segment
+        } finally { $segment.Dispose() }
         if ($embeddedHash -ne (Get-Sha256HexFromFile $sourcePath)) {
             throw "Payload nhúng không khớp: $($payloadFiles[$index])"
         }
     }
 
-    Write-Host "EMBEDDED-PAYLOAD $ExpectedArchitecture`: ĐẠT ($($payloadFiles.Count)/$($payloadFiles.Count); deflate=$deflateCount; raw=$rawCount)" -ForegroundColor Green
+    Write-Host "EMBEDDED-PAYLOAD $ExpectedArchitecture`: ĐẠT ($($payloadFiles.Count)/$($payloadFiles.Count); solid-deflate=1; format=1)" -ForegroundColor Green
     exit 0
 } catch {
     Write-Error $_.Exception.Message

@@ -2,8 +2,8 @@
 
 $toolVersion = "4.8.0"
 $dashboardSchemaVersion = "2.0"
-$releaseVersion = "4.8.0.0"
-$releaseBuildDate = "2026.08.14"
+$releaseVersion = "4.8.0.1"
+$releaseBuildDate = "2026.08.18"
 $toolDisplayVersion = "v$toolVersion"
 $releaseDisplayName = "v$releaseVersion"
 
@@ -427,9 +427,9 @@ $historyFile = Join-Path $baseDir "LICH-SU-PHIEN-BAN.txt"
 $englishHistoryFile = Join-Path $baseDir "VERSION-HISTORY-en-US.md"
 $integrityManifest = Join-Path $baseDir "TOOL-SHA256SUMS.txt"
 $requiredIntegrityFiles = @(
-    "00-Tool-Kiem-Tra.ico", "HUONG-DAN.txt", "USER-GUIDE-en-US.md", "LICH-SU-PHIEN-BAN.txt", "VERSION-HISTORY-en-US.md",
+    "HUONG-DAN.txt", "USER-GUIDE-en-US.md", "LICH-SU-PHIEN-BAN.txt", "VERSION-HISTORY-en-US.md",
     "Giao-Dien.ps1", "kiem-tra-cau-hinh-ban-quyen.ps1", "Tool-Kiem-Tra-icon.svg",
-    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-ElevatedBridge.ps1", "Tool-DataLifecycle.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-Assistant.ps1", "tool-assistant-knowledge-v1.1.json", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-online-update.ps1", "Tool-UpdateManager.ps1", "windows-license-backup.ps1",
+    "Tool-Kiem-Tra.cmd", "Tool-Runtime.ps1", "Tool-ElevatedBridge.ps1", "Tool-DataLifecycle.ps1", "Tool-Compatibility.ps1", "compatibility-catalog-v1.0.json", "Tool-Capabilities.ps1", "Tool-ScanOptimization.ps1", "Tool-Logging.ps1", "Tool-ModuleContract.ps1", "Tool-UiTheme.ps1", "Tool-Localization.ps1", "Tool-Strings.vi-VN.json", "Tool-Strings.en-US.json", "Tool-OfflinePolicy.ps1", "Tool-Assistant.ps1", "tool-assistant-knowledge-v1.1.json", "Tool-SoftwareInventory.ps1", "software-license-catalog-v1.0.json", "software-license-catalog-v1.0.json.p7s", "software-license-online-update.ps1", "Tool-UpdateManager.ps1", "windows-license-backup.ps1",
     "Tool-ReportSchema.ps1", "Tool-ReportExport.ps1", "Tool-PluginEngine.ps1", "Tool-LicenseTimeline.ps1", "Tool-SafetyPolicy.ps1",
     "Tool-Enterprise.ps1", "Tool-EnterpriseHost.ps1", "Tool-EnterpriseAgent.ps1", "enterprise-license-manager.ps1",
     "windows-license-compliance-cleanup.ps1", "windows-license-restore.ps1",
@@ -3262,7 +3262,16 @@ function Start-ApplicationUpdateCheck {
         $descriptor = Get-ReadyToolModule -moduleId "application.update.check" -elevatedLaunch $false
         $invocation = New-ToolModuleInvocation -ModuleId $descriptor.ModuleId
         $script:applicationUpdateResultFile = New-SecureRuntimePath "tool-application-update-check-"
-        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$applicationUpdateScript`" -Mode Check -ConsentGranted -Culture `"$script:dashboardCulture`" -CurrentVersion `"$releaseVersion`" -ResultFile `"$script:applicationUpdateResultFile`" -ManifestUrl `"$applicationUpdateManifestUrl`""
+        $currentLauncherSha256 = ""
+        $launcherPath = [string]$env:TOOL_LAUNCHER_PATH
+        if ([string]$env:TOOL_SECURE_LAUNCH -eq "1") {
+            if ([string]::IsNullOrWhiteSpace($launcherPath) -or -not (Test-Path -LiteralPath $launcherPath -PathType Leaf)) {
+                throw (Get-DashboardText "update.secureLauncherRequired")
+            }
+            $currentLauncherSha256 = Get-ApplicationUpdateFileSha256 $launcherPath
+        }
+        $currentHashArgument = if ($currentLauncherSha256) { " -ExpectedCurrentSha256 `"$currentLauncherSha256`"" } else { "" }
+        $arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$applicationUpdateScript`" -Mode Check -ConsentGranted -Culture `"$script:dashboardCulture`" -CurrentVersion `"$releaseVersion`" -ResultFile `"$script:applicationUpdateResultFile`" -ManifestUrl `"$applicationUpdateManifestUrl`"$currentHashArgument"
         $previousModuleId = [string]$env:TOOL_MODULE_ID
         $previousInvocationId = [string]$env:TOOL_MODULE_INVOCATION_ID
         try {
@@ -4357,6 +4366,56 @@ function Complete-CleanupScan {
     }
 }
 
+function Test-GuiOfficialHttpsTarget([string]$Target) {
+    $uri = $null
+    return [bool]([Uri]::TryCreate($Target, [UriKind]::Absolute, [ref]$uri) -and
+        $uri.Scheme -eq 'https' -and -not [string]::IsNullOrWhiteSpace($uri.Host) -and
+        [string]::IsNullOrWhiteSpace($uri.UserInfo))
+}
+
+function Open-GuiVendorLicenseAction {
+    param($Action, $Result)
+    if ($script:offlineMode) {
+        [System.Windows.Forms.MessageBox]::Show((Get-DashboardText 'app.offline.blocked'), (Get-DashboardText 'app.offline.blockedTitle'), 'OK', 'Information') | Out-Null
+        return
+    }
+    $targets = @(if ($Action -and $Action.PSObject.Properties['Target'] -and (Test-GuiOfficialHttpsTarget ([string]$Action.Target))) {
+        @($Action)
+    } elseif ($Action -and $Action.PSObject.Properties['Targets']) {
+        @($Action.Targets | Where-Object { Test-GuiOfficialHttpsTarget ([string]$_.Target) })
+    } elseif ($Result -and $Result.PSObject.Properties['OfficialLicensePostCheck']) {
+        @($Result.OfficialLicensePostCheck.OfficialActions | Where-Object {
+            [string]$_.Code -in @('OpenVendorActivation','OpenVendorRepair') -and
+            (Test-GuiOfficialHttpsTarget ([string]$_.Target))
+        })
+    } else { @() })
+    if ($targets.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show((Get-DashboardText 'cleanup.result.vendorTargetMissing'), (Get-DashboardText 'cleanup.result.vendorTitle'), 'OK', 'Information') | Out-Null
+        return
+    }
+    $picker = New-Object System.Windows.Forms.Form
+    $picker.Text = Get-DashboardText 'cleanup.result.vendorTitle'
+    $picker.StartPosition = 'CenterParent'; $picker.ClientSize = New-Object System.Drawing.Size(700,160); $picker.Tag = ''
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = Get-DashboardText 'cleanup.result.vendorHint'; $label.Location = New-Object System.Drawing.Point(16,14); $label.Size = New-Object System.Drawing.Size(668,38)
+    $picker.Controls.Add($label)
+    $combo = New-Object System.Windows.Forms.ComboBox
+    $combo.DropDownStyle = 'DropDownList'; $combo.Location = New-Object System.Drawing.Point(16,58); $combo.Size = New-Object System.Drawing.Size(668,28)
+    foreach ($target in $targets) {
+        [void]$combo.Items.Add([pscustomobject]@{ Label="$([string]$target.Name) — $([string]$target.Target)"; Target=[string]$target.Target })
+    }
+    $combo.DisplayMember = 'Label'; if ($combo.Items.Count -gt 0) { $combo.SelectedIndex = 0 }; $picker.Controls.Add($combo)
+    $open = New-Object System.Windows.Forms.Button
+    $open.Text = Get-DashboardText 'software.results.openOfficial'; $open.Location = New-Object System.Drawing.Point(454,108); $open.Size = New-Object System.Drawing.Size(140,32)
+    $open.Add_Click({ if ($combo.SelectedItem) { $picker.Tag=[string]$combo.SelectedItem.Target; $picker.Close() } }); $picker.Controls.Add($open)
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = Get-DashboardText 'app.close'; $cancel.Location = New-Object System.Drawing.Point(600,108); $cancel.Size = New-Object System.Drawing.Size(84,32)
+    $cancel.Add_Click({ $picker.Close() }); $picker.CancelButton=$cancel; $picker.Controls.Add($cancel)
+    Set-ToolWindowTheme -Root $picker -Mode $script:dashboardTheme
+    [void]$picker.ShowDialog($form); $targetUrl=[string]$picker.Tag; $picker.Dispose()
+    if (Test-GuiOfficialHttpsTarget $targetUrl) { try { Start-Process -FilePath $targetUrl } catch { [System.Windows.Forms.MessageBox]::Show((Get-DashboardText 'software.results.openOfficialFailed' @($_.Exception.Message)), (Get-DashboardText 'common.errorTitle'), 'OK', 'Error') | Out-Null } }
+}
+
 function Show-CleanupResultCenter {
     param($Result, [bool]$WasDeepCleanup, [bool]$SafetyBlocked)
 
@@ -4365,6 +4424,9 @@ function Show-CleanupResultCenter {
     $thirdPartyExecutionResults = @($(if ($Result.PSObject.Properties['ThirdPartyExecutionResults']) { @($Result.ThirdPartyExecutionResults) }))
     $systemChangeApplied = [bool]($Result.PSObject.Properties['SystemChangeApplied'] -and [bool]$Result.SystemChangeApplied)
     $noAutomaticChange = [bool](-not $isDryRun -and -not $SafetyBlocked -and [int]$Result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied -and $thirdPartyExecutionResults.Count -gt 0)
+    $officiallyLicensed = [bool]($Result.PSObject.Properties['OfficiallyLicensed'] -and [bool]$Result.OfficiallyLicensed)
+    $officialLicenseStateCode = if ($Result.PSObject.Properties['OfficialLicenseStateCode']) { [string]$Result.OfficialLicenseStateCode } else { 'Unknown' }
+    $officialPostCheck = if ($Result.PSObject.Properties['OfficialLicensePostCheck']) { $Result.OfficialLicensePostCheck } else { $null }
     $nextActions = @($Result.NextActions)
     if ($isDryRun) {
         $nextActions = @([pscustomobject]@{
@@ -4382,6 +4444,8 @@ function Show-CleanupResultCenter {
         Get-DashboardText "cleanup.result.blockedHeading"
     } elseif ($noAutomaticChange) {
         Get-DashboardText "cleanup.result.noAutomaticChangeHeading"
+    } elseif ($officiallyLicensed) {
+        Get-DashboardText 'cleanup.result.licensedHeading'
     } elseif ([bool]$Result.ReadyForOfficialActivation) {
         Get-DashboardText "cleanup.result.readyHeading"
     } elseif ($remainingItems.Count -gt 0) {
@@ -4389,7 +4453,7 @@ function Show-CleanupResultCenter {
     } else {
         Get-DashboardText "cleanup.result.reviewHeading"
     }
-    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ($noAutomaticChange) { [System.Drawing.Color]::DarkOrange } elseif ([bool]$Result.ReadyForOfficialActivation) { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
+    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ($officiallyLicensed) { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
     if ($SafetyBlocked) { $headingColor = [System.Drawing.Color]::DarkRed }
 
     $body = New-Object System.Collections.Generic.List[string]
@@ -4411,6 +4475,27 @@ function Show-CleanupResultCenter {
     $body.Add((Get-DashboardText "cleanup.result.historyCount" @($Result.HistoryFindingCount)))
     $body.Add((Get-DashboardText "cleanup.result.warningCount" @($Result.ScanWarningCount)))
     $body.Add((Get-DashboardText "cleanup.result.reviewCount" @($Result.ReadinessReviewCount)))
+    $body.Add((Get-DashboardText 'cleanup.result.licenseState' @(
+        $(if ($officiallyLicensed) { 'True' } else { 'False' }),
+        $officialLicenseStateCode,
+        $(if ([bool]$Result.ReadyForOfficialActivation) { 'True' } else { 'False' })
+    )))
+    if ($officialPostCheck) {
+        foreach ($outcome in @($officialPostCheck.Windows, $officialPostCheck.Office) | Where-Object { $_ -and [bool]$_.Applicable }) {
+            $body.Add((Get-DashboardText 'cleanup.result.componentLicenseState' @(
+                [string]$outcome.Component,
+                $(if ([bool]$outcome.OfficiallyLicensed) { 'True' } else { 'False' }),
+                [string]$outcome.StateCode
+            )))
+        }
+        $thirdPartyOutcomes = @($officialPostCheck.ThirdParty | Where-Object { [bool]$_.Applicable })
+        if ($thirdPartyOutcomes.Count -gt 0) {
+            $body.Add((Get-DashboardText 'cleanup.result.thirdPartyLicenseState' @(
+                @($thirdPartyOutcomes | Where-Object { [bool]$_.OfficiallyLicensed }).Count,
+                $thirdPartyOutcomes.Count
+            )))
+        }
+    }
 
     if ($isDryRun) {
         $body.Add("")
@@ -4489,7 +4574,7 @@ function Show-CleanupResultCenter {
     $body.Add((Get-DashboardText "common.reportPath" @($Result.ReportPath)))
 
     $dialog = New-Object System.Windows.Forms.Form
-    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ($noAutomaticChange) { Get-DashboardText 'cleanup.result.noAutomaticChangeTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
+    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ($officiallyLicensed) { Get-DashboardText 'cleanup.result.licensedTitle' } elseif ($noAutomaticChange) { Get-DashboardText 'cleanup.result.noAutomaticChangeTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
     $dialog.StartPosition = "CenterParent"
     $dialog.FormBorderStyle = "Sizable"
     $dialog.MaximizeBox = $true
@@ -4577,13 +4662,13 @@ function Show-CleanupResultCenter {
         $actionButton.MinimumSize = New-Object System.Drawing.Size(108, 34)
         $actionButton.MaximumSize = New-Object System.Drawing.Size(280, 34)
         $actionButton.Tag = [string]$next.Code
-        if ([string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager')) {
+        if ([string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager','ReviewVendorActivation','OpenVendorActivation','OpenVendorRepair')) {
             $actionButton.Font = $fontBold
-            $actionButton.BackColor = if ([string]$next.Code -eq 'OpenLicenseManager') { [System.Drawing.Color]::FromArgb(230, 247, 236) } else { [System.Drawing.Color]::FromArgb(255, 248, 230) }
+            $actionButton.BackColor = if ([string]$next.Code -in @('OpenLicenseManager','ReviewVendorActivation','OpenVendorActivation')) { [System.Drawing.Color]::FromArgb(230, 247, 236) } else { [System.Drawing.Color]::FromArgb(255, 248, 230) }
         }
         $actionButton.Add_Click({ param($sender,$eventArgs) $dialog.Tag = [string]$sender.Tag; $dialog.Close() })
         $buttonBar.Controls.Add($actionButton)
-        if (-not $dialog.AcceptButton -and [string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager','Recheck')) { $dialog.AcceptButton = $actionButton }
+        if (-not $dialog.AcceptButton -and [string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager','ReviewVendorActivation','OpenVendorActivation','OpenVendorRepair','Recheck')) { $dialog.AcceptButton = $actionButton }
     }
 
     $dialog.Add_Shown({ $details.SelectionStart = 0; $details.SelectionLength = 0; $details.ScrollToCaret() })
@@ -4650,9 +4735,12 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
         } elseif ([int]$result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied) {
             $status.Text = Get-DashboardText "cleanup.remediation.noAutomaticChangeStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        } elseif ($result.PSObject.Properties['OfficiallyLicensed'] -and [bool]$result.OfficiallyLicensed) {
+            $status.Text = Get-DashboardText 'cleanup.remediation.licensedStatus'
+            $status.ForeColor = [System.Drawing.Color]::DarkGreen
         } elseif ([bool]$result.ReadyForOfficialActivation) {
             $status.Text = Get-DashboardText "cleanup.remediation.readyStatus"
-            $status.ForeColor = [System.Drawing.Color]::DarkGreen
+            $status.ForeColor = [System.Drawing.Color]::DarkOrange
         } else {
             $status.Text = Get-DashboardText "cleanup.remediation.remainingStatus" @(@($result.CleanupItems).Count)
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
@@ -4687,6 +4775,11 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             "RepairScanSources" { Start-ScanSourceRepair; return }
             "Recheck" { Start-Cleanup -ReuseSessionSettings; return }
             "OpenLicenseManager" { Open-LicenseManager; return }
+            { $_ -in @('ReviewVendorActivation','OpenVendorActivation','OpenVendorRepair') } {
+                $vendorAction = @($result.NextActions | Where-Object { [string]$_.Code -eq [string]$nextChoice } | Select-Object -First 1)
+                Open-GuiVendorLicenseAction -Action $(if ($vendorAction.Count -gt 0) { $vendorAction[0] } else { $null }) -Result $result
+                return
+            }
             "RestoreBackup" {
                 $restoreScope = Show-LicenseScopeChooser -Mode "Restore"
                 if (-not [string]::IsNullOrWhiteSpace($restoreScope)) { Start-CleanupRestore -Scope $restoreScope }

@@ -7,7 +7,7 @@
 - `SchemaVersion`: `1.5`
 - `ReportSchemaVersion`: `1.5`
 - `ReportKind`: một trong chín loại bên dưới
-- `ToolVersion`: phiên bản Tool tạo báo cáo, hiện tại `4.8.0.0`
+- `ToolVersion`: phiên bản Tool tạo báo cáo, hiện tại `4.8.0.1`
 - `ToolName`
 - `CreatedAt`: ISO 8601
 - `ComputerName` hoặc `AN_DANH` khi redact

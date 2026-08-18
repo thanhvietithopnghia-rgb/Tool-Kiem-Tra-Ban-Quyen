@@ -32,7 +32,7 @@ function Get-ToolEnterpriseText {
 
 $script:ToolEnterpriseSchemaVersion = "1.0"
 $script:ToolEnterpriseProtocolVersion = "1.0"
-$script:ToolEnterpriseToolVersion = "4.8.0.0"
+$script:ToolEnterpriseToolVersion = "4.8.0.1"
 $script:ToolEnterpriseDefaultPort = 49420
 $script:ToolEnterpriseMaximumRequestBytes = 1048576
 $script:ToolEnterpriseMaximumScanHosts = 1024

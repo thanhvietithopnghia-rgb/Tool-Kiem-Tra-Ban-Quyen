@@ -82,8 +82,8 @@ if ($failures.Count -eq 0) {
             if ($statusWarning.Health -ne "Warning" -or -not $statusWarning.ReviewRecommended) { Fail "Trạng thái Catalog Age Warning sai." }
             if ($statusStale.Health -ne "Stale" -or $statusStale.Fresh) { Fail "Catalog quá hạn không fail-closed đúng." }
 
-            $win10 = Get-ToolWindowsReleaseProfile -BuildNumber 19045 -DisplayVersion "22H2" -Ubr 7548
-            $win11 = Get-ToolWindowsReleaseProfile -BuildNumber 26100 -DisplayVersion "24H2" -Ubr 8973
+            $win10 = Get-ToolWindowsReleaseProfile -BuildNumber 19045 -DisplayVersion "22H2" -Ubr 7663
+            $win11 = Get-ToolWindowsReleaseProfile -BuildNumber 26100 -DisplayVersion "24H2" -Ubr 9168
             $ahead = Get-ToolWindowsReleaseProfile -BuildNumber 26200 -DisplayVersion "25H2" -Ubr 9999
             $maximumKnownBuild = [int64](($catalog.WindowsReleases | Measure-Object -Property Build -Maximum).Maximum)
             $future = Get-ToolWindowsReleaseProfile -BuildNumber ($maximumKnownBuild + 1000) -DisplayVersion "Future" -Ubr 1
@@ -111,11 +111,11 @@ if ($failures.Count -eq 0) {
             if (-not $futureOffice.RequiresCatalogReview -or @($futureOffice.UnknownProductIds).Count -ne 1) {
                 Fail "Product ID Office tương lai không chuyển sang trạng thái chưa xác minh."
             }
-            if ((Compare-ToolOfficeBuild "16.0.20228.20158" "16.0.20228.20158") -ne "MatchesCatalog") { Fail "So sánh build Office sai." }
-            if ((Compare-ToolOfficeBuild "16.0.20000.10000" "16.0.20228.20158") -ne "OlderThanCatalog") { Fail "Không nhận ra build Office cũ." }
+            if ((Compare-ToolOfficeBuild "16.0.20228.20190" "16.0.20228.20190") -ne "MatchesCatalog") { Fail "So sánh build Office sai." }
+            if ((Compare-ToolOfficeBuild "16.0.20000.10000" "16.0.20228.20190") -ne "OlderThanCatalog") { Fail "Không nhận ra build Office cũ." }
 
             $metadata = Get-ToolCompatibilityMetadata
-            if ([string]$metadata.CatalogSchemaVersion -ne "1.1" -or [string]$metadata.CatalogVersion -ne "1.1.0.0" -or
+            if ([string]$metadata.CatalogSchemaVersion -ne "1.1" -or [string]$metadata.CatalogVersion -ne "1.1.1.0" -or
                 [int]$metadata.WindowsReleaseCount -lt 5 -or [int]$metadata.OfficeFamilyCount -lt 3 -or
                 [string]$metadata.FutureCompatibilityMode -ne "ReadOnlyManualReview" -or [bool]$metadata.AutomaticRuntimeUpdateCheck) {
                 Fail "Metadata vòng đời catalog/tương thích tương lai chưa đầy đủ."

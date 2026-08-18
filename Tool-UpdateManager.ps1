@@ -17,7 +17,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $script:ToolUpdateSchemaVersion = '1.0'
-$script:ToolUpdateToolVersion = '4.8.0.0'
+$script:ToolUpdateToolVersion = '4.8.0.1'
 $script:ToolUpdateDefaultManifestUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json'
 $script:ToolUpdateManifestHost = 'raw.githubusercontent.com'
 $script:ToolUpdateDownloadHosts = @('github.com','release-assets.githubusercontent.com','objects.githubusercontent.com')
@@ -188,6 +188,7 @@ function ConvertFrom-ToolUpdateManifest {
     param(
         [Parameter(Mandatory = $true)][object]$Manifest,
         [Parameter(Mandatory = $true)][string]$InstalledVersion,
+        [string]$InstalledSha256 = '',
         [ValidateSet('vi-VN','en-US')][string]$SelectedCulture = 'vi-VN',
         [string]$SourceUrl = ''
     )
@@ -205,6 +206,10 @@ function ConvertFrom-ToolUpdateManifest {
     if ($minimumUpdater -gt $latest) { throw 'Minimum updater version cannot exceed the release version.' }
     $downloadSha256 = ([string](Get-ToolUpdateProperty $Manifest 'DownloadSha256' -Required)).ToUpperInvariant()
     if ($downloadSha256 -notmatch '^[0-9A-F]{64}$') { throw 'Update executable SHA-256 is invalid.' }
+    $installedSha256Normalized = $InstalledSha256.Trim().ToUpperInvariant()
+    if ($installedSha256Normalized -and $installedSha256Normalized -notmatch '^[0-9A-F]{64}$') {
+        throw 'Installed executable SHA-256 is invalid.'
+    }
     $downloadSize = [long](Get-ToolUpdateProperty $Manifest 'DownloadSize' -Required)
     if ($downloadSize -lt $script:ToolUpdateMinimumExecutableBytes -or $downloadSize -gt $script:ToolUpdateMaximumExecutableBytes) {
         throw 'Update executable size is outside the allowed range.'
@@ -255,10 +260,22 @@ function ConvertFrom-ToolUpdateManifest {
         throw 'Stable update manifests must require a pinned Authenticode signer.'
     }
 
+    # A release may replace the public build without changing its four-part
+    # product version. Offer that in-place maintenance build only when the
+    # caller supplied the SHA-256 of the running EXE and it differs from the
+    # pinned release hash. Missing/invalid local identity therefore fails
+    # closed, while newer-version and anti-downgrade behavior stays unchanged.
+    $sameVersionReplacement = [bool](
+        $latest -eq $current -and
+        $installedSha256Normalized -and
+        $installedSha256Normalized -ne $downloadSha256)
+    $updateAvailable = [bool]($latest -gt $current -or $sameVersionReplacement)
+
     return [pscustomobject][ordered]@{
         SchemaVersion = $script:ToolUpdateSchemaVersion
         Success = $true
-        UpdateAvailable = [bool]($latest -gt $current)
+        UpdateAvailable = $updateAvailable
+        SameVersionReplacement = $sameVersionReplacement
         CanSelfUpdate = [bool]($current -ge $minimumUpdater)
         CurrentVersion = $current.ToString()
         LatestVersion = $latest.ToString()
@@ -320,6 +337,7 @@ function Invoke-ToolUpdateCheck {
     param(
         [Parameter(Mandatory = $true)][string]$InstalledVersion,
         [Parameter(Mandatory = $true)][switch]$ExplicitConsent,
+        [string]$InstalledSha256 = '',
         [ValidateSet('vi-VN','en-US')][string]$SelectedCulture = 'vi-VN',
         [string]$SourceUrl = $script:ToolUpdateDefaultManifestUrl
     )
@@ -329,7 +347,7 @@ function Invoke-ToolUpdateCheck {
     $uri = Assert-ToolUpdateManifestUri ([uri]$SourceUrl)
     $raw = Invoke-ToolUpdateManifestDownload -Uri $uri
     $manifest = $raw | ConvertFrom-Json
-    return ConvertFrom-ToolUpdateManifest -Manifest $manifest -InstalledVersion $InstalledVersion -SelectedCulture $SelectedCulture -SourceUrl $uri.AbsoluteUri
+    return ConvertFrom-ToolUpdateManifest -Manifest $manifest -InstalledVersion $InstalledVersion -InstalledSha256 $InstalledSha256 -SelectedCulture $SelectedCulture -SourceUrl $uri.AbsoluteUri
 }
 
 function Get-ToolUpdateCacheRoot {
@@ -685,7 +703,7 @@ function Invoke-ToolUpdateApply {
     $stagedPath = Join-Path $cacheDirectory ('download-' + [Guid]::NewGuid().ToString('N') + '.exe')
     try {
         Set-ToolUpdateProgress $window (Get-ToolUpdateText 'update.apply.checking') 3
-        $candidate = Invoke-ToolUpdateCheck -InstalledVersion $InstalledVersion -ExplicitConsent -SelectedCulture $Culture -SourceUrl $SourceUrl
+        $candidate = Invoke-ToolUpdateCheck -InstalledVersion $InstalledVersion -InstalledSha256 $CurrentLauncherSha256 -ExplicitConsent -SelectedCulture $Culture -SourceUrl $SourceUrl
         if (-not $candidate.UpdateAvailable -or $candidate.LatestVersion -ne (ConvertTo-ToolUpdateVersion $RequiredVersion).ToString()) {
             throw 'The available update changed after confirmation. Recheck from the Tool.'
         }
@@ -723,7 +741,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($CurrentVersion) -or [string]::IsNullOrWhiteSpace($ResultFile)) {
             throw 'Check mode requires CurrentVersion and ResultFile.'
         }
-        $checkResult = Invoke-ToolUpdateCheck -InstalledVersion $CurrentVersion -ExplicitConsent -SelectedCulture $Culture -SourceUrl $ManifestUrl
+        $checkResult = Invoke-ToolUpdateCheck -InstalledVersion $CurrentVersion -InstalledSha256 $ExpectedCurrentSha256 -ExplicitConsent -SelectedCulture $Culture -SourceUrl $ManifestUrl
         Write-ToolUpdateJson $ResultFile $checkResult
         exit 0
     }

@@ -15,9 +15,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $productVersion = '4.8'
-$releaseVersion = '4.8.0.0'
-$releaseBuildDate = '2026.08.14'
-$releaseLabel = "$releaseVersion-rc1-20260814"
+$releaseVersion = '4.8.0.1'
+$releaseBuildDate = '2026.08.18'
+$releaseLabel = "$releaseVersion-production-20260818"
 $maximumInPlaceExecutableBytes = 900000
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
@@ -41,7 +41,6 @@ if (-not [Environment]::Is64BitOperatingSystem) {
 }
 
 $payloadFiles = @(
-    '00-Tool-Kiem-Tra.ico',
     'approved-kms-servers.txt',
     'HUONG-DAN.txt',
     'USER-GUIDE-en-US.md',
@@ -69,6 +68,7 @@ $payloadFiles = @(
     'tool-assistant-knowledge-v1.1.json',
     'Tool-SoftwareInventory.ps1',
     'software-license-catalog-v1.0.json',
+    'software-license-catalog-v1.0.json.p7s',
     'software-license-online-update.ps1',
     'Tool-UpdateManager.ps1',
     'Tool-ReportSchema.ps1',
@@ -93,7 +93,6 @@ $payloadFiles = @(
 )
 
 $integrityFiles = @(
-    '00-Tool-Kiem-Tra.ico',
     'HUONG-DAN.txt',
     'USER-GUIDE-en-US.md',
     'LICH-SU-PHIEN-BAN.txt',
@@ -120,6 +119,7 @@ $integrityFiles = @(
     'tool-assistant-knowledge-v1.1.json',
     'Tool-SoftwareInventory.ps1',
     'software-license-catalog-v1.0.json',
+    'software-license-catalog-v1.0.json.p7s',
     'software-license-online-update.ps1',
     'Tool-UpdateManager.ps1',
     'Tool-ReportSchema.ps1',
@@ -144,6 +144,8 @@ $integrityFiles = @(
 
 $sourceFiles = @(
     $payloadFiles
+    '.gitattributes'
+    '00-Tool-Kiem-Tra.ico'
     'BUILD.ps1'
     'DANH-GIA-VA-NANG-CAP-v4.8.md'
     'LICENSE-NOTICE.txt'
@@ -179,6 +181,7 @@ $sourceFiles = @(
     'VERIFY-ASSISTANT.ps1'
     'SIGN-ASSISTANT-KNOWLEDGE.ps1'
     'tool-assistant-knowledge-v1.1.json.p7s'
+    'SIGN-SOFTWARE-CATALOG.ps1'
     'SIGN-RELEASE.ps1'
     'VERIFY-AUTHENTICODE.ps1'
     $peHardeningName
@@ -199,9 +202,11 @@ function Get-Sha256Hex {
 function Write-SourcePackageHashManifest {
     $sourcePackageManifestPath = Join-Path $sourceDirectory 'SOURCE-PACKAGE-SHA256SUMS.txt'
     $sourcePackageRootPrefix = [IO.Path]::GetFullPath($sourceDirectory).TrimEnd('\') + '\'
+    $outputRootPrefix = [IO.Path]::GetFullPath($OutputDirectory).TrimEnd('\') + '\'
     $sourcePackageFiles = @(Get-ChildItem -LiteralPath $sourceDirectory -Recurse -File -Force | Where-Object {
         $_.FullName -ne $sourcePackageManifestPath -and
-        $_.FullName -notmatch '\\(?:\.git|dist|test)(?:\\|$)'
+        -not $_.FullName.StartsWith($outputRootPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+        $_.FullName -notmatch '\\(?:\.git|dist(?:-[^\\]+)?|test)(?:\\|$)'
     } | Sort-Object { $_.FullName.Substring($sourcePackageRootPrefix.Length) })
     $sourcePackageManifestLines = @(
         "# SHA-256 cua toan bo goi ma nguon v$productVersion.0; khong tu liet ke tep manifest nay."
@@ -215,6 +220,68 @@ function Write-SourcePackageHashManifest {
         $sourcePackageManifestLines,
         (New-Object Text.UTF8Encoding($false))
     )
+}
+
+function New-SolidPayloadBundle {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDirectory,
+        [Parameter(Mandatory = $true)][string[]]$PayloadFiles,
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+
+    [byte[]]$magic = [Text.Encoding]::ASCII.GetBytes('TVPBNDL1')
+    [uint32]$formatVersion = 1
+    [int64]$maximumPayloadBytes = 8MB
+    [int64]$maximumBundlePayloadBytes = 16MB
+    $payloadEntries = New-Object System.Collections.Generic.List[object]
+    [int64]$payloadSourceBytes = 0
+    foreach ($name in $PayloadFiles) {
+        $path = Join-Path $SourceDirectory $name
+        $length = [int64](Get-Item -LiteralPath $path).Length
+        if ($length -lt 0 -or $length -gt $maximumPayloadBytes) {
+            throw "Payload vượt giới hạn solid bundle: $name ($length / $maximumPayloadBytes byte)."
+        }
+        if ($payloadSourceBytes -gt ($maximumBundlePayloadBytes - $length)) {
+            throw "Tổng payload vượt giới hạn solid bundle $maximumBundlePayloadBytes byte."
+        }
+        $payloadSourceBytes += $length
+        [void]$payloadEntries.Add([pscustomobject]@{ Name=$name; Path=$path; Length=$length })
+    }
+
+    [int64]$headerBytes = $magic.Length + 4 + 4 + 8 + (8 * $payloadEntries.Count)
+    $output = New-Object IO.FileStream($DestinationPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $writer = $null
+    try {
+        $writer = New-Object IO.BinaryWriter($output)
+        $writer.Write($magic)
+        $writer.Write([uint32]$formatVersion)
+        $writer.Write([uint32]$payloadEntries.Count)
+        $writer.Write([uint64]$payloadSourceBytes)
+        foreach ($entry in $payloadEntries) { $writer.Write([uint64]$entry.Length) }
+        $writer.Flush()
+
+        foreach ($entry in $payloadEntries) {
+            $input = [IO.File]::OpenRead($entry.Path)
+            try { $input.CopyTo($output) }
+            finally { $input.Dispose() }
+        }
+        $output.Flush()
+    } finally {
+        if ($writer) { $writer.Dispose() }
+        else { $output.Dispose() }
+    }
+
+    return [pscustomobject]@{
+        FormatVersion = [int]$formatVersion
+        PayloadCount = [int]$payloadEntries.Count
+        HeaderBytes = [int64]$headerBytes
+        SourceBytes = [int64]$payloadSourceBytes
+        BundleBytes = [int64]($headerBytes + $payloadSourceBytes)
+        MaximumPayloadBytes = [int64]$maximumPayloadBytes
+        MaximumPayloadDataBytes = [int64]$maximumBundlePayloadBytes
+        MaximumCompressedBytes = [int64](16MB)
+        MaximumDecodedBytes = [int64](32MB)
+    }
 }
 
 function New-DeflatedPayloadFile {
@@ -267,6 +334,7 @@ function Get-VerificationPowerShell([string]$Architecture) {
 }
 
 $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }) + @(
+    '00-Tool-Kiem-Tra.ico',
     'BUILD.ps1',
     'DANH-GIA-VA-NANG-CAP-v4.8.md',
     'LICENSE-NOTICE.txt',
@@ -301,6 +369,7 @@ $requiredFiles = @($payloadFiles | Where-Object { $_ -ne 'TOOL-SHA256SUMS.txt' }
     'VERIFY-ASSISTANT.ps1',
     'SIGN-ASSISTANT-KNOWLEDGE.ps1',
     'tool-assistant-knowledge-v1.1.json.p7s',
+    'SIGN-SOFTWARE-CATALOG.ps1',
     'SIGN-RELEASE.ps1',
     'VERIFY-AUTHENTICODE.ps1',
     $peHardeningName,
@@ -320,6 +389,7 @@ foreach ($name in ($requiredFiles | Select-Object -Unique)) {
 . (Join-Path $sourceDirectory 'Tool-Localization.ps1')
 . (Join-Path $sourceDirectory 'Tool-OfflinePolicy.ps1')
 . (Join-Path $sourceDirectory 'Tool-Assistant.ps1')
+. (Join-Path $sourceDirectory 'Tool-SoftwareInventory.ps1')
 $moduleContractMetadata = Get-ToolModuleContractMetadata
 $reportSchemaMetadata = Get-ToolReportSchemaMetadata
 $reportExportMetadata = Get-ToolReportExportMetadata
@@ -328,13 +398,19 @@ $compatibilityMetadata = Get-ToolCompatibilityMetadata
 $localizationMetadata = Get-ToolLocalizationMetadata
 $offlinePolicyMetadata = Get-ToolOfflinePolicyMetadata
 $assistantMetadata = Get-ToolAssistantMetadata
-$softwareCatalogMetadata = Get-Content -LiteralPath (Join-Path $sourceDirectory 'software-license-catalog-v1.0.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$softwareCatalogMetadata = Import-ToolSoftwareCatalogFile `
+    -Path (Join-Path $sourceDirectory 'software-license-catalog-v1.0.json') `
+    -SignaturePath (Join-Path $sourceDirectory 'software-license-catalog-v1.0.json.p7s') `
+    -Source 'Bundled' -RequireSignature
+if (-not $softwareCatalogMetadata -or -not [bool]$softwareCatalogMetadata.CatalogSignatureValid) {
+    throw 'Catalog phần mềm tích hợp thiếu chữ ký CMS hợp lệ từ signer đã ghim.'
+}
 $engineeringCatalogRules = @($softwareCatalogMetadata.Products | Where-Object {
     $_.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Category)
 })
-if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.3.2.0' -or
-    @($softwareCatalogMetadata.Products).Count -lt 76 -or $engineeringCatalogRules.Count -lt 16) {
-    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.3.2.0 / 76 quy tắc / 16 quy tắc kỹ thuật.'
+if ([string]$softwareCatalogMetadata.CatalogVersion -ne '1.4.0.0' -or
+    @($softwareCatalogMetadata.Products).Count -lt 77 -or $engineeringCatalogRules.Count -lt 16) {
+    throw 'Catalog phần mềm v4.8 chưa đạt phiên bản 1.4.0.0 / 77 quy tắc / 16 quy tắc kỹ thuật.'
 }
 
 Write-Host '[1/8] Tạo TOOL-SHA256SUMS.txt...'
@@ -392,47 +468,38 @@ foreach ($staleName in @("Tool-Kiem-Tra-v$productVersion-x64.exe", "Tool-Kiem-Tr
 $payloadBuildDirectory = Join-Path $OutputDirectory ('.payload-build-' + [Guid]::NewGuid().ToString('N'))
 try {
     New-Item -ItemType Directory -Path $payloadBuildDirectory | Out-Null
-    [int64]$payloadSourceBytes = 0
-    [int64]$payloadEmbeddedBytes = 0
-    [int]$payloadDeflateCount = 0
-    [int]$payloadRawCount = 0
-    for ($index = 0; $index -lt $payloadFiles.Count; $index++) {
-        $sourcePayloadPath = Join-Path $sourceDirectory $payloadFiles[$index]
-        $sourcePayloadLength = (Get-Item -LiteralPath $sourcePayloadPath).Length
-        $compressedPayloadPath = Join-Path $payloadBuildDirectory ("$index.deflate")
-        New-DeflatedPayloadFile -SourcePath $sourcePayloadPath -DestinationPath $compressedPayloadPath
-        $compressedPayloadLength = (Get-Item -LiteralPath $compressedPayloadPath).Length
-
-        $payloadSourceBytes += $sourcePayloadLength
-        if ($compressedPayloadLength -lt $sourcePayloadLength) {
-            $resourcePath = $compressedPayloadPath
-            $resourceName = "payload.deflate.$index"
-            $embeddedLength = $compressedPayloadLength
-            $payloadDeflateCount++
-        } else {
-            $resourcePath = $sourcePayloadPath
-            $resourceName = "payload.raw.$index"
-            $embeddedLength = $sourcePayloadLength
-            $payloadRawCount++
-        }
-        $payloadEmbeddedBytes += $embeddedLength
-        [void]$embeddedPayloadResources.Add([pscustomobject]@{
-            Path = $resourcePath
-            ResourceName = $resourceName
-            SourceBytes = [int64]$sourcePayloadLength
-            EmbeddedBytes = [int64]$embeddedLength
-        })
+    $payloadBundlePath = Join-Path $payloadBuildDirectory 'payload.bundle.v1'
+    $compressedPayloadPath = Join-Path $payloadBuildDirectory 'payload.bundle.v1.deflate'
+    $bundleStats = New-SolidPayloadBundle -SourceDirectory $sourceDirectory -PayloadFiles $payloadFiles -DestinationPath $payloadBundlePath
+    New-DeflatedPayloadFile -SourcePath $payloadBundlePath -DestinationPath $compressedPayloadPath
+    [int64]$payloadEmbeddedBytes = (Get-Item -LiteralPath $compressedPayloadPath).Length
+    if ($payloadEmbeddedBytes -le 0 -or $payloadEmbeddedBytes -ge [int64]$bundleStats.BundleBytes) {
+        throw "Solid payload bundle không được nén hợp lệ: $payloadEmbeddedBytes / $($bundleStats.BundleBytes) byte."
     }
+    [void]$embeddedPayloadResources.Add([pscustomobject]@{
+        Path = $compressedPayloadPath
+        ResourceName = 'payload.bundle.deflate.v1'
+        SourceBytes = [int64]$bundleStats.SourceBytes
+        EmbeddedBytes = [int64]$payloadEmbeddedBytes
+    })
     $payloadCompressionStats = [pscustomobject]@{
-        Scheme = 'PerResourceDeflateOrRaw-v1'
-        DeflateCount = $payloadDeflateCount
-        RawCount = $payloadRawCount
-        SourceBytes = $payloadSourceBytes
-        EmbeddedBytes = $payloadEmbeddedBytes
-        SavedBytes = $payloadSourceBytes - $payloadEmbeddedBytes
-        SavingsPercent = [math]::Round((1.0 - ($payloadEmbeddedBytes / [double]$payloadSourceBytes)) * 100.0, 2)
+        Scheme = 'SolidDeflateBundle-v1'
+        ResourceName = 'payload.bundle.deflate.v1'
+        FormatVersion = [int]$bundleStats.FormatVersion
+        ResourceCount = 1
+        PayloadCount = [int]$bundleStats.PayloadCount
+        HeaderBytes = [int64]$bundleStats.HeaderBytes
+        SourceBytes = [int64]$bundleStats.SourceBytes
+        BundleBytes = [int64]$bundleStats.BundleBytes
+        EmbeddedBytes = [int64]$payloadEmbeddedBytes
+        SavedBytes = [int64]$bundleStats.SourceBytes - $payloadEmbeddedBytes
+        SavingsPercent = [math]::Round((1.0 - ($payloadEmbeddedBytes / [double]$bundleStats.SourceBytes)) * 100.0, 2)
+        MaximumPayloadBytes = [int64]$bundleStats.MaximumPayloadBytes
+        MaximumPayloadDataBytes = [int64]$bundleStats.MaximumPayloadDataBytes
+        MaximumCompressedBytes = [int64]$bundleStats.MaximumCompressedBytes
+        MaximumDecodedBytes = [int64]$bundleStats.MaximumDecodedBytes
     }
-    Write-Host "[4/8] Nhúng payload tối ưu: $payloadDeflateCount Deflate, $payloadRawCount raw; giảm $($payloadCompressionStats.SavingsPercent)%..."
+    Write-Host "[4/8] Nhúng 49 payload vào một solid Deflate bundle; giảm $($payloadCompressionStats.SavingsPercent)%..."
 
     foreach ($target in $targets) {
     $outputPath = Join-Path $OutputDirectory $target.OutputName
@@ -534,7 +601,7 @@ foreach ($sidecar in @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.8.md', 'ENTRY-POINTS-v4.8.md', 'COMPATIBILITY-MATRIX-v4.8.md',
     'OFFLINE-AND-REPORTING-v4.8.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.8.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s'
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'software-license-catalog-v1.0.json.p7s', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s'
 )) {
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $sidecar) -Destination (Join-Path $OutputDirectory $sidecar) -Force
 }
@@ -575,7 +642,7 @@ $releaseManifest = [ordered]@{
     ReleaseVersion = $releaseVersion
     ReleaseBuildDate = $releaseBuildDate
     ReleaseLabel = $releaseLabel
-    ReleaseStatus = 'ReleaseCandidate'
+    ReleaseStatus = 'Production'
     PrimaryFileName = "Tool-Kiem-Tra-v$productVersion.exe"
     RuntimeArchitecture = 'Auto: x64 on Windows 64-bit; x86 on Windows 32-bit'
     Artifacts = $manifestArtifacts
@@ -583,12 +650,20 @@ $releaseManifest = [ordered]@{
     IntegrityFileCount = [int]$integrityFiles.Count
     PayloadCompression = [ordered]@{
         Scheme = [string]$payloadCompressionStats.Scheme
-        DeflateCount = [int]$payloadCompressionStats.DeflateCount
-        RawCount = [int]$payloadCompressionStats.RawCount
+        ResourceName = [string]$payloadCompressionStats.ResourceName
+        FormatVersion = [int]$payloadCompressionStats.FormatVersion
+        ResourceCount = [int]$payloadCompressionStats.ResourceCount
+        PayloadCount = [int]$payloadCompressionStats.PayloadCount
+        HeaderBytes = [int64]$payloadCompressionStats.HeaderBytes
         SourceBytes = [int64]$payloadCompressionStats.SourceBytes
+        BundleBytes = [int64]$payloadCompressionStats.BundleBytes
         EmbeddedBytes = [int64]$payloadCompressionStats.EmbeddedBytes
         SavedBytes = [int64]$payloadCompressionStats.SavedBytes
         SavingsPercent = [double]$payloadCompressionStats.SavingsPercent
+        MaximumPayloadBytes = [int64]$payloadCompressionStats.MaximumPayloadBytes
+        MaximumPayloadDataBytes = [int64]$payloadCompressionStats.MaximumPayloadDataBytes
+        MaximumCompressedBytes = [int64]$payloadCompressionStats.MaximumCompressedBytes
+        MaximumDecodedBytes = [int64]$payloadCompressionStats.MaximumDecodedBytes
     }
     FrameworkTarget = '.NET Framework 4 / CLR v4'
     PowerShellTarget = 'Windows PowerShell 3+'
@@ -649,6 +724,9 @@ $releaseManifest = [ordered]@{
     UniversalDeepSoftwareScan = $true
     SoftwareLicenseCatalogVersion = [string]$softwareCatalogMetadata.CatalogVersion
     SoftwareLicenseCatalogProductRules = [int]@($softwareCatalogMetadata.Products).Count
+    SoftwareLicenseCatalogSignatureFile = 'software-license-catalog-v1.0.json.p7s'
+    SoftwareLicenseCatalogSignatureRequired = $true
+    SoftwareLicenseCatalogSignerCertificateSha256 = $script:ToolSoftwareCatalogSignerCertificateSha256
     EngineeringSoftwareCatalogRules = [int]$engineeringCatalogRules.Count
     EngineeringSoftwareCategories = @($engineeringCatalogRules | ForEach-Object { [string]$_.Category } | Sort-Object -Unique)
     SoftwareInventoryDeduplication = 'Compatible name/version/publisher/location records are merged while retaining all discovery sources'
@@ -686,6 +764,8 @@ $releaseManifest = [ordered]@{
     EnterpriseDiscovery = 'Neighbor/ARP + ICMP + TCP probes; blank workstation address invokes local server discovery'
     EnterpriseReportRetry = 'DPAPI-protected local outbox retried by the workstation agent'
     OfficeLicenseEnumeration = 'OSPP /dstatusall per SKU'
+    OfficialActivationPostCheck = 'Windows LicenseStatus=1 plus submitted-key Last5; Office OSPP LICENSED plus submitted-key Last5; process exit code alone never confirms activation'
+    GenuineLicensePreservation = 'Verified OEM/Retail/MAK or approved organization KMS remains unchanged; readiness for activation is separate from licensed=True'
     OfficeScanExecution = 'Parallel runspace pool with bounded throttle'
     FileScanExecution = 'Parallel per-root enumeration with bounded depth and reparse-point exclusion'
     UserPreferencePersistence = @('Culture')
@@ -791,7 +871,7 @@ $applicationUpdateManifest = [ordered]@{
     Channel = if ($updateAuthenticodeRequired) { 'stable' } else { 'development' }
     LatestVersion = $releaseVersion
     MinimumUpdaterVersion = '4.6.1.0'
-    PublishedAtUtc = '2026-08-14T00:00:00Z'
+    PublishedAtUtc = '2026-08-18T00:00:00Z'
     Title = [ordered]@{
         'vi-VN' = 'v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn'
         'en-US' = 'v4.8.0 - Faster, clearer, and safer'
@@ -803,7 +883,7 @@ $applicationUpdateManifest = [ordered]@{
             'WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.',
             'Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tự tách bảng rộng và sửa lỗi báo cáo Toàn bộ/Phần mềm không xuất PDF khi có liên kết chính thức.',
             'Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.',
-            'Mặc định Offline, không telemetry; bản hiện tại được cập nhật đè và vẫn giữ v4.8.0.0.'
+            'Mặc định Offline, không telemetry; v4.8.0.1 bổ sung cập nhật ứng dụng an toàn theo phiên bản và hash.'
         )
         'en-US' = @(
             'Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.',
@@ -811,7 +891,7 @@ $applicationUpdateManifest = [ordered]@{
             'A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.',
             'The software appendix uses a clearer teal palette; detailed PDFs add spacing, split wide tables, and fix Full/Software PDF export when official references are present.',
             'Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.',
-            'Offline remains the default with no telemetry; this in-place update keeps v4.8.0.0.'
+            'Offline remains the default with no telemetry; v4.8.0.1 adds safe application updates by version and hash.'
         )
     }
     ReleasePageUrl = "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v$releaseVersion"
@@ -853,7 +933,7 @@ $infoLines = @(
     "Release version: $releaseVersion",
     "Release build date: $releaseBuildDate",
     "Release label: $releaseLabel",
-    'Release status: ReleaseCandidate (chua Final/Production cho toi khi dat ma tran E2E).',
+    'Release status: Production (da dat ma tran E2E HTML/JSON/XML/PDF, x64/x86, ky so va hash).',
     "Tep chay duy nhat: Tool-Kiem-Tra-v$productVersion.exe",
     "SHA-256: $($primaryArtifact.Sha256)",
     'AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.',
@@ -861,7 +941,7 @@ $infoLines = @(
     'PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.',
     'Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.',
     'Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.',
-    "Payload nhung duoc toi uu $($payloadCompressionStats.Scheme): $($payloadCompressionStats.DeflateCount) Deflate, $($payloadCompressionStats.RawCount) raw; giam $($payloadCompressionStats.SavingsPercent)% ma van doi chieu SHA-256 sau giai nen.",
+    "Payload nhung duoc toi uu $($payloadCompressionStats.Scheme): 49 tep trong mot resource Deflate co header fail-closed; giam $($payloadCompressionStats.SavingsPercent)% va van doi chieu SHA-256 tung tep sau giai nen.",
     'Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.',
     'Dashboard schema 2.0: WinForms hien dai, bang mau trung tinh, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.',
     'Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.',
@@ -897,6 +977,7 @@ $infoLines = @(
     'Dark mode van co the bat trong phien hien tai, phu dashboard, cua so con, chuc nang 8 va quan ly cuc bo Windows/Office.',
     'May tram tu dong gui bao cao hoac xep hang DPAPI khi mat route; thay doi license tu xa mac dinh tat va phai duoc may tram cho phep.',
     'Cleanup Action Center co vung cuon/nut xu ly tiep; Office KMS dung OSPP /dstatusall va rang buoc lua chon theo tung SKU/Last5.',
+    'Kich hoat chinh hang tach sach crack khoi da cap phep: Windows chi TRUE khi LicenseStatus=1 dung Last5; Office chi TRUE khi OSPP /dstatusall bao LICENSED dung Last5; neu chua dat thi FALSE va mo luong chinh thuc.',
     "Report schema $($reportSchemaMetadata.SchemaVersion): $(@($reportSchemaMetadata.ReportKinds).Count) loai bao cao; safety policy schema $($safetyPolicyMetadata.SchemaVersion); quick repair khong doi StartupType.",
     'Bao cao HTML la ban tong quan gon, khong con bang dai; chi giu cau hinh chinh, ket luan, canh bao va nut mo PDF day du.',
     'PDF la ban chi tiet A4 gom toan bo bang cau hinh, phan mem, bang chung va du lieu ky thuat; moi lan xuat van gom HTML/PDF/JSON/XML/checksum trong mot thu muc va chi tu mo HTML.',
@@ -906,7 +987,7 @@ $infoLines = @(
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
     'Tro ly schema 1.1 / knowledge 1.3.1 co 63 nhom va 481 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va giu EXE trong ngan sach 900000 byte.',
-    'Catalogue phan mem 1.3.2.0 co 76 quy tac; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
+    'Catalogue phan mem 1.4.0.0 co 77 quy tac va chu ky CMS; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
     'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',
     'Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.',
@@ -941,7 +1022,7 @@ $releaseHashFiles = @($targets.OutputName) + @(
     'MODULE-CONTRACT-v1.0.md', 'REPORT-SCHEMA-v1.5.md', 'SAFETY-POLICY-v1.0.md',
     'TECHNICAL-ARCHITECTURE-v4.8.md', 'ENTRY-POINTS-v4.8.md', 'COMPATIBILITY-MATRIX-v4.8.md',
     'OFFLINE-AND-REPORTING-v4.8.md', 'LOCALIZATION-v1.0.md', 'SECURITY-HARDENING-v4.8.md',
-    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
+    'compatibility-catalog-v1.0.json', 'software-license-catalog-v1.0.json', 'software-license-catalog-v1.0.json.p7s', 'builtin-windows-office-trust.plugin.json', 'tool-assistant-knowledge-v1.1.json', 'tool-assistant-knowledge-v1.1.json.p7s', 'RELEASE-MANIFEST.json', 'update-manifest-v1.json', $infoName
 )
 $releaseHashLines = @("# SHA-256 goi phat hanh Tool-Kiem-Tra v$productVersion.")
 foreach ($name in $releaseHashFiles) {

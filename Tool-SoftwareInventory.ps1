@@ -1,8 +1,13 @@
 ﻿$script:ToolSoftwareInventorySchemaVersion = '1.0'
 $script:ToolSoftwareCatalogSchemaVersion = '1.0'
 $script:ToolSoftwareCatalogFileName = 'software-license-catalog-v1.0.json'
+$script:ToolSoftwareCatalogSignatureFileName = 'software-license-catalog-v1.0.json.p7s'
 $script:ToolSoftwareCatalogDefaultUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json'
+$script:ToolSoftwareCatalogSignatureDefaultUrl = 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json.p7s'
 $script:ToolSoftwareCatalogAllowedHosts = @('raw.githubusercontent.com')
+$script:ToolSoftwareCatalogSignerCertificateSha256 = '90857DC1698CDDEAF7C405F5991992E6615D28299A78C7D1445A1B504F8044C3'
+$script:ToolSoftwareCatalogMaximumBytes = 2097152
+$script:ToolSoftwareCatalogMaximumSignatureBytes = 65536
 $script:ToolSoftwareSignatureCache = @{}
 $script:ToolSoftwareFileHashCache = @{}
 $script:ToolSoftwareLocationEvidenceCache = @{}
@@ -12,6 +17,7 @@ $script:ToolSoftwareDeepDirectoryCache = @{}
 $script:ToolSoftwareDeepSystemSnapshotCache = $null
 $script:ToolSoftwareLastDeepScanMetadata = $null
 $script:ToolSoftwareCatalogTrustCache = @{}
+$script:ToolSoftwareTrustedCatalogReferences = New-Object System.Collections.Generic.List[object]
 $script:ToolSoftwareKnownActivatorPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b|\bmicrosoft[\s_-]+toolkit\b|\bspp(?:extcomobj)?[\s._-]*(?:hook|patcher)\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bamtlib[\s._-]*(?:patch|emulator)\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bby\s+sandy[d]?\b)'
 $script:ToolSoftwareKnownActivationCommandPattern = '(?i)(?<![a-z0-9.-])(?:https?://)?erturk-dev\.netlify\.app/run(?:[/?#][^\s''"|]*)?(?![a-z0-9._-])'
 $script:ToolSoftwareSuspiciousArtifactPattern = '(?i)(\bcrack(?:ed)?\b|\bkeygen\b|\bactivator\b|\bactivation[\s._-]*(?:bypass|patch(?:er)?)\b|\blicen[cs]e[\s._-]*(?:bypass|patch(?:er)?)\b|\bserial[\s._-]*generator\b)'
@@ -90,8 +96,18 @@ function Get-ToolSoftwareCatalogCachePath {
     return Join-Path $localAppData ('ThanhViet-Tool-Kiem-Tra\catalogs\' + $script:ToolSoftwareCatalogFileName)
 }
 
+function Get-ToolSoftwareCatalogCacheSignaturePath {
+    $catalogPath = Get-ToolSoftwareCatalogCachePath
+    if ([string]::IsNullOrWhiteSpace($catalogPath)) { return '' }
+    return $catalogPath + '.p7s'
+}
+
 function Get-ToolSoftwareCatalogBundledPath {
     return Join-Path $PSScriptRoot $script:ToolSoftwareCatalogFileName
+}
+
+function Get-ToolSoftwareCatalogBundledSignaturePath {
+    return Join-Path $PSScriptRoot $script:ToolSoftwareCatalogSignatureFileName
 }
 
 function Get-ToolSoftwareSha256Text {
@@ -134,10 +150,30 @@ function Get-ToolSoftwareStableId {
     return (Get-ToolSoftwareSha256Text -Text $Value).Substring(0, 24).ToLowerInvariant()
 }
 
+function Get-ToolSoftwareCatalogSemanticSha256 {
+    param([AllowNull()][object]$Catalog)
+    if ($null -eq $Catalog) { return '' }
+    try {
+        $signedProperties = [ordered]@{}
+        foreach ($property in $Catalog.PSObject.Properties) {
+            if ([string]$property.Name -in @('CatalogSource','CatalogPath','CatalogSha256','CatalogSignatureValid','CatalogSignaturePath')) { continue }
+            $signedProperties[[string]$property.Name] = $property.Value
+        }
+        $semanticJson = ([pscustomobject]$signedProperties | ConvertTo-Json -Depth 64 -Compress)
+        return Get-ToolSoftwareSha256Text -Text $semanticJson
+    } catch { return '' }
+}
+
 function Test-ToolSoftwareCatalogObject {
     param([AllowNull()][object]$Catalog)
     if ($null -eq $Catalog) { return $false }
     if ((Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'SchemaVersion') -ne $script:ToolSoftwareCatalogSchemaVersion) { return $false }
+    $catalogVersion = [version]'0.0'
+    try { $catalogVersion = [version](Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion') } catch { return $false }
+    if ($catalogVersion -lt [version]'1.0.0.0') { return $false }
+    $generatedAt = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse((Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'GeneratedAtUtc'), [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind, [ref]$generatedAt)) { return $false }
     $products = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'Products')
     if ($products.Count -eq 0 -or $products.Count -gt 5000) { return $false }
     $catalogRegexProperties = @('KnownActivatorNamePatterns','SuspiciousArtifactNamePatterns')
@@ -158,19 +194,26 @@ function Test-ToolSoftwareCatalogObject {
         }
     }
     $productRegexProperties = @('NamePatterns','PublisherPatterns','UnauthorizedNamePatterns','CriticalFilePatterns',
-        'ExpectedSignedFilePatterns','ExpectedSignerPatterns','KnownActivatorNamePatterns','SuspiciousArtifactNamePatterns','LicenseProcessPatterns')
+        'ExpectedSignedFilePatterns','ExpectedSignerPatterns','KnownActivatorNamePatterns','SuspiciousArtifactNamePatterns','LicenseProcessPatterns','LicenseDomains')
+    $productIds = @{}
     foreach ($product in $products) {
         $namePatterns = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'NamePatterns')
-        if ([string]::IsNullOrWhiteSpace((Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'Id')) -or
-            [string]::IsNullOrWhiteSpace((Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'LicenseModel')) -or
+        $productId = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'Id'
+        $rawLicenseModel = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'LicenseModel'
+        $officialUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $product -Name 'OfficialUrl'
+        if ([string]::IsNullOrWhiteSpace($productId) -or $productId -notmatch '^[a-z0-9][a-z0-9-]{1,95}$' -or $productIds.ContainsKey($productId) -or
+            [string]::IsNullOrWhiteSpace($rawLicenseModel) -or
+            $rawLicenseModel -notin @('Free','Freeware','OpenSource','Freemium','Trial','Trialware','Paid','Commercial','Perpetual','Subscription','Unknown','Mixed','SystemComponent','Driver','Runtime') -or
+            ($officialUrl -and $officialUrl -notmatch '^https://') -or
             $namePatterns.Count -eq 0) { return $false }
+        $productIds[$productId] = $true
         $allPatterns = New-Object System.Collections.Generic.List[object]
         foreach ($propertyName in $productRegexProperties) {
             foreach ($pattern in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name $propertyName)) { $allPatterns.Add($pattern) }
         }
         foreach ($pattern in $allPatterns.ToArray()) {
-            if ([string]$pattern -and ([string]$pattern).Length -gt 320) { return $false }
-            try { if ([string]$pattern) { [void][regex]::new([string]$pattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase) } }
+            if ([string]::IsNullOrWhiteSpace([string]$pattern) -or ([string]$pattern).Length -gt 320) { return $false }
+            try { [void][regex]::new([string]$pattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase) }
             catch { return $false }
         }
         $knownBadHashes = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'KnownBadSha256')
@@ -183,27 +226,54 @@ function Test-ToolSoftwareCatalogObject {
 }
 
 function Import-ToolSoftwareCatalogFile {
-    param([Parameter(Mandatory = $true)][string]$Path, [string]$Source = 'Bundled')
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$SignaturePath = '',
+        [string]$Source = 'Bundled',
+        [switch]$RequireSignature
+    )
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
     try {
-        $raw = [IO.File]::ReadAllText([IO.Path]::GetFullPath($Path), [Text.Encoding]::UTF8)
-        if ([Text.Encoding]::UTF8.GetByteCount($raw) -gt 2097152) { return $null }
+        $fullPath = [IO.Path]::GetFullPath($Path)
+        $contentBytes = [IO.File]::ReadAllBytes($fullPath)
+        if ($contentBytes.Length -le 16 -or $contentBytes.Length -gt $script:ToolSoftwareCatalogMaximumBytes) { return $null }
+        $signatureValid = $false
+        if (-not [string]::IsNullOrWhiteSpace($SignaturePath) -and (Test-Path -LiteralPath $SignaturePath -PathType Leaf)) {
+            $signatureBytes = [IO.File]::ReadAllBytes([IO.Path]::GetFullPath($SignaturePath))
+            $signatureValid = Test-ToolSoftwareCatalogSignature -ContentBytes $contentBytes -SignatureBytes $signatureBytes
+        }
+        if ($RequireSignature -and -not $signatureValid) { return $null }
+        $utf8 = New-Object Text.UTF8Encoding -ArgumentList @($false, $true)
+        $raw = $utf8.GetString($contentBytes)
+        if ($raw.Length -gt 0 -and $raw[0] -eq [char]0xFEFF) { $raw = $raw.Substring(1) }
         $catalog = $raw | ConvertFrom-Json
         if (-not (Test-ToolSoftwareCatalogObject -Catalog $catalog)) { return $null }
         $catalog | Add-Member -NotePropertyName CatalogSource -NotePropertyValue $Source -Force
-        $catalog | Add-Member -NotePropertyName CatalogPath -NotePropertyValue ([IO.Path]::GetFullPath($Path)) -Force
-        $catalog | Add-Member -NotePropertyName CatalogSha256 -NotePropertyValue (Get-ToolSoftwareSha256Text -Text $raw) -Force
+        $catalog | Add-Member -NotePropertyName CatalogPath -NotePropertyValue $fullPath -Force
+        $catalog | Add-Member -NotePropertyName CatalogSha256 -NotePropertyValue (Get-ToolSoftwareSha256Bytes -Bytes $contentBytes) -Force
+        $catalog | Add-Member -NotePropertyName CatalogSignatureValid -NotePropertyValue ([bool]$signatureValid) -Force
+        $catalog | Add-Member -NotePropertyName CatalogSignaturePath -NotePropertyValue $(if ($signatureValid) {[IO.Path]::GetFullPath($SignaturePath)} else {''}) -Force
+        if ($signatureValid -and $Source -in @('Bundled','OnlineCache')) {
+            $semanticSha256 = Get-ToolSoftwareCatalogSemanticSha256 -Catalog $catalog
+            if (-not [string]::IsNullOrWhiteSpace($semanticSha256)) {
+                if ($script:ToolSoftwareTrustedCatalogReferences.Count -ge 32) { $script:ToolSoftwareTrustedCatalogReferences.RemoveAt(0) }
+                $script:ToolSoftwareTrustedCatalogReferences.Add([pscustomobject][ordered]@{
+                    Catalog=$catalog; Source=$Source; Sha256=[string]$catalog.CatalogSha256; SemanticSha256=$semanticSha256
+                })
+            }
+        }
         return $catalog
     } catch { return $null }
 }
 
 function Get-ToolSoftwareLicenseCatalog {
     param([switch]$PreferCache)
-    $bundled = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogBundledPath) -Source 'Bundled'
+    $bundled = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogBundledPath) `
+        -SignaturePath (Get-ToolSoftwareCatalogBundledSignaturePath) -Source 'Bundled' -RequireSignature
     $cache = $null
     $cachePath = Get-ToolSoftwareCatalogCachePath
     if ($PreferCache -and -not [string]::IsNullOrWhiteSpace($cachePath)) {
-        $cache = Import-ToolSoftwareCatalogFile -Path $cachePath -Source 'OnlineCache'
+        $cache = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath (Get-ToolSoftwareCatalogCacheSignaturePath) -Source 'OnlineCache' -RequireSignature
     }
     if ($cache) {
         $cacheVersion = [version]'0.0'
@@ -220,19 +290,23 @@ function Test-ToolSoftwareCatalogTrustedForDecisiveEvidence {
     if (-not $Catalog) { return $false }
     $catalogSource = Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource'
     $catalogSha256 = Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSha256'
-    if ($catalogSource -in @('Bundled','Fixture')) { return $true }
-    if ($catalogSource -ne 'OnlineCache' -or [string]::IsNullOrWhiteSpace($catalogSha256)) { return $false }
-    $cacheKey = ($catalogSource + '|' + $catalogSha256)
-    if ($script:ToolSoftwareCatalogTrustCache.ContainsKey($cacheKey)) { return [bool]$script:ToolSoftwareCatalogTrustCache[$cacheKey] }
-    $bundled = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogBundledPath) -Source 'Bundled'
-    $trusted = [bool]($bundled -and
-        (Get-ToolSoftwareOptionalPropertyString -InputObject $bundled -Name 'CatalogSha256') -eq $catalogSha256)
-    $script:ToolSoftwareCatalogTrustCache[$cacheKey] = $trusted
-    return $trusted
+    if ($catalogSource -notin @('Bundled','OnlineCache') -or [string]::IsNullOrWhiteSpace($catalogSha256) -or
+        -not [bool](Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'CatalogSignatureValid' | Select-Object -First 1)) { return $false }
+    foreach ($entry in $script:ToolSoftwareTrustedCatalogReferences) {
+        if (-not [object]::ReferenceEquals($entry.Catalog, $Catalog)) { continue }
+        if ([string]$entry.Source -ne $catalogSource -or [string]$entry.Sha256 -ne $catalogSha256) { return $false }
+        $semanticSha256 = Get-ToolSoftwareCatalogSemanticSha256 -Catalog $Catalog
+        return [bool](-not [string]::IsNullOrWhiteSpace($semanticSha256) -and $semanticSha256 -eq [string]$entry.SemanticSha256)
+    }
+    return $false
 }
 
-function Invoke-ToolSoftwareCatalogHttpGet {
-    param([Parameter(Mandatory = $true)][uri]$Uri, [int]$TimeoutMilliseconds = 15000)
+function Invoke-ToolSoftwareCatalogHttpGetBytes {
+    param(
+        [Parameter(Mandatory = $true)][uri]$Uri,
+        [int]$TimeoutMilliseconds = 15000,
+        [ValidateRange(128, 2097152)][int]$MaximumBytes = 2097152
+    )
     if ($Uri.Scheme -ne 'https' -or $script:ToolSoftwareCatalogAllowedHosts -notcontains $Uri.DnsSafeHost.ToLowerInvariant()) {
         throw 'Catalog URL is outside the HTTPS allowlist.'
     }
@@ -245,70 +319,109 @@ function Invoke-ToolSoftwareCatalogHttpGet {
     $request.UserAgent = 'ThanhViet-Tool-Kiem-Tra/4.8 software-catalog'
     $response = $null
     $stream = $null
-    $reader = $null
+    $memory = $null
     try {
         $response = [Net.HttpWebResponse]$request.GetResponse()
         if ([int]$response.StatusCode -ne 200) { throw ('HTTP ' + [int]$response.StatusCode) }
-        if ($response.ContentLength -gt 2097152) { throw 'Catalog exceeds the 2 MiB limit.' }
+        if ($response.ContentLength -gt $MaximumBytes) { throw 'Catalog download exceeds its size limit.' }
         $stream = $response.GetResponseStream()
-        $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8, $true, 8192)
-        $builder = New-Object Text.StringBuilder
-        $buffer = New-Object char[] 8192
+        $memory = New-Object IO.MemoryStream
+        $buffer = New-Object byte[] 8192
         $total = 0
-        while (($read = $reader.Read($buffer, 0, $buffer.Length)) -gt 0) {
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
             $total += $read
-            if ($total -gt 2097152) { throw 'Catalog exceeds the 2 MiB limit.' }
-            [void]$builder.Append($buffer, 0, $read)
+            if ($total -gt $MaximumBytes) { throw 'Catalog download exceeds its size limit.' }
+            $memory.Write($buffer, 0, $read)
         }
-        return $builder.ToString()
+        return ,$memory.ToArray()
     } finally {
-        if ($reader) { $reader.Dispose() }
-        elseif ($stream) { $stream.Dispose() }
+        if ($memory) { $memory.Dispose() }
+        if ($stream) { $stream.Dispose() }
         if ($response) { $response.Dispose() }
     }
+}
+
+function Invoke-ToolSoftwareCatalogHttpGet {
+    param([Parameter(Mandatory = $true)][uri]$Uri, [int]$TimeoutMilliseconds = 15000)
+    $bytes = Invoke-ToolSoftwareCatalogHttpGetBytes -Uri $Uri -TimeoutMilliseconds $TimeoutMilliseconds -MaximumBytes $script:ToolSoftwareCatalogMaximumBytes
+    $utf8 = New-Object Text.UTF8Encoding -ArgumentList @($false, $true)
+    return $utf8.GetString($bytes)
 }
 
 function Update-ToolSoftwareLicenseCatalog {
     param(
         [Parameter(Mandatory = $true)][switch]$ConsentGranted,
-        [string]$CatalogUrl = $script:ToolSoftwareCatalogDefaultUrl
+        [string]$CatalogUrl = $script:ToolSoftwareCatalogDefaultUrl,
+        [string]$SignatureUrl = ''
     )
     if (-not $ConsentGranted) { throw 'Explicit user consent is required.' }
     $started = [DateTime]::UtcNow
     $uri = [uri]$CatalogUrl
+    if ([string]::IsNullOrWhiteSpace($SignatureUrl)) { $SignatureUrl = $uri.AbsoluteUri + '.p7s' }
+    $signatureUri = [uri]$SignatureUrl
     $tempPath = ''
+    $tempSignaturePath = ''
     try {
-        $raw = Invoke-ToolSoftwareCatalogHttpGet -Uri $uri
+        $contentBytes = Invoke-ToolSoftwareCatalogHttpGetBytes -Uri $uri -MaximumBytes $script:ToolSoftwareCatalogMaximumBytes
+        $signatureBytes = Invoke-ToolSoftwareCatalogHttpGetBytes -Uri $signatureUri -MaximumBytes $script:ToolSoftwareCatalogMaximumSignatureBytes
+        if (-not (Test-ToolSoftwareCatalogSignature -ContentBytes $contentBytes -SignatureBytes $signatureBytes)) {
+            throw 'Downloaded catalog signature is invalid or is not from the pinned signer.'
+        }
+        $utf8 = New-Object Text.UTF8Encoding -ArgumentList @($false, $true)
+        $raw = $utf8.GetString($contentBytes)
         $catalog = $raw | ConvertFrom-Json
         if (-not (Test-ToolSoftwareCatalogObject -Catalog $catalog)) { throw 'Downloaded catalog failed schema validation.' }
         $cachePath = Get-ToolSoftwareCatalogCachePath
+        $cacheSignaturePath = Get-ToolSoftwareCatalogCacheSignaturePath
         if ([string]::IsNullOrWhiteSpace($cachePath)) { throw 'Local catalog cache is unavailable.' }
+        $bundled = Import-ToolSoftwareCatalogFile -Path (Get-ToolSoftwareCatalogBundledPath) `
+            -SignaturePath (Get-ToolSoftwareCatalogBundledSignaturePath) -Source 'Bundled' -RequireSignature
+        $existing = Import-ToolSoftwareCatalogFile -Path $cachePath -SignaturePath $cacheSignaturePath -Source 'OnlineCache' -RequireSignature
+        $candidateVersion = [version](Get-ToolSoftwareOptionalPropertyString -InputObject $catalog -Name 'CatalogVersion')
+        $trustedBaselines = @($bundled,$existing | Where-Object { $null -ne $_ })
+        $baseline = @($trustedBaselines | Sort-Object { [version]$_.CatalogVersion } -Descending | Select-Object -First 1)
+        $baselineCatalog = if ($baseline.Count -gt 0) { $baseline[0] } else { $null }
+        if ($baselineCatalog) {
+            $baselineVersion = [version](Get-ToolSoftwareOptionalPropertyString -InputObject $baselineCatalog -Name 'CatalogVersion')
+            $candidateSha = Get-ToolSoftwareSha256Bytes -Bytes $contentBytes
+            if ($candidateVersion -lt $baselineVersion) { throw 'Downloaded catalog version is older than the trusted local baseline.' }
+            if ($candidateVersion -eq $baselineVersion -and $candidateSha -ne (Get-ToolSoftwareOptionalPropertyString -InputObject $baselineCatalog -Name 'CatalogSha256')) {
+                throw 'Downloaded catalog reuses a trusted version with different content.'
+            }
+        }
         $cacheDirectory = Split-Path -Parent $cachePath
         if (-not (Test-Path -LiteralPath $cacheDirectory -PathType Container)) {
             New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
         }
         $tempPath = Join-Path $cacheDirectory ('.catalog-' + [guid]::NewGuid().ToString('N') + '.tmp')
-        [IO.File]::WriteAllText($tempPath, $raw, (New-Object Text.UTF8Encoding($false)))
-        $verified = Import-ToolSoftwareCatalogFile -Path $tempPath -Source 'OnlineCache'
+        $tempSignaturePath = $tempPath + '.p7s'
+        [IO.File]::WriteAllBytes($tempPath, $contentBytes)
+        [IO.File]::WriteAllBytes($tempSignaturePath, $signatureBytes)
+        $verified = Import-ToolSoftwareCatalogFile -Path $tempPath -SignaturePath $tempSignaturePath -Source 'OnlineCache' -RequireSignature
         if (-not $verified) { throw 'Downloaded catalog could not be reopened safely.' }
+        Move-Item -LiteralPath $tempSignaturePath -Destination $cacheSignaturePath -Force
         Move-Item -LiteralPath $tempPath -Destination $cachePath -Force
         return [pscustomobject][ordered]@{
             Success=$true
             CatalogVersion=(Get-ToolSoftwareOptionalPropertyString -InputObject $catalog -Name 'CatalogVersion')
             ProductRuleCount=[int]@(Get-ToolSoftwareOptionalPropertyValues -InputObject $catalog -Name 'Products').Count
-            CachePath=$cachePath; SourceUrl=$uri.AbsoluteUri; Sha256=(Get-ToolSoftwareSha256Text -Text $raw)
+            CachePath=$cachePath; SignaturePath=$cacheSignaturePath; SourceUrl=$uri.AbsoluteUri; SignatureUrl=$signatureUri.AbsoluteUri
+            Sha256=(Get-ToolSoftwareSha256Bytes -Bytes $contentBytes); SignatureValid=$true
             StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o'); Error=''
             UploadedInventory=$false; SentLicenseKeys=$false
         }
     } catch {
         return [pscustomobject][ordered]@{
-            Success=$false; CatalogVersion=''; ProductRuleCount=0; CachePath=(Get-ToolSoftwareCatalogCachePath)
-            SourceUrl=$uri.AbsoluteUri; Sha256=''; StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
+            Success=$false; CatalogVersion=''; ProductRuleCount=0; CachePath=(Get-ToolSoftwareCatalogCachePath); SignaturePath=(Get-ToolSoftwareCatalogCacheSignaturePath)
+            SourceUrl=$uri.AbsoluteUri; SignatureUrl=$signatureUri.AbsoluteUri; Sha256=''; SignatureValid=$false; StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
             Error=[string]$_.Exception.Message; UploadedInventory=$false; SentLicenseKeys=$false
         }
     } finally {
         if ($tempPath -and (Test-Path -LiteralPath $tempPath -PathType Leaf)) {
             Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+        }
+        if ($tempSignaturePath -and (Test-Path -LiteralPath $tempSignaturePath -PathType Leaf)) {
+            Remove-Item -LiteralPath $tempSignaturePath -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -568,6 +681,7 @@ function New-ToolSoftwareMergeDescriptor {
         VersionFamily = $(if ($versionParts.Count -ge 3) { $versionParts[0..2] -join '.' } else { '' })
         PublisherKey = ConvertTo-ToolSoftwarePublisherToken -Value ([string]$Record.Publisher)
         LocationKey = Get-ToolSoftwareNormalizedLocation -Record $Record
+        RegistryPathKey = $(if ($Record.PSObject.Properties['RegistryPath'] -and $Record.RegistryPath) { ([string]$Record.RegistryPath).Trim().ToLowerInvariant() } else { '' })
         SourceKind = $sourceKind
         SourceRank = $(switch ($sourceKind) { 'Registry' {0}; 'Appx' {1}; 'Shortcut' {2}; default {3} })
     }
@@ -635,15 +749,19 @@ function Merge-ToolSoftwareInventoryRecords {
             $sameLocation = [bool]($locationKey -and $headLocation -and $locationKey -eq $headLocation)
             $recordSource = [string]$descriptor.SourceKind
             $headSource = [string]$headDescriptor.SourceKind
+            $recordRegistryPath = [string]$descriptor.RegistryPathKey
+            $headRegistryPath = [string]$headDescriptor.RegistryPathKey
+            $parallelRegistryInstances = [bool]($recordSource -eq 'Registry' -and $headSource -eq 'Registry' -and
+                (($recordRegistryPath -and $headRegistryPath -and $recordRegistryPath -ne $headRegistryPath) -or
+                 ($locationKey -and $headLocation -and $locationKey -ne $headLocation)))
+            if ($parallelRegistryInstances) { continue }
             $complementarySources = [bool](
                 ($recordSource -eq 'Registry' -and $headSource -in @('Shortcut','PortableDiscovery','Appx')) -or
                 ($headSource -eq 'Registry' -and $recordSource -in @('Shortcut','PortableDiscovery','Appx'))
             )
-            $sameVersionFamily = [bool]($descriptor.VersionFamily -and $headDescriptor.VersionFamily -and
-                [string]$descriptor.VersionFamily -eq [string]$headDescriptor.VersionFamily)
             $nameCompatible = [bool]($nameKey -eq $headName)
             $exactProductIdentity = [bool]($nameKey -eq $headName -and $publisherKey -and $headPublisher -and
-                $publisherCompatible -and ($versionCompatible -or $sameVersionFamily))
+                $publisherCompatible -and $versionCompatible)
             # Registry/shortcut/Appx đôi khi thêm hậu tố edition hoặc dấu vết
             # nhận diện vào cùng sản phẩm (ví dụ "FineReader PDF by ..."). Chỉ
             # cho phép alias chứa nhau khi version, publisher và thư mục cài
@@ -656,9 +774,7 @@ function Merge-ToolSoftwareInventoryRecords {
             if (-not $nameCompatible) { continue }
             $architectureConflict = [bool]([string]$record.Architecture -match '32' -and [string]$head.Architecture -match '64' -or
                 [string]$record.Architecture -match '64' -and [string]$head.Architecture -match '32')
-            $versionCompatibleForMerge = [bool]($versionCompatible -or
-                $exactProductIdentity -or
-                ($nameCompatible -and $publisherCompatible -and $complementarySources -and ($sameLocation -or $sameVersionFamily)))
+            $versionCompatibleForMerge = [bool]($versionCompatible -or $exactProductIdentity)
             if ($versionCompatibleForMerge -and $publisherCompatible -and ($locationCompatible -or $complementarySources -or $exactProductIdentity) -and
                 (-not $architectureConflict -or $locationKey -eq $headLocation -or $exactProductIdentity)) {
                 $matchedCluster = $cluster
@@ -971,24 +1087,123 @@ function Get-ToolInstalledSoftwareInventory {
     return @(Merge-ToolSoftwareInventoryRecords -Records $all.ToArray())
 }
 
-function Find-ToolSoftwareCatalogProduct {
+function Find-ToolSoftwareCatalogMatch {
     param([Parameter(Mandatory = $true)]$Application, [AllowNull()][object]$Catalog)
-    if (-not $Catalog) { return $null }
-    $name = [string]$Application.Name
-    $publisher = [string]$Application.Publisher
+    if (-not $Catalog) {
+        return [pscustomobject][ordered]@{ Product=$null; Reason='CatalogUnavailable'; NamePattern=''; PublisherPattern=''; PublisherSource=''; CandidateProductIds=@() }
+    }
+    if (-not (Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $Catalog)) {
+        return [pscustomobject][ordered]@{ Product=$null; Reason='CatalogUntrusted'; NamePattern=''; PublisherPattern=''; PublisherSource=''; CandidateProductIds=@() }
+    }
+    $name = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'Name'
+    $registryPublisher = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'Publisher'
+    $signatureStatus = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'SignatureStatus' -Default 'NotChecked'
+    $signaturePublisher = if ($signatureStatus -eq 'Valid') {
+        Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'SignaturePublisher'
+    } else { '' }
+    $candidates = New-Object System.Collections.Generic.List[object]
+    $publisherUnavailableMatches = New-Object System.Collections.Generic.List[object]
     foreach ($product in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'Products')) {
         $nameMatched = $false
-        foreach ($pattern in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'NamePatterns')) { if ($name -match [string]$pattern) { $nameMatched = $true; break } }
+        $matchedNamePattern = ''
+        foreach ($pattern in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'NamePatterns')) {
+            try {
+                if ([regex]::IsMatch($name, [string]$pattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase, [TimeSpan]::FromMilliseconds(300))) {
+                    $nameMatched = $true
+                    $matchedNamePattern = [string]$pattern
+                    break
+                }
+            } catch {}
+        }
         if (-not $nameMatched) { continue }
         $publisherPatterns = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'PublisherPatterns')
-        if ($publisherPatterns.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($publisher)) {
-            $publisherMatched = $false
-            foreach ($pattern in $publisherPatterns) { if ($publisher -match [string]$pattern) { $publisherMatched = $true; break } }
-            if (-not $publisherMatched) { continue }
+        if ($publisherPatterns.Count -eq 0) {
+            $candidates.Add([pscustomobject][ordered]@{
+                Product=$product; Reason='NameMatchedNoPublisherRule'; NamePattern=$matchedNamePattern
+                PublisherPattern=''; PublisherSource='NotRequired'
+            })
+            continue
         }
-        return $product
+        if ([string]::IsNullOrWhiteSpace($registryPublisher) -and [string]::IsNullOrWhiteSpace($signaturePublisher)) {
+            $publisherUnavailableMatches.Add([pscustomobject][ordered]@{
+                Product=$product; Reason='NameMatchedPublisherUnavailable'; NamePattern=$matchedNamePattern
+                PublisherPattern=''; PublisherSource='Unavailable'
+            })
+            continue
+        }
+        $publisherCandidate = $null
+        foreach ($publisherSource in @(
+            [pscustomobject]@{ Name='Registry'; Value=$registryPublisher },
+            [pscustomobject]@{ Name='Authenticode'; Value=$signaturePublisher }
+        )) {
+            if ([string]::IsNullOrWhiteSpace([string]$publisherSource.Value)) { continue }
+            foreach ($pattern in $publisherPatterns) {
+                try {
+                    if ([regex]::IsMatch([string]$publisherSource.Value, [string]$pattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase, [TimeSpan]::FromMilliseconds(300))) {
+                        $publisherCandidate = [pscustomobject][ordered]@{
+                            Product=$product; Reason=('NameAnd' + [string]$publisherSource.Name + 'PublisherMatched')
+                            NamePattern=$matchedNamePattern; PublisherPattern=[string]$pattern; PublisherSource=[string]$publisherSource.Name
+                        }
+                        break
+                    }
+                } catch {}
+            }
+            if ($publisherCandidate) { break }
+        }
+        if ($publisherCandidate) { $candidates.Add($publisherCandidate) }
     }
-    return $null
+    if ($candidates.Count -eq 1) {
+        $candidate = $candidates[0]
+        return [pscustomobject][ordered]@{
+            Product=$candidate.Product; Reason=[string]$candidate.Reason; NamePattern=[string]$candidate.NamePattern
+            PublisherPattern=[string]$candidate.PublisherPattern; PublisherSource=[string]$candidate.PublisherSource
+            CandidateProductIds=@((Get-ToolSoftwareOptionalPropertyString -InputObject $candidate.Product -Name 'Id'))
+        }
+    }
+    if ($candidates.Count -gt 1) {
+        return [pscustomobject][ordered]@{
+            Product=$null; Reason='AmbiguousCatalogMatch'; NamePattern=''; PublisherPattern=''; PublisherSource=''
+            CandidateProductIds=@($candidates.ToArray() | ForEach-Object { Get-ToolSoftwareOptionalPropertyString -InputObject $_.Product -Name 'Id' } | Where-Object { $_ } | Select-Object -Unique)
+        }
+    }
+    if ($publisherUnavailableMatches.Count -gt 0) {
+        $publisherUnavailable = $publisherUnavailableMatches[0]
+        return [pscustomobject][ordered]@{
+            Product=$null; Reason='NameMatchedPublisherUnavailable'; NamePattern=[string]$publisherUnavailable.NamePattern
+            PublisherPattern=''; PublisherSource='Unavailable'
+            CandidateProductIds=@($publisherUnavailableMatches.ToArray() | ForEach-Object { Get-ToolSoftwareOptionalPropertyString -InputObject $_.Product -Name 'Id' } | Where-Object { $_ } | Select-Object -Unique)
+        }
+    }
+    return [pscustomobject][ordered]@{ Product=$null; Reason='NoSignedCatalogRuleMatched'; NamePattern=''; PublisherPattern=''; PublisherSource=''; CandidateProductIds=@() }
+}
+
+function Find-ToolSoftwareCatalogProduct {
+    param([Parameter(Mandatory = $true)]$Application, [AllowNull()][object]$Catalog)
+    return (Find-ToolSoftwareCatalogMatch -Application $Application -Catalog $Catalog).Product
+}
+
+function Get-ToolSoftwarePublisherVerification {
+    param([Parameter(Mandatory = $true)]$Application, [AllowNull()][object]$CatalogMatch)
+    $product = if ($CatalogMatch) { $CatalogMatch.Product } else { $null }
+    $registryPublisher = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'Publisher'
+    $signatureStatus = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'SignatureStatus' -Default 'NotChecked'
+    $signaturePublisher = Get-ToolSoftwareOptionalPropertyString -InputObject $Application -Name 'SignaturePublisher'
+    $publisherPatterns = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $product -Name 'PublisherPatterns')
+    $publisherRuleRequired = [bool]($product -and $publisherPatterns.Count -gt 0)
+    $registryMatch = [bool]($publisherRuleRequired -and (Test-ToolSoftwareAnyPattern -Text $registryPublisher -Patterns $publisherPatterns))
+    $signatureMatch = [bool]($publisherRuleRequired -and $signatureStatus -eq 'Valid' -and
+        (Test-ToolSoftwareAnyPattern -Text $signaturePublisher -Patterns $publisherPatterns))
+    $state = if ($product -and -not $publisherRuleRequired) { 'NameOnlyCatalogMatch' }
+        elseif ($registryMatch -and $signatureMatch) { 'RegistryAndAuthenticodeMatched' }
+        elseif ($signatureMatch) { 'AuthenticodeMatched' }
+        elseif ($registryMatch) { 'RegistryMatchedCatalog' }
+        elseif ($product -and $signatureStatus -eq 'Valid') { 'AuthenticodePublisherMismatch' }
+        elseif ($product) { 'PublisherUnverified' }
+        else { 'CatalogProductUnknown' }
+    return [pscustomobject][ordered]@{
+        State=$state; RegistryPublisher=$registryPublisher; SignatureStatus=$signatureStatus
+        SignaturePublisher=$signaturePublisher; RegistryMatched=[bool]$registryMatch; AuthenticodeMatched=[bool]$signatureMatch
+    }
 }
 
 function Get-ToolSoftwareKnownActivationState {
@@ -1030,7 +1245,9 @@ function Get-ToolSoftwareKnownActivationState {
     }
 
     foreach ($path in @($locations.ToArray() | Select-Object -Unique)) {
-        if (Test-Path -LiteralPath $path -PathType Leaf) { return 'LocalLicensePresent' }
+        # Presence is an artifact observation, not proof that the entitlement is
+        # authentic, current or assigned to this device/user.
+        if (Test-Path -LiteralPath $path -PathType Leaf) { return 'LocalLicenseArtifactPresent' }
     }
     if ($probeAvailable) { return 'Unactivated' }
     return ''
@@ -1452,12 +1669,79 @@ function New-ToolSoftwareTechnicalEvidence {
     }
 }
 
+function Get-ToolSoftwareTechnicalState {
+    param(
+        [string]$AssessmentCode,
+        [string]$LicenseModel,
+        [string]$ActivationStateProbe,
+        [object[]]$Evidence = @()
+    )
+    $directStates = @($Evidence | Where-Object {
+        [string]$_.Code -in @('TrialActive','TrialExpired','Unactivated','LocalLicenseVerified') -and
+        ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive))
+    } | ForEach-Object { [string]$_.Code } | Select-Object -Unique)
+    if ($AssessmentCode -eq 'NonGenuine') { return 'CrackConfirmed' }
+    if ($AssessmentCode -in @('Suspicious','IntegrityCompromised')) { return 'Suspicious' }
+    foreach ($state in @('LocalLicenseVerified','TrialExpired','TrialActive','Unactivated')) {
+        if ($directStates -contains $state) { return $state }
+    }
+    if ($ActivationStateProbe -eq 'Unactivated') { return 'Unactivated' }
+    if ($LicenseModel -in @('Free','OpenSource')) { return 'NotApplicable' }
+    return 'Unverified'
+}
+
+function Get-ToolSoftwareSha256Bytes {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace '-', '').ToUpperInvariant() }
+    finally { $sha.Dispose() }
+}
+
+function Test-ToolSoftwareCatalogSignature {
+    param(
+        [Parameter(Mandatory = $true)][byte[]]$ContentBytes,
+        [Parameter(Mandatory = $true)][byte[]]$SignatureBytes
+    )
+    try {
+        if ($ContentBytes.Length -le 16 -or $ContentBytes.Length -gt $script:ToolSoftwareCatalogMaximumBytes -or
+            $SignatureBytes.Length -le 64 -or $SignatureBytes.Length -gt $script:ToolSoftwareCatalogMaximumSignatureBytes) { return $false }
+        Add-Type -AssemblyName System.Security -ErrorAction Stop
+        $contentInfo = New-Object Security.Cryptography.Pkcs.ContentInfo -ArgumentList (,$ContentBytes)
+        $signedCms = New-Object Security.Cryptography.Pkcs.SignedCms -ArgumentList @($contentInfo, $true)
+        $signedCms.Decode($SignatureBytes)
+        if ($signedCms.SignerInfos.Count -ne 1) { return $false }
+        $signer = $signedCms.SignerInfos[0]
+        if ($null -eq $signer.Certificate -or $signer.DigestAlgorithm.Value -ne '2.16.840.1.101.3.4.2.1' -or
+            $signer.Certificate.PublicKey.Oid.Value -ne '1.2.840.113549.1.1.1' -or
+            (Get-ToolSoftwareSha256Bytes -Bytes $signer.Certificate.RawData) -ne $script:ToolSoftwareCatalogSignerCertificateSha256) { return $false }
+        $signedCms.CheckSignature($true)
+        return $true
+    } catch { return $false }
+}
+
+function ConvertTo-ToolSoftwareLicenseModel {
+    param([AllowNull()][string]$Value)
+    switch -Regex (([string]$Value).Trim()) {
+        '^(?:Free|Freeware|SystemComponent|Driver|Runtime)$' { return 'Free' }
+        '^OpenSource$' { return 'OpenSource' }
+        '^Freemium$' { return 'Freemium' }
+        '^(?:Trial|Trialware)$' { return 'Trial' }
+        '^(?:Paid|Commercial|Perpetual)$' { return 'Paid' }
+        '^Subscription$' { return 'Subscription' }
+        default { return 'Unknown' }
+    }
+}
+
 function Test-ToolSoftwareRemediationEvidence {
     param([AllowNull()][object]$Evidence)
     if ($null -eq $Evidence) { return $false }
     $code = if ($Evidence.PSObject.Properties['Code']) { [string]$Evidence.Code } else { '' }
     if ([string]::IsNullOrWhiteSpace($code)) { return $false }
-    if ($code -match '^(?:KnownActivator|SuspiciousActivator)') { return $true }
+    $strength = if ($Evidence.PSObject.Properties['Strength']) { [string]$Evidence.Strength } else { '' }
+    $decisive = [bool]($strength -eq 'Conclusive' -or ($Evidence.PSObject.Properties['Decisive'] -and [bool]$Evidence.Decisive))
+    $strong = [bool]($decisive -or $strength -eq 'Strong')
+    if (-not $strong) { return $false }
+    if ($code -match '^KnownActivator') { return $true }
     return [bool]($code -in @(
         'LicenseDomainBlocked','UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
         'ApplicationIfeoDebugger','ApplicationOutboundBlocked','SuspiciousApplicationAutorun',
@@ -1556,13 +1840,13 @@ function New-ToolSoftwareDeepScanPreparation {
     $knownBadHashes = New-Object System.Collections.Generic.List[string]
     $catalogTrustedForDecisiveEvidence = Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $Catalog
     $catalogDeepScanValues = @(Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'DeepScan')
-    if ($catalogDeepScanValues.Count -gt 0) {
+    if ($catalogTrustedForDecisiveEvidence -and $catalogDeepScanValues.Count -gt 0) {
         $catalogDeepScan = $catalogDeepScanValues[0]
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $catalogDeepScan -Name 'KnownActivatorNamePatterns')) { if ($value) { $knownPatterns.Add($value) } }
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $catalogDeepScan -Name 'SuspiciousArtifactNamePatterns')) { if ($value) { $suspiciousPatterns.Add($value) } }
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $catalogDeepScan -Name 'KnownBadSha256')) { if ($value) { $knownBadHashes.Add(([string]$value).ToUpperInvariant()) } }
     }
-    if ($CatalogProduct) {
+    if ($catalogTrustedForDecisiveEvidence -and $CatalogProduct) {
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $CatalogProduct -Name 'KnownActivatorNamePatterns')) { if ($value) { $knownPatterns.Add($value) } }
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $CatalogProduct -Name 'SuspiciousArtifactNamePatterns')) { if ($value) { $suspiciousPatterns.Add($value) } }
         foreach ($value in @(Get-ToolSoftwareOptionalPropertyValues -InputObject $CatalogProduct -Name 'CriticalFilePatterns')) { if ($value) { $criticalPatterns.Add($value) } }
@@ -1784,6 +2068,11 @@ function Get-ToolSoftwareAssessments {
         [ValidateRange(20, 10000)][int]$DeepScanMaximumHashChecks = 1000
     )
     $results = New-Object System.Collections.Generic.List[object]
+    $catalogTrusted = Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $Catalog
+    $catalogSourceForResult = if (-not $Catalog) { 'Unavailable' } elseif ($catalogTrusted) {
+        Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource' -Default 'Unavailable'
+    } else { 'UntrustedRejected' }
+    $catalogVersionForResult = if ($catalogTrusted) { Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion' } else { '' }
     $strictIdentityPattern = '(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\baact(?:portable)?\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\badobe[\s._-]*genp\b|\bccmaker\b|\bxf[\s._-]*adsk\b|\bx[\s._-]*force\b|\bkeygen\b|\bcrack(?:ed)?\b|\bactivation[\s._-]*bypass\b|\bby\s+sandy[d]?\b)'
     $script:ToolSoftwareDeepFileCache = @{}
     $script:ToolSoftwareDeepDirectoryCache = @{}
@@ -1807,7 +2096,40 @@ function Get-ToolSoftwareAssessments {
     }
     try {
     $applicationList = @($Applications)
-    $originalIndexById = @{}
+    foreach ($inventoryApplication in $applicationList) {
+        if (-not $inventoryApplication.PSObject.Properties['SignatureStatus']) {
+            $inventoryApplication | Add-Member -NotePropertyName SignatureStatus -NotePropertyValue 'NotChecked'
+        }
+        if (-not $inventoryApplication.PSObject.Properties['SignaturePublisher']) {
+            $inventoryApplication | Add-Member -NotePropertyName SignaturePublisher -NotePropertyValue ''
+        }
+    }
+    # Enrich every application that exposes a representative executable.  This
+    # is a bounded local read and makes publisher assessment universal instead
+    # of limiting Authenticode to products already presumed to be commercial.
+    $inventorySignaturePaths = @($applicationList | Where-Object {
+        [string]$_.SignatureStatus -eq 'NotChecked' -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.RepresentativePath)
+    } | ForEach-Object { [string]$_.RepresentativePath } | Select-Object -Unique)
+    $inventorySignatureResults = if ($inventorySignaturePaths.Count -gt 0) {
+        Get-ToolSoftwareSignatureStatesParallel -Paths $inventorySignaturePaths -ThrottleLimit 4
+    } else { @{} }
+    foreach ($inventoryApplication in $applicationList) {
+        if ([string]$inventoryApplication.SignatureStatus -ne 'NotChecked' -or
+            [string]::IsNullOrWhiteSpace([string]$inventoryApplication.RepresentativePath)) { continue }
+        $signaturePathKey = ([string]$inventoryApplication.RepresentativePath).ToLowerInvariant()
+        try { $signaturePathKey = ([IO.Path]::GetFullPath([string]$inventoryApplication.RepresentativePath)).ToLowerInvariant() } catch {}
+        if (-not $inventorySignatureResults.ContainsKey($signaturePathKey)) { continue }
+        $inventorySignature = $inventorySignatureResults[$signaturePathKey]
+        $inventoryApplication | Add-Member -NotePropertyName SignatureStatus -NotePropertyValue ([string]$inventorySignature.Status) -Force
+        $inventoryApplication | Add-Member -NotePropertyName SignaturePublisher -NotePropertyValue ([string]$inventorySignature.Publisher) -Force
+        if ([string]::IsNullOrWhiteSpace([string]$inventoryApplication.Publisher) -and $inventorySignature.CompanyName) {
+            $inventoryApplication | Add-Member -NotePropertyName Publisher -NotePropertyValue ([string]$inventorySignature.CompanyName) -Force
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$inventoryApplication.Version) -and $inventorySignature.FileVersion) {
+            $inventoryApplication | Add-Member -NotePropertyName Version -NotePropertyValue ([string]$inventorySignature.FileVersion) -Force
+        }
+    }
     $externalEvidenceByApplication = @{}
     $externalEvidenceByVendor = @{}
     foreach ($externalItem in @($ExternalEvidence)) {
@@ -1830,9 +2152,11 @@ function Get-ToolSoftwareAssessments {
     $applicationEntries = New-Object System.Collections.Generic.List[object]
     for ($entryIndex = 0; $entryIndex -lt $applicationList.Count; $entryIndex++) {
         $entryApplication = $applicationList[$entryIndex]
-        $entryCatalogProduct = Find-ToolSoftwareCatalogProduct -Application $entryApplication -Catalog $Catalog
+        $entryCatalogMatch = Find-ToolSoftwareCatalogMatch -Application $entryApplication -Catalog $Catalog
+        $entryCatalogProduct = $entryCatalogMatch.Product
         $entryVendorScope = Get-ToolSoftwareVendorScope -Application $entryApplication -CatalogProduct $entryCatalogProduct
-        $entryLicenseModel = if ($entryCatalogProduct) { Get-ToolSoftwareOptionalPropertyString -InputObject $entryCatalogProduct -Name 'LicenseModel' -Default 'Unknown' } else { 'Unknown' }
+        $entryCatalogLicenseModel = if ($entryCatalogProduct) { Get-ToolSoftwareOptionalPropertyString -InputObject $entryCatalogProduct -Name 'LicenseModel' -Default 'Unknown' } else { 'Unknown' }
+        $entryLicenseModel = ConvertTo-ToolSoftwareLicenseModel -Value $entryCatalogLicenseModel
         $entryIdentityText = (([string]$entryApplication.Name) + ' ' + ([string]$entryApplication.Publisher) + ' ' + ([string]$entryApplication.InstallLocation))
         $entryApplicationId = [string]$entryApplication.Id
         $entryHasExternalEvidence = [bool](
@@ -1841,20 +2165,19 @@ function Get-ToolSoftwareAssessments {
         )
         $entryPriority = 1
         if ($entryHasExternalEvidence -or $entryIdentityText -match $strictIdentityPattern -or
-            $entryLicenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium')) {
+            $entryLicenseModel -in @('Paid','Subscription','Trial','Freemium')) {
             $entryPriority = 0
-        } elseif ($entryLicenseModel -in @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) {
+        } elseif ($entryLicenseModel -in @('Free','OpenSource')) {
             $entryPriority = 2
         }
-        if (-not [string]::IsNullOrWhiteSpace($entryApplicationId)) { $originalIndexById[$entryApplicationId] = $entryIndex }
         $signatureWeight = if ($entryPriority -eq 0) { 6 } elseif ($entryPriority -eq 1) { 2 } else { 1 }
         # Hồ sơ nhanh vẫn kiểm tra chữ ký cho mọi ứng dụng có tệp đại diện,
         # nhưng tập trung nhiều lượt hơn vào phần mềm trả phí/dùng thử hoặc đã
         # có dấu vết. Quét tên artifact, cây tệp và dấu vết hệ thống giữ nguyên.
         $desiredSignatureLimit = if ($entryPriority -eq 0) { 6 } elseif ($entryPriority -eq 1) { 3 } else { 1 }
         $applicationEntries.Add([pscustomobject][ordered]@{
-            Application=$entryApplication; CatalogProduct=$entryCatalogProduct; VendorScope=$entryVendorScope
-            LicenseModel=$entryLicenseModel; IdentityText=$entryIdentityText; ScanPriority=$entryPriority; OriginalIndex=$entryIndex
+            Application=$entryApplication; CatalogProduct=$entryCatalogProduct; CatalogMatch=$entryCatalogMatch; VendorScope=$entryVendorScope
+            LicenseModel=$entryLicenseModel; CatalogLicenseModel=$entryCatalogLicenseModel; IdentityText=$entryIdentityText; ScanPriority=$entryPriority; OriginalIndex=$entryIndex
             SignatureWeight=$signatureWeight; DesiredSignatureLimit=$desiredSignatureLimit
         })
     }
@@ -1870,7 +2193,7 @@ function Get-ToolSoftwareAssessments {
             $candidate = $_.Application
             [string]$candidate.SignatureStatus -eq 'NotChecked' -and
             -not [string]::IsNullOrWhiteSpace([string]$candidate.RepresentativePath) -and
-            ([string]$_.LicenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium') -or
+            ([string]$_.LicenseModel -in @('Paid','Subscription','Trial','Freemium') -or
                 [string]$_.IdentityText -match $strictIdentityPattern)
         } | ForEach-Object { [string]$_.Application.RepresentativePath } | Select-Object -Unique)
         if ($quickSignaturePaths.Count -gt 0) {
@@ -1881,8 +2204,10 @@ function Get-ToolSoftwareAssessments {
     foreach ($applicationEntry in $scanEntries) {
         $application = $applicationEntry.Application
         $catalogProduct = $applicationEntry.CatalogProduct
+        $catalogMatch = $applicationEntry.CatalogMatch
         $vendorScope = [string]$applicationEntry.VendorScope
         $licenseModel = [string]$applicationEntry.LicenseModel
+        $catalogLicenseModel = [string]$applicationEntry.CatalogLicenseModel
         $evidence = New-Object System.Collections.Generic.List[object]
         $deepResult = [pscustomobject][ordered]@{
             Evidence=@(); Roots=@(); FilesEnumerated=0; SignatureChecks=0; HashChecks=0
@@ -1891,7 +2216,7 @@ function Get-ToolSoftwareAssessments {
         $identityText = [string]$applicationEntry.IdentityText
         $signatureStatus = [string]$application.SignatureStatus
         if (-not $DeepScan -and $signatureStatus -eq 'NotChecked' -and -not [string]::IsNullOrWhiteSpace([string]$application.RepresentativePath) -and
-            ($licenseModel -in @('Paid','Subscription','Perpetual','Trialware','Freemium') -or $identityText -match $strictIdentityPattern)) {
+            ($licenseModel -in @('Paid','Subscription','Trial','Freemium') -or $identityText -match $strictIdentityPattern)) {
             $signaturePath = [string]$application.RepresentativePath
             $signaturePathKey = $signaturePath.ToLowerInvariant()
             try { $signaturePathKey = ([IO.Path]::GetFullPath($signaturePath)).ToLowerInvariant() } catch {}
@@ -1925,7 +2250,7 @@ function Get-ToolSoftwareAssessments {
                 }
             }
         }
-        if ($licenseModel -notin @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) {
+        if ($licenseModel -notin @('Free','OpenSource')) {
             if (-not $DeepScan) {
                 foreach ($item in @(Get-ToolSoftwareLocationEvidence -Application $application)) { $evidence.Add($item) }
             }
@@ -1963,7 +2288,7 @@ function Get-ToolSoftwareAssessments {
         } elseif ($signatureStatus -eq 'NotTrusted') {
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'SignatureNotTrusted' -Strength 'Moderate' -Source 'Authenticode' `
                 -EvidenceGroup 'FileTrust' -Detail $signatureStatus))
-        } elseif ($signatureStatus -eq 'NotSigned' -and $licenseModel -in @('Paid','Subscription','Perpetual','Trialware')) {
+        } elseif ($signatureStatus -eq 'NotSigned' -and $licenseModel -in @('Paid','Subscription','Trial')) {
             $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'PaidBinaryNotSigned' -Strength 'Moderate' -Source 'Authenticode' `
                 -EvidenceGroup 'FileIntegrity' -Detail ([string]$application.RepresentativePath)))
         }
@@ -2001,13 +2326,20 @@ function Get-ToolSoftwareAssessments {
         $integrityEvidenceCount = @($uniqueEvidence | Where-Object {
             [string]$_.Code -in @('SignatureHashMismatch','DeepSignatureHashMismatch')
         }).Count
+        $positiveLicenseStateCodes = @('TrialActive','TrialExpired','Unactivated','LocalLicenseVerified')
         $independentLicenseRiskCount = @($uniqueEvidence | Where-Object {
             [string]$_.Strength -in @('Conclusive','Strong') -and
+            [string]$_.Code -notin $positiveLicenseStateCodes -and
             [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
         }).Count
         $licensingDecisiveCount = @($uniqueEvidence | Where-Object {
             ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive)) -and
+            [string]$_.Code -notin $positiveLicenseStateCodes -and
             [string]$_.EvidenceGroup -notin @('FileIntegrity','FileTrust','PublisherMismatch')
+        }).Count
+        $localLicenseVerifiedCount = @($uniqueEvidence | Where-Object {
+            [string]$_.Code -eq 'LocalLicenseVerified' -and
+            ([string]$_.Strength -eq 'Conclusive' -or ($_.PSObject.Properties['Decisive'] -and [bool]$_.Decisive))
         }).Count
         # NeedsReview is intentionally broad for the inventory report: an
         # unknown commercial license still deserves a manual review.  The
@@ -2026,10 +2358,34 @@ function Get-ToolSoftwareAssessments {
         if ($licensingDecisiveCount -gt 0 -or ($independentLicenseRiskCount -gt 0 -and $strongCount -ge 2 -and $strongEvidenceGroupCount -ge 2)) { $statusCode='NonGenuine'; $confidence='High' }
         elseif ($integrityEvidenceCount -gt 0 -and $independentLicenseRiskCount -eq 0) { $statusCode='IntegrityCompromised'; $confidence='High' }
         elseif ($strongCount -gt 0 -or $moderateCount -gt 0 -or $weakCount -ge 2) { $statusCode='Suspicious'; $confidence='Medium' }
+        elseif ($localLicenseVerifiedCount -gt 0) { $statusCode='GenuineVerified'; $confidence='High' }
         elseif ($knownActivationState -eq 'Unactivated') { $statusCode='Unactivated'; $confidence='High' }
-        elseif ($licenseModel -in @('Free','OpenSource','Freeware','SystemComponent','Driver','Runtime')) { $statusCode='FreeOrIncluded'; $confidence=$(if ($catalogProduct) {'High'} else {'Medium'}) }
-        elseif ($licenseModel -eq 'Trialware') { $statusCode='TrialOrUnverified'; $confidence='Medium' }
+        elseif ($licenseModel -in @('Free','OpenSource')) { $statusCode='FreeOrIncluded'; $confidence=$(if ($catalogProduct) {'High'} else {'Medium'}) }
+        elseif ($licenseModel -eq 'Trial') { $statusCode='TrialOrUnverified'; $confidence='Medium' }
         elseif ($catalogProduct) { $statusCode='Unverified'; $confidence='Medium' }
+        $technicalState = Get-ToolSoftwareTechnicalState -AssessmentCode $statusCode -LicenseModel $licenseModel `
+            -ActivationStateProbe $knownActivationState -Evidence $uniqueEvidence
+        $assessmentSortPriority = if ($technicalState -eq 'CrackConfirmed') { 0 }
+            elseif ($technicalState -eq 'Suspicious') { 100 }
+            elseif ($licenseModel -in @('Paid','Subscription','Trial')) { 200 }
+            elseif ($licenseModel -eq 'Freemium') { 250 }
+            elseif ($licenseModel -in @('Free','OpenSource')) { 300 }
+            else { 400 }
+        $publisherVerification = Get-ToolSoftwarePublisherVerification -Application $application -CatalogMatch $catalogMatch
+
+        # Resolve the final system/component classification before deriving any
+        # cleanup or remediation capability.  Catalog Driver/Runtime rules can
+        # add this classification after discovery, so using only the original
+        # inventory flag here would expose system entries to remediation.
+        $applicationSystemComponent = $application.PSObject.Properties['IsSystemComponent']
+        $applicationSystemReason = $application.PSObject.Properties['SystemComponentReason']
+        $catalogIdentifiesUserApplication = [bool]($catalogProduct -and $catalogLicenseModel -notin @('SystemComponent','Driver','Runtime','Unknown'))
+        $isSystemComponent = [bool]((($applicationSystemComponent -and [bool]$applicationSystemComponent.Value) -and -not $catalogIdentifiesUserApplication) -or
+            $catalogLicenseModel -in @('SystemComponent','Driver','Runtime'))
+        $systemComponentReason = if ($applicationSystemReason) { [string]$applicationSystemReason.Value } else { '' }
+        if ($isSystemComponent -and [string]::IsNullOrWhiteSpace($systemComponentReason)) {
+            $systemComponentReason = if ($catalogLicenseModel -in @('SystemComponent','Driver','Runtime')) { 'Catalog:' + $catalogLicenseModel } else { 'HeuristicOrPlatformMetadata' }
+        }
 
         $remediationAdapter = if ($catalogProduct -and $catalogProduct.PSObject.Properties['RemediationAdapter']) {
             [string]$catalogProduct.RemediationAdapter
@@ -2043,6 +2399,7 @@ function Get-ToolSoftwareAssessments {
         # đợi; nhãn NonGenuine/Suspicious hoặc trạng thái license cục bộ đơn lẻ
         # không đủ. Adapter Generic chỉ cho phép các thao tác đã khóa phạm vi.
         $cleanupFinding = [bool](
+            -not $isSystemComponent -and
             $confidence -in @('Medium','High') -and
             $remediationEvidenceCount -gt 0 -and
             $statusCode -in @('NonGenuine','Suspicious')
@@ -2050,17 +2407,28 @@ function Get-ToolSoftwareAssessments {
         $manualEligible = [bool](
             $cleanupFinding -and
             $confidence -ne 'Low' -and
-            $licenseModel -notin @('SystemComponent','Driver','Runtime')
+            -not $isSystemComponent
         )
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
             $remediationAdapter = 'Generic'
         }
+        if ($isSystemComponent) { $remediationAdapter = '' }
         # AutoEligible ở lớp đánh giá chỉ biểu thị có bằng chứng mạnh. Lớp lập
         # kế hoạch còn phải chứng minh tồn tại hành động tự động an toàn trước
         # khi mục thực sự được đưa vào chế độ Tự động an toàn.
         $autoEligible = [bool]($manualEligible -and $decisiveCount -gt 0)
         $needsReview = [bool]($statusCode -notin @('FreeOrIncluded','GenuineVerified','Unactivated'))
         $referenceUrl = Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'OfficialUrl'
+        $catalogMatchReason = if ($catalogMatch) { [string]$catalogMatch.Reason } else { 'NoSignedCatalogRuleMatched' }
+        $licenseModelReason = if ($catalogProduct) {
+            'SignedCatalog:' + (Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'Id') + ':' + $catalogMatchReason
+        } elseif ($catalogMatchReason -eq 'CatalogUntrusted') {
+            'Catalog trust validation failed; unsigned or forged catalog rules were rejected.'
+        } elseif ($catalogMatchReason -eq 'NameMatchedPublisherUnavailable') {
+            'Catalog name matched, but required publisher evidence is unavailable; license model remains Unknown.'
+        } elseif ($catalogMatchReason -eq 'AmbiguousCatalogMatch') {
+            'Multiple signed catalog rules matched; license model remains Unknown.'
+        } else { 'No signed catalog rule matched; license model remains Unknown.' }
         $remediationImpact = if (-not $manualEligible) {
             'NoChangeProposed'
         } elseif ($remediationAdapter -in @('Adobe','Autodesk')) {
@@ -2072,32 +2440,27 @@ function Get-ToolSoftwareAssessments {
         # of Add-Member calls and produces the same PSCustomObject contract.
         $resultData = [ordered]@{}
         foreach ($property in $application.PSObject.Properties) { $resultData[$property.Name] = $property.Value }
-        $applicationSystemComponent = $application.PSObject.Properties['IsSystemComponent']
-        $applicationSystemReason = $application.PSObject.Properties['SystemComponentReason']
-        $catalogIdentifiesUserApplication = [bool]($catalogProduct -and $licenseModel -notin @('SystemComponent','Driver','Runtime','Unknown'))
-        $isSystemComponent = [bool]((($applicationSystemComponent -and [bool]$applicationSystemComponent.Value) -and -not $catalogIdentifiesUserApplication) -or
-            $licenseModel -in @('SystemComponent','Driver','Runtime'))
-        $systemComponentReason = if ($applicationSystemReason) { [string]$applicationSystemReason.Value } else { '' }
-        if ($isSystemComponent -and [string]::IsNullOrWhiteSpace($systemComponentReason)) {
-            $systemComponentReason = if ($licenseModel -in @('SystemComponent','Driver','Runtime')) { 'Catalog:' + $licenseModel } else { 'HeuristicOrPlatformMetadata' }
-        }
         foreach ($pair in @(
             @('VendorScope',$vendorScope), @('CatalogProductId',$(Get-ToolSoftwareOptionalPropertyString -InputObject $catalogProduct -Name 'Id')),
-            @('LicenseModel',$licenseModel), @('OfficialReferenceUrl',$referenceUrl), @('AssessmentCode',$statusCode),
+            @('LicenseModel',$licenseModel), @('CatalogLicenseModel',$catalogLicenseModel), @('LicenseModelReason',$licenseModelReason),
+            @('CatalogMatchReason',$catalogMatchReason), @('CatalogNamePattern',$(if ($catalogMatch) {[string]$catalogMatch.NamePattern} else {''})),
+            @('OfficialReferenceUrl',$referenceUrl), @('AssessmentCode',$statusCode),
             @('Confidence',$confidence), @('Evidence',$uniqueEvidence), @('EvidenceCount',[int]$uniqueEvidence.Count),
             @('ConclusiveEvidenceCount',[int]$conclusiveCount), @('StrongEvidenceCount',[int]$strongCount),
             @('ModerateEvidenceCount',[int]$moderateCount), @('WeakEvidenceCount',[int]$weakCount),
             @('DecisiveEvidenceCount',[int]$decisiveCount), @('IndependentStrongEvidenceGroupCount',[int]$strongEvidenceGroupCount),
-            @('TechnicalStatus',$statusCode), @('NeedsReview',$needsReview), @('CleanupFinding',$cleanupFinding),
+            @('TechnicalStatus',$statusCode), @('LicenseTechnicalState',$technicalState), @('AssessmentSortPriority',$assessmentSortPriority),
+            @('PublisherVerification',$publisherVerification),
+            @('NeedsReview',$needsReview), @('CleanupFinding',$cleanupFinding),
             @('RemediationEvidenceCount',[int]$remediationEvidenceCount), @('ActivationStateProbe',$knownActivationState),
             @('DeepScanEnabled',[bool]$DeepScan), @('DeepScanStatus',[string]$deepResult.Status), @('DeepScanComplete',[bool]$deepResult.Complete),
             @('DeepScanRoots',@($deepResult.Roots)), @('DeepScanFilesEnumerated',[int]$deepResult.FilesEnumerated),
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),
             @('RemediationAdapter',$remediationAdapter), @('RemediationSupported',$manualEligible), @('ManualEligible',$manualEligible),
             @('AutoEligible',$autoEligible), @('RemediationImpact',$remediationImpact),
+            @('PostRemediationStateExpectation',$(if (-not $manualEligible) {'NoChange'} elseif ($remediationAdapter -eq 'Generic') {'EvidenceRemovedLicenseStateUnverified'} else {'VendorAdapterPostCheckRequired'})),
             @('IsSystemComponent',$isSystemComponent), @('SystemComponentReason',$systemComponentReason),
-            @('CatalogSource',$(if ($Catalog) {Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource' -Default 'Unavailable'} else {'Unavailable'})),
-            @('CatalogVersion',$(Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion'))
+            @('CatalogSource',$catalogSourceForResult), @('CatalogVersion',$catalogVersionForResult)
         )) { $resultData[[string]$pair[0]] = $pair[1] }
         $results.Add([pscustomobject]$resultData)
     }
@@ -2117,11 +2480,7 @@ function Get-ToolSoftwareAssessments {
             AccessWarningCount=([int]$deepState.AccessWarningCount + $systemWarningCount)
         }
     }
-    return @($results.ToArray() | Sort-Object @{Expression={
-        $resultId = [string]$_.Id
-        if ($originalIndexById.ContainsKey($resultId)) { return [int]$originalIndexById[$resultId] }
-        return [int]::MaxValue
-    }})
+    return @($results.ToArray() | Sort-Object AssessmentSortPriority,Name,Version)
     } finally {
         if ($signatureRunspacePool) {
             try { $signatureRunspacePool.Close() } catch {}
@@ -2141,6 +2500,8 @@ function Get-ToolSoftwareInventoryMetadata {
         CatalogSource=$(if ($Catalog) {Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogSource' -Default 'Unavailable'} else {'Unavailable'})
         CatalogVersion=$(Get-ToolSoftwareOptionalPropertyString -InputObject $Catalog -Name 'CatalogVersion')
         CatalogRuleCount=$(if ($Catalog) {[int]@(Get-ToolSoftwareOptionalPropertyValues -InputObject $Catalog -Name 'Products').Count} else {0})
+        CatalogSignatureValid=$(if ($Catalog -and $Catalog.PSObject.Properties['CatalogSignatureValid']) {[bool]$Catalog.CatalogSignatureValid} else {$false})
+        CatalogTrustedForDecisiveEvidence=$(if ($Catalog) {[bool](Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $Catalog)} else {$false})
         DeepScan=(Get-ToolSoftwareLastDeepScanMetadata)
         GeneratedAtUtc=[DateTime]::UtcNow.ToString('o')
     }

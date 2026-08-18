@@ -162,19 +162,31 @@ try {
 try {
     $inventoryPath = Join-Path $sourceDirectoryFull 'kiem-tra-cau-hinh-ban-quyen.ps1'
     $inventoryAst = [Management.Automation.Language.Parser]::ParseFile($inventoryPath, [ref]$null, [ref]$null)
-    foreach ($functionName in @('Protect-ReportText','ConvertTo-ReportRedactedObject','Get-ReportWindowsLicenseChannel','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorFamilyCode','Get-ReportSoftwareRemediationEligibility','Get-ReportParallelVersionRows')) {
+    foreach ($functionName in @(
+        'Protect-ReportText','ConvertTo-ReportRedactedObject','Protect-ReportCell','ConvertFrom-ReportEdidText','Get-ReportMonitorInventory',
+        'Get-ReportPropertyValue','ConvertTo-ReportHardwareTableRows','ConvertTo-ReportNullableBoolean','Get-ReportTpmSecurityState',
+        'Get-ReportSecureBootSecurityState','ConvertTo-ReportBitLockerEnum','Get-ReportBitLockerSecurityState',
+        'Get-ReportWindowsLicenseChannel','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorFamilyCode',
+        'Get-ReportSoftwareRemediationEligibility','Get-ReportParallelVersionRows'
+    )) {
         $functionAst = $inventoryAst.Find({
             param($node)
             $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
         }, $true)
         if (-not $functionAst) { throw "Thiếu hàm $functionName" }
-        Invoke-Expression ("function script:" + $functionName + " " + $functionAst.Body.Extent.Text)
+        $functionDefinition = $functionAst.Extent.Text -replace ('^function\s+' + [regex]::Escape($functionName)), ('function script:' + $functionName)
+        Invoke-Expression $functionDefinition
     }
     function script:Get-ReportText {
         param([string]$Key, [object[]]$Arguments=@())
         switch ($Key) {
-            'report.redaction.ip' { return '[IP]' }
-            'report.redaction.mac' { return '[MAC]' }
+          'report.redaction.ip' { return '[IP]' }
+          'report.redaction.mac' { return '[MAC]' }
+          'report.redaction.value' { return '[ĐÃ CHE]' }
+          'report.hardware.column.serial' { return 'Số sê-ri' }
+          'report.hardware.column.identifier' { return 'Định danh' }
+          'report.hardware.column.assetTag' { return 'Thẻ tài sản' }
+          'report.hardware.column.processorId' { return 'Mã bộ xử lý' }
             default {
                 if ($Key -like 'report.software.*') { return $Key }
                 return '[ĐÃ CHE]'
@@ -187,18 +199,139 @@ try {
         Version='5.13.0.0'
         ServerAddress='192.168.2.5'
         SerialNumber='SERIAL-FIXTURE-001'
+        SystemSerialNumber='SYSTEM-SERIAL-FIXTURE-001'
+        BaseboardSerialNumber='BOARD-SERIAL-FIXTURE-001'
+        ChassisSerial='CHASSIS-SERIAL-FIXTURE-001'
+        ProcessorId='PROCESSOR-FIXTURE-001'
+        AssetTag='ASSET-FIXTURE-001'
+        PNPDeviceID='PNP-FIXTURE-001'
         UserName='fixture-user'
         KmsServer='kms.example.internal'
         Evidence='Máy chủ 192.168.2.5'
+        IPv6Evidence='Full 2001:0db8:85a3:0000:0000:8a2e:0370:7334; compressed 2001:db8::1; mapped ::ffff:192.0.2.128; scope fe80::1%12; named scope fe80::1%Ethernet; bracket [2001:db8::5]:443'
+        DnsServerAddresses=@('2001:4860:4860::8888','[fe80::53%12]:53')
+        Timestamp='2026-08-17T12:34:56+07:00'
+        Sha256='E7900E7EB4AAB2326830CE9ED1F86165E1B8DFF3FA9546C2AB04D0C39B3B4124'
+        BuildHash='abcd:1234:5678:9abc:def0:1234:5678:9abc'
     })
     if ([string]$redactionFixture.Software -ne 'FormatFactory 5.13.0.0' -or
         [string]$redactionFixture.Version -ne '5.13.0.0' -or
         [string]$redactionFixture.ServerAddress -ne '[ĐÃ CHE]' -or
         [string]$redactionFixture.SerialNumber -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.SystemSerialNumber -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.BaseboardSerialNumber -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.ChassisSerial -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.ProcessorId -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.AssetTag -ne '[ĐÃ CHE]' -or
+        [string]$redactionFixture.PNPDeviceID -ne '[ĐÃ CHE]' -or
         [string]$redactionFixture.UserName -ne '[ĐÃ CHE]' -or
         [string]$redactionFixture.KmsServer -ne '[ĐÃ CHE]' -or
         [string]$redactionFixture.Evidence -notmatch '\[IP\]') {
         Add-Failure 'Ẩn dữ liệu nhạy cảm đang che nhầm phiên bản hoặc làm lọt IP/serial/user/KMS host.'
+    }
+    $ipv6RedactedText = [string]$redactionFixture.IPv6Evidence
+    if ([regex]::Matches($ipv6RedactedText, '\[IP\]').Count -ne 6 -or
+        $ipv6RedactedText -notmatch '\[IP\]:443' -or
+        $ipv6RedactedText -match '(?i)(?:2001:|fe80:|::ffff:)') {
+        Add-Failure 'Ẩn dữ liệu nhạy cảm chưa che đủ IPv6 đầy đủ/compressed/IPv4-mapped/scope ID/bracket+port.'
+    }
+    if (@($redactionFixture.DnsServerAddresses).Count -ne 2 -or
+        [string]$redactionFixture.DnsServerAddresses[0] -ne '[IP]' -or
+        [string]$redactionFixture.DnsServerAddresses[1] -ne '[IP]:53') {
+        Add-Failure 'Ẩn dữ liệu nhạy cảm chưa che IPv6 trong danh sách DNS lồng nhau.'
+    }
+    if ([string]$redactionFixture.Timestamp -ne '2026-08-17T12:34:56+07:00' -or
+        [string]$redactionFixture.Version -ne '5.13.0.0' -or
+        [string]$redactionFixture.Sha256 -ne 'E7900E7EB4AAB2326830CE9ED1F86165E1B8DFF3FA9546C2AB04D0C39B3B4124' -or
+        [string]$redactionFixture.BuildHash -ne 'abcd:1234:5678:9abc:def0:1234:5678:9abc') {
+        Add-Failure 'Ẩn IPv6 đang che nhầm timestamp, phiên bản hoặc hash.'
+    }
+    if ([string](Protect-ReportCell ([pscustomobject]@{ Muc='Hardware' }) 'Số sê-ri' 'TABLE-SERIAL-FIXTURE') -ne '[ĐÃ CHE]') {
+        Add-Failure 'Bảng phần cứng chưa che cột serial đã địa phương hóa.'
+    }
+    $script:RedactSensitive = $false
+    $fullHardwareFixture = ConvertTo-ReportRedactedObject ([pscustomobject]@{ SystemSerialNumber='SYSTEM-SERIAL-FULL'; ProcessorId='PROCESSOR-FULL' })
+    if ([string]$fullHardwareFixture.SystemSerialNumber -ne 'SYSTEM-SERIAL-FULL' -or [string]$fullHardwareFixture.ProcessorId -ne 'PROCESSOR-FULL') {
+        Add-Failure 'Báo cáo nội bộ đầy đủ đang làm mất serial hoặc Processor ID.'
+    }
+    $script:RedactSensitive = $true
+
+    $tpmFixture = Get-ReportTpmSecurityState -CapabilityProfile $null -TpmQuery {
+        [pscustomobject]@{ TpmPresent=$true; TpmReady=$true; TpmEnabled=$true; TpmActivated=$false; TpmOwned=$true }
+    } -TpmWmiQuery {
+        [pscustomobject]@{ SpecVersion='2.0'; ManufacturerIdTxt=''; ManufacturerId='IFX'; ManufacturerVersionFull20=''; ManufacturerVersion='7.85'; IsActivated_InitialValue=$true }
+    }
+    if ($tpmFixture.Present -ne $true -or $tpmFixture.Ready -ne $true -or $tpmFixture.Enabled -ne $true -or
+        $tpmFixture.Activated -ne $false -or [string]$tpmFixture.SpecVersion -ne '2.0' -or
+        [string]$tpmFixture.Manufacturer -ne 'IFX' -or [string]$tpmFixture.ManufacturerVersion -ne '7.85') {
+        Add-Failure 'TPM fixture không giữ đủ Present/Ready/Enabled/Activated/version hoặc fallback hãng/firmware.'
+    }
+    $tpmPrivilegeFixture = Get-ReportTpmSecurityState -CapabilityProfile $null -TpmQuery {
+        'Administrator privilege is required to execute this command.'
+    } -TpmWmiQuery { throw 'fixture WMI access denied' }
+    if ($null -ne $tpmPrivilegeFixture.Present -or [string]$tpmPrivilegeFixture.Source -match 'Get-Tpm' -or
+        [string]$tpmPrivilegeFixture.Error -notmatch 'Administrator privilege') {
+        Add-Failure 'TPM đang nhận nhầm chuỗi yêu cầu quyền quản trị thành object trạng thái hợp lệ.'
+    }
+
+    $secureBootFixture = Get-ReportSecureBootSecurityState -ConfirmQuery { throw 'fixture confirm failed' } -RegistryQuery {
+        [pscustomobject]@{ UEFISecureBootEnabled=0 }
+    }
+    $secureBootUnsupportedFixture = Get-ReportSecureBootSecurityState -ConfirmQuery { throw 'not supported on fixture firmware' } -RegistryQuery {
+        throw 'registry unavailable'
+    }
+    if ($secureBootFixture.Supported -ne $true -or $secureBootFixture.Enabled -ne $false -or $secureBootFixture.State -ne 'Disabled' -or
+        $secureBootUnsupportedFixture.Supported -ne $false -or $secureBootUnsupportedFixture.State -ne 'Unsupported') {
+        Add-Failure 'Secure Boot fixture không phân biệt Disabled, Unsupported hoặc registry fallback.'
+    }
+
+    $bitLockerDirectFixture = Get-ReportBitLockerSecurityState -BitLockerQuery {
+        @(
+            [pscustomobject]@{ MountPoint='C:'; VolumeType='OperatingSystem'; CapacityGB=100; EncryptionMethod='XtsAes256'; VolumeStatus='FullyEncrypted'; EncryptionPercentage=100; ProtectionStatus='On'; LockStatus='Unlocked'; AutoUnlockEnabled=$false; AutoUnlockKeyStored=$false; MetadataVersion=2; KeyProtector=@([pscustomobject]@{KeyProtectorType='Tpm'}) },
+            [pscustomobject]@{ MountPoint='D:'; VolumeType='Data'; CapacityGB=200; EncryptionMethod='None'; VolumeStatus='FullyDecrypted'; EncryptionPercentage=0; ProtectionStatus='Off'; LockStatus='Unlocked'; AutoUnlockEnabled=$false; AutoUnlockKeyStored=$false; MetadataVersion=2; KeyProtector=@() }
+        )
+    }
+    if (@($bitLockerDirectFixture.Volumes).Count -ne 2 -or [string]$bitLockerDirectFixture.Volumes[0].MountPoint -ne 'C:' -or
+        [string]$bitLockerDirectFixture.Volumes[1].MountPoint -ne 'D:') {
+        Add-Failure 'BitLocker cmdlet fixture không giữ trạng thái theo từng volume.'
+    }
+
+    $script:bitLockerFallbackVolumeQueried = $false
+    $bitLockerFallbackFixture = Get-ReportBitLockerSecurityState -BitLockerQuery { throw 'fixture cmdlet unavailable' } -LogicalDiskQuery {
+        throw 'fixture capacity unavailable'
+    } -EncryptableVolumeQuery {
+        $script:bitLockerFallbackVolumeQueried = $true
+        [pscustomobject]@{ DriveLetter='E:' }
+    } -MethodQuery {
+        param($InputObject, [string]$MethodName, [hashtable]$Arguments)
+        switch ($MethodName) {
+            'GetConversionStatus' { [pscustomobject]@{ ConversionStatus=1; EncryptionPercentage=100 } }
+            'GetProtectionStatus' { [pscustomobject]@{ ProtectionStatus=1 } }
+            'GetEncryptionMethod' { [pscustomobject]@{ EncryptionMethod=7 } }
+            'GetLockStatus' { [pscustomobject]@{ LockStatus=0 } }
+            'GetKeyProtectors' { [pscustomobject]@{ VolumeKeyProtectorID=@('fixture-protector') } }
+            'GetKeyProtectorType' { [pscustomobject]@{ KeyProtectorType=3 } }
+        }
+    }
+    if (-not $script:bitLockerFallbackVolumeQueried -or @($bitLockerFallbackFixture.Volumes).Count -ne 1 -or
+        [string]$bitLockerFallbackFixture.Volumes[0].MountPoint -ne 'E:' -or
+        [string]$bitLockerFallbackFixture.Volumes[0].EncryptionMethod -ne 'XTS_AES_256' -or
+        [string]$bitLockerFallbackFixture.Volumes[0].KeyProtectorTypes[0] -ne 'RecoveryPassword') {
+        Add-Failure 'BitLocker WMI fallback bị mất volume khi truy vấn dung lượng lỗi hoặc ánh xạ enum/protector sai.'
+    }
+
+    function script:Safe-Cim {
+        param([string]$ClassName, [string]$Namespace='root/cimv2')
+        switch ($ClassName) {
+            'WmiMonitorID' { [pscustomobject]@{ InstanceName='DISPLAY\FIXTURE\1_0'; UserFriendlyName=[byte[]](70,73,88,84,85,82,69); ManufacturerName=[byte[]](65,67,77); ProductCodeID=[byte[]](49,50,51); SerialNumberID=[byte[]](83,69,82,49,50,51); WeekOfManufacture=10; YearOfManufacture=2025 } }
+            'Win32_PnPEntity' { [pscustomobject]@{ PNPDeviceID='DISPLAY\FIXTURE\1'; PNPClass='Monitor'; Service='monitor'; Name='Fixture monitor'; Manufacturer='ACM' } }
+            default { @() }
+        }
+    }
+    $monitorFixture = @(Get-ReportMonitorInventory)
+    if ($monitorFixture.Count -ne 1 -or [string]$monitorFixture[0].Name -ne 'FIXTURE' -or
+        [string]$monitorFixture[0].SerialNumber -ne 'SER123' -or [int]$monitorFixture[0].ManufactureYear -ne 2025) {
+        Add-Failure 'Màn hình EDID/PnP không giữ schema Name/SerialNumber/ManufactureYear mới.'
     }
     $notificationKms = [pscustomobject]@{ Name='Windows(R), Professional edition'; Description='Windows Operating System, VOLUME_KMSCLIENT channel'; LicenseStatus=5 }
     $licensedRetail = [pscustomobject]@{ Name='Windows(R), Professional edition'; Description='Windows Operating System, RETAIL channel'; LicenseStatus=1 }
@@ -228,13 +361,15 @@ try {
         Add-Failure 'Phiên bản cài song song đang ghép chéo Zalo/Telegram, bỏ sót hai bản Zalo thật hoặc đếm lặp nguồn khám phá.'
     }
 
-    $cleanWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'Unverified' -Confidence 'Medium' -LicenseModel 'Trialware' -ActivationStateProbe 'LocalLicensePresent' -RemediationSupported $true -HasRemediationEvidence $false -StrongTechnicalEvidence $false
-    $crackedWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'NonGenuine' -Confidence 'High' -LicenseModel 'Trialware' -ActivationStateProbe 'LocalLicensePresent' -RemediationSupported $true -HasRemediationEvidence $true -StrongTechnicalEvidence $true
+    $cleanWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'Unverified' -Confidence 'Medium' -LicenseModel 'Trial' -ActivationStateProbe 'LocalLicenseArtifactPresent' -RemediationSupported $true -HasRemediationEvidence $false -StrongTechnicalEvidence $false
+    $crackedWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'NonGenuine' -Confidence 'High' -LicenseModel 'Trial' -ActivationStateProbe 'LocalLicenseArtifactPresent' -RemediationSupported $true -HasRemediationEvidence $true -StrongTechnicalEvidence $true
     $suspiciousWinRarGuidance = Get-ReportSoftwareRemediationEligibility -Name 'WinRAR' -Publisher 'win.rar GmbH' -AssessmentCode 'Suspicious' -Confidence 'Medium' -LicenseModel 'Trialware' -ActivationStateProbe 'Unactivated' -RemediationSupported $true -HasRemediationEvidence $true -StrongTechnicalEvidence $true
+    $commercialTrialGuidance = Get-ReportSoftwareRemediationEligibility -Name 'MathType' -Publisher 'Wiris' -AssessmentCode 'Unverified' -Confidence 'Medium' -LicenseModel 'Trial' -ActivationStateProbe 'Unknown' -RemediationSupported $false -HasRemediationEvidence $false -StrongTechnicalEvidence $false
     if ($cleanWinRarGuidance -ne 'report.software.remediationWinRarLicensePresent' -or
         $crackedWinRarGuidance -ne 'report.software.remediationNonGenuineSupported' -or
-        $suspiciousWinRarGuidance -ne 'report.software.remediationSuspiciousArtifact') {
-        Add-Failure 'Hướng khắc phục WinRAR chưa ưu tiên bằng chứng crack/can thiệp độc lập trước trạng thái rarreg.key/thử dùng.'
+        $suspiciousWinRarGuidance -ne 'report.software.remediationSuspiciousArtifact' -or
+        $commercialTrialGuidance -ne 'report.software.remediationVerifyCommercial') {
+        Add-Failure 'Hướng khắc phục chưa ưu tiên bằng chứng crack trước trạng thái WinRAR cục bộ hoặc chưa nhận mô hình Trial cần xác minh quyền dùng.'
     }
 } catch {
     Add-Failure "Không chạy được fixture ẩn IP/giữ phiên bản: $($_.Exception.Message)"
@@ -291,8 +426,29 @@ if ($inventoryText -notmatch 'Desktop"\)\)\s+"BaoCao-Tool-Kiem-Tra"' -or
 foreach ($requiredToken in @('$primaryApps','$systemApps','system-software-appendix','system-app-link','back-link','PrimaryApplications','SystemApplications','SoftwareIntegrityCompromisedCount')) {
     if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "Báo cáo phần mềm thiếu bộ lọc/phụ lục chi tiết: $requiredToken" }
 }
+foreach ($requiredToken in @('LicenseTechnicalState','AssessmentSortPriority','LicenseModelReason','CatalogMatchReason','PublisherVerification','TechnicalEvidence','PostRemediationStateExpectation')) {
+    if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "JSON/XML phần mềm làm rơi dữ liệu đánh giá có cấu trúc: $requiredToken" }
+}
+foreach ($requiredToken in @('SignatureValid','SignatureFile','TrustedForDecisiveEvidence')) {
+    if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "JSON/XML phần mềm thiếu bằng chứng tin cậy của catalog: $requiredToken" }
+}
+if ($inventoryText -notmatch 'Sort-Object\s+AssessmentSortPriority,\s*"Ten phan mem"') {
+    Add-Failure 'Báo cáo phần mềm chưa giữ thứ tự bằng chứng crack/nghi vấn trước tên ứng dụng.'
+}
 foreach ($requiredToken in @('Get-ReportMonitorInventory','WmiMonitorID','Win32_DesktopMonitor','Win32_PnPEntity','Select-ReportPrimaryWindowsLicense','Get-ReportActivatorArtifactFindings','IncludeFileSearch','reportActivatorArtifactExtensions','installedProductRoots','WindowsActivationProfile','WindowsKmsTrust','ActivatorEvidenceCurrent','KMSRenewalUpTo180Days')) {
     if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "Báo cáo thiếu hồi quy màn hình/KMS/timeline: $requiredToken" }
+}
+foreach ($requiredToken in @('Win32_ComputerSystemProduct','Win32_SystemEnclosure','Win32_PortableBattery','Win32_Battery','BaseboardSerialNumber','ChassisSerialNumber','ProcessorSerialNumber','ComputerSystemProducts','NetworkAdapters')) {
+    if (-not $inventoryText.Contains($requiredToken)) { Add-Failure "Báo cáo phần cứng thiếu nguồn/schema chi tiết: $requiredToken" }
+}
+foreach ($integrationPattern in @(
+    '\$tpmState\s*=\s*Get-ReportTpmSecurityState',
+    '\$secureBootState\s*=\s*Get-ReportSecureBootSecurityState',
+    '\$bitLockerState\s*=\s*Get-ReportBitLockerSecurityState',
+    '\$detailedInventory\.Hardware\s*=\s*\[ordered\]@\{',
+    '(?s)SerialNumber=.+?ManufactureWeek=.+?ManufactureYear='
+)) {
+    if ($inventoryText -notmatch $integrationPattern) { Add-Failure "Helper/schema phần cứng chưa được nối vào luồng báo cáo thật: $integrationPattern" }
 }
 foreach ($requiredToken in @('tsforge','ohook','deepReport.kmsLifecycle.detected','forensicsReport.kmsLifecycle.renewal')) {
     if (-not $deepScanText.Contains($requiredToken) -and -not $forensicsText.Contains($requiredToken)) { Add-Failure "Quét sâu/forensics thiếu dấu hiệu: $requiredToken" }

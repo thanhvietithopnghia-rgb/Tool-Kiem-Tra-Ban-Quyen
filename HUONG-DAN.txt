@@ -237,6 +237,8 @@ Trên màn hình này có ba cách tiếp tục; cả ba đều mở cùng ba ô
 9. Công cụ tạo backup trước, kiểm tra backup rồi mới xử lý đúng các dòng đã chọn.
 10. Chờ hậu kiểm và đọc bước tiếp theo trong Trung tâm xử lý.
 
+“Sẵn sàng kích hoạt” chỉ xác nhận không còn bằng chứng crack/KMS chưa được phê duyệt trong phạm vi đã quét; không đồng nghĩa đã có giấy phép. Khi nhập key, Windows chỉ hiện `ActivationConfirmed = TRUE` sau khi hậu kiểm `LicenseStatus=1` và đúng key; Office chỉ TRUE khi đúng SKU/key báo `LICENSED`. Nếu chưa đạt, kết quả vẫn là FALSE và Tool mở trang Activation hoặc hướng dẫn đăng nhập/redeem chính thức. Với phần mềm khác, dùng nút nguồn hãng; ứng dụng bị sửa tệp phải Repair/cài lại chính thức trước. Tool giữ nguyên giấy phép chính hãng đang hợp lệ và không giả lập dòng “Activate Windows”.
+
 Với máy lạ hoặc khi chưa chắc phạm vi tác động, nên chạy Dry Run trước, lưu báo cáo rồi mới quyết định có thực hiện thật hay không.
 
 Tùy bằng chứng, kế hoạch phần mềm khác có thể là cách ly đúng artifact, khôi phục đúng dòng hosts, gỡ đúng quy tắc Firewall outbound-block đã ghép với tệp thực thi, Repair MSI, đặt lại thành phần cấp phép được hỗ trợ hoặc hướng dẫn gỡ/cài lại từ nguồn chính thức. Firewall và tác vụ gỡ/cài lại không được chọn tự động; quy tắc Firewall đã gỡ không thể tự khôi phục.

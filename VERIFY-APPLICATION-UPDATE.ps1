@@ -34,7 +34,7 @@ try {
 
     $updateManagerPath = Join-Path $root 'Tool-UpdateManager.ps1'
     . $updateManagerPath -Mode Library -Culture 'vi-VN'
-    Assert-UpdateTest ($script:ToolUpdateToolVersion -eq '4.8.0.0') 'Updater foundation version is invalid.'
+    Assert-UpdateTest ($script:ToolUpdateToolVersion -eq '4.8.0.1') 'Updater foundation version is invalid.'
     Assert-UpdateTest ($script:ToolUpdateDefaultManifestUrl -eq 'https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json') 'Stable manifest URL is invalid.'
 
     $manifest = [pscustomobject][ordered]@{
@@ -59,26 +59,31 @@ try {
     Assert-UpdateTest (-not [bool]$candidate.UploadedMachineData -and -not [bool]$candidate.TelemetrySent) 'Update result privacy flags are invalid.'
 
     $currentManifest = $manifest.PSObject.Copy()
-    $currentManifest.LatestVersion = '4.8.0.0'
+    $currentManifest.LatestVersion = '4.8.0.1'
     $currentManifest.MinimumUpdaterVersion = '4.8.0.0'
-    $currentManifest.ReleasePageUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0'
-    $currentManifest.DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe'
-    $current = ConvertFrom-ToolUpdateManifest -Manifest $currentManifest -InstalledVersion '4.8.0.0' -SelectedCulture 'en-US'
-    Assert-UpdateTest (-not [bool]$current.UpdateAvailable) 'The current version was incorrectly marked as outdated.'
+    $currentManifest.ReleasePageUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.1'
+    $currentManifest.DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe'
+    $current = ConvertFrom-ToolUpdateManifest -Manifest $currentManifest -InstalledVersion '4.8.0.1' -SelectedCulture 'en-US'
+    Assert-UpdateTest (-not [bool]$current.UpdateAvailable -and -not [bool]$current.SameVersionReplacement) 'The current version without a verified local hash was incorrectly marked as outdated.'
+    $sameBuild = ConvertFrom-ToolUpdateManifest -Manifest $currentManifest -InstalledVersion '4.8.0.1' -InstalledSha256 ('A' * 64) -SelectedCulture 'en-US'
+    Assert-UpdateTest (-not [bool]$sameBuild.UpdateAvailable -and -not [bool]$sameBuild.SameVersionReplacement) 'The identical current build was incorrectly offered again.'
+    $replacementBuild = ConvertFrom-ToolUpdateManifest -Manifest $currentManifest -InstalledVersion '4.8.0.1' -InstalledSha256 ('B' * 64) -SelectedCulture 'vi-VN'
+    Assert-UpdateTest ([bool]$replacementBuild.UpdateAvailable -and [bool]$replacementBuild.SameVersionReplacement) 'A different public build with the same version was not detected.'
+    Assert-UpdateThrows { ConvertFrom-ToolUpdateManifest -Manifest $currentManifest -InstalledVersion '4.8.0.1' -InstalledSha256 'INVALID' | Out-Null } 'An invalid installed executable SHA-256 was accepted.'
 
     $olderManifest = $manifest.PSObject.Copy()
     $olderManifest.LatestVersion = '4.6.2.0'
     $olderManifest.MinimumUpdaterVersion = '4.6.1.0'
     $olderManifest.ReleasePageUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.6.2.0'
     $olderManifest.DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.6.2.0/Tool-Kiem-Tra-v4.6.exe'
-    $older = ConvertFrom-ToolUpdateManifest -Manifest $olderManifest -InstalledVersion '4.8.0.0' -SelectedCulture 'vi-VN'
+    $older = ConvertFrom-ToolUpdateManifest -Manifest $olderManifest -InstalledVersion '4.8.0.1' -InstalledSha256 ('B' * 64) -SelectedCulture 'vi-VN'
     Assert-UpdateTest (-not [bool]$older.UpdateAvailable) 'An older release was incorrectly offered as a downgrade.'
 
     $upgradeManifest = $manifest.PSObject.Copy()
-    $upgradeManifest.LatestVersion = '4.8.0.0'
+    $upgradeManifest.LatestVersion = '4.8.0.1'
     $upgradeManifest.MinimumUpdaterVersion = '4.6.2.0'
-    $upgradeManifest.ReleasePageUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.0'
-    $upgradeManifest.DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.0/Tool-Kiem-Tra-v4.8.exe'
+    $upgradeManifest.ReleasePageUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.1'
+    $upgradeManifest.DownloadUrl = 'https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe'
     $upgradeCandidate = ConvertFrom-ToolUpdateManifest -Manifest $upgradeManifest -InstalledVersion '4.6.2.0' -SelectedCulture 'vi-VN'
     Assert-UpdateTest ([bool]$upgradeCandidate.UpdateAvailable -and [bool]$upgradeCandidate.CanSelfUpdate) 'v4.6.2 cannot self-update to v4.8.0.'
 
@@ -148,7 +153,7 @@ try {
     Assert-UpdateThrows { Assert-ToolUpdateExecutable -Path $stagedPath -ExpectedSize 65536 -ExpectedSha256 $newSha256 -AuthenticodeRequired $true -SignerThumbprints @(('C' * 40)) | Out-Null } 'An unsigned staged executable was accepted when Authenticode was required.'
     [IO.File]::WriteAllBytes($targetPath, ([Text.Encoding]::UTF8.GetBytes('MZ-old-version')))
     $oldSha256 = Get-ToolUpdateSha256 $targetPath
-    $installResult = Install-ToolUpdateExecutable -StagedPath $stagedPath -TargetPath $targetPath -TargetSha256 $newSha256 -InstalledVersion '4.6.2.0' -TargetVersion '4.8.0.0' -CacheDirectory $cacheDirectory -SkipRestart
+    $installResult = Install-ToolUpdateExecutable -StagedPath $stagedPath -TargetPath $targetPath -TargetSha256 $newSha256 -InstalledVersion '4.6.2.0' -TargetVersion '4.8.0.1' -CacheDirectory $cacheDirectory -SkipRestart
     Assert-UpdateTest ([bool]$installResult.Success -and (Get-ToolUpdateSha256 $targetPath) -eq $newSha256) 'Safe EXE replacement failed.'
     Assert-UpdateTest ((Get-ToolUpdateSha256 $installResult.BackupPath) -eq $oldSha256) 'Previous EXE backup is invalid.'
 
@@ -164,13 +169,14 @@ try {
     foreach ($pattern in @(
         'Request-ApplicationUpdateCheck', 'Reset-ApplicationUpdateForOffline', 'applicationUpdateReminderDueUtc',
         'AddHours(2)', 'update.choice.updateNow', 'update.choice.remindLater', 'update.choice.dismissSession',
-        'TOOL_LAUNCHER_PID', '-Mode Apply', 'ExpectedCurrentSha256', 'if (-not $script:offlineMode) { Request-ApplicationUpdateCheck }'
+        'TOOL_LAUNCHER_PID', '-Mode Apply', '-Mode Check', 'ExpectedCurrentSha256', 'currentHashArgument',
+        'if (-not $script:offlineMode) { Request-ApplicationUpdateCheck }'
     )) {
         Assert-UpdateTest ($dashboardText.Contains($pattern)) "GUI is missing required update flow: $pattern"
     }
     Assert-UpdateTest ($dashboardText -match 'Verb\s*=\s*"RunAs"') 'Update apply is not elevated on demand.'
     $launcherText = Get-Content -LiteralPath (Join-Path $root 'Tool-Kiem-Tra-v4.8-OneFile.cs') -Raw -Encoding UTF8
-    Assert-UpdateTest ($launcherText.Contains('"Tool-UpdateManager.ps1"') -and $launcherText.Contains('TOOL_LAUNCHER_PID') -and $launcherText.Contains('TOOL_TOOL_VERSION"] = "4.8.0.0"')) 'Launcher does not embed or pin the v4.8.0 update foundation.'
+    Assert-UpdateTest ($launcherText.Contains('"Tool-UpdateManager.ps1"') -and $launcherText.Contains('TOOL_LAUNCHER_PID') -and $launcherText.Contains('TOOL_TOOL_VERSION"] = "4.8.0.1"')) 'Launcher does not embed or pin the v4.8.0.1 update foundation.'
     $buildText = Get-Content -LiteralPath (Join-Path $root 'BUILD.ps1') -Raw -Encoding UTF8
     Assert-UpdateTest ($buildText.Contains("'Tool-UpdateManager.ps1'") -and $buildText.Contains("'VERIFY-APPLICATION-UPDATE.ps1'")) 'Build does not package or verify the updater.'
 
@@ -181,7 +187,10 @@ try {
         }
     }
 
-    Write-Host 'VERIFY-APPLICATION-UPDATE: OK (Offline/consent gates + signed-stable policy + anti-downgrade + version/asset/hash/size/signer validation + verified swap/backup)' -ForegroundColor Green
+    $updateManagerText = Get-Content -LiteralPath $updateManagerPath -Raw -Encoding UTF8
+    Assert-UpdateTest ($updateManagerText.Contains('-InstalledSha256 $CurrentLauncherSha256')) 'Apply-time manifest recheck does not preserve same-version hash detection.'
+
+    Write-Host 'VERIFY-APPLICATION-UPDATE: OK (Offline/consent gates + signed-stable policy + anti-downgrade + same-version hash replacement + version/asset/hash/size/signer validation + verified swap/backup)' -ForegroundColor Green
     exit 0
 } catch {
     Write-Error $_.Exception.Message

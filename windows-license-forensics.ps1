@@ -34,7 +34,7 @@ try {
 
 $ErrorActionPreference = "SilentlyContinue"
 $toolVersion = "4.8"
-$releaseVersion = "4.8.0.0"
+$releaseVersion = "4.8.0.1"
 $scanStarted = Get-Date
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 

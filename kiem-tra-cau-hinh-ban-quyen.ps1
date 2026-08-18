@@ -11,7 +11,7 @@
 )
 
 $ToolVersion = "4.8"
-$ToolReleaseVersion = "4.8.0.0"
+$ToolReleaseVersion = "4.8.0.1"
 
 $runtimeHelper = Join-Path $PSScriptRoot "Tool-Runtime.ps1"
 $compatibilityHelper = Join-Path $PSScriptRoot "Tool-Compatibility.ps1"
@@ -201,6 +201,45 @@ function Protect-ReportText($value, [switch]$PreserveVersionLike) {
         }
     }
     if (-not $PreserveVersionLike) {
+        # IPv6 has too many valid textual forms for a single permissive replacement
+        # regex. Select bounded candidates, then require .NET to parse the address as
+        # IPv6 before redacting it. Scope IDs are metadata appended to an otherwise
+        # valid address, so validate the address portion separately.
+        $ipv6RedactionToken = Get-ReportText "report.redaction.ip"
+        $ipv6Evaluator = [Text.RegularExpressions.MatchEvaluator]{
+            param([Text.RegularExpressions.Match]$match)
+
+            $candidate = [string]$match.Groups['Address'].Value
+            $trailingText = ''
+            if ($candidate.EndsWith('.')) {
+                # A sentence-ending full stop is allowed by the IPv4-mapped address
+                # character class but is not part of the address or its scope ID.
+                $candidate = $candidate.Substring(0, $candidate.Length - 1)
+                $trailingText = '.'
+            }
+
+            $scopeIndex = $candidate.IndexOf('%')
+            $addressForParsing = if ($scopeIndex -ge 0) {
+                $candidate.Substring(0, $scopeIndex)
+            } else {
+                $candidate
+            }
+            $parsedAddress = $null
+            $isIpv6 = (
+                [regex]::Matches($addressForParsing, ':').Count -ge 2 -and
+                [Net.IPAddress]::TryParse($addressForParsing, [ref]$parsedAddress) -and
+                $parsedAddress.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetworkV6
+            )
+            if (-not $isIpv6) { return $match.Value }
+
+            $port = if ($match.Groups['Port'].Success) { [string]$match.Groups['Port'].Value } else { '' }
+            return $ipv6RedactionToken + $port + $trailingText
+        }
+        $bracketedIpv6Pattern = '(?i)(?<![0-9A-Z_.:%-])\[(?<Address>[0-9A-F:.]+(?:%[0-9A-Z_.~-]+)?)\](?<Port>:[0-9]{1,5})?(?![0-9A-Z_:%~-])'
+        $unbracketedIpv6Pattern = '(?i)(?<![0-9A-Z_.:%-])(?<Address>(?=[0-9A-F:.%_-]*:)[0-9A-F:.]+(?:%[0-9A-Z_.~-]+)?)(?![0-9A-Z_:%~-])'
+        $text = [regex]::Replace($text, $bracketedIpv6Pattern, $ipv6Evaluator)
+        $text = [regex]::Replace($text, $unbracketedIpv6Pattern, $ipv6Evaluator)
+
         $ipv4Part = '(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])'
         $text = [regex]::Replace($text, "(?<![0-9.])$ipv4Part(?:\.$ipv4Part){3}(?![0-9.])", (Get-ReportText "report.redaction.ip"))
     }
@@ -218,7 +257,7 @@ function ConvertTo-ReportRedactedObject {
     if (-not $RedactSensitive -or $null -eq $Value) { return $Value }
     $preserveVersionLike = [bool]($PropertyName -match '(?i)(?:version|phien ban|build|schema|date|ngay|sha|hash|thumbprint)' -or
         $PropertyName -match '(?i)^(?:name|software|product|application|title|ten phan mem)$')
-    $fullySensitiveProperty = [bool]($PropertyName -match '(?i)^(?:computername|machinename|username|user|serial|serialnumber|biosserial|productid|machineguid|uuid|kmsserver|keymanagementservicemachine|serveraddress|networkaddresses|mac|macaddress)$')
+    $fullySensitiveProperty = [bool]($PropertyName -match '(?i)^(?:computername|machinename|username|user|.*serial(?:number)?|identifyingnumber|processorid|assettag|smbiosassettag|pnpdeviceid|productid|machineguid|uuid|kmsserver|keymanagementservicemachine|serveraddress|networkaddresses|mac|macaddress)$')
     if ($fullySensitiveProperty -and ($Value -is [string] -or $Value -is [ValueType])) {
         return Get-ReportText 'report.redaction.value'
     }
@@ -281,9 +320,16 @@ function Protect-ReportCell($row, [string]$column, $value) {
     if (-not $RedactSensitive) { return $value }
     $rowLabel = ""
     if ($row -and $row.PSObject.Properties["Muc"]) { $rowLabel = [string]$row.PSObject.Properties["Muc"].Value }
-    if ($column -match '(?i)^Serial$' -or
+    $hardwareSensitiveColumns = @(
+        (Get-ReportText 'report.hardware.column.serial'),
+        (Get-ReportText 'report.hardware.column.identifier'),
+        (Get-ReportText 'report.hardware.column.assetTag'),
+        (Get-ReportText 'report.hardware.column.processorId')
+    )
+    if ($column -match '(?i)^(?:.*Serial(?:Number)?|UUID|ProcessorId|AssetTag|SMBIOSAssetTag|IdentifyingNumber|PNPDeviceID)$' -or
+        $hardwareSensitiveColumns -contains $column -or
         $column -match '(?i)^(User|Nguoi dung|Author)$' -or
-        ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS|Domain / Workgroup|KMS server)$')) {
+        ($column -eq "Gia tri" -and $rowLabel -match '(?i)^(May tinh|Nguoi dung|Windows Product ID|Serial BIOS|System UUID|System serial|Baseboard serial|Chassis serial|Asset tag|Processor ID|Domain / Workgroup|KMS server)$')) {
         return Get-ReportText "report.redaction.value"
     }
     $preserveVersionLike = [bool]($column -match '(?i)(?:phien ban|version|build|ngay cai|install date|file version|schema|sha|hash)' -or
@@ -344,10 +390,12 @@ function Get-ReportMonitorInventory {
         $pnpId = if ($pnp.Count -gt 0) { [string]$pnp[0].PNPDeviceID } elseif ($desktop.Count -gt 0) { [string]$desktop[0].PNPDeviceID } else { $instanceKey }
         if ($pnpId) { [void]$matchedPnpIds.Add($pnpId) }
         $results.Add([pscustomobject][ordered]@{
-            'Ten'=$name
-            'Serial'=(ConvertFrom-ReportEdidText $identity.SerialNumberID)
-            'Nam SX'=$(if ([int]$identity.YearOfManufacture -gt 0) { [int]$identity.YearOfManufacture } else { '' })
-            'Hang ID'=$(if ($manufacturer) { $manufacturer } elseif ($pnp.Count -gt 0) { [string]$pnp[0].Manufacturer } else { '' })
+            Name=$name
+            Manufacturer=$(if ($manufacturer) { $manufacturer } elseif ($pnp.Count -gt 0) { [string]$pnp[0].Manufacturer } else { '' })
+            ProductCode=$productCode
+            SerialNumber=(ConvertFrom-ReportEdidText $identity.SerialNumberID)
+            ManufactureWeek=$(if ([int]$identity.WeekOfManufacture -gt 0) { [int]$identity.WeekOfManufacture } else { '' })
+            ManufactureYear=$(if ([int]$identity.YearOfManufacture -gt 0) { [int]$identity.YearOfManufacture } else { '' })
         })
     }
 
@@ -358,18 +406,272 @@ function Get-ReportMonitorInventory {
         if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$pnp.Caption }
         if ([string]::IsNullOrWhiteSpace($name)) { $name = Get-ReportText 'report.hardware.monitorUnknown' }
         $results.Add([pscustomobject][ordered]@{
-            'Ten'=$name; 'Serial'=''; 'Nam SX'=''; 'Hang ID'=[string]$pnp.Manufacturer
+            Name=$name; Manufacturer=[string]$pnp.Manufacturer; ProductCode=''; SerialNumber=''; ManufactureWeek=''; ManufactureYear=''
         })
     }
     if ($results.Count -eq 0) {
         foreach ($desktop in $desktopRows) {
             $name = if ([string]::IsNullOrWhiteSpace([string]$desktop.Name)) { Get-ReportText 'report.hardware.monitorUnknown' } else { [string]$desktop.Name }
             $results.Add([pscustomobject][ordered]@{
-                'Ten'=$name; 'Serial'=''; 'Nam SX'=''; 'Hang ID'=[string]$desktop.MonitorManufacturer
+                Name=$name; Manufacturer=[string]$desktop.MonitorManufacturer; ProductCode=''; SerialNumber=''; ManufactureWeek=''; ManufactureYear=''
             })
         }
     }
-    return @($results.ToArray() | Group-Object { "$($_.Ten)|$($_.Serial)|$($_.'Hang ID')" } | ForEach-Object { $_.Group[0] })
+    return @($results.ToArray() | Group-Object { "$($_.Name)|$($_.SerialNumber)|$($_.Manufacturer)" } | ForEach-Object { $_.Group[0] })
+}
+
+function Get-ReportPropertyValue {
+    param([AllowNull()][object]$InputObject, [string[]]$Names)
+    if ($null -eq $InputObject) { return $null }
+    foreach ($name in @($Names)) {
+        $property = $InputObject.PSObject.Properties[[string]$name]
+        if ($property -and $null -ne $property.Value) {
+            if ($property.Value -is [string] -and [string]::IsNullOrWhiteSpace([string]$property.Value)) { continue }
+            return $property.Value
+        }
+    }
+    return $null
+}
+
+function ConvertTo-ReportHardwareTableRows {
+    param(
+        [AllowNull()][object[]]$Rows,
+        [Parameter(Mandatory = $true)][Collections.IDictionary]$ColumnMap
+    )
+    $projected = New-Object System.Collections.Generic.List[object]
+    foreach ($row in @($Rows)) {
+        $result = [ordered]@{}
+        foreach ($label in @($ColumnMap.Keys)) {
+            $sourceName = [string]$ColumnMap[$label]
+            $result[[string]$label] = Get-ReportPropertyValue $row @($sourceName)
+        }
+        $projected.Add([pscustomobject]$result)
+    }
+    return @($projected.ToArray())
+}
+
+function ConvertTo-ReportNullableBoolean {
+    param([AllowNull()][object]$Value)
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) { return $null }
+    if ($Value -is [bool]) { return [bool]$Value }
+    if ([string]$Value -match '^(?i:true|yes|enabled|on|1)$') { return $true }
+    if ([string]$Value -match '^(?i:false|no|disabled|off|0)$') { return $false }
+    return $null
+}
+
+function Get-ReportTpmSecurityState {
+    param(
+        [AllowNull()][object]$CapabilityProfile,
+        [AllowNull()][scriptblock]$TpmQuery,
+        [AllowNull()][scriptblock]$TpmWmiQuery
+    )
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $sources = New-Object System.Collections.Generic.List[string]
+    $cmdletState = $null
+    $wmiState = $null
+    $cmdletAvailable = [bool](Get-Command Get-Tpm -ErrorAction SilentlyContinue)
+    if (-not $TpmQuery -and $cmdletAvailable) { $TpmQuery = { Get-Tpm -ErrorAction Stop } }
+    if ($TpmQuery) {
+        try {
+            $cmdletOutput = @(& $TpmQuery)
+            $cmdletState = @($cmdletOutput | Where-Object {
+                $_ -and ($_.PSObject.Properties['TpmPresent'] -or $_.PSObject.Properties['TpmReady'] -or $_.PSObject.Properties['TpmEnabled'])
+            } | Select-Object -First 1)[0]
+            if ($cmdletState) { $sources.Add('Get-Tpm') }
+            elseif ($cmdletOutput.Count -gt 0) {
+                $cmdletMessage = (@($cmdletOutput | ForEach-Object { [string]$_ } | Where-Object { $_ }) -join ' | ')
+                if (-not [string]::IsNullOrWhiteSpace($cmdletMessage)) { $errors.Add($cmdletMessage) }
+            }
+        } catch { $errors.Add([string]$_.Exception.Message) }
+    }
+    if (-not $TpmWmiQuery) {
+        $TpmWmiQuery = { Safe-Cim Win32_Tpm 'root/CIMV2/Security/MicrosoftTpm' -ThrowOnError }
+    }
+    $wmiQuerySucceeded = $false
+    try {
+        $wmiState = @(& $TpmWmiQuery | Select-Object -First 1)[0]
+        $wmiQuerySucceeded = $true
+        if ($wmiState) { $sources.Add('Win32_Tpm') }
+    } catch { $errors.Add([string]$_.Exception.Message) }
+
+    $present = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $cmdletState @('TpmPresent'))
+    if ($null -eq $present) {
+        if ($wmiState) { $present = $true }
+        elseif ($wmiQuerySucceeded) { $present = $false }
+    }
+    $ready = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $cmdletState @('TpmReady'))
+    if ($null -eq $ready) { $ready = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $wmiState @('IsReady_InitialValue')) }
+    $enabled = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $cmdletState @('TpmEnabled'))
+    if ($null -eq $enabled) { $enabled = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $wmiState @('IsEnabled_InitialValue')) }
+    $activated = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $cmdletState @('TpmActivated'))
+    if ($null -eq $activated) { $activated = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $wmiState @('IsActivated_InitialValue')) }
+
+    $owned = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $cmdletState @('TpmOwned'))
+    if ($null -eq $owned) { $owned = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $wmiState @('IsOwned_InitialValue')) }
+    $specVersion = [string](Get-ReportPropertyValue $wmiState @('SpecVersion'))
+    if ([string]::IsNullOrWhiteSpace($specVersion)) { $specVersion = [string](Get-ReportPropertyValue $cmdletState @('SpecVersion')) }
+    $manufacturer = [string](Get-ReportPropertyValue $cmdletState @('ManufacturerIdTxt','ManufacturerId'))
+    if ([string]::IsNullOrWhiteSpace($manufacturer)) { $manufacturer = [string](Get-ReportPropertyValue $wmiState @('ManufacturerIdTxt','ManufacturerId')) }
+    $manufacturerVersion = [string](Get-ReportPropertyValue $cmdletState @('ManufacturerVersionFull20','ManufacturerVersion','ManufacturerVersionInfo'))
+    if ([string]::IsNullOrWhiteSpace($manufacturerVersion)) { $manufacturerVersion = [string](Get-ReportPropertyValue $wmiState @('ManufacturerVersionFull20','ManufacturerVersion','ManufacturerVersionInfo')) }
+
+    return [pscustomobject][ordered]@{
+        Present=$present
+        Ready=$ready
+        Enabled=$enabled
+        Activated=$activated
+        Owned=$owned
+        SpecVersion=$specVersion
+        Manufacturer=$manufacturer
+        ManufacturerVersion=$manufacturerVersion
+        Source=(@($sources | Sort-Object -Unique) -join ' + ')
+        Error=(@($errors | Where-Object { $_ } | Sort-Object -Unique) -join ' | ')
+    }
+}
+
+function Get-ReportSecureBootSecurityState {
+    param(
+        [AllowNull()][scriptblock]$ConfirmQuery,
+        [AllowNull()][scriptblock]$RegistryQuery
+    )
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $supported = $null
+    $enabled = $null
+    $source = ''
+    $confirmAvailable = [bool](Get-Command Confirm-SecureBootUEFI -ErrorAction SilentlyContinue)
+    if (-not $ConfirmQuery -and $confirmAvailable) { $ConfirmQuery = { Confirm-SecureBootUEFI -ErrorAction Stop } }
+    if ($ConfirmQuery) {
+        try {
+            $enabled = ConvertTo-ReportNullableBoolean (& $ConfirmQuery)
+            if ($null -ne $enabled) { $supported = $true; $source = 'Confirm-SecureBootUEFI' }
+        } catch { $errors.Add([string]$_.Exception.Message) }
+    }
+    if ($null -eq $enabled) {
+        if (-not $RegistryQuery) {
+            $RegistryQuery = { Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State' -Name UEFISecureBootEnabled -ErrorAction Stop }
+        }
+        try {
+            $registryState = & $RegistryQuery
+            $enabled = ConvertTo-ReportNullableBoolean (Get-ReportPropertyValue $registryState @('UEFISecureBootEnabled'))
+            if ($null -ne $enabled) { $supported = $true; $source = 'SecureBoot registry state' }
+        } catch { $errors.Add([string]$_.Exception.Message) }
+    }
+    if ($null -eq $supported -and (@($errors) -join ' ') -match '(?i)(not supported|not available|unsupported|kh\u00f4ng h\u1ed7 tr\u1ee3|legacy BIOS|non-UEFI)') { $supported = $false }
+    $state = if ($supported -eq $false) { 'Unsupported' } elseif ($enabled -eq $true) { 'Enabled' } elseif ($enabled -eq $false) { 'Disabled' } else { 'Unreadable' }
+    return [pscustomobject][ordered]@{
+        Supported=$supported
+        Enabled=$enabled
+        State=$state
+        Source=$source
+        Error=(@($errors | Where-Object { $_ } | Sort-Object -Unique) -join ' | ')
+    }
+}
+
+function ConvertTo-ReportBitLockerEnum {
+    param([string]$Kind, [AllowNull()][object]$Value)
+    if ($null -eq $Value) { return '' }
+    $maps = @{
+        Conversion=@('FullyDecrypted','FullyEncrypted','EncryptionInProgress','DecryptionInProgress','EncryptionPaused','DecryptionPaused')
+        Protection=@('Off','On','Unknown')
+        Lock=@('Unlocked','Locked')
+        Encryption=@('None','AES_128_WITH_DIFFUSER','AES_256_WITH_DIFFUSER','AES_128','AES_256','HardwareEncryption','XTS_AES_128','XTS_AES_256')
+        Protector=@('Unknown','TPM','ExternalKey','RecoveryPassword','TPMAndPIN','TPMAndStartupKey','TPMAndPINAndStartupKey','PublicKey','Passphrase','TPMCertificate','CNG')
+    }
+    $numeric = 0
+    if ([int]::TryParse([string]$Value, [ref]$numeric) -and $maps.ContainsKey($Kind) -and $numeric -ge 0 -and $numeric -lt $maps[$Kind].Count) { return [string]$maps[$Kind][$numeric] }
+    return [string]$Value
+}
+
+function Get-ReportBitLockerSecurityState {
+    param(
+        [AllowNull()][scriptblock]$BitLockerQuery,
+        [AllowNull()][scriptblock]$EncryptableVolumeQuery,
+        [AllowNull()][scriptblock]$MethodQuery,
+        [AllowNull()][scriptblock]$LogicalDiskQuery
+    )
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $rows = New-Object System.Collections.Generic.List[object]
+    $source = ''
+    if (-not $BitLockerQuery -and (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue)) { $BitLockerQuery = { Get-BitLockerVolume -ErrorAction Stop } }
+    if ($BitLockerQuery) {
+        try {
+            foreach ($volume in @(& $BitLockerQuery)) {
+                $protectorTypes = @($volume.KeyProtector | ForEach-Object { [string]$_.KeyProtectorType } | Where-Object { $_ } | Sort-Object -Unique)
+                $rows.Add([pscustomobject][ordered]@{
+                    MountPoint=[string]$volume.MountPoint; VolumeType=[string]$volume.VolumeType
+                    CapacityGB=$(if ($null -ne $volume.CapacityGB) { [Math]::Round([double]$volume.CapacityGB, 2) } else { $null })
+                    EncryptionMethod=[string]$volume.EncryptionMethod; VolumeStatus=[string]$volume.VolumeStatus
+                    EncryptionPercentage=$(if ($null -ne $volume.EncryptionPercentage) { [int]$volume.EncryptionPercentage } else { $null })
+                    ProtectionStatus=[string]$volume.ProtectionStatus; LockStatus=[string]$volume.LockStatus
+                    AutoUnlockEnabled=(ConvertTo-ReportNullableBoolean $volume.AutoUnlockEnabled)
+                    AutoUnlockKeyStored=(ConvertTo-ReportNullableBoolean $volume.AutoUnlockKeyStored)
+                    MetadataVersion=[string]$volume.MetadataVersion; KeyProtectorTypes=@($protectorTypes); Source='Get-BitLockerVolume'; Error=''
+                })
+            }
+            if ($rows.Count -gt 0) { $source = 'Get-BitLockerVolume' }
+        } catch { $errors.Add([string]$_.Exception.Message) }
+    }
+    if ($rows.Count -eq 0) {
+        if (-not $EncryptableVolumeQuery) { $EncryptableVolumeQuery = { Safe-Cim Win32_EncryptableVolume 'root/CIMV2/Security/MicrosoftVolumeEncryption' -ThrowOnError } }
+        if (-not $LogicalDiskQuery) { $LogicalDiskQuery = { Safe-Cim Win32_LogicalDisk 'root/cimv2' -ThrowOnError } }
+        if (-not $MethodQuery) {
+            $MethodQuery = {
+                param($InputObject, [string]$MethodName, [hashtable]$Arguments)
+                if ($InputObject -is [Microsoft.Management.Infrastructure.CimInstance] -and (Get-Command Invoke-CimMethod -ErrorAction SilentlyContinue)) {
+                    return Invoke-CimMethod -InputObject $InputObject -MethodName $MethodName -Arguments $Arguments -ErrorAction Stop
+                }
+                $method = $InputObject.PSObject.Methods[$MethodName]
+                if (-not $method) { throw "Method unavailable: $MethodName" }
+                if ($Arguments.Count -eq 0) { return $method.Invoke() }
+                return $method.Invoke(@($Arguments.Values))
+            }
+        }
+        $logicalDisks = @()
+        try { $logicalDisks = @(& $LogicalDiskQuery) }
+        catch { $errors.Add([string]$_.Exception.Message) }
+        $encryptableVolumes = @()
+        try { $encryptableVolumes = @(& $EncryptableVolumeQuery) }
+        catch { $errors.Add([string]$_.Exception.Message) }
+        foreach ($volume in $encryptableVolumes) {
+                $conversion = $protection = $encryption = $lock = $protectors = $null
+                try { $conversion = & $MethodQuery $volume 'GetConversionStatus' @{} } catch { $errors.Add([string]$_.Exception.Message) }
+                try { $protection = & $MethodQuery $volume 'GetProtectionStatus' @{} } catch { $errors.Add([string]$_.Exception.Message) }
+                try { $encryption = & $MethodQuery $volume 'GetEncryptionMethod' @{} } catch { $errors.Add([string]$_.Exception.Message) }
+                try { $lock = & $MethodQuery $volume 'GetLockStatus' @{} } catch { $errors.Add([string]$_.Exception.Message) }
+                try { $protectors = & $MethodQuery $volume 'GetKeyProtectors' @{ KeyProtectorType=0 } } catch { $errors.Add([string]$_.Exception.Message) }
+                $mountPoint = [string](Get-ReportPropertyValue $volume @('DriveLetter'))
+                $logical = @($logicalDisks | Where-Object { [string]$_.DeviceID -eq $mountPoint } | Select-Object -First 1)
+                $protectorTypes = New-Object System.Collections.Generic.List[string]
+                foreach ($protectorId in @(Get-ReportPropertyValue $protectors @('VolumeKeyProtectorID'))) {
+                    try {
+                        $protector = & $MethodQuery $volume 'GetKeyProtectorType' @{ VolumeKeyProtectorID=[string]$protectorId }
+                        $protectorTypes.Add((ConvertTo-ReportBitLockerEnum Protector (Get-ReportPropertyValue $protector @('KeyProtectorType'))))
+                    } catch { $errors.Add([string]$_.Exception.Message) }
+                }
+                $rows.Add([pscustomobject][ordered]@{
+                    MountPoint=$mountPoint; VolumeType=''; CapacityGB=$(if ($logical.Count -gt 0 -and $logical[0].Size) { [Math]::Round([double]$logical[0].Size / 1GB, 2) } else { $null })
+                    EncryptionMethod=(ConvertTo-ReportBitLockerEnum Encryption (Get-ReportPropertyValue $encryption @('EncryptionMethod')))
+                    VolumeStatus=(ConvertTo-ReportBitLockerEnum Conversion (Get-ReportPropertyValue $conversion @('ConversionStatus')))
+                    EncryptionPercentage=(Get-ReportPropertyValue $conversion @('EncryptionPercentage'))
+                    ProtectionStatus=(ConvertTo-ReportBitLockerEnum Protection (Get-ReportPropertyValue $protection @('ProtectionStatus')))
+                    LockStatus=(ConvertTo-ReportBitLockerEnum Lock (Get-ReportPropertyValue $lock @('LockStatus')))
+                    AutoUnlockEnabled=$null; AutoUnlockKeyStored=$null; MetadataVersion=''; KeyProtectorTypes=@($protectorTypes | Where-Object { $_ } | Sort-Object -Unique)
+                    Source='Win32_EncryptableVolume'; Error=''
+                })
+        }
+        if ($encryptableVolumes.Count -gt 0) { $source = 'Win32_EncryptableVolume' }
+    }
+    $errorText = (@($errors | Where-Object { $_ } | Sort-Object -Unique) -join ' | ')
+    $unsupported = [bool]($rows.Count -eq 0 -and $errorText -match '(?i)(invalid class|invalid namespace|not supported|unsupported|kh\u00f4ng h\u1ed7 tr\u1ee3)')
+    return [pscustomobject][ordered]@{
+        Supported=$(if ($rows.Count -gt 0) { $true } elseif ($unsupported) { $false } else { $null })
+        Source=$source
+        Error=$errorText
+        Volumes=@($rows.ToArray())
+    }
 }
 
 function Get-ReportWindowsLicenseChannel {
@@ -541,7 +843,7 @@ function Add-Table {
 }
 
 function Safe-Cim {
-    param([string]$ClassName, [string]$Namespace = "root/cimv2")
+    param([string]$ClassName, [string]$Namespace = "root/cimv2", [switch]$ThrowOnError)
     # Windows 7 thuong chi co PowerShell 2/3, chua co Get-CimInstance.
     try {
         if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
@@ -550,7 +852,8 @@ function Safe-Cim {
             Get-WmiObject -Namespace $Namespace -Class $ClassName -ErrorAction Stop
         }
     } catch {
-        try { Get-WmiObject -Namespace $Namespace -Class $ClassName -ErrorAction Stop } catch { @() }
+        try { Get-WmiObject -Namespace $Namespace -Class $ClassName -ErrorAction Stop }
+        catch { if ($ThrowOnError) { throw }; @() }
     }
 }
 
@@ -679,7 +982,7 @@ function Get-ReportSoftwareRemediationEligibility {
         [bool]$StrongTechnicalEvidence
     )
 
-    $licenseRequiresEntitlement = [bool]($LicenseModel -in @('Paid','Commercial','Subscription','Perpetual','Trialware','Mixed'))
+    $licenseRequiresEntitlement = [bool]($LicenseModel -in @('Paid','Commercial','Subscription','Perpetual','Trial','Trialware','Mixed'))
     $isWinRar = [bool](([string]$Name + ' ' + [string]$Publisher) -match '(?i)\bWinRAR\b|\bRARLAB\b|\bwin\.rar\b')
 
     if ([string]$Confidence -eq 'Low') {
@@ -707,7 +1010,7 @@ function Get-ReportSoftwareRemediationEligibility {
     # rarreg.key chỉ mô tả trạng thái cục bộ của WinRAR. Hướng dẫn thử dùng
     # chỉ áp dụng khi không có bằng chứng activator/can thiệp độc lập.
     if ($isWinRar -and -not $HasRemediationEvidence -and -not $StrongTechnicalEvidence) {
-        if ([string]$ActivationStateProbe -eq 'LocalLicensePresent') {
+        if ([string]$ActivationStateProbe -in @('LocalLicenseArtifactPresent','LocalLicensePresent')) {
             return Get-ReportText 'report.software.remediationWinRarLicensePresent'
         }
         if ([string]$ActivationStateProbe -eq 'Unactivated') {
@@ -958,9 +1261,20 @@ $tocItems = @()
 $sectionCounter = 0
 $os = Safe-Cim Win32_OperatingSystem | Select-Object -First 1
 $cs = Safe-Cim Win32_ComputerSystem | Select-Object -First 1
-$bios = Safe-Cim Win32_BIOS | Select-Object -First 1
-$cpu = Safe-Cim Win32_Processor | Select-Object -First 1
-$board = Safe-Cim Win32_BaseBoard | Select-Object -First 1
+$biosSourceRows = @(Safe-Cim Win32_BIOS)
+$processorSourceRows = @(Safe-Cim Win32_Processor)
+$baseboardSourceRows = @(Safe-Cim Win32_BaseBoard)
+$systemProductSourceRows = @()
+$enclosureSourceRows = @()
+if ($wantHardware) {
+    $systemProductSourceRows = @(Safe-Cim Win32_ComputerSystemProduct)
+    $enclosureSourceRows = @(Safe-Cim Win32_SystemEnclosure)
+}
+$bios = $biosSourceRows | Select-Object -First 1
+$cpu = $processorSourceRows | Select-Object -First 1
+$board = $baseboardSourceRows | Select-Object -First 1
+$systemProduct = $systemProductSourceRows | Select-Object -First 1
+$enclosure = $enclosureSourceRows | Select-Object -First 1
 
 $uptime = ""
 if ($os.LastBootUpTime) {
@@ -987,6 +1301,16 @@ $summary = @(
     [pscustomobject]@{ "Muc"="CPU"; "Gia tri"=$cpu.Name },
     [pscustomobject]@{ "Muc"="RAM"; "Gia tri"=(Size-GB $cs.TotalPhysicalMemory) }
 )
+if ($wantHardware) {
+    $summary += @(
+        [pscustomobject]@{ "Muc"="System UUID"; "Gia tri"=$systemProduct.UUID },
+        [pscustomobject]@{ "Muc"="System serial"; "Gia tri"=$systemProduct.IdentifyingNumber },
+        [pscustomobject]@{ "Muc"="Baseboard serial"; "Gia tri"=$board.SerialNumber },
+        [pscustomobject]@{ "Muc"="Chassis serial"; "Gia tri"=$enclosure.SerialNumber },
+        [pscustomobject]@{ "Muc"="Asset tag"; "Gia tri"=$enclosure.SMBIOSAssetTag },
+        [pscustomobject]@{ "Muc"="Processor ID"; "Gia tri"=$cpu.ProcessorId }
+    )
+}
 Add-Section "Tổng quan" (Add-Table $summary @("Muc","Gia tri"))
 
 $capabilityRows = @(
@@ -1158,44 +1482,121 @@ Add-Section "Tổng quan bản quyền Microsoft Office" $officeOverviewBody "Of
 Add-Section "Chi tiết giấy phép Microsoft Office" (Add-Table $officeRows @("Thanh phan","Thong tin","Nguon")) "Office"
 
 if ($wantHardware) {
-$platformRows = @()
-if ($capabilityState.TpmCmdlets) {
-    try {
-        $tpm = Get-Tpm
-        $platformRows += [pscustomobject]@{ "Muc"="TPM present"; "Gia tri"=$tpm.TpmPresent }
-        $platformRows += [pscustomobject]@{ "Muc"="TPM ready"; "Gia tri"=$tpm.TpmReady }
-        $platformRows += [pscustomobject]@{ "Muc"="TPM enabled"; "Gia tri"=$tpm.TpmEnabled }
-    } catch {
-        $platformRows += [pscustomobject]@{ "Muc"="TPM"; "Gia tri"="Có cmdlet nhưng không đọc được" }
+$systemProducts = @($systemProductSourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        Vendor=[string]$_.Vendor; Name=[string]$_.Name; Version=[string]$_.Version
+        SystemSerialNumber=[string]$_.IdentifyingNumber; UUID=[string]$_.UUID; SKUNumber=[string]$_.SKUNumber
     }
-} else {
-    $platformRows += [pscustomobject]@{ "Muc"="TPM"; "Gia tri"="Không hỗ trợ trên cấu hình Windows hiện tại" }
-}
-if ($capabilityState.SecureBootCmdlet) {
-    try {
-        $platformRows += [pscustomobject]@{ "Muc"="Secure Boot"; "Gia tri"=(Confirm-SecureBootUEFI) }
-    } catch {
-        $platformRows += [pscustomobject]@{ "Muc"="Secure Boot"; "Gia tri"="Có cmdlet nhưng firmware không hỗ trợ/không đọc được" }
+})
+$biosInventory = @($biosSourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        Manufacturer=[string]$_.Manufacturer; Name=[string]$_.Name; SMBIOSBIOSVersion=[string]$_.SMBIOSBIOSVersion
+        Version=[string]$_.Version; ReleaseDate=$_.ReleaseDate; SerialNumber=[string]$_.SerialNumber
+        SMBIOSMajorVersion=$_.SMBIOSMajorVersion; SMBIOSMinorVersion=$_.SMBIOSMinorVersion; Status=[string]$_.Status
     }
-} else {
-    $platformRows += [pscustomobject]@{ "Muc"="Secure Boot"; "Gia tri"="Không hỗ trợ trên cấu hình Windows hiện tại" }
-}
-if ($capabilityState.BitLockerCmdlets) {
-    try {
-        $bitlocker = Get-BitLockerVolume -ErrorAction Stop 2>$null
-        foreach ($volume in $bitlocker) {
-            $platformRows += [pscustomobject]@{
-                "Muc"="BitLocker $($volume.MountPoint)"
-                "Gia tri"="$($volume.ProtectionStatus) / $($volume.VolumeStatus)"
-            }
-        }
-    } catch {
-        $platformRows += [pscustomobject]@{ "Muc"="BitLocker"; "Gia tri"="Có cmdlet nhưng không đọc được" }
+})
+$baseboards = @($baseboardSourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        Manufacturer=[string]$_.Manufacturer; Product=[string]$_.Product; Model=[string]$_.Model; Version=[string]$_.Version
+        BaseboardSerialNumber=[string]$_.SerialNumber; PartNumber=[string]$_.PartNumber; SKU=[string]$_.SKU; Status=[string]$_.Status
     }
-} else {
-    $platformRows += [pscustomobject]@{ "Muc"="BitLocker"; "Gia tri"="Không hỗ trợ trên cấu hình Windows hiện tại" }
+})
+$enclosures = @($enclosureSourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        Manufacturer=[string]$_.Manufacturer; Model=[string]$_.Model; Version=[string]$_.Version
+        ChassisSerialNumber=[string]$_.SerialNumber; SMBIOSAssetTag=[string]$_.SMBIOSAssetTag
+        PartNumber=[string]$_.PartNumber; SKU=[string]$_.SKU; ChassisTypes=(@($_.ChassisTypes) -join ', '); Status=[string]$_.Status
+    }
+})
+$processors = @($processorSourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        DeviceID=[string]$_.DeviceID; SocketDesignation=[string]$_.SocketDesignation; Name=[string]$_.Name; Manufacturer=[string]$_.Manufacturer
+        ProcessorId=[string]$_.ProcessorId; ProcessorSerialNumber=[string]$_.SerialNumber; PartNumber=[string]$_.PartNumber; AssetTag=[string]$_.AssetTag
+        NumberOfCores=$_.NumberOfCores; NumberOfEnabledCores=$_.NumberOfEnabledCore; NumberOfLogicalProcessors=$_.NumberOfLogicalProcessors
+        CurrentClockSpeedMHz=$_.CurrentClockSpeed; MaxClockSpeedMHz=$_.MaxClockSpeed; Architecture=$_.Architecture; Status=[string]$_.Status
+    }
+})
+
+$systemProductColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.vendor')='Vendor'; (Get-ReportText 'report.hardware.column.name')='Name'
+    (Get-ReportText 'report.hardware.column.version')='Version'; (Get-ReportText 'report.hardware.column.serial')='SystemSerialNumber'
+    (Get-ReportText 'report.hardware.column.uuid')='UUID'; (Get-ReportText 'report.hardware.column.sku')='SKUNumber'
 }
-Add-Section "Bảo mật phần cứng" (Add-Table $platformRows @("Muc","Gia tri"))
+Add-Section (Get-ReportText 'report.hardware.section.systemProduct') (Add-Table (ConvertTo-ReportHardwareTableRows $systemProducts $systemProductColumns) @($systemProductColumns.Keys))
+$biosColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'; (Get-ReportText 'report.hardware.column.name')='Name'
+    (Get-ReportText 'report.hardware.column.biosVersion')='SMBIOSBIOSVersion'; (Get-ReportText 'report.hardware.column.version')='Version'
+    (Get-ReportText 'report.hardware.column.releaseDate')='ReleaseDate'; (Get-ReportText 'report.hardware.column.serial')='SerialNumber'
+    (Get-ReportText 'report.hardware.column.status')='Status'
+}
+Add-Section (Get-ReportText 'report.hardware.section.bios') (Add-Table (ConvertTo-ReportHardwareTableRows $biosInventory $biosColumns) @($biosColumns.Keys))
+$baseboardColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'; (Get-ReportText 'report.hardware.column.product')='Product'
+    (Get-ReportText 'report.hardware.column.model')='Model'; (Get-ReportText 'report.hardware.column.version')='Version'
+    (Get-ReportText 'report.hardware.column.serial')='BaseboardSerialNumber'; (Get-ReportText 'report.hardware.column.partNumber')='PartNumber'
+    (Get-ReportText 'report.hardware.column.sku')='SKU'; (Get-ReportText 'report.hardware.column.status')='Status'
+}
+Add-Section (Get-ReportText 'report.hardware.section.baseboard') (Add-Table (ConvertTo-ReportHardwareTableRows $baseboards $baseboardColumns) @($baseboardColumns.Keys))
+$chassisColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'; (Get-ReportText 'report.hardware.column.model')='Model'
+    (Get-ReportText 'report.hardware.column.version')='Version'; (Get-ReportText 'report.hardware.column.serial')='ChassisSerialNumber'
+    (Get-ReportText 'report.hardware.column.assetTag')='SMBIOSAssetTag'; (Get-ReportText 'report.hardware.column.partNumber')='PartNumber'
+    (Get-ReportText 'report.hardware.column.chassisTypes')='ChassisTypes'; (Get-ReportText 'report.hardware.column.status')='Status'
+}
+Add-Section (Get-ReportText 'report.hardware.section.chassis') (Add-Table (ConvertTo-ReportHardwareTableRows $enclosures $chassisColumns) @($chassisColumns.Keys))
+$processorColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.deviceId')='DeviceID'; (Get-ReportText 'report.hardware.column.socket')='SocketDesignation'
+    (Get-ReportText 'report.hardware.column.name')='Name'; (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'
+    (Get-ReportText 'report.hardware.column.processorId')='ProcessorId'; (Get-ReportText 'report.hardware.column.serial')='ProcessorSerialNumber'
+    (Get-ReportText 'report.hardware.column.cores')='NumberOfCores'; (Get-ReportText 'report.hardware.column.logicalProcessors')='NumberOfLogicalProcessors'
+    (Get-ReportText 'report.hardware.column.currentClockMHz')='CurrentClockSpeedMHz'; (Get-ReportText 'report.hardware.column.maxClockMHz')='MaxClockSpeedMHz'
+    (Get-ReportText 'report.hardware.column.status')='Status'
+}
+Add-Section (Get-ReportText 'report.hardware.section.processors') (Add-Table (ConvertTo-ReportHardwareTableRows $processors $processorColumns) @($processorColumns.Keys))
+
+$tpmState = Get-ReportTpmSecurityState -CapabilityProfile $capabilityState
+$secureBootState = Get-ReportSecureBootSecurityState
+$bitLockerState = Get-ReportBitLockerSecurityState
+$platformRows = @(
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmPresent'); "Gia tri"=$tpmState.Present },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmReady'); "Gia tri"=$tpmState.Ready },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmEnabled'); "Gia tri"=$tpmState.Enabled },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmActivated'); "Gia tri"=$tpmState.Activated },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmOwned'); "Gia tri"=$tpmState.Owned },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmSpecVersion'); "Gia tri"=$tpmState.SpecVersion },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmManufacturer'); "Gia tri"=$tpmState.Manufacturer },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmManufacturerVersion'); "Gia tri"=$tpmState.ManufacturerVersion },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmSource'); "Gia tri"=$tpmState.Source },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.secureBootState'); "Gia tri"=$secureBootState.State },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.secureBootSupported'); "Gia tri"=$secureBootState.Supported },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.secureBootEnabled'); "Gia tri"=$secureBootState.Enabled },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.secureBootSource'); "Gia tri"=$secureBootState.Source },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.bitLockerSupported'); "Gia tri"=$bitLockerState.Supported },
+    [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.bitLockerSource'); "Gia tri"=$bitLockerState.Source }
+)
+if (-not [string]::IsNullOrWhiteSpace([string]$tpmState.Error)) { $platformRows += [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.tpmError'); "Gia tri"=$tpmState.Error } }
+if (-not [string]::IsNullOrWhiteSpace([string]$secureBootState.Error)) { $platformRows += [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.secureBootError'); "Gia tri"=$secureBootState.Error } }
+if (-not [string]::IsNullOrWhiteSpace([string]$bitLockerState.Error)) { $platformRows += [pscustomobject]@{ "Muc"=(Get-ReportText 'report.hardware.state.bitLockerError'); "Gia tri"=$bitLockerState.Error } }
+Add-Section (Get-ReportText 'report.hardware.section.platformSecurity') (Add-Table $platformRows @("Muc","Gia tri"))
+
+$bitLockerDisplayRows = @($bitLockerState.Volumes | ForEach-Object {
+    [pscustomobject][ordered]@{
+        MountPoint=$_.MountPoint; VolumeType=$_.VolumeType; CapacityGB=$_.CapacityGB; EncryptionMethod=$_.EncryptionMethod
+        VolumeStatus=$_.VolumeStatus; EncryptionPercentage=$_.EncryptionPercentage; ProtectionStatus=$_.ProtectionStatus
+        LockStatus=$_.LockStatus; AutoUnlockEnabled=$_.AutoUnlockEnabled; AutoUnlockKeyStored=$_.AutoUnlockKeyStored
+        MetadataVersion=$_.MetadataVersion; KeyProtectorTypes=(@($_.KeyProtectorTypes) -join ', '); Source=$_.Source; Error=$_.Error
+    }
+})
+$bitLockerColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.mountPoint')='MountPoint'; (Get-ReportText 'report.hardware.column.volumeType')='VolumeType'
+    (Get-ReportText 'report.hardware.column.capacityGB')='CapacityGB'; (Get-ReportText 'report.hardware.column.encryptionMethod')='EncryptionMethod'
+    (Get-ReportText 'report.hardware.column.volumeStatus')='VolumeStatus'; (Get-ReportText 'report.hardware.column.encryptionPercentage')='EncryptionPercentage'
+    (Get-ReportText 'report.hardware.column.protectionStatus')='ProtectionStatus'; (Get-ReportText 'report.hardware.column.lockStatus')='LockStatus'
+    (Get-ReportText 'report.hardware.column.autoUnlockEnabled')='AutoUnlockEnabled'; (Get-ReportText 'report.hardware.column.autoUnlockKeyStored')='AutoUnlockKeyStored'
+    (Get-ReportText 'report.hardware.column.metadataVersion')='MetadataVersion'; (Get-ReportText 'report.hardware.column.keyProtectorTypes')='KeyProtectorTypes'
+    (Get-ReportText 'report.hardware.column.source')='Source'; (Get-ReportText 'report.hardware.column.error')='Error'
+}
+Add-Section (Get-ReportText 'report.hardware.section.bitLockerVolumes') (Add-Table (ConvertTo-ReportHardwareTableRows $bitLockerDisplayRows $bitLockerColumns) @($bitLockerColumns.Keys))
 
 $memory = Safe-Cim Win32_PhysicalMemory | ForEach-Object {
     [pscustomobject]@{
@@ -1221,7 +1622,12 @@ Add-Section "Đồ họa" (Add-Table $gpu @("Ten","RAM","Driver","Do phan giai",
 
 $monitors = @()
 try { $monitors = @(Get-ReportMonitorInventory) } catch {}
-Add-Section "Màn hình" (Add-Table $monitors @("Ten","Serial","Nam SX","Hang ID"))
+$monitorColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.name')='Name'; (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'
+    (Get-ReportText 'report.hardware.column.productCode')='ProductCode'; (Get-ReportText 'report.hardware.column.serial')='SerialNumber'
+    (Get-ReportText 'report.hardware.column.manufactureWeek')='ManufactureWeek'; (Get-ReportText 'report.hardware.column.manufactureYear')='ManufactureYear'
+}
+Add-Section (Get-ReportText 'report.hardware.section.monitors') (Add-Table (ConvertTo-ReportHardwareTableRows $monitors $monitorColumns) @($monitorColumns.Keys))
 
 $sound = Safe-Cim Win32_SoundDevice | ForEach-Object {
     [pscustomobject]@{
@@ -1231,6 +1637,31 @@ $sound = Safe-Cim Win32_SoundDevice | ForEach-Object {
     }
 }
 Add-Section "Âm thanh" (Add-Table $sound @("Ten","Hang","Trang thai"))
+
+$batterySourceClass = 'Win32_PortableBattery'
+$batterySourceRows = @(Safe-Cim Win32_PortableBattery)
+if ($batterySourceRows.Count -eq 0) {
+    $batterySourceClass = 'Win32_Battery'
+    $batterySourceRows = @(Safe-Cim Win32_Battery)
+}
+$batteries = @($batterySourceRows | ForEach-Object {
+    [pscustomobject][ordered]@{
+        Name=[string]$_.Name; Manufacturer=[string]$_.Manufacturer; DeviceID=[string]$_.DeviceID; PNPDeviceID=[string]$_.PNPDeviceID
+        Status=[string]$_.Status; BatteryStatus=$_.BatteryStatus; EstimatedChargeRemaining=$_.EstimatedChargeRemaining
+        EstimatedRunTime=$_.EstimatedRunTime; DesignCapacity=$_.DesignCapacity; FullChargeCapacity=$_.FullChargeCapacity
+        DesignVoltage=$_.DesignVoltage; Chemistry=$_.Chemistry; SmartBatteryVersion=[string]$_.SmartBatteryVersion; Source=$batterySourceClass
+    }
+})
+$batteryColumns = [ordered]@{
+    (Get-ReportText 'report.hardware.column.name')='Name'; (Get-ReportText 'report.hardware.column.manufacturer')='Manufacturer'
+    (Get-ReportText 'report.hardware.column.deviceId')='DeviceID'; (Get-ReportText 'report.hardware.column.identifier')='PNPDeviceID'
+    (Get-ReportText 'report.hardware.column.status')='Status'; (Get-ReportText 'report.hardware.column.batteryStatus')='BatteryStatus'
+    (Get-ReportText 'report.hardware.column.chargePercent')='EstimatedChargeRemaining'; (Get-ReportText 'report.hardware.column.estimatedRuntime')='EstimatedRunTime'
+    (Get-ReportText 'report.hardware.column.designCapacity')='DesignCapacity'; (Get-ReportText 'report.hardware.column.fullChargeCapacity')='FullChargeCapacity'
+    (Get-ReportText 'report.hardware.column.designVoltage')='DesignVoltage'; (Get-ReportText 'report.hardware.column.chemistry')='Chemistry'
+    (Get-ReportText 'report.hardware.column.source')='Source'
+}
+Add-Section (Get-ReportText 'report.hardware.section.batteries') (Add-Table (ConvertTo-ReportHardwareTableRows $batteries $batteryColumns) @($batteryColumns.Keys))
 
 $disks = Safe-Cim Win32_DiskDrive | ForEach-Object {
     [pscustomobject]@{
@@ -1348,6 +1779,7 @@ if ($wantSoftware) {
     $remediationEligibilityColumn = Get-ReportText "report.software.column.remediationEligibility"
     $apps = @($softwareAssessments | ForEach-Object {
         $assessment = $_
+        $licenseRequiresEntitlement = [bool]([string]$assessment.LicenseModel -in @('Paid','Commercial','Subscription','Perpetual','Trial','Trialware','Mixed'))
         [pscustomobject][ordered]@{
             "Ten phan mem" = [string]$assessment.Name
             "Phien ban" = [string]$assessment.Version
@@ -1376,6 +1808,7 @@ if ($wantSoftware) {
             SignatureStatus = [string]$assessment.SignatureStatus
             AssessmentCode = [string]$assessment.AssessmentCode
             LicenseModel = [string]$assessment.LicenseModel
+            LicenseRequiresEntitlement = $licenseRequiresEntitlement
             NeedsReview = [bool]$assessment.NeedsReview
             RemediationSupported = [bool]$assessment.RemediationSupported
             ManualEligible = [bool]$assessment.ManualEligible
@@ -1385,14 +1818,37 @@ if ($wantSoftware) {
             RemediationImpact = [string]$assessment.RemediationImpact
             ActivationStateProbe = [string]$assessment.ActivationStateProbe
             CatalogProductId = [string]$assessment.CatalogProductId
+            CatalogVersion = [string]$assessment.CatalogVersion
+            CatalogLicenseModel = [string]$assessment.CatalogLicenseModel
+            CatalogMatchReason = [string]$assessment.CatalogMatchReason
+            CatalogNamePattern = [string]$assessment.CatalogNamePattern
+            LicenseModelReason = [string]$assessment.LicenseModelReason
+            LicenseTechnicalState = [string]$assessment.LicenseTechnicalState
+            AssessmentSortPriority = [int]$assessment.AssessmentSortPriority
+            PublisherVerification = $assessment.PublisherVerification
+            TechnicalEvidence = @($assessment.Evidence)
+            EvidenceCount = [int]$assessment.EvidenceCount
+            ConclusiveEvidenceCount = [int]$assessment.ConclusiveEvidenceCount
             StrongEvidenceCount = [int]$assessment.StrongEvidenceCount
+            ModerateEvidenceCount = [int]$assessment.ModerateEvidenceCount
+            WeakEvidenceCount = [int]$assessment.WeakEvidenceCount
             DecisiveEvidenceCount = [int]$assessment.DecisiveEvidenceCount
+            IndependentStrongEvidenceGroupCount = [int]$assessment.IndependentStrongEvidenceGroupCount
+            CleanupFinding = [bool]$assessment.CleanupFinding
             VendorScope = [string]$assessment.VendorScope
             IsSystemComponent = [bool]$assessment.IsSystemComponent
             SystemComponentReason = [string]$assessment.SystemComponentReason
+            PostRemediationStateExpectation = [string]$assessment.PostRemediationStateExpectation
+            DeepScanEnabled = [bool]$assessment.DeepScanEnabled
+            DeepScanStatus = [string]$assessment.DeepScanStatus
+            DeepScanComplete = [bool]$assessment.DeepScanComplete
+            DeepScanRoots = @($assessment.DeepScanRoots)
+            DeepScanFilesEnumerated = [int]$assessment.DeepScanFilesEnumerated
+            DeepScanSignatureChecks = [int]$assessment.DeepScanSignatureChecks
+            DeepScanHashChecks = [int]$assessment.DeepScanHashChecks
             MergedRecordCount = [int]$assessment.MergedRecordCount
         }
-    } | Sort-Object "Ten phan mem", "Phien ban", "Phạm vi")
+    } | Sort-Object AssessmentSortPriority, "Ten phan mem", "Phien ban", "Phạm vi")
 
     # Giữ toàn bộ dữ liệu trong JSON/XML nhưng chỉ đưa ứng dụng người dùng vào
     # luồng đọc chính. Thành phần hệ thống và ứng dụng mặc định được chuyển sang
@@ -1546,7 +2002,7 @@ if ($wantSoftware) {
             ReviewRank = $reviewRank
             StrongTechnicalEvidence = $strongTechnicalEvidence
             HasRemediationEvidence = $hasRemediationEvidence
-            LicenseRequiresEntitlement = $licenseRequiresEntitlement
+            LicenseRequiresEntitlement = [bool]$app.LicenseRequiresEntitlement
         }
     })
 
@@ -2301,6 +2757,32 @@ $detailedInventory = [ordered]@{
     Assessment = @($assessmentRows)
     ActivatorFindings = @($crackFindings)
 }
+if ($wantHardware) {
+    $detailedInventory.Hardware = [ordered]@{
+        ComputerSystem = [ordered]@{
+            Manufacturer=[string]$cs.Manufacturer; Model=[string]$cs.Model; SystemType=[string]$cs.SystemType
+            TotalPhysicalMemoryBytes=$(if ($null -ne $cs.TotalPhysicalMemory) { [uint64]$cs.TotalPhysicalMemory } else { $null })
+        }
+        ComputerSystemProducts = @($systemProducts)
+        BIOS = @($biosInventory)
+        Baseboards = @($baseboards)
+        Chassis = @($enclosures)
+        Processors = @($processors)
+        MemoryModules = @($memory)
+        PhysicalDisks = @($disks)
+        LogicalVolumes = @($volumes)
+        Graphics = @($gpu)
+        Monitors = @($monitors)
+        Batteries = @($batteries)
+        NetworkConfigurations = @($network)
+        NetworkAdapters = @($adapters)
+        Security = [ordered]@{
+            TPM = $tpmState
+            SecureBoot = $secureBootState
+            BitLocker = $bitLockerState
+        }
+    }
+}
 if ($wantSoftware) {
     $detailedInventory.Software = [ordered]@{
         LegacyInstalledApplications = @($legacyApps)
@@ -2326,6 +2808,9 @@ if ($wantSoftware) {
             Version=[string]$softwareCatalog.CatalogVersion
             RuleCount=[int]@($softwareCatalog.Products).Count
             Sha256=[string]$softwareCatalog.CatalogSha256
+            SignatureValid=[bool]$softwareCatalog.CatalogSignatureValid
+            SignatureFile=$(if (-not [string]::IsNullOrWhiteSpace([string]$softwareCatalog.CatalogSignaturePath)) { [IO.Path]::GetFileName([string]$softwareCatalog.CatalogSignaturePath) } else { '' })
+            TrustedForDecisiveEvidence=[bool](Test-ToolSoftwareCatalogTrustedForDecisiveEvidence -Catalog $softwareCatalog)
         } } else { $null })
         InventoryMetadata = Get-ToolSoftwareInventoryMetadata -Applications $completeSoftwareInventory -Catalog $softwareCatalog
     }

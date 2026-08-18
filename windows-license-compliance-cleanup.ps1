@@ -71,7 +71,7 @@ try {
 } catch { Write-Host $_.Exception.Message; exit 12 }
 
 $ErrorActionPreference = "Continue"
-$releaseVersion = "4.8.0.0"
+$releaseVersion = "4.8.0.1"
 if ([string]::IsNullOrWhiteSpace($OutputDir)) { $OutputDir = Join-Path ([Environment]::GetFolderPath("Desktop")) "BaoCao-Tool-Kiem-Tra" }
 if ([string]::IsNullOrWhiteSpace($ApprovedKmsServerFile)) { $ApprovedKmsServerFile = Join-Path $PSScriptRoot "approved-kms-servers.txt" }
 $script:StrictActivatorPattern = "(?i)(\bkmspico\b|\bkmsauto\b|\bauto[\s._-]*kms\b|\bautokms\b|\bkms[\s._-]*vl(?:[\s._-]*all)?\b|\bkms-r\b|\baact(?:portable)?\b|\bsppextcomobj(?:patcher|hook)\b|\bspp[\s._-]*(?:hook|patcher)\b|\bmicrosoft[\s_-]+toolkit\b|\bhwidgen\b|\bmassgrave\b|\bmas[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge)\b|\bpmas(?:[\s._-]*(?:aio|all[\s._-]*in[\s._-]*one|activat(?:ion|or)|hwid|kms|ohook|tsforge))?\b|\bmicrosoft[\s._-]*activation[\s._-]*scripts?\b|\bactivation[\s._-]*program[\s._-]*(?:v(?:ersion)?[\s._-]*)?1(?:\.|\s+|[_-])17\b|\btsforge\b|\bohook\b)"
@@ -499,65 +499,92 @@ function ConvertFrom-OfficeLicenseStatus {
         [Parameter(Mandatory = $true)][string]$Path
     )
 
-    # /dstatusall trả nhiều SKU trong cùng một lần gọi. Bản cũ kiểm tra toàn
-    # bộ output như một khối rồi chỉ lấy Last5 đầu tiên, vì vậy gỡ xong một
-    # Office KMS mới phát hiện SKU KMS kế tiếp. Tách từng khối SKU để tất cả
-    # key KMS đang cài được nhìn thấy và chọn xử lý ngay trong một lượt.
+    return @(ConvertFrom-OfficeOfficialLicenseStatus -StatusText $StatusText -Path $Path | Where-Object {
+        [string]$_.Channel -eq 'KMS' -and ($_.Last5 -or $_.Server)
+    })
+}
+
+function ConvertFrom-OfficeOfficialLicenseStatus {
+    param(
+        [Parameter(Mandatory = $true)][string]$StatusText,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    # OSPP is the vendor probe; application launch or a key file is not proof.
     $entries = New-Object System.Collections.Generic.List[object]
     $normalized = ([string]$StatusText) -replace "`0", "" -replace "`r", ""
     $blocks = [regex]::Split($normalized, '(?m)^\s*-{20,}\s*$')
     foreach ($block in $blocks) {
         if ([string]::IsNullOrWhiteSpace($block)) { continue }
-        if ($block -notmatch '(?i)(VOLUME_KMSCLIENT|KMSCLIENT|_KMS_Client)') { continue }
-
         $skuMatch = [regex]::Match($block, '(?im)^\s*SKU ID\s*:\s*(?<Value>[^\r\n]+)')
         $nameMatch = [regex]::Match($block, '(?im)^\s*LICENSE NAME\s*:\s*(?<Value>[^\r\n]+)')
         $descriptionMatch = [regex]::Match($block, '(?im)^\s*LICENSE DESCRIPTION\s*:\s*(?<Value>[^\r\n]+)')
         $statusMatch = [regex]::Match($block, '(?im)^\s*LICENSE STATUS\s*:\s*(?<Value>[^\r\n]+)')
+        if (-not $nameMatch.Success -and -not $descriptionMatch.Success -and -not $statusMatch.Success) { continue }
+
         $keyMatch = [regex]::Match($block, '(?im)^\s*(?:Last 5 characters of installed product key|5 .{0,24} cu.i[^:]*)\s*:\s*(?<Value>[A-Z0-9]{5})\s*$')
         $serverMatch = [regex]::Match($block, '(?im)^\s*(?:KMS machine name(?: from DNS)?|KMS machine registry override defined|Key Management Service machine name)\s*:\s*(?<Value>[^\r\n]+)')
-
-        $last5 = if ($keyMatch.Success) { $keyMatch.Groups['Value'].Value.Trim().ToUpperInvariant() } else { '' }
+        $description = if ($descriptionMatch.Success) { $descriptionMatch.Groups['Value'].Value.Trim() } else { '' }
+        $rawStatus = if ($statusMatch.Success) { $statusMatch.Groups['Value'].Value.Trim(' ', '-') } else { '' }
+        $normalizedStatus = ($rawStatus -replace '[^A-Za-z]', '').ToUpperInvariant()
+        $statusCode = if ($normalizedStatus -eq 'LICENSED') { 'Licensed' }
+            elseif ($normalizedStatus -eq 'UNLICENSED') { 'Unlicensed' }
+            elseif ($normalizedStatus -match 'GRACE') { 'Grace' }
+            elseif ($normalizedStatus -match 'NOTIFICATION|NONGENUINE') { 'Notification' }
+            else { 'Unknown' }
+        $channel = if ($description -match '(?i)VOLUME_KMSCLIENT|KMSCLIENT|_KMS_Client') { 'KMS' }
+            elseif ($description -match '(?i)VOLUME_MAK|\bMAK\b') { 'MAK' }
+            elseif ($description -match '(?i)RETAIL') { 'Retail' }
+            elseif ($description -match '(?i)SUBSCRIPTION|TIMEBASED') { 'Subscription' }
+            else { 'Unknown' }
         $server = if ($serverMatch.Success) { $serverMatch.Groups['Value'].Value.Trim() } else { '' }
         if ($server -match '(?i)not available|không (?:có|khả dụng)') { $server = '' }
-
-        # Một license definition KMS_CLIENT không có key, không có override và
-        # đang Unlicensed chỉ là SKU được Office cài sẵn; nó không phải KMS đang
-        # hoạt động và không được dùng để khóa kết luận "đủ sạch".
-        if ([string]::IsNullOrWhiteSpace($last5) -and [string]::IsNullOrWhiteSpace($server)) { continue }
 
         $entries.Add([pscustomobject][ordered]@{
             Path = $Path
             SkuId = if ($skuMatch.Success) { $skuMatch.Groups['Value'].Value.Trim() } else { '' }
-            LicenseName = if ($nameMatch.Success) { $nameMatch.Groups['Value'].Value.Trim() } else { 'Office KMS' }
-            Description = if ($descriptionMatch.Success) { $descriptionMatch.Groups['Value'].Value.Trim() } else { 'KMSCLIENT' }
-            LicenseStatus = if ($statusMatch.Success) { $statusMatch.Groups['Value'].Value.Trim(' ', '-') } else { Get-CleanupText "common.unknown" }
-            Last5 = $last5
+            LicenseName = if ($nameMatch.Success) { $nameMatch.Groups['Value'].Value.Trim() } else { 'Microsoft Office' }
+            Description = $description
+            LicenseStatus = $rawStatus
+            LicenseStatusCode = $statusCode
+            Channel = $channel
+            Last5 = if ($keyMatch.Success) { $keyMatch.Groups['Value'].Value.Trim().ToUpperInvariant() } else { '' }
             Server = $server
-            Status = $block.Trim()
         })
     }
     return @($entries.ToArray())
 }
 
-function Get-OfficeKmsEntries {
-    # Chỉ trả về từng SKU Office KMS có key hoặc KMS override đang hoạt động.
-    # Không đụng tới Retail/OEM/MAK và không báo nhầm license definition KMS
-    # đã Unlicensed nhưng không còn product key.
+function Get-OfficeLicenseEntries {
     $entries = New-Object System.Collections.Generic.List[object]
     $osppPaths = @(Get-ToolOptimizedOfficeOsppPaths)
     foreach ($statusResult in @(Invoke-ToolParallelOfficeStatus -CscriptPath $nativeCscriptPath -OsppPaths $osppPaths)) {
         $ospp = [string]$statusResult.Path
-        $status = [string]$statusResult.Output
         if (-not $statusResult.Readable) {
             Add-ScanWarning (Get-CleanupText "cleanupReport.scan.officeStatusFailed" @($ospp))
             continue
         }
-        foreach ($entry in @(ConvertFrom-OfficeLicenseStatus -StatusText $status -Path $ospp)) {
+        foreach ($entry in @(ConvertFrom-OfficeOfficialLicenseStatus -StatusText ([string]$statusResult.Output) -Path $ospp)) {
             $entries.Add($entry)
         }
     }
-    return @($entries.ToArray() | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)" } | ForEach-Object { $_.Group[0] })
+    return @($entries.ToArray() | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)|$($_.Channel)" } | ForEach-Object { $_.Group[0] })
+}
+
+function Get-OfficeKmsEntries {
+    param([AllowNull()][object[]]$LicenseEntries)
+    # Chỉ trả về từng SKU Office KMS có key hoặc KMS override đang hoạt động.
+    # Không đụng tới Retail/OEM/MAK và không báo nhầm license definition KMS
+    # đã Unlicensed nhưng không còn product key.
+    if (-not $PSBoundParameters.ContainsKey('LicenseEntries') -or $null -eq $LicenseEntries) {
+        $LicenseEntries = @(Get-OfficeLicenseEntries)
+    }
+    return @($LicenseEntries | Where-Object {
+        [string]$_.Channel -eq 'KMS' -and (
+            -not [string]::IsNullOrWhiteSpace([string]$_.Last5) -or
+            -not [string]::IsNullOrWhiteSpace([string]$_.Server)
+        )
+    } | Group-Object { "$($_.Path)|$($_.SkuId)|$($_.Last5)" } | ForEach-Object { $_.Group[0] })
 }
 
 function Status-Text {
@@ -1115,7 +1142,13 @@ function Get-ThirdPartyLicenseStatePaths {
 }
 
 function Get-ThirdPartyRemediationPlan {
-    param([string]$RemediationAdapter, [string]$EvidenceScope, $Evidence, $Applications = @())
+    param(
+        [string]$RemediationAdapter,
+        [string]$EvidenceScope,
+        $Evidence,
+        $Applications = @(),
+        [switch]$PreserveVendorLicenseState
+    )
     $plan = New-Object System.Collections.Generic.List[object]
     foreach ($item in @($Evidence | Where-Object { [string]$_.VendorScope -eq $EvidenceScope })) {
         switch ([string]$item.Type) {
@@ -1149,7 +1182,10 @@ function Get-ThirdPartyRemediationPlan {
     foreach ($supportingItem in @(Get-ThirdPartyGenericRemediationPlan -Applications $Applications | Where-Object {
         [string]$_.Type -in @('File','Hosts','Firewall')
     })) { $plan.Add($supportingItem) }
-    foreach ($statePath in @(Get-ThirdPartyLicenseStatePaths -RemediationAdapter $RemediationAdapter -Applications $Applications)) { $plan.Add($statePath) }
+    # Preserve a vendor-confirmed shared license and every unverified rarreg.key.
+    if (-not $PreserveVendorLicenseState -and $RemediationAdapter -ne 'WinRAR') {
+        foreach ($statePath in @(Get-ThirdPartyLicenseStatePaths -RemediationAdapter $RemediationAdapter -Applications $Applications)) { $plan.Add($statePath) }
+    }
     return @($plan.ToArray() |
         Group-Object { "$($_.Type)|$($_.Kind)|$($_.Name)|$($_.Location)" } |
         ForEach-Object { $_.Group[0] })
@@ -1412,12 +1448,18 @@ function Get-ThirdPartyLicenseCandidates {
     foreach ($adapterDefinition in $adapterDefinitions) {
         $adapter = [string]$adapterDefinition.Adapter
         $vendorScope = [string]$adapterDefinition.EvidenceScope
-        $vendorApps = @($Applications | Where-Object {
+        $vendorFamilyApps = @($Applications | Where-Object { [string]$_.RemediationAdapter -eq $adapter })
+        $vendorApps = @($vendorFamilyApps | Where-Object {
             [string]$_.RemediationAdapter -eq $adapter -and (Test-ThirdPartyApplicationCleanupEligible -Application $_)
         })
         $vendorEvidence = @($Evidence | Where-Object { [string]$_.VendorScope -eq $vendorScope })
         if ($vendorApps.Count -eq 0) { continue }
-        $plan = @(Get-ThirdPartyRemediationPlan -RemediationAdapter $adapter -EvidenceScope $vendorScope -Evidence $vendorEvidence -Applications $vendorApps)
+        $verifiedVendorLicense = [bool](@($vendorFamilyApps | Where-Object {
+            -not ($_.PSObject.Properties['CleanupFinding'] -and [bool]$_.CleanupFinding) -and
+            ([string]$_.AssessmentCode -eq 'GenuineVerified' -or [string]$_.LicenseTechnicalState -eq 'LocalLicenseVerified')
+        }).Count -gt 0)
+        $preserveVendorLicenseState = [bool]($adapter -eq 'WinRAR' -or $verifiedVendorLicense)
+        $plan = @(Get-ThirdPartyRemediationPlan -RemediationAdapter $adapter -EvidenceScope $vendorScope -Evidence $vendorEvidence -Applications $vendorApps -PreserveVendorLicenseState:$preserveVendorLicenseState)
         if ($plan.Count -eq 0) { continue }
         $licenseStateCount = @($plan | Where-Object { [string]$_.Kind -eq 'ThirdPartyLicenseState' }).Count
         $manualOnlyPlanCount = @($plan | Where-Object { [string]$_.Type -eq 'Firewall' }).Count
@@ -1429,12 +1471,13 @@ function Get-ThirdPartyLicenseCandidates {
         }
         $strongEvidenceCount = [int](($vendorApps | Measure-Object -Property StrongEvidenceCount -Sum).Sum)
         $manualOnlyCount = [int]@($vendorApps | Where-Object { -not [bool]$_.AutoEligible }).Count
+        $remediationMode = if ($preserveVendorLicenseState) { 'ArtifactCleanupPreserveVerifiedLicense' } else { [string]$adapterDefinition.Mode }
         $candidate = New-CleanupItem -Type 'Application' -Kind 'ThirdPartyLicenseReset' -Name $familyName `
             -Location ($applicationNames -join '; ') -TargetId $adapter `
             -Detail (Get-CleanupText "cleanupReport.thirdParty.candidateDetailExtended" @($vendorApps.Count, $strongEvidenceCount, $manualOnlyCount, $licenseStateCount)) `
             -DefaultSelected $false -VendorScope $vendorScope -AutoEligible:([bool]($licenseStateCount -gt 0 -and $manualOnlyPlanCount -eq 0 -and @($vendorApps | Where-Object { [bool]$_.AutoEligible }).Count -gt 0)) `
             -ApplicationNames $applicationNames -ApplicationIds @($vendorApps | ForEach-Object { [string]$_.Id }) `
-            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode ([string]$adapterDefinition.Mode) -ComponentScope 'ThirdParty'
+            -Evidence $vendorEvidence -PlanItems $plan -RemediationMode $remediationMode -ComponentScope 'ThirdParty'
         $candidates.Add($candidate)
     }
 
@@ -2129,6 +2172,7 @@ function Get-CleanupNextActions {
         $CleanupItems,
         [bool]$ProtectedLicense,
         [string]$BackupDirectory = "",
+        [AllowNull()][object]$OfficialLicensePostCheck,
         [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')]
         [string]$Scope = 'All'
     )
@@ -2139,8 +2183,31 @@ function Get-CleanupNextActions {
         $next.Add([pscustomobject]@{ Code="RepairScanSources"; Label=(Get-CleanupText "cleanupReport.next.repairScan"); Detail=(Get-CleanupText "cleanupReport.next.repairScanDetail"); CandidateCount=0 })
         $next.Add([pscustomobject]@{ Code="Recheck"; Label=(Get-CleanupText "cleanupReport.next.recheck"); Detail=(Get-CleanupText "cleanupReport.next.recheckBeforeChange"); CandidateCount=0 })
     } elseif ([bool]$Verification.ReadyForOfficialActivation) {
-        if ((Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Windows') -and -not $ProtectedLicense) {
-            $next.Add([pscustomobject]@{ Code="OpenLicenseManager"; Label=(Get-CleanupText "cleanupReport.next.officialActivation"); Detail=(Get-CleanupText "cleanupReport.next.officialActivationDetail"); CandidateCount=0 })
+        $officialActions = @()
+        if ($null -ne $OfficialLicensePostCheck -and $OfficialLicensePostCheck.PSObject.Properties['OfficialActions']) {
+            $officialActions = @($OfficialLicensePostCheck.OfficialActions)
+        }
+        $needsWindowsOrOffice = [bool](@($officialActions | Where-Object { [string]$_.Code -in @('OpenWindowsActivation','OpenOfficeActivation') }).Count -gt 0)
+        if ($needsWindowsOrOffice -or ($null -eq $OfficialLicensePostCheck -and
+            (Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Windows') -and -not $ProtectedLicense)) {
+            $components = @($officialActions | Where-Object { [string]$_.Code -in @('OpenWindowsActivation','OpenOfficeActivation') } |
+                ForEach-Object { [string]$_.Component } | Select-Object -Unique)
+            $next.Add([pscustomobject]@{
+                Code="OpenLicenseManager"; Label=(Get-CleanupText "cleanupReport.next.officialActivation")
+                Detail=(Get-CleanupText "cleanupReport.next.officialActivationDetail"); CandidateCount=0
+                Components=$components; Target='LocalLicenseManager'
+            })
+        }
+        $vendorActions = @($officialActions | Where-Object {
+            [string]$_.Code -in @('OpenVendorActivation','OpenVendorRepair') -and
+            [string]$_.Target -match '^https://[^\s]+$'
+        } | Group-Object { ([string]$_.Target).ToLowerInvariant() } | ForEach-Object { $_.Group[0] } | Select-Object -First 25)
+        if ($vendorActions.Count -gt 0) {
+            $next.Add([pscustomobject]@{
+                Code='ReviewVendorActivation'; Label=(Get-CleanupText "cleanupReport.next.officialActivation")
+                Detail=(Get-CleanupText "cleanupReport.next.officialActivationDetail"); CandidateCount=0
+                Components=@('ThirdParty'); Name='ThirdParty'; Target=''; Targets=@($vendorActions)
+            })
         }
         $next.Add([pscustomobject]@{ Code="Recheck"; Label=(Get-CleanupText "cleanupReport.next.postCheck"); Detail=(Get-CleanupText "cleanupReport.next.postCheckDetail"); CandidateCount=0 })
     } else {
@@ -2272,6 +2339,188 @@ function Get-ProtectedLicenseInfo {
         Protected = $false
         Channel = if ($licensed) { Get-LicenseChannel $licensed } else { Get-CleanupText "common.unknown" }
         Reason = Get-CleanupText "cleanupReport.protected.none"
+    }
+}
+
+function Get-WindowsOfficialLicenseOutcome {
+    param(
+        $Products = @(),
+        $Verification,
+        [bool]$Included = $true
+    )
+
+    if (-not $Included) {
+        return [pscustomobject][ordered]@{
+            Component='Windows'; Applicable=$false; StateCode='NotScanned'
+            OfficiallyLicensed=$false; VendorConfirmed=$false; CrackFree=$false
+            RequiresOfficialActivation=$false; NeedsRepair=$false; Channel=''; Source='NotScanned'
+            OfficialActionCode=''; OfficialActionTarget=''
+        }
+    }
+
+    $crackFree = [bool](Test-CleanupScopeReady -Verification $Verification -Scope 'Windows')
+    $licensedProduct = @($Products | Where-Object {
+        if ([int]$_.LicenseStatus -ne 1) { return $false }
+        $channel = Get-LicenseChannel $_
+        return [bool]($channel -in @('OEM','Retail','MAK') -or
+            ($channel -eq 'KMS' -and (Test-ApprovedKms -Server ([string]$_.KeyManagementServiceMachine))))
+    } | Select-Object -First 1)
+    $readinessNeedsReview = [bool](@($Verification.ReadinessChecks | Where-Object {
+        [string]$_.StatusCode -in @('Review','Unverified')
+    }).Count -gt 0)
+    $stateCode = if (-not $crackFree) { 'CrackEvidencePresent' }
+        elseif ($licensedProduct.Count -gt 0) { 'Licensed' }
+        elseif ($readinessNeedsReview) { 'NeedsRepair' }
+        else { 'Unactivated' }
+    $channel = if ($licensedProduct.Count -gt 0) { Get-LicenseChannel $licensedProduct[0] }
+        else {
+            $firstProduct = @($Products | Sort-Object LicenseStatus -Descending | Select-Object -First 1)
+            if ($firstProduct.Count -gt 0) { Get-LicenseChannel $firstProduct[0] } else { '' }
+        }
+    $confirmed = [bool]($crackFree -and $stateCode -eq 'Licensed')
+    return [pscustomobject][ordered]@{
+        Component='Windows'; Applicable=$true; StateCode=$stateCode
+        OfficiallyLicensed=$confirmed; VendorConfirmed=$confirmed; CrackFree=$crackFree
+        RequiresOfficialActivation=[bool]($crackFree -and $stateCode -eq 'Unactivated')
+        NeedsRepair=[bool]($stateCode -eq 'NeedsRepair'); Channel=[string]$channel
+        Source='SoftwareLicensingProduct'; FirmwareEntitlementMarkerPresent=[bool](Get-Oa3KeyPresent)
+        OfficialActionCode=$(if ($crackFree -and $stateCode -in @('Unactivated','NeedsRepair')) { 'OpenWindowsActivation' } else { '' })
+        OfficialActionTarget=$(if ($crackFree -and $stateCode -in @('Unactivated','NeedsRepair')) { 'ms-settings:activation' } else { '' })
+    }
+}
+
+function Test-OfficeProductInstalled {
+    param($LicenseEntries = @())
+    if (@($LicenseEntries).Count -gt 0) { return $true }
+    foreach ($path in @(
+        'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\Configuration'
+    )) {
+        if (Test-Path -LiteralPath $path) { return $true }
+    }
+    return [bool](@(Get-ToolOptimizedOfficeOsppPaths).Count -gt 0)
+}
+
+function Get-OfficeOfficialLicenseOutcome {
+    param(
+        $LicenseEntries = @(),
+        $Verification,
+        [bool]$Included = $true,
+        [bool]$Installed = $true
+    )
+
+    if (-not $Included) {
+        return [pscustomobject][ordered]@{
+            Component='Office'; Applicable=$false; StateCode='NotScanned'
+            OfficiallyLicensed=$false; VendorConfirmed=$false; CrackFree=$false
+            RequiresOfficialActivation=$false; NeedsRepair=$false; Channel=''; Source='NotScanned'
+            OfficialActionCode=''; OfficialActionTarget=''
+        }
+    }
+    if (-not $Installed) {
+        return [pscustomobject][ordered]@{
+            Component='Office'; Applicable=$false; StateCode='NotDetected'
+            OfficiallyLicensed=$false; VendorConfirmed=$false; CrackFree=$true
+            RequiresOfficialActivation=$false; NeedsRepair=$false; Channel=''; Source='OSPP'
+            OfficialActionCode=''; OfficialActionTarget=''
+        }
+    }
+
+    $crackFree = [bool](Test-CleanupScopeReady -Verification $Verification -Scope 'Office')
+    $officialLicensedEntry = @($LicenseEntries | Where-Object {
+        if ([string]$_.LicenseStatusCode -ne 'Licensed') { return $false }
+        if ([string]$_.Channel -ne 'KMS') { return $true }
+        return [bool](Test-ApprovedKms -Server ([string]$_.Server))
+    } | Select-Object -First 1)
+    $stateCode = if (-not $crackFree) { 'CrackEvidencePresent' }
+        elseif ($officialLicensedEntry.Count -gt 0) { 'Licensed' }
+        elseif (@($LicenseEntries).Count -gt 0) { 'Unactivated' }
+        else { 'Unverified' }
+    $confirmed = [bool]($crackFree -and $stateCode -eq 'Licensed')
+    return [pscustomobject][ordered]@{
+        Component='Office'; Applicable=$true; StateCode=$stateCode
+        OfficiallyLicensed=$confirmed; VendorConfirmed=$confirmed; CrackFree=$crackFree
+        RequiresOfficialActivation=[bool]($crackFree -and $stateCode -in @('Unactivated','Unverified'))
+        NeedsRepair=[bool]($crackFree -and $stateCode -eq 'Unverified')
+        Channel=$(if ($officialLicensedEntry.Count -gt 0) { [string]$officialLicensedEntry[0].Channel } else { '' })
+        Source='OSPP'; OfficialActionCode=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified')) { 'OpenOfficeActivation' } else { '' })
+        OfficialActionTarget=$(if ($crackFree -and $stateCode -in @('Unactivated','Unverified')) { 'LocalLicenseManager:Office' } else { '' })
+    }
+}
+
+function Get-ThirdPartyOfficialLicenseOutcomes {
+    param($Applications = @(), [bool]$Included = $true)
+    if (-not $Included) { return @() }
+    $outcomes = New-Object System.Collections.Generic.List[object]
+    foreach ($application in @($Applications)) {
+        $licenseModel = [string]$application.LicenseModel
+        $assessment = [string]$application.AssessmentCode
+        $technicalState = [string]$application.LicenseTechnicalState
+        $cleanupFinding = [bool]($application.PSObject.Properties['CleanupFinding'] -and [bool]$application.CleanupFinding)
+        $stateCode = if ($cleanupFinding -or $assessment -in @('NonGenuine','Suspicious')) { 'CrackEvidencePresent' }
+            elseif ($assessment -eq 'IntegrityCompromised') { 'NeedsRepair' }
+            elseif ($assessment -eq 'GenuineVerified' -and $technicalState -eq 'LocalLicenseVerified') { 'Licensed' }
+            elseif ($assessment -eq 'Unactivated' -or $technicalState -eq 'Unactivated') { 'Unactivated' }
+            elseif ($licenseModel -in @('Free','OpenSource')) { 'NotApplicable' }
+            else { 'Unverified' }
+        $applicable = [bool]($stateCode -ne 'NotApplicable')
+        $confirmed = [bool]($stateCode -eq 'Licensed' -and -not $cleanupFinding)
+        $officialUrl = if ($application.PSObject.Properties['OfficialReferenceUrl']) { [string]$application.OfficialReferenceUrl } else { '' }
+        $hasOfficialHttpsTarget = [bool]($officialUrl -match '^https://[^\s]+$')
+        $actionCode = if ($hasOfficialHttpsTarget -and $stateCode -eq 'NeedsRepair') { 'OpenVendorRepair' }
+            elseif ($hasOfficialHttpsTarget -and $stateCode -in @('Unactivated','Unverified')) { 'OpenVendorActivation' }
+            else { '' }
+        $outcomes.Add([pscustomobject][ordered]@{
+            Component='ThirdParty'; ApplicationId=[string]$application.Id; Name=[string]$application.Name
+            Vendor=$(if ($application.PSObject.Properties['VendorScope']) { [string]$application.VendorScope } else { [string]$application.Publisher })
+            LicenseModel=$licenseModel; Applicable=$applicable; StateCode=$stateCode
+            OfficiallyLicensed=$confirmed; VendorConfirmed=$confirmed; CrackFree=[bool]($stateCode -ne 'CrackEvidencePresent')
+            RequiresOfficialActivation=[bool]($stateCode -in @('Unactivated','Unverified'))
+            NeedsRepair=[bool]($stateCode -eq 'NeedsRepair'); Source='VendorSpecificProbe'
+            OfficialActionCode=$actionCode; OfficialActionTarget=$officialUrl
+        })
+    }
+    return $outcomes.ToArray()
+}
+
+function Get-OfficialLicensePostCheck {
+    param(
+        $Verification,
+        $Products = @(),
+        $OfficeLicenseEntries = @(),
+        $ThirdPartyApplications = @(),
+        [ValidateSet('All','Windows','Office','ThirdParty','WindowsOffice','WindowsThirdParty','OfficeThirdParty')]
+        [string]$Scope = 'All'
+    )
+
+    $includeWindows = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Windows'
+    $includeOffice = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'Office'
+    $includeThirdParty = Test-CleanupScanScopeIncludes -Scope $Scope -Component 'ThirdParty'
+    $windows = Get-WindowsOfficialLicenseOutcome -Products $Products -Verification $Verification -Included:$includeWindows
+    $officeInstalled = if ($includeOffice) { Test-OfficeProductInstalled -LicenseEntries $OfficeLicenseEntries } else { $false }
+    $office = Get-OfficeOfficialLicenseOutcome -LicenseEntries $OfficeLicenseEntries -Verification $Verification -Included:$includeOffice -Installed:$officeInstalled
+    $thirdParty = @(Get-ThirdPartyOfficialLicenseOutcomes -Applications $ThirdPartyApplications -Included:$includeThirdParty)
+    $outcomes = @($windows, $office) + @($thirdParty)
+    $applicable = @($outcomes | Where-Object { [bool]$_.Applicable })
+    $crackFree = [bool](Test-CleanupScopeReady -Verification $Verification -Scope $Scope)
+    $allConfirmed = [bool]($crackFree -and $applicable.Count -gt 0 -and
+        @($applicable | Where-Object { -not [bool]$_.OfficiallyLicensed }).Count -eq 0)
+    $stateCode = if (-not $crackFree) { 'CrackEvidencePresent' }
+        elseif ($allConfirmed) { 'Licensed' }
+        elseif (@($applicable | Where-Object { [bool]$_.NeedsRepair }).Count -gt 0) { 'NeedsRepair' }
+        else { 'ActivationRequired' }
+    $actions = @($outcomes | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.OfficialActionCode) } | ForEach-Object {
+        [pscustomobject][ordered]@{
+            Code=[string]$_.OfficialActionCode; Component=[string]$_.Component
+            Name=$(if ($_.PSObject.Properties['Name']) { [string]$_.Name } else { [string]$_.Component })
+            Target=[string]$_.OfficialActionTarget
+        }
+    })
+    return [pscustomobject][ordered]@{
+        StateCode=$stateCode; OfficiallyLicensed=$allConfirmed; VendorConfirmed=$allConfirmed
+        CrackFree=$crackFree; ApplicableOutcomeCount=[int]$applicable.Count
+        ConfirmedOutcomeCount=[int]@($applicable | Where-Object { [bool]$_.OfficiallyLicensed }).Count
+        Windows=$windows; Office=$office; ThirdParty=@($thirdParty); OfficialActions=$actions
     }
 }
 
@@ -3461,7 +3710,8 @@ $includeThirdPartyScan = Test-CleanupScanScopeIncludes -Scope $ScanScope -Compon
 $deepSoftwareScanEnabled = [bool]($includeThirdPartyScan -and -not $SkipDeepSoftwareScan)
 $products = @($(if ($includeWindowsScan) { Get-WindowsLicenseProducts }))
 $findings = @($(if ($includeWindowsOfficeScan) { Get-ActivatorFindings }))
-$officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries }))
+$officeLicenseEntries = @($(if ($includeOfficeScan) { Get-OfficeLicenseEntries }))
+$officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries -LicenseEntries $officeLicenseEntries }))
 $installedApplications = @($(if ($includeThirdPartyScan) { Get-InstalledSoftwareInventory }))
 $softwareCatalog = if ($includeThirdPartyScan) { Get-ToolSoftwareLicenseCatalog -PreferCache } else { $null }
 $thirdPartyEvidence = @($(if ($includeThirdPartyScan) { Get-ThirdPartyStrongEvidence -Applications $installedApplications -Catalog $softwareCatalog }))
@@ -3624,6 +3874,8 @@ $cleanupWindowsKmsConfiguration = [bool]($unapprovedWindowsKms -or $unapprovedWi
 $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history -Scope $ScanScope
 $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
 $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
+$officialLicensePostCheck = Get-OfficialLicensePostCheck -Verification $verification -Products $products `
+    -OfficeLicenseEntries $officeLicenseEntries -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
 $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVersion "4.8" -Data ([ordered]@{
     ScanScope = $ScanScope
     CrackDetected = $crackDetected
@@ -3681,6 +3933,9 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     Reason = [string]$decision.Reason
     ReadyForOfficialActivation = [bool]$verification.ReadyForOfficialActivation
     ScopeReadyForOriginalState = [bool]$scopeReadyForOriginalState
+    OfficiallyLicensed = [bool]$officialLicensePostCheck.OfficiallyLicensed
+    OfficialLicenseStateCode = [string]$officialLicensePostCheck.StateCode
+    OfficialLicensePostCheck = $officialLicensePostCheck
     ReadinessReviewCount = [int]$verification.ReadinessReviewCount
     ScanWarningCount = [int]$verification.ScanWarningCount
     ScanWarnings = $verification.ScanWarnings
@@ -3706,7 +3961,7 @@ $decisionData = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVers
     BackupDirectory = ""
     CleanupConclusion = [string]$verification.Conclusion
     HandlingGuidance = $verification.HandlingGuidance
-    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$protectedLicense.Protected) -Scope $ScanScope)
+    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$protectedLicense.Protected) -OfficialLicensePostCheck $officialLicensePostCheck -Scope $ScanScope)
     ScopeNote = [string]$verification.ScopeNote
     ReportPath = [string]$reportPath
 })
@@ -3820,7 +4075,8 @@ if ($Remediate) {
     $script:WindowsLicenseSourceNote = ""
     $products = @($(if ($includeWindowsScan) { Get-WindowsLicenseProducts }))
     $findings = @($(if ($includeWindowsOfficeScan) { Get-ActivatorFindings }))
-    $officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries }))
+    $officeLicenseEntries = @($(if ($includeOfficeScan) { Get-OfficeLicenseEntries }))
+    $officeKmsEntries = @($(if ($includeOfficeScan) { Get-OfficeKmsEntries -LicenseEntries $officeLicenseEntries }))
     $installedApplications = @($(if ($includeThirdPartyScan) { Get-InstalledSoftwareInventory }))
     $softwareCatalog = if ($includeThirdPartyScan) { Get-ToolSoftwareLicenseCatalog -PreferCache } else { $null }
     $thirdPartyEvidence = @($(if ($includeThirdPartyScan) { Get-ThirdPartyStrongEvidence -Applications $installedApplications -Catalog $softwareCatalog }))
@@ -3843,6 +4099,8 @@ if ($Remediate) {
     $verification = Get-CleanupVerification -Products $products -Findings $findings -OfficeEntries $officeKmsEntries -History $history -Scope $ScanScope
     $verification = Add-ThirdPartyVerification -Verification $verification -ThirdPartyCandidates $thirdPartyCandidates -ThirdPartyApplications $thirdPartyApplications -Included:$includeThirdPartyScan
     $scopeReadyForOriginalState = Test-CleanupScopeReady -Verification $verification -Scope $ScanScope
+    $officialLicensePostCheck = Get-OfficialLicensePostCheck -Verification $verification -Products $products `
+        -OfficeLicenseEntries $officeLicenseEntries -ThirdPartyApplications $thirdPartyApplications -Scope $ScanScope
     $postProtectedLicense = if ($includeWindowsScan) { Get-ProtectedLicenseInfo -Products $products } else {
         [pscustomobject]@{ Protected=$false; Channel=(Get-CleanupText 'common.unknown'); Reason=(Get-CleanupText 'cleanupReport.protected.none') }
     }
@@ -3971,6 +4229,9 @@ if ($Remediate) {
         Reason = [string]$postConclusion
         ReadyForOfficialActivation = [bool]$finalReadyForOfficialActivation
         ScopeReadyForOriginalState = [bool]$finalScopeReadyForOriginalState
+        OfficiallyLicensed = [bool]$officialLicensePostCheck.OfficiallyLicensed
+        OfficialLicenseStateCode = [string]$officialLicensePostCheck.StateCode
+        OfficialLicensePostCheck = $officialLicensePostCheck
         ReadinessReviewCount = [int]$verification.ReadinessReviewCount
         ScanWarningCount = [int]$verification.ScanWarningCount
         ScanWarnings = $verification.ScanWarnings
@@ -3996,7 +4257,7 @@ if ($Remediate) {
         BackupDirectory = [string]$backupDirectory
         CleanupConclusion = [string]$postConclusion
         HandlingGuidance = $verification.HandlingGuidance
-        NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$postProtectedLicense.Protected) -BackupDirectory $backupDirectory -Scope $ScanScope)
+        NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$postProtectedLicense.Protected) -BackupDirectory $backupDirectory -OfficialLicensePostCheck $officialLicensePostCheck -Scope $ScanScope)
         ScopeNote = [string]$verification.ScopeNote
         ReportPath = [string]$reportPath
         Actions = @($actions)
@@ -4044,6 +4305,9 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     Decision = [string]$finalDecisionText
     ReadyForOfficialActivation = [bool]$finalReadyForOfficialActivation
     ScopeReadyForOriginalState = [bool]$finalScopeReadyForOriginalState
+    OfficiallyLicensed = [bool]$officialLicensePostCheck.OfficiallyLicensed
+    OfficialLicenseStateCode = [string]$officialLicensePostCheck.StateCode
+    OfficialLicensePostCheck = $officialLicensePostCheck
     CleanupConclusion = [string]$finalCleanupConclusion
     HandlingGuidance = $verification.HandlingGuidance
     ReadinessReviewCount = [int]$verification.ReadinessReviewCount
@@ -4090,7 +4354,7 @@ $cleanupSummary = New-ToolReportEnvelope -ReportKind "CleanupCompliance" -ToolVe
     ThirdPartyEvidence = @($thirdPartyEvidence)
     HistoryFindingCount = [int]$verification.HistoryFindingCount
     CleanupItems = @($cleanupItems)
-    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$decisionData.ProtectedLicense) -BackupDirectory $backupDirectory -Scope $ScanScope)
+    NextActions = @(Get-CleanupNextActions -Verification $verification -CleanupItems $cleanupItems -ProtectedLicense ([bool]$decisionData.ProtectedLicense) -BackupDirectory $backupDirectory -OfficialLicensePostCheck $officialLicensePostCheck -Scope $ScanScope)
     ApprovedKmsServerFile = Protect-CleanupReportText ([string]$approvedKmsConfig.Path)
     ApprovedKmsServerCount = [int]$approvedKmsConfig.Valid.Count
     InvalidApprovedKmsCount = [int]$approvedKmsConfig.Invalid.Count

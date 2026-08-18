@@ -11,7 +11,7 @@ param(
 )
 
 $ToolVersion = "4.8"
-$ReleaseVersion = "4.8.0.0"
+$ReleaseVersion = "4.8.0.1"
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Off
 

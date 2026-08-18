@@ -1,17 +1,17 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.3.1",
-  "UpdatedAtUtc": "2026-08-14T11:00:00Z",
+  "KnowledgeVersion": "1.3.4",
+  "UpdatedAtUtc": "2026-08-18T07:00:00Z",
   "ToolVersionMin": "4.8.0.0",
   "ToolVersionMax": "4.8.65535.65535",
-  "ReleasedWithToolVersion": "4.8.0.0",
+  "ReleasedWithToolVersion": "4.8.0.1",
   "Scope": "Tool-Kiem-Tra",
   "Entries": [
     {
       "Id": "scope",
       "TitleVi": "Phạm vi của Trợ lý Tool",
       "TitleEn": "Tool Assistant scope",
-      "Keywords": ["tro ly", "chat bot", "chatbot", "hoi gi", "lam duoc gi", "pham vi", "ai", "codex", "api", "mien phi"],
+      "Keywords": ["tro ly", "chat bot", "chatbot", "hoi gi", "lam duoc gi", "pham vi", "ai", "codex", "api"],
       "AnswerVi": "Trợ lý hiểu và trả lời mọi câu hỏi liên quan đến Tool Kiểm Tra trong phạm vi dữ liệu Tool có: thông tin sản phẩm, toàn bộ chức năng và cách dùng, trạng thái máy, báo cáo, bằng chứng, lỗi, an toàn, cập nhật và Máy chủ–Máy trạm. Trợ lý dùng tri thức cục bộ, tài liệu nhúng và báo cáo hiện có; danh sách này là phạm vi mở theo dữ liệu, không phải một tập câu hỏi mẫu cố định. Nếu thiếu bằng chứng, Trợ lý nói rõ phần chưa xác định; chỉ từ chối khi nội dung thực sự không liên quan đến Tool.",
       "AnswerEn": "Tool Assistant handles every Tool Kiem Tra-related question supported by available Tool data: product information, all features and workflows, device state, reports, evidence, errors, safety, updates, and server/workstation operation. It uses local knowledge, bundled documentation, and available report context; this is a data-driven scope, not a fixed sample-question list. It states when evidence is insufficient and declines only genuinely unrelated topics."
     },
@@ -19,9 +19,9 @@
       "Id": "tool-version",
       "TitleVi": "Phiên bản hiện tại",
       "TitleEn": "Current version",
-      "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v4.8", "v4.8.0.0"],
-      "AnswerVi": "Phiên bản hiện tại là Tool Kiểm Tra v4.8.0.0. Bản này được cập nhật tại chỗ trên cùng nhánh, tag và đường dẫn phát hành v4.8.0.0; số FileVersion/ProductVersion không đổi.",
-      "AnswerEn": "The current release is Tool Kiem Tra v4.8.0.0. It is maintained as an in-place update on the same v4.8.0.0 branch, tag, and release URL; FileVersion/ProductVersion remain unchanged."
+      "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v4.8", "v4.8.0.0", "v4.8.0.1"],
+      "AnswerVi": "Phiên bản hiện tại là Tool Kiểm Tra v4.8.0.1. Đây là bản phát hành mới với FileVersion/ProductVersion 4.8.0.1 và luồng cập nhật ứng dụng an toàn theo phiên bản, hash và xác nhận Online của người dùng.",
+      "AnswerEn": "The current release is Tool Kiem Tra v4.8.0.1. It is a new release with FileVersion/ProductVersion 4.8.0.1 and safe application updates gated by version, hash, and the user's Online consent."
     },
     {
       "Id": "tool-author",
@@ -36,8 +36,40 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v4.8"],
-      "AnswerVi": "Tag v4.8.0.0 được phát hành công khai ngày 10/08/2026. Bản cập nhật tại chỗ hiện tại được build ngày 14/08/2026 nhưng vẫn giữ nguyên phiên bản và đường dẫn phát hành v4.8.0.0. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi.",
-      "AnswerEn": "Tag v4.8.0.0 was publicly released on 10 August 2026. The current in-place build is dated 14 August 2026 while retaining the same v4.8.0.0 version and release URL. Open Version history in the Assurance Report Center for the change timeline."
+      "AnswerVi": "Bản v4.8.0.1 được build và phát hành ngày 18/08/2026. Bản này nâng phiên bản từ v4.8.0.0 để thiết bị cũ nhận được cập nhật qua luồng Online do người dùng cho phép. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi.",
+      "AnswerEn": "Version v4.8.0.1 was built and released on 18 August 2026. It increments v4.8.0.0 so older devices can receive the update through the user-consented Online flow. Open Version history in the Assurance Report Center for the change timeline."
+    },
+    {
+      "Id": "first-release",
+      "TitleVi": "Phiên bản công khai đầu tiên",
+      "TitleEn": "First public release",
+      "Keywords": ["phien ban dau tien cua tool", "v1.0 phat hanh ngay nao", "v1 ngay nao", "ngay ra mat v1.0", "first public version", "first release date", "ban dau tien", "ban dau tien ngay may", "lich su ban v1.0"],
+      "AnswerVi": "Phiên bản công khai đầu tiên là Tool Kiểm Tra v1.0, phát hành ngày 17/07/2026. Đây là mốc đầu tiên trong Lịch sử phiên bản, không phải ngày phát hành của phiên bản v4.8.0.1 hiện tại.",
+      "AnswerEn": "The first public release was Tool Kiem Tra v1.0 on 17 July 2026. This is the first milestone in Version history, not the release date of the current v4.8.0.1 build."
+    },
+    {
+      "Id": "tool-pricing",
+      "TitleVi": "Tool miễn phí hay trả phí",
+      "TitleEn": "Tool pricing",
+      "Keywords": ["tool mien phi hay tra phi", "tool co mat phi khong", "co ton tien khong", "gia tool", "free or paid tool", "is it free", "tool pricing", "phi su dung tool", "mien phi"],
+      "AnswerVi": "Tool Kiểm Tra hiện được nhà phát triển cung cấp miễn phí: không thu phí tải xuống hoặc sử dụng các chức năng tích hợp của bản v4.8.0.1. Việc Tool miễn phí không đồng nghĩa mã nguồn mở và không thay đổi điều khoản bản quyền của các phần mềm được quét.",
+      "AnswerEn": "Tool Kiem Tra is currently provided free of charge: there is no fee to download or use the built-in v4.8.0.1 features. Free use of the Tool does not make its source open source or alter the licence terms of software being scanned."
+    },
+    {
+      "Id": "source-code-license",
+      "TitleVi": "Mã nguồn công khai và quyền sử dụng",
+      "TitleEn": "Public source and usage rights",
+      "Keywords": ["ma nguon cong khai o dau", "kho ma nguon cua tool", "github ma nguon", "source code repository", "repository cong khai co duoc sua khong", "can i modify the public repository", "tool co phai ma nguon mo", "public source code", "license notice ma nguon"],
+      "AnswerVi": "Mã nguồn được công khai tại https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen. Theo LICENSE-NOTICE.txt hiện tại, mã nguồn được cung cấp để xem, học tập, kiểm tra và đánh giá bảo mật; việc công khai không tự cấp quyền sao chép, sửa đổi, phân phối, bán hoặc phát hành lại. Vì vậy đây là mã nguồn xem được công khai, nhưng chưa phải phần mềm mã nguồn mở theo giấy phép hiện hành.",
+      "AnswerEn": "The source is publicly viewable at https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen. Under the current LICENSE-NOTICE.txt, it is provided for viewing, study, inspection, and security evaluation; publication does not itself grant rights to copy, modify, distribute, sell, or republish it. The source is therefore public to inspect, but the software is not currently open source."
+    },
+    {
+      "Id": "status-terms",
+      "TitleVi": "Chưa xác định, Chưa xác minh, Nghi vấn và Crack đã xác nhận",
+      "TitleEn": "Undetermined, Unverified, Suspicious, and CrackConfirmed",
+      "Keywords": ["chua xac dinh va chua xac minh", "phan biet chua xac dinh chua xac minh", "chua xac minh la gi", "chua xac dinh nghia la gi", "unknown la gi", "suspicious la gi", "crack la gi", "phan biet unknown unverified suspicious crack", "undetermined vs unverified", "unknown versus unverified", "unknown unverified suspicious crack meaning", "what does crack mean", "y nghia trang thai chua xac minh"],
+      "AnswerVi": "Bốn mức không đồng nghĩa và phải đọc theo bằng chứng. 'CHƯA XÁC ĐỊNH/Unknown' nghĩa là Tool chưa xác định được giá trị hoặc mô hình giấy phép, ví dụ dữ liệu Windows/Office không đọc được hay phần mềm chưa khớp catalog và nguồn hãng; trạng thái này không kết luận hợp lệ hay vi phạm. 'CHƯA XÁC MINH/Unverified' nghĩa là đã nhận diện đối tượng nhưng bằng chứng hiện tại chưa đủ xác nhận cấp phép hoặc can thiệp; giữ nguyên và kiểm tra thêm. 'NGHI VẤN/Suspicious' nghĩa là có tín hiệu kỹ thuật cần điều tra nhưng chưa có bằng chứng quyết định về crack; quét sâu hoặc kiểm tra thủ công, chưa cho khắc phục. 'CRACK ĐÃ XÁC NHẬN/CrackConfirmed' chỉ dùng khi có bằng chứng kỹ thuật trực tiếp, quyết định và gắn đúng đối tượng về activator hoặc can thiệp. Đây vẫn là kết luận kỹ thuật, không phải phán quyết pháp lý; chỉ xem trước, backup, xin xác nhận rồi cô lập đúng hiện vật, không tự gỡ ứng dụng chính.",
+      "AnswerEn": "The four levels are different and must follow the evidence. 'UNDETERMINED/Unknown' means the Tool could not determine a value or licence model, for example unreadable Windows/Office data or software not matched to the catalogue and publisher source; it proves neither valid entitlement nor a violation. 'UNVERIFIED' means the item is identified but current evidence cannot confirm licensing or tampering; preserve it and review further. 'SUSPICIOUS' means technical signals require investigation but decisive crack evidence is absent; deep-scan or review manually, with no remediation yet. 'CRACKCONFIRMED' is reserved for direct, decisive, correctly scoped technical evidence of an activator or tampering. It remains a technical finding, not a legal verdict; preview, back up, obtain confirmation, and isolate only the exact artifact without silently uninstalling the main application."
     },
     {
       "Id": "tool-overview",
@@ -148,8 +180,8 @@
       "TitleVi": "Chưa xác định trạng thái cấp phép",
       "TitleEn": "Licensing status undetermined",
       "Keywords": ["chua xac dinh", "khong the xac minh", "khong doc duoc", "du lieu cap phep loi", "0xc004d302", "unverifiable", "loi cap phep"],
-      "AnswerVi": "'CHƯA XÁC ĐỊNH' nghĩa là công cụ không đọc được dữ liệu cấp phép Windows nên chưa thể xác định trạng thái kích hoạt. Kết quả này không chứng minh giấy phép hợp lệ hoặc không hợp lệ. Nếu có bằng chứng trực tiếp về rearm, KMS hoặc activator, cảnh báo can thiệp sẽ được hiển thị riêng.",
-      "AnswerEn": "'UNDETERMINED' means Windows licensing data could not be read, so activation status cannot be established. It proves neither valid nor invalid entitlement. Direct rearm, KMS or activator evidence is shown as a separate interference warning."
+      "AnswerVi": "Trong trường Trạng thái cấp phép Windows/Office, 'CHƯA XÁC ĐỊNH' nghĩa là Tool không đọc được dữ liệu cần thiết nên chưa thể xác định trạng thái kích hoạt. Ở trường Mô hình giấy phép phần mềm, cụm này có thể nghĩa là ứng dụng chưa khớp catalog và nguồn chính thức. Kết quả không chứng minh giấy phép hợp lệ hoặc không hợp lệ; bằng chứng rearm, KMS hay activator được cảnh báo riêng.",
+      "AnswerEn": "In a Windows/Office licensing-status field, 'UNDETERMINED' means the Tool could not read the required data and cannot establish activation state. In a software licence-model field, it can mean that the app has not been matched to the catalogue and an official source. It proves neither valid nor invalid entitlement; rearm, KMS, or activator evidence is reported separately."
     },
     {
       "Id": "office-license",
@@ -308,8 +340,8 @@
       "TitleVi": "Cần kiểm tra thủ công",
       "TitleEn": "Manual review required",
       "Keywords": ["kiem tra thu cong", "manual review", "can xem lai", "chua du bang chung", "khong chac", "unverified"],
-      "AnswerVi": "'Cần kiểm tra thủ công' nghĩa là chưa đủ điều kiện khắc phục. Giữ nguyên ứng dụng; mở chi tiết để xem tín hiệu nào được phát hiện, mức Tin cậy, đường dẫn/nhà phát hành/nguồn cài và mô hình giấy phép. Với phần mềm miễn phí hoặc nguồn mở, đối chiếu điều khoản/notice thay vì mặc định đòi hóa đơn. Chỉ chuyển sang khắc phục khi xác nhận được đúng hiện vật kỹ thuật; Tool không tự xử lý từ trạng thái này.",
-      "AnswerEn": "'Manual review required' means remediation is not yet eligible. Keep the app; inspect the observed signal, Confidence, path, publisher/install source, and license model. For free or open-source software, review terms or notices instead of defaulting to a purchase invoice. Proceed only after confirming the exact technical artifact; the Tool does not act automatically from this status."
+      "AnswerVi": "'CHƯA XÁC MINH/Cần kiểm tra thủ công' nghĩa là Tool đã có đối tượng hoặc tín hiệu để đánh giá nhưng bằng chứng chưa đủ xác nhận trạng thái cấp phép hay can thiệp, nên chưa đủ điều kiện khắc phục. Giữ nguyên ứng dụng; xem tín hiệu, Tin cậy, đường dẫn, nhà phát hành, nguồn cài và mô hình giấy phép. Với phần mềm miễn phí/nguồn mở, đối chiếu điều khoản hoặc notice thay vì mặc định đòi hóa đơn. Chỉ khắc phục khi xác nhận đúng hiện vật kỹ thuật.",
+      "AnswerEn": "'UNVERIFIED/Manual review required' means an item or signal was found but evidence is insufficient to confirm licensing or tampering, so remediation is not eligible. Keep the app and inspect the signal, Confidence, path, publisher, install source, and licence model. For free/open-source software, review terms or notices instead of assuming an invoice is required. Remediate only a confirmed technical artifact."
     },
     {
       "Id": "result-stale",
@@ -468,8 +500,8 @@
       "TitleVi": "Kênh hỗ trợ của Tool",
       "TitleEn": "Tool support channels",
       "Keywords": ["kenh ho tro cua tool", "lien he nguoi phat trien", "email cua tac gia", "zalo cua tac gia", "gui loi cho thanh viet", "can ho tro ky thuat"],
-      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v4.8.0.0, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
-      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v4.8.0.0, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
+      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v4.8.0.1, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
+      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v4.8.0.1, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
     },
     {
       "Id": "plugin-management",

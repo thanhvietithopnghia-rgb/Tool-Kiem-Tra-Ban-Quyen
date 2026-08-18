@@ -1,7 +1,11 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.3.2.0",
-  "GeneratedAtUtc": "2026-08-14T00:00:00Z",
+  "CatalogVersion": "1.4.0.0",
+  "GeneratedAtUtc": "2026-08-17T00:00:00Z",
+  "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
+  "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
+  "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
+  "SignatureAsset": "software-license-catalog-v1.0.json.p7s",
   "CatalogScope": ["General", "Design", "CAD", "CAM", "CAE", "BIM", "GIS", "Simulation", "Engineering"],
   "UpdateUrl": "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/software-license-catalog-v1.0.json",
   "Privacy": {
@@ -51,7 +55,7 @@
     {
       "Id": "adobe-creative-cloud-paid",
       "Vendor": "Adobe",
-      "NamePatterns": ["\\bAdobe (?:Photoshop|Illustrator|InDesign|Lightroom|Premiere|After Effects|Audition|Animate|Dreamweaver|Acrobat)(?:\\s|$)", "\\bCreative Cloud\\b", "\\bAcrobat\\s+Distiller\\b", "^Adobe Acrobat \\(64-bit\\)$"],
+      "NamePatterns": ["\\bAdobe (?:Photoshop|Illustrator|InDesign|Lightroom|Premiere(?: Pro)?|After Effects|Audition|Animate|Dreamweaver|Acrobat|Media Encoder|Substance 3D|Dimension|InCopy|Fresco)(?:\\s|$)", "\\bCreative Cloud\\b", "\\bAcrobat\\s+Distiller\\b", "^Adobe Acrobat \\(64-bit\\)$"],
       "PublisherPatterns": ["\\bAdobe\\b"],
       "LicenseModel": "Subscription",
       "OfficialUrl": "https://www.adobe.com/creativecloud/plans.html",
@@ -62,7 +66,7 @@
     {
       "Id": "autodesk-commercial",
       "Vendor": "Autodesk",
-      "NamePatterns": ["\\bAutodesk\\b", "\\bAutoCAD\\b", "\\bRevit\\b", "\\b3ds Max\\b", "\\bCivil 3D\\b", "\\bNavisworks\\b", "\\bInventor\\b", "\\bFusion 360\\b"],
+      "NamePatterns": ["\\bAutodesk\\b", "\\bAutoCAD\\b", "\\bRevit\\b", "\\b3ds Max\\b", "\\bCivil 3D\\b", "\\bNavisworks\\b", "\\bInventor\\b", "\\bFusion 360\\b", "\\bMaya\\b", "\\bMotionBuilder\\b", "\\bMudbox\\b", "\\bAdvance Steel\\b", "\\bInfraWorks\\b", "\\bRobot Structural Analysis\\b", "\\bAutodesk Alias\\b", "\\bAutodesk VRED\\b", "\\bAutodesk Fabrication\\b"],
       "PublisherPatterns": ["\\bAutodesk\\b"],
       "LicenseModel": "Subscription",
       "OfficialUrl": "https://www.autodesk.com/products/autocad/overview",
@@ -158,7 +162,7 @@
       "Id": "windows-driver-component",
       "Vendor": "DeviceVendor",
       "NamePatterns": ["\\b(?:Driver|Printer|SDK|Redistributable|Runtime|Extension SDK|Headers|Libraries|Tools)\\b", "^(?:NVIDIA|Realtek|Canon|EPSON|TOSHIBA|ASUS).*(?:Driver|HAL|Service|Tool|Uninstall)"],
-      "PublisherPatterns": [],
+      "PublisherPatterns": ["\\b(?:Microsoft|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom|ASUS|ASUSTeK|Canon|EPSON|TOSHIBA)\\b"],
       "LicenseModel": "Driver",
       "OfficialUrl": "",
       "LicenseDomains": [],
@@ -167,7 +171,7 @@
     {
       "Id": "techsmith-camtasia",
       "Vendor": "TechSmith",
-      "NamePatterns": ["\\bCamtasia\\b"],
+      "NamePatterns": ["\\bCamtasia(?: Studio)?(?:\\s+9(?:\\.\\d+)*)?\\b"],
       "PublisherPatterns": ["\\bTechSmith\\b"],
       "LicenseModel": "Paid",
       "OfficialUrl": "https://www.techsmith.com/camtasia/",
@@ -319,7 +323,7 @@
     {
       "Id": "communication-free",
       "Vendor": "Various",
-      "NamePatterns": ["\\bTelegram Desktop\\b", "^Zalo\\b", "\\bZoom(?: Workplace)?\\b", "\\bUltraViewer\\b"],
+      "NamePatterns": ["\\bTelegram Desktop\\b", "^Zalo\\b", "\\bUltraViewer\\b"],
       "PublisherPatterns": [],
       "LicenseModel": "Free",
       "OfficialUrl": "",
@@ -492,9 +496,15 @@
       "LicenseModel": "Free", "OfficialUrl": "https://powerbi.microsoft.com/desktop/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)powerbi\\.com$"], "UnauthorizedNamePatterns": []
     },
     {
-      "Id": "microsoft-visual-studio", "Category": "Development", "Vendor": "Microsoft",
-      "NamePatterns": ["\\bMicrosoft Visual Studio (?:Community|Professional|Enterprise)\\b"], "PublisherPatterns": ["\\bMicrosoft\\b"],
-      "LicenseModel": "Mixed", "OfficialUrl": "https://visualstudio.microsoft.com/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)visualstudio\\.com$"],
+      "Id": "microsoft-visual-studio-community", "Category": "Development", "Vendor": "Microsoft",
+      "NamePatterns": ["\\bMicrosoft Visual Studio Community\\b"], "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Free", "OfficialUrl": "https://visualstudio.microsoft.com/vs/community/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)visualstudio\\.com$"],
+      "UnauthorizedNamePatterns": ["\\bVisual Studio[._ -]*(?:crack|patch|keygen)\\b"]
+    },
+    {
+      "Id": "microsoft-visual-studio-paid", "Category": "Development", "Vendor": "Microsoft",
+      "NamePatterns": ["\\bMicrosoft Visual Studio (?:Professional|Enterprise)\\b"], "PublisherPatterns": ["\\bMicrosoft\\b"],
+      "LicenseModel": "Paid", "OfficialUrl": "https://visualstudio.microsoft.com/vs/pricing/", "LicenseDomains": ["(?:^|\\.)microsoft\\.com$", "(?:^|\\.)visualstudio\\.com$"],
       "UnauthorizedNamePatterns": ["\\bVisual Studio[._ -]*(?:crack|patch|keygen)\\b"]
     },
     {

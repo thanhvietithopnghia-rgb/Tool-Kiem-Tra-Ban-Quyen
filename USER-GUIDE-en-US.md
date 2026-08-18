@@ -188,6 +188,8 @@ This screen offers three ways to proceed; all three open the same Windows, Offic
 9. The tool creates and verifies a backup before processing only the checked rows.
 10. Wait for post-check and use the next actions in Action Center.
 
+“Ready for activation” means that no crack or unapproved-KMS evidence remains in the scanned scope; it does not mean licensed. After key entry, Windows returns `ActivationConfirmed = TRUE` only when the post-check reports `LicenseStatus=1` for that key, and Office only when the matching SKU/key reports `LICENSED`. Otherwise the result remains FALSE and the Tool opens the official Activation or sign-in/redeem path. For other software, use the vendor-source button; modified binaries may require an official Repair/reinstall first. The Tool preserves a currently valid genuine license and never simulates the “Activate Windows” watermark.
+
 On an unfamiliar computer or when impact is uncertain, run Dry Run first, retain its report, and review it before authorizing real execution.
 
 Depending on evidence, a third-party plan can quarantine an exact artifact, restore an exact hosts entry, remove an exact application-correlated outbound-block Firewall rule, run a verified MSI Repair, reset a supported licensing component, or direct the user to an official reinstall. Firewall changes and uninstall/reinstall plans are never selected automatically; a removed Firewall rule is not automatically restorable.

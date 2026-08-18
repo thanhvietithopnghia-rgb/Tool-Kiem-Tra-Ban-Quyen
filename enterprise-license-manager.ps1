@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$script:enterpriseReleaseVersion = "4.8.0.0"
+$script:enterpriseReleaseVersion = "4.8.0.1"
 $script:enterpriseReleaseDisplayName = "v$($script:enterpriseReleaseVersion)"
 . (Join-Path $baseDir "Tool-ReportSchema.ps1")
 . (Join-Path $baseDir "Tool-Enterprise.ps1")

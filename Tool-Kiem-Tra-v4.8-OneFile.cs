@@ -20,9 +20,9 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Thanh Việt")]
 [assembly: AssemblyProduct("Công cụ kiểm tra cấu hình máy và bản quyền phần mềm")]
 [assembly: AssemblyCopyright("Copyright © Thanh Việt 2026")]
-[assembly: AssemblyVersion("4.8.0.0")]
-[assembly: AssemblyFileVersion("4.8.0.0")]
-[assembly: AssemblyInformationalVersion("4.8.0.0")]
+[assembly: AssemblyVersion("4.8.0.1")]
+[assembly: AssemblyFileVersion("4.8.0.1")]
+[assembly: AssemblyInformationalVersion("4.8.0.1")]
 
 namespace ThanhViet.ToolKiemTra
 {
@@ -36,10 +36,21 @@ namespace ThanhViet.ToolKiemTra
         private static readonly object LocalizationLock = new object();
         private static readonly Dictionary<string, Dictionary<string, string>> LocalizationCatalogs =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        private const string PayloadBundleResourceName = "payload.bundle.deflate.v1";
+        private const uint PayloadBundleFormatVersion = 1;
+        private const int MaximumCompressedPayloadBundleBytes = 16 * 1024 * 1024;
+        private const int MaximumDecodedPayloadBundleBytes = 32 * 1024 * 1024;
+        private const int MaximumPayloadDataBytes = 16 * 1024 * 1024;
+        private const int MaximumSinglePayloadBytes = 8 * 1024 * 1024;
+        private const string PayloadBundleFailureCode = "PAYLOAD_BUNDLE_INVALID";
+        private static readonly byte[] PayloadBundleMagic = Encoding.ASCII.GetBytes("TVPBNDL1");
+        private static readonly object PayloadBundleLock = new object();
+        private static byte[] CachedPayloadBundle;
+        private static int[] CachedPayloadOffsets;
+        private static int[] CachedPayloadLengths;
 
         private static readonly string[] PayloadFiles = new string[]
         {
-            "00-Tool-Kiem-Tra.ico",
             "approved-kms-servers.txt",
             "HUONG-DAN.txt",
             "USER-GUIDE-en-US.md",
@@ -67,6 +78,7 @@ namespace ThanhViet.ToolKiemTra
             "tool-assistant-knowledge-v1.1.json",
             "Tool-SoftwareInventory.ps1",
             "software-license-catalog-v1.0.json",
+            "software-license-catalog-v1.0.json.p7s",
             "software-license-online-update.ps1",
             "Tool-UpdateManager.ps1",
             "Tool-ReportSchema.ps1",
@@ -92,7 +104,6 @@ namespace ThanhViet.ToolKiemTra
 
         private static readonly string[] RequiredIntegrityFiles = new string[]
         {
-            "00-Tool-Kiem-Tra.ico",
             "HUONG-DAN.txt",
             "USER-GUIDE-en-US.md",
             "LICH-SU-PHIEN-BAN.txt",
@@ -119,6 +130,7 @@ namespace ThanhViet.ToolKiemTra
             "tool-assistant-knowledge-v1.1.json",
             "Tool-SoftwareInventory.ps1",
             "software-license-catalog-v1.0.json",
+            "software-license-catalog-v1.0.json.p7s",
             "software-license-online-update.ps1",
             "Tool-UpdateManager.ps1",
             "Tool-ReportSchema.ps1",
@@ -666,14 +678,112 @@ namespace ThanhViet.ToolKiemTra
             return result.ToString();
         }
 
+        private static void EnsurePayloadBundleLoaded(Assembly assembly)
+        {
+            lock (PayloadBundleLock)
+            {
+                if (CachedPayloadBundle != null)
+                    return;
+                if (assembly == null || !Object.ReferenceEquals(assembly, Assembly.GetExecutingAssembly()))
+                    throw new InvalidDataException(PayloadBundleFailureCode + ":ASSEMBLY");
+
+                string[] resourceNames = assembly.GetManifestResourceNames();
+                if (resourceNames.Length != 1 ||
+                    !String.Equals(resourceNames[0], PayloadBundleResourceName, StringComparison.Ordinal))
+                    throw new InvalidDataException(PayloadBundleFailureCode + ":RESOURCE_SET");
+
+                byte[] decodedBytes;
+                using (Stream compressed = assembly.GetManifestResourceStream(PayloadBundleResourceName))
+                {
+                    if (compressed == null)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":RESOURCE_MISSING");
+                    if (compressed.CanSeek &&
+                        (compressed.Length <= 0 || compressed.Length > MaximumCompressedPayloadBundleBytes))
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":COMPRESSED_SIZE");
+
+                    using (DeflateStream deflate = new DeflateStream(compressed, CompressionMode.Decompress, false))
+                    using (MemoryStream decoded = new MemoryStream())
+                    {
+                        byte[] buffer = new byte[81920];
+                        int bytesRead;
+                        while ((bytesRead = deflate.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            if (decoded.Length > MaximumDecodedPayloadBundleBytes - bytesRead)
+                                throw new InvalidDataException(PayloadBundleFailureCode + ":DECODED_SIZE");
+                            decoded.Write(buffer, 0, bytesRead);
+                        }
+                        decodedBytes = decoded.ToArray();
+                    }
+                }
+
+                int[] offsets = new int[PayloadFiles.Length];
+                int[] lengths = new int[PayloadFiles.Length];
+                using (MemoryStream decoded = new MemoryStream(decodedBytes, false))
+                using (BinaryReader reader = new BinaryReader(decoded, Encoding.UTF8))
+                {
+                    byte[] magic = reader.ReadBytes(PayloadBundleMagic.Length);
+                    if (magic.Length != PayloadBundleMagic.Length)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":HEADER");
+                    for (int index = 0; index < PayloadBundleMagic.Length; index++)
+                    {
+                        if (magic[index] != PayloadBundleMagic[index])
+                            throw new InvalidDataException(PayloadBundleFailureCode + ":MAGIC");
+                    }
+
+                    uint formatVersion = reader.ReadUInt32();
+                    uint payloadCount = reader.ReadUInt32();
+                    ulong declaredPayloadBytes = reader.ReadUInt64();
+                    if (formatVersion != PayloadBundleFormatVersion || payloadCount != (uint)PayloadFiles.Length)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":VERSION_COUNT");
+                    if (declaredPayloadBytes > (ulong)MaximumPayloadDataBytes)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":DECLARED_SIZE");
+
+                    ulong measuredPayloadBytes = 0;
+                    for (int index = 0; index < PayloadFiles.Length; index++)
+                    {
+                        ulong payloadLength = reader.ReadUInt64();
+                        if (payloadLength > (ulong)MaximumSinglePayloadBytes ||
+                            measuredPayloadBytes > (ulong)MaximumPayloadDataBytes - payloadLength)
+                            throw new InvalidDataException(PayloadBundleFailureCode + ":ENTRY_SIZE");
+                        lengths[index] = checked((int)payloadLength);
+                        measuredPayloadBytes += payloadLength;
+                    }
+                    if (measuredPayloadBytes != declaredPayloadBytes)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":LENGTH_TABLE");
+
+                    long payloadDataOffset = decoded.Position;
+                    long expectedDecodedLength = payloadDataOffset + checked((long)declaredPayloadBytes);
+                    if (expectedDecodedLength != decoded.Length)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":DECODED_LENGTH");
+
+                    int currentOffset = checked((int)payloadDataOffset);
+                    for (int index = 0; index < PayloadFiles.Length; index++)
+                    {
+                        offsets[index] = currentOffset;
+                        currentOffset = checked(currentOffset + lengths[index]);
+                    }
+                    if (currentOffset != decodedBytes.Length)
+                        throw new InvalidDataException(PayloadBundleFailureCode + ":SEGMENT_MAP");
+                }
+
+                CachedPayloadOffsets = offsets;
+                CachedPayloadLengths = lengths;
+                CachedPayloadBundle = decodedBytes;
+            }
+        }
+
         private static Stream OpenPayloadStream(Assembly assembly, int payloadIndex)
         {
-            string suffix = payloadIndex.ToString(CultureInfo.InvariantCulture);
-            Stream compressed = assembly.GetManifestResourceStream("payload.deflate." + suffix);
-            if (compressed != null)
-                return new DeflateStream(compressed, CompressionMode.Decompress, false);
+            if (payloadIndex < 0 || payloadIndex >= PayloadFiles.Length)
+                throw new ArgumentOutOfRangeException();
+            EnsurePayloadBundleLoaded(assembly);
 
-            return assembly.GetManifestResourceStream("payload.raw." + suffix);
+            return new MemoryStream(
+                CachedPayloadBundle,
+                CachedPayloadOffsets[payloadIndex],
+                CachedPayloadLengths[payloadIndex],
+                false,
+                false);
         }
 
         private static Dictionary<string, string> LoadLocalizationCatalog(string culture)
@@ -816,7 +926,7 @@ namespace ThanhViet.ToolKiemTra
                 startInfo.EnvironmentVariables["TOOL_LAUNCHER_PID"] = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture);
                 startInfo.EnvironmentVariables["TOOL_LAUNCH_MODE"] = mode.ToString();
                 startInfo.EnvironmentVariables["TOOL_AGENT_FORCE"] = mode == LaunchMode.EnterpriseAgentForce ? "1" : "0";
-                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.8.0.0";
+                startInfo.EnvironmentVariables["TOOL_TOOL_VERSION"] = "4.8.0.1";
                 startInfo.EnvironmentVariables["TOOL_UI_CULTURE"] = GetUiCulture();
                 startInfo.EnvironmentVariables["TOOL_CORRELATION_ID"] = correlationId;
                 startInfo.EnvironmentVariables["TOOL_CAPABILITY_SCHEMA"] = "1.1";

@@ -34,11 +34,11 @@ if ($errors.Count -eq 0) {
     if (Test-ToolAssistantKnowledgeSignature -ContentBytes $tamperedBytes -SignatureBytes $signatureBytes) {
         Add-AssistantVerificationError 'Detached signature accepted tampered knowledge bytes.'
     }
-    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.1"', '"KnowledgeVersion": "1.3.0"') | ConvertFrom-Json
+    $legacyKnowledge = ((Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) -replace '"KnowledgeVersion"\s*:\s*"1\.3\.4"', '"KnowledgeVersion": "1.3.2"') | ConvertFrom-Json
     if (Test-ToolAssistantKnowledge -Knowledge $legacyKnowledge) { Add-AssistantVerificationError 'An obsolete cached knowledge file was not rejected.' }
     $compatibleFutureKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
-    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.2'
-    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-14T11:01:00Z'
+    $compatibleFutureKnowledge.KnowledgeVersion = '1.3.5'
+    $compatibleFutureKnowledge.UpdatedAtUtc = '2026-08-18T07:01:00Z'
     $compatibleFutureKnowledge.ReleasedWithToolVersion = '4.8.0.1'
     if (-not (Test-ToolAssistantKnowledge -Knowledge $compatibleFutureKnowledge)) {
         Add-AssistantVerificationError 'A newer signed-compatible knowledge version cannot evolve independently of the EXE.'
@@ -98,6 +98,29 @@ if ($errors.Count -eq 0) {
         @{ Question='tự tìm máy chủ khi ô ip trống'; Entry='enterprise-discovery' }
         @{ Question='hash mismatch có phải bản quyền lậu không'; Entry='integrity-compromised' }
         @{ Question='phiên bản hiện tại của tool'; Entry='tool-version' }
+        @{ Question='phiên bản đầu tiên ngày mấy'; Entry='first-release' }
+        @{ Question='phien ban dau tien ngay may tool'; Entry='first-release' }
+        @{ Question='v1.0 phát hành ngày nào'; Entry='first-release' }
+        @{ Question='v1 ngày nào'; Entry='first-release' }
+        @{ Question='bản đầu tiên'; Entry='first-release' }
+        @{ Question='tool miễn phí hay trả phí'; Entry='tool-pricing' }
+        @{ Question='tool mien phi hay tra phi'; Entry='tool-pricing' }
+        @{ Question='có tốn tiền ko'; Entry='tool-pricing' }
+        @{ Question='mã nguồn công khai ở đâu'; Entry='source-code-license' }
+        @{ Question='ma nguon cong khaio dau'; Entry='source-code-license' }
+        @{ Question='ma ngun cong khai o dau'; Entry='source-code-license' }
+        @{ Question='repo công khai có được sửa không'; Entry='source-code-license' }
+        @{ Question='code công khai có phải open source k'; Entry='source-code-license' }
+        @{ Question='chưa xác định nghĩa là gì'; Entry='status-terms' }
+        @{ Question='chua xac minh la sao'; Entry='status-terms' }
+        @{ Question='chua xac mnih la sao'; Entry='status-terms' }
+        @{ Question='unknown là gì'; Entry='status-terms' }
+        @{ Question='unverifed la gi'; Entry='status-terms' }
+        @{ Question='suspicous la gi'; Entry='status-terms' }
+        @{ Question='crak la gi'; Entry='status-terms' }
+        @{ Question='crack là gì'; Entry='status-terms' }
+        @{ Question='Unknown Unverified Suspicious Crack khác nhau thế nào'; Entry='status-terms' }
+        @{ Question='chưa xác định khác chưa xác minh sao'; Entry='status-terms' }
         @{ Question='tool do ai phát triển'; Entry='tool-author' }
         @{ Question='tóm tắt nội dung chính của tool'; Entry='tool-overview' }
         @{ Question='nguyên tắc hoạt động của công cụ'; Entry='tool-principles' }
@@ -126,6 +149,24 @@ if ($errors.Count -eq 0) {
         }
     }
 
+    $focusedCollisionKnowledge = (Get-Content -LiteralPath $knowledgePath -Raw -Encoding UTF8) | ConvertFrom-Json
+    @($focusedCollisionKnowledge.Entries | Where-Object { [string]$_.Id -eq 'scope' })[0].Keywords += @(
+        'tool mien phi hay tra phi', 'ma nguon cong khai o dau', 'chua xac dinh khac chua xac minh sao'
+    )
+    @($focusedCollisionKnowledge.Entries | Where-Object { [string]$_.Id -eq 'tool-version' })[0].Keywords += @('phien ban dau tien ngay may')
+    $focusedCollisionTests = @(
+        @{ Question='tool mien phi hay tra phi'; Entry='tool-pricing' },
+        @{ Question='ma nguon cong khai o dau'; Entry='source-code-license' },
+        @{ Question='chua xac dinh khac chua xac minh sao'; Entry='status-terms' },
+        @{ Question='phien ban dau tien ngay may'; Entry='first-release' }
+    )
+    foreach ($test in $focusedCollisionTests) {
+        $route = Resolve-ToolAssistantEntry -QueryKey (ConvertTo-ToolAssistantSearchKey -Value $test.Question) -Knowledge $focusedCollisionKnowledge
+        if ($null -eq $route.Entry -or [string]$route.Entry.Id -ne [string]$test.Entry -or [string]$route.Route -ne 'FocusedIntent') {
+            Add-AssistantVerificationError "Focused intent '$($test.Question)' did not outrank an exact generic keyword."
+        }
+    }
+
     $answerTests = @(
         @{ Question='khong the xac minh ban quyen la gi'; Expected='CHƯA XÁC ĐỊNH' },
         @{ Question='che do ofline hoat dong sao'; Expected='Offline' },
@@ -140,7 +181,25 @@ if ($errors.Count -eq 0) {
         @{ Question='mỗi lần quét có tạo thư mục riêng k'; Expected='không tạo thư mục con' }
         @{ Question='pm hệ thống trong pdf quá dài'; Expected='phụ lục' }
         @{ Question='cách luna cập nhật'; Expected='manifest' }
-        @{ Question='phiên bản hiện tại của tool'; Expected='v4.8.0.0' }
+        @{ Question='phiên bản hiện tại của tool'; Expected='v4.8.0.1' }
+        @{ Question='ngày build hiện tại của tool'; Expected='18/08/2026' }
+        @{ Question='phiên bản đầu tiên ngày mấy'; Expected='v1.0, phát hành ngày 17/07/2026' }
+        @{ Question='v1 ngày nào'; Expected='v1.0, phát hành ngày 17/07/2026' }
+        @{ Question='bản đầu tiên'; Expected='v1.0, phát hành ngày 17/07/2026' }
+        @{ Question='tool mien phi hay tra phi'; Expected='cung cấp miễn phí' }
+        @{ Question='có tốn tiền ko'; Expected='cung cấp miễn phí' }
+        @{ Question='ma nguon cong khaio dau'; Expected='https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen' }
+        @{ Question='ma ngun cong khai o dau'; Expected='https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen' }
+        @{ Question='repo công khai có được sửa không'; Expected='không tự cấp quyền sao chép, sửa đổi, phân phối' }
+        @{ Question='code công khai có phải open source k'; Expected='chưa phải phần mềm mã nguồn mở' }
+        @{ Question='chưa xác định nghĩa là gì'; Expected='CHƯA XÁC ĐỊNH/Unknown' }
+        @{ Question='chua xac minh la sao'; Expected='bằng chứng hiện tại chưa đủ xác nhận' }
+        @{ Question='chua xac mnih la sao'; Expected='bằng chứng hiện tại chưa đủ xác nhận' }
+        @{ Question='unknown là gì'; Expected='CHƯA XÁC ĐỊNH/Unknown' }
+        @{ Question='unverifed la gi'; Expected='CHƯA XÁC MINH/Unverified' }
+        @{ Question='suspicous la gi'; Expected='NGHI VẤN/Suspicious' }
+        @{ Question='crak la gi'; Expected='CRACK ĐÃ XÁC NHẬN/CrackConfirmed' }
+        @{ Question='crack là gì'; Expected='CRACK ĐÃ XÁC NHẬN/CrackConfirmed' }
         @{ Question='do ai phát triển'; Expected='Thanh Việt' }
         @{ Question='tóm tắt nội dung chính'; Expected='một-EXE' }
         @{ Question='nguyên tắc của tool'; Expected='Offline' }
@@ -169,6 +228,30 @@ if ($errors.Count -eq 0) {
         if ($answer -notlike ('*' + $test.Expected + '*')) {
             Add-AssistantVerificationError "Unexpected answer for '$($test.Question)'."
         }
+    }
+
+    $firstReleaseEn = Get-ToolAssistantAnswer -Question 'when was v1 relased' -Culture 'en-US' -Knowledge $knowledge
+    $releaseDateVi = Get-ToolAssistantAnswer -Question 'ngày build hiện tại của tool' -Culture 'vi-VN' -Knowledge $knowledge
+    $releaseDateEn = Get-ToolAssistantAnswer -Question 'current in-place build date' -Culture 'en-US' -Knowledge $knowledge
+    $pricingEn = Get-ToolAssistantAnswer -Question 'is it free' -Culture 'en-US' -Knowledge $knowledge
+    $sourceEn = Get-ToolAssistantAnswer -Question 'where is the public srouce code' -Culture 'en-US' -Knowledge $knowledge
+    $statusTermsEn = Get-ToolAssistantAnswer -Question 'what do Unknown, Unverified, Suspicious, and CrackConfirmed mean' -Culture 'en-US' -Knowledge $knowledge
+    $statusTermsVi = Get-ToolAssistantAnswer -Question 'Unknown Unverified Suspicious Crack khác nhau thế nào' -Culture 'vi-VN' -Knowledge $knowledge
+    if ($firstReleaseEn -notmatch 'v1\.0 on 17 July 2026' -or
+        $releaseDateVi -notmatch 'v4\.8\.0\.1.*18/08/2026' -or
+        $releaseDateEn -notmatch 'v4\.8\.0\.1.*18 August 2026' -or
+        $pricingEn -notmatch 'provided free of charge' -or
+        $sourceEn -notmatch 'github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen' -or
+        $sourceEn -notmatch 'not currently open source' -or
+        $statusTermsEn -notmatch 'UNDETERMINED/Unknown' -or $statusTermsEn -notmatch 'UNVERIFIED' -or
+        $statusTermsEn -notmatch 'SUSPICIOUS' -or $statusTermsEn -notmatch 'CRACKCONFIRMED' -or
+        $statusTermsEn -notmatch 'no remediation yet' -or $statusTermsEn -notmatch 'not a legal verdict') {
+        Add-AssistantVerificationError 'Bilingual product facts or contextual status definitions are incomplete.'
+    }
+    if ($statusTermsVi -notmatch 'CHƯA XÁC ĐỊNH/Unknown' -or $statusTermsVi -notmatch 'CHƯA XÁC MINH/Unverified' -or
+        $statusTermsVi -notmatch 'NGHI VẤN/Suspicious' -or $statusTermsVi -notmatch 'CRACK ĐÃ XÁC NHẬN/CrackConfirmed' -or
+        $statusTermsVi -notmatch 'chưa cho khắc phục' -or $statusTermsVi -notmatch 'không tự gỡ ứng dụng chính') {
+        Add-AssistantVerificationError 'Vietnamese four-state answer is incomplete or not fail-closed.'
     }
 
     $licenseModelVi = Get-ToolAssistantAnswer -Question 'phần mềm nguồn mở có phải nộp hóa đơn bản quyền không' -Culture 'vi-VN' -Knowledge $knowledge
@@ -218,11 +301,17 @@ if ($errors.Count -eq 0) {
 
     $windowsFollowUp = Get-ToolAssistantAnswer -Question 'cách dùng nó' -PreviousQuestion 'chức năng 3 là gì' -Culture 'vi-VN' -Knowledge $knowledge
     $oemFollowUp = Get-ToolAssistantAnswer -Question 'thế còn chức năng 7' -PreviousQuestion 'cách dùng chức năng 6' -Culture 'vi-VN' -Knowledge $knowledge
+    $sourceFollowUp = Get-ToolAssistantAnswer -Question 'ở đâu' -PreviousQuestion 'mã nguồn công khai ở đâu' -Culture 'vi-VN' -Knowledge $knowledge
+    $sourceFollowUpEn = Get-ToolAssistantAnswer -Question 'where' -PreviousQuestion 'where is the public source code' -Culture 'en-US' -Knowledge $knowledge
     if ($windowsFollowUp -notmatch 'Chức năng 3.*Bản quyền Windows|Chức năng 3.*trạng thái kích hoạt') {
         Add-AssistantVerificationError 'Context follow-up did not retain the Windows feature topic.'
     }
     if ($oemFollowUp -notmatch 'Chức năng 7.*OEM' -or $oemFollowUp -match 'không phải chức năng số 7') {
         Add-AssistantVerificationError 'Context follow-up cross-routed feature 7 away from OEM recovery.'
+    }
+    if ($sourceFollowUp -notmatch 'github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen' -or
+        $sourceFollowUpEn -notmatch 'github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen') {
+        Add-AssistantVerificationError 'Short where/o dau follow-up did not retain the public-source topic.'
     }
 
     $offlineNow = Get-ToolAssistantAnswer -Question 'tool đang online hay offline hiện tại' -Culture 'vi-VN' -Knowledge $knowledge -OnlineMode $false

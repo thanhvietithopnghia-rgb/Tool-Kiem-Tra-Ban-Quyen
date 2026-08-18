@@ -1,6 +1,6 @@
 ﻿$script:ToolAssistantSchemaVersion = "1.1"
-$script:ToolAssistantToolVersion = "4.8.0.0"
-$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.3.1"
+$script:ToolAssistantToolVersion = "4.8.0.1"
+$script:ToolAssistantMinimumKnowledgeVersion = [Version]"1.3.3"
 $script:ToolAssistantKnowledgeFileName = "tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeUrl = "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/tool-assistant-knowledge-v1.1.json"
 $script:ToolAssistantKnowledgeSignatureFileName = "tool-assistant-knowledge-v1.1.json.p7s"
@@ -61,6 +61,9 @@ function ConvertTo-ToolAssistantSearchKey {
         'pb'='phien ban'; 'cn'='chuc nang'; 'hd'='huong dan'; 'sd'='su dung'
         'hdsd'='huong dan su dung'; 'pfd'='pdf'; 'ofline'='offline'; 'offine'='offline'
         'fixx'='sua'; 'fix'='sua'; 'kt'='kiem tra'; 'ktra'='kiem tra'; 'kieu'='kieu'
+        'repo'='repository'; 'ngun'='nguon'; 'khaio'='khai o'; 'srouce'='source'
+        'phii'='phi'; 'mnih'='minh'; 'unverifed'='unverified'; 'suspicous'='suspicious'
+        'crak'='crack'; 'frist'='first'; 'relase'='release'; 'relased'='released'
     }
     $tokens = @($key -split ' ' | Where-Object { $_ })
     $expanded = New-Object System.Collections.Generic.List[string]
@@ -405,6 +408,7 @@ function Test-ToolAssistantFollowUpQuery {
     if ([string]::IsNullOrWhiteSpace($QueryKey)) { return $false }
     if ($QueryKey -match '^(?:con|the con|vay|vay con|no|cai nay|cai do|muc nay|muc do|chuc nang nay|chuc nang do|truong hop nay|truong hop do)\b') { return $true }
     if ($QueryKey -match '^(?:cach dung no|su dung no|lam sao dung|noi ro hon|chi tiet hon|giai thich them|tai sao vay|sao nua|tiep theo)\b') { return $true }
+    if ($QueryKey -match '^(?:o dau|link dau|link nao|where|where exactly)$') { return $true }
     $tokens = @($QueryKey -split ' ' | Where-Object { $_ })
     return [bool]($tokens.Count -le 4 -and $QueryKey -match '\b(?:no|nay|do|them|tiep|con)\b')
 }
@@ -429,7 +433,8 @@ function Test-ToolAssistantRelatedQuery {
         [AllowNull()][string]$PreviousQuestion
     )
 
-    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|software|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|mas|pmas|kmspico|repack|backup|sao luu|khoi phuc|khac phuc|remediation|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|giay phep|license|freeware|open source|nguon mo|kich hoat|nghi van|suspicious|dau hieu|evidence|tampering|artifact|third party|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc|tri thuc|kien thuc|hoc hoi|dung luong exe|dung luong file exe|cache tri thuc|goi tri thuc|confidence|tin cay|winrar|mathtype)\b') { return $true }
+    if (-not [string]::IsNullOrWhiteSpace((Get-ToolAssistantPriorityEntryId -QueryKey $QueryKey))) { return $true }
+    if ($QueryKey -match '\b(?:tool|cong cu|tro ly|dashboard|bao cao|quet|scan|windows|office|phan mem|software|ung dung|may chu|may tram|server|client|pdf|json|html|xml|docx|kms|activator|crack|crackconfirmed|mas|pmas|kmspico|repack|backup|sao luu|khoi phuc|khac phuc|remediation|cap nhat|loi|uac|administrator|catalog|catalogue|oem|firmware|ban quyen|giay phep|license|mien phi|tra phi|gia tool|freeware|free|paid|open source|nguon mo|ma nguon|source code|repository|github|kich hoat|nghi van|suspicious|dau hieu|evidence|tampering|artifact|third party|smartscreen|defender|sha256|hash|chu ky|chung chi|certificate|plugin|timeline|offline|online|dry run|forensic|giao dien|cai dat|chuc nang|nut|muc|tri thuc|kien thuc|hoc hoi|dung luong exe|dung luong file exe|cache tri thuc|goi tri thuc|confidence|tin cay|chua xac dinh|chua xac minh|unknown|undetermined|unverified|v1 0|first version|first release|winrar|mathtype)\b') { return $true }
     if ($QueryKey -match '^(?:chua du bang chung|thieu bang chung|du bang chung chua)$') { return $true }
     if ($QueryKey -match '^(?:phien ban|version|do ai phat trien|ai phat trien|tac gia|ngay phat hanh|ngay build|tom tat|noi dung chinh|muc dich|nguyen tac|cong nghe|yeu cau he thong|cach chay|cach cai|tai o dau)\b') { return $true }
     if (-not [string]::IsNullOrWhiteSpace([string]$PreviousQuestion) -and (Test-ToolAssistantFollowUpQuery -QueryKey $QueryKey)) {
@@ -558,9 +563,22 @@ function Get-ToolAssistantEntryScore {
 function Get-ToolAssistantPriorityEntryId {
     param([Parameter(Mandatory = $true)][string]$QueryKey)
 
+    if ($QueryKey -match '(?:(?:phien ban|version|ban).*(?:dau tien|first)|(?:dau tien|first).*(?:phien ban|version|ban)|\bv1(?: 0)?\b.*(?:phat hanh|ra mat|release|ngay|date)|(?:phat hanh|ra mat|release).*\bv1(?: 0)?\b)') { return 'first-release' }
+    if ($QueryKey -match '(?:(?:tool|cong cu|san pham).*(?:mien phi|free|tra phi|paid|gia|chi phi|phi su dung|ton tien|mat tien)|(?:mien phi|free|tra phi|paid).*(?:tool|cong cu|hay|khong)|^(?:mien phi|free|tra phi|paid)(?: hay (?:mien phi|free|tra phi|paid))?$|^(?:co )?(?:ton tien|mat tien|mat phi)(?: khong)?$|^is it (?:free|paid)$)') { return 'tool-pricing' }
+    if ($QueryKey -match '\b(?:ma nguon|source code|public source|code cong khai|repository)\b' -or
+        $QueryKey -match '(?:\bgithub\b.*\b(?:ma nguon|source|code|open source|nguon mo)\b|\b(?:ma nguon|source|code|open source|nguon mo)\b.*\bgithub\b)') {
+        return 'source-code-license'
+    }
+    if ($QueryKey -match '^(?:chua xac dinh|undetermined|unknown|chua xac minh|unverified|nghi van|suspicious|crack confirmed|crackconfirmed|crack)(?: nghia la gi| la sao| la gi| meaning| means?)$' -or
+        $QueryKey -match '^(?:what does|what is) (?:undetermined|unknown|unverified|suspicious|crack confirmed|crackconfirmed|crack)(?: mean)?$' -or
+        $QueryKey -match '(?:(?:chua xac dinh|undetermined|unknown).*(?:chua xac minh|unverified)|(?:chua xac minh|unverified).*(?:chua xac dinh|undetermined|unknown))') {
+        return 'status-terms'
+    }
+    $statusTermMatches = [regex]::Matches($QueryKey, '\b(?:chua xac dinh|undetermined|unknown|chua xac minh|unverified|nghi van|suspicious|crack confirmed|crackconfirmed|crack)\b')
+    if ($statusTermMatches.Count -ge 2 -and $QueryKey -match '(?:khac|phan biet|nghia|meaning|mean|difference|different|compare|versus|\bvs\b|what do)') { return 'status-terms' }
     if ($QueryKey -match '(?:tool|cong cu).*(?:phien ban|version)|(?:phien ban|version).*(?:tool|cong cu|hien tai|dang dung|moi nhat|bay gio)|^(?:phien ban|version)(?: hien tai| moi nhat)?$') { return 'tool-version' }
     if ($QueryKey -match '(?:tac gia|author|nguoi phat trien|developer)|(?:do ai|ai).*(?:phat trien|viet|tao ra|lam ra)') { return 'tool-author' }
-    if ($QueryKey -match '(?:ngay|thoi diem).*(?:phat hanh|ra mat|build)|(?:phat hanh|ra mat|build).*(?:ngay nao|khi nao|luc nao)') { return 'release-date' }
+    if ($QueryKey -match '(?:ngay|thoi diem).*(?:phat hanh|ra mat|build)|(?:phat hanh|ra mat|build).*(?:ngay nao|khi nao|luc nao)|(?:build|release).*(?:date|when)|(?:date|when).*(?:build|release)') { return 'release-date' }
     if ($QueryKey -match '(?:tom tat|noi dung chinh|gioi thieu ngan|tong quan|tool lam gi|cong cu lam gi|muc dich cua tool)') { return 'tool-overview' }
     if ($QueryKey -match '(?:nguyen tac|triet ly|tieu chi).*(?:tool|cong cu|hoat dong|an toan)|^(?:nguyen tac|triet ly|tieu chi)(?: cua tool)?$') { return 'tool-principles' }
     if ($QueryKey -match '(?:tat ca|toan bo|10|tung).*(?:chuc nang|tinh nang|tac vu)|(?:chuc nang|tinh nang).*(?:gom nhung gi|co gi|danh sach|tong hop|tom tat)') { return 'feature-overview' }
@@ -622,6 +640,13 @@ function Resolve-ToolAssistantEntry {
         [Parameter(Mandatory = $true)][object]$Knowledge
     )
 
+    $priorityId = Get-ToolAssistantPriorityEntryId -QueryKey $QueryKey
+    if ($priorityId -in @('first-release','tool-pricing','source-code-license','status-terms')) {
+        $directEntry = @($Knowledge.Entries | Where-Object { [string]$_.Id -eq $priorityId } | Select-Object -First 1)
+        if ($directEntry.Count -gt 0) {
+            return [pscustomobject]@{ Entry=$directEntry[0]; Score=9500; Route='FocusedIntent' }
+        }
+    }
     foreach ($entry in @($Knowledge.Entries)) {
         foreach ($keywordValue in @($entry.Keywords)) {
             if ($QueryKey -eq (ConvertTo-ToolAssistantSearchKey -Value ([string]$keywordValue))) {
@@ -629,7 +654,6 @@ function Resolve-ToolAssistantEntry {
             }
         }
     }
-    $priorityId = Get-ToolAssistantPriorityEntryId -QueryKey $QueryKey
     if (-not [string]::IsNullOrWhiteSpace($priorityId)) {
         $priorityEntry = @($Knowledge.Entries | Where-Object { [string]$_.Id -eq $priorityId } | Select-Object -First 1)
         if ($priorityEntry.Count -gt 0) {

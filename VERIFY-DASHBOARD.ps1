@@ -74,8 +74,8 @@ if ($guiAst) {
 }
 
 Assert-SourcePattern $text '[$]dashboardSchemaVersion\s*=\s*"2\.0"' 'Dashboard schema không phải 2.0.'
-Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.0"' 'Dashboard chưa dùng release 4.8.0.0.'
-Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.14"' 'Dashboard chưa dùng ngày build 2026.08.14.'
+Assert-SourcePattern $text '[$]releaseVersion\s*=\s*"4\.8\.0\.1"' 'Dashboard chưa dùng release 4.8.0.1.'
+Assert-SourcePattern $text '[$]releaseBuildDate\s*=\s*"2026\.08\.18"' 'Dashboard chưa dùng ngày build 2026.08.18.'
 Assert-SourcePattern $text '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases"' 'Nút Giới thiệu chưa dùng trang Releases cố định, nơi luôn hiển thị bản mới nhất ở đầu.'
 if ($text -match '[$]officialReleaseUrl\s*=\s*"https://github\.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/(?:latest|tag/)') {
     Add-Failure 'Nút Giới thiệu đang trỏ tới alias/tag riêng thay vì trang Releases cố định.'
@@ -377,6 +377,48 @@ Assert-SourcePattern $text 'Start-SoftwareCatalogOnlineUpdate\s+-ScanScope\s+[$]
 Assert-SourcePattern $text 'Start-CleanupBackup\s+-Scope\s+[$]selectedScope' 'Backup chưa nhận phạm vi người dùng chọn.'
 Assert-SourcePattern $text 'Start-CleanupRestore\s+-Scope\s+[$]selectedScope' 'Khôi phục chưa nhận phạm vi người dùng chọn.'
 Assert-SourcePattern $text 'Start-Cleanup\s+-ScanScope\s+[$]selectedScope' 'Quét khắc phục chưa nhận phạm vi người dùng chọn.'
+foreach ($activationPattern in @(
+    'function\s+Test-GuiOfficialHttpsTarget',
+    'function\s+Open-GuiVendorLicenseAction',
+    'OfficialLicenseStateCode',
+    'OfficiallyLicensed',
+    'ReviewVendorActivation',
+    'OpenVendorActivation',
+    'OpenVendorRepair'
+)) {
+    Assert-SourcePattern $text $activationPattern "Dashboard thiếu trạng thái/hành động kích hoạt chính thức: $activationPattern"
+}
+if ($text -notmatch "Scheme\s+-eq\s+'https'" -or $text -notmatch 'IsNullOrWhiteSpace\([$]uri\.UserInfo\)') {
+    Add-Failure 'Dashboard chưa khóa link kích hoạt/Repair của hãng vào HTTPS không có user-info.'
+}
+if ($guiAst) {
+    $httpsValidatorAst = $guiAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-GuiOfficialHttpsTarget' }, $true)
+    if ($httpsValidatorAst) {
+        Invoke-Expression ($httpsValidatorAst.Extent.Text -replace '^function\s+Test-GuiOfficialHttpsTarget', 'function script:Test-GuiOfficialHttpsTarget')
+        if (-not (Test-GuiOfficialHttpsTarget 'https://vendor.example/license') -or
+            (Test-GuiOfficialHttpsTarget 'http://vendor.example/license') -or
+            (Test-GuiOfficialHttpsTarget 'https://user@vendor.example/license') -or
+            (Test-GuiOfficialHttpsTarget 'javascript:alert(1)')) {
+            Add-Failure 'Bộ lọc URL kích hoạt của hãng nhận nhầm URL không an toàn.'
+        }
+    }
+    $vendorActionAst = $guiAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Open-GuiVendorLicenseAction' }, $true)
+    if (-not $vendorActionAst -or [string]$vendorActionAst.Extent.Text -notmatch '[$]script:offlineMode') {
+        Add-Failure 'Mở trang kích hoạt của hãng chưa tôn trọng chế độ Offline.'
+    }
+}
+foreach ($activationKey in @(
+    'cleanup.result.licenseState','cleanup.result.componentLicenseState','cleanup.result.thirdPartyLicenseState',
+    'cleanup.result.vendorTargetMissing','cleanup.remediation.licensedStatus','cleanup.remediation.readyStatus'
+)) {
+    if ($null -eq $viCatalog.PSObject.Properties[$activationKey] -or $null -eq $enCatalog.PSObject.Properties[$activationKey]) {
+        Add-Failure "Dashboard thiếu chuỗi trạng thái kích hoạt vi/en: $activationKey"
+    }
+}
+if ([string]$viCatalog.'cleanup.remediation.readyStatus' -notmatch 'OfficiallyLicensed=False' -or
+    [string]$enCatalog.'cleanup.remediation.readyStatus' -notmatch 'OfficiallyLicensed=False') {
+    Add-Failure 'Trạng thái sạch crack đang bị diễn đạt nhầm thành đã kích hoạt chính thức.'
+}
 Assert-SourcePattern $text 'progress\.slowTask' 'Dashboard thiếu cảnh báo tác vụ chạy lâu nhưng còn phản hồi.'
 if ([string]$viCatalog.'menu.5.title' -ne 'Phần mềm & dấu hiệu can thiệp' -or
     [string]$viCatalog.'menu.5.description' -ne 'Ứng dụng đã cài, activator, crack và KMS cần xác minh' -or
@@ -510,7 +552,7 @@ if (-not (Test-Path -LiteralPath $guideViPath -PathType Leaf) -or
     if ($guideViText -match '(?im)^\s*(Bản|Phiên bản)\s+v?\d' -or $guideEnText -match '(?im)^\s*(Version|Release)\s+v?\d') {
         Add-Failure 'HDSD còn trộn nhật ký cập nhật phiên bản thay vì chỉ hướng dẫn chức năng.'
     }
-    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.8\.0\.0\*\*' -or
+    if ($historyText -notmatch 'FileVersion:\s*\*\*4\.8\.0\.1\*\*' -or
         $historyText -notmatch 'v4\.8\.0' -or
         $historyText -notmatch 'Nền tảng/công nghệ:' -or
         $historyText -notmatch 'Trọng tâm:') {

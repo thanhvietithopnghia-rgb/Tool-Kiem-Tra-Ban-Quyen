@@ -1,13 +1,26 @@
 # Computer Configuration and Software License Check Tool — Version History
 
-This document summarizes the main public releases from v1.0 through v4.8.0. v4.8.0 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
+This document summarizes the main public releases from v1.0 through v4.8.0.1. v4.8 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
 
-Current release: **v4.8.0**  
-FileVersion: **4.8.0.0** · Build **2026.08.14**
+Current release: **v4.8.0.1**
+FileVersion: **4.8.0.1** · Build **2026.08.18**
 
-## v4.8.0 — August 10, 2026 · in-place update August 14, 2026
+## v4.8.0.1 — August 18, 2026
+
+- **Safe application updates:** an update is offered only for a newer release, or for a same-version replacement when the installed EXE hash is verified and differs. Missing or invalid hashes fail closed. Check and Apply revalidate the launcher hash, retain a backup, and roll back if the replacement does not start reliably.
+- **A new public version:** FileVersion/ProductVersion is now `4.8.0.1` so devices on `4.8.0.0` can receive this release through the user-consented Online update flow; there are no silent updates or telemetry.
+
+## v4.8.0 — August 10, 2026 · in-place updates August 14 and 17, 2026
 
 **v4.8 is a direct upgrade from v4.6, focused on these main changes:**
+
+**In-place maintenance update on August 17, 2026:**
+
+- **Hardware and platform security:** complete TPM Present/Ready/Enabled/Activated and version reporting, Secure Boot fallback, and per-volume BitLocker details; expanded serial/identity collection for BIOS, system, baseboard, chassis, CPU, memory, storage, GPU, monitors, batteries, and networking. Full internal reports retain serials; shareable reports redact identifying values.
+- **Software inventory and catalog:** detached-CMS-signed catalog `1.4.0.0` with scope/update-policy metadata and 77 fail-closed rules. Parallel installs at different locations or patch versions remain separate; reports separate license model, technical state, reason, source, evidence, and confidence, with confirmed crack/strong evidence first.
+- **Safe remediation:** a generic filename containing “crack” is review-only; only allowlisted Strong/Conclusive evidence can create a candidate. System/driver components are never remediated, and `rarreg.key` alone proves neither valid entitlement nor abuse.
+- **Official activation and post-checks:** after tampering evidence is removed, the Tool separates “clean and ready for activation” from “licensed.” Windows returns `ActivationConfirmed = TRUE` only when Software Protection reports `LicenseStatus=1` for the submitted key; Office returns TRUE only when `OSPP.VBS /dstatusall` reports `LICENSED` for the same last five characters. Otherwise it remains FALSE, reports Unactivated/Needs repair, and opens the official activation surface; verified OEM/Retail/MAK or approved organization KMS licensing is preserved.
+- **Tool Assistant:** handles more short, misspelled, and follow-up questions; correctly explains that the Tool is provided free of charge, v1.0 was released on 17 July 2026, the source is publicly inspectable but not currently open source, and Undetermined/Unverified/Suspicious/Crack-confirmed are distinct states.
 
 **Report-feedback update on August 14, 2026:**
 

@@ -10,14 +10,14 @@ Offline vẫn là mặc định: công cụ không kết nối mạng khi chưa 
 
 Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
 
-Phiên bản hiện tại: **v4.8.0 — FileVersion 4.8.0.0 — Build 2026.08.14**
+Phiên bản hiện tại: **v4.8.0.1 — FileVersion 4.8.0.1 — Build 2026.08.18**
 
 Tác giả và phát triển: **Thanh Việt**
 
 ## Điểm chính
 
 - **Dễ dùng:** giao diện Sáng/Tối, Việt/Anh và tự co giãn theo DPI; đã sửa nút **Bản đã che thông tin** bị cắt chữ hoặc mờ khi rê chuột.
-- **Nhanh hơn:** tối ưu quét và kiểm kê nhưng giữ nguyên phạm vi kiểm tra; catalogue hiện có 76 quy tắc nhận diện phần mềm.
+- **Nhanh hơn:** tối ưu quét và kiểm kê nhưng giữ nguyên phạm vi kiểm tra; catalogue hiện có 77 quy tắc nhận diện phần mềm.
 - **Báo cáo rõ hơn:** HTML dùng để xem nhanh, PDF chứa chi tiết; người dùng có thể che dữ liệu nhạy cảm trước khi chia sẻ.
 - **Khắc phục an toàn:** có Dry Run, backup, chọn từng mục, UAC khi cần và kiểm tra lại kết quả; Tool không tự gỡ ứng dụng.
 - **Kết luận thận trọng:** tệp bị sửa không tự đồng nghĩa phần mềm không chính hãng; kết quả chưa đủ bằng chứng được ghi rõ là chưa xác minh.

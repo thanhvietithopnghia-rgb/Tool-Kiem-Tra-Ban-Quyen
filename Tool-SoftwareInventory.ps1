@@ -392,6 +392,20 @@ function Invoke-ToolSoftwareCatalogHttpGet {
     return $utf8.GetString($bytes)
 }
 
+function Get-ToolSoftwareCatalogFailureCode {
+    param([string]$Message)
+
+    $text = [string]$Message
+    if ($text -match '(?i)offline|network action') { return 'OfflinePolicy' }
+    if ($text -match '(?i)allowlist|outside the fixed HTTPS|https') { return 'Allowlist' }
+    if ($text -match '(?i)signature|pinned signer') { return 'Signature' }
+    if ($text -match '(?i)schema|JSON|UTF-8') { return 'Schema' }
+    if ($text -match '(?i)older than|trusted version|different content') { return 'Version' }
+    if ($text -match '(?i)proxy') { return 'Proxy' }
+    if ($text -match '(?i)timed out|timeout|name could not be resolved|connect|network|HTTP ') { return 'Connectivity' }
+    return 'Unknown'
+}
+
 function Update-ToolSoftwareLicenseCatalog {
     param(
         [Parameter(Mandatory = $true)][switch]$ConsentGranted,
@@ -477,14 +491,14 @@ function Update-ToolSoftwareLicenseCatalog {
             ProductRuleCount=[int]@(Get-ToolSoftwareOptionalPropertyValues -InputObject $catalog -Name 'Products').Count
             CachePath=$cachePath; SignaturePath=$cacheSignaturePath; SourceUrl=$uri.AbsoluteUri; SignatureUrl=$signatureUri.AbsoluteUri
             Sha256=(Get-ToolSoftwareSha256Bytes -Bytes $contentBytes); SignatureValid=$true
-            StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o'); Error=''
+            StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o'); Error=''; ErrorCode=''
             UploadedInventory=$false; SentLicenseKeys=$false
         }
     } catch {
         return [pscustomobject][ordered]@{
             Success=$false; CatalogVersion=''; ProductRuleCount=0; CachePath=(Get-ToolSoftwareCatalogCachePath); SignaturePath=(Get-ToolSoftwareCatalogCacheSignaturePath)
             SourceUrl=$(if ($uri) {$uri.AbsoluteUri} else {[string]$CatalogUrl}); SignatureUrl=$(if ($signatureUri) {$signatureUri.AbsoluteUri} else {[string]$SignatureUrl}); Sha256=''; SignatureValid=$false; StartedAtUtc=$started.ToString('o'); CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
-            Error=[string]$_.Exception.Message; UploadedInventory=$false; SentLicenseKeys=$false
+            Error=[string]$_.Exception.Message; ErrorCode=(Get-ToolSoftwareCatalogFailureCode -Message ([string]$_.Exception.Message)); UploadedInventory=$false; SentLicenseKeys=$false
         }
     } finally {
         if ($tempPath -and (Test-Path -LiteralPath $tempPath -PathType Leaf)) {
@@ -1417,7 +1431,13 @@ function Get-ToolSoftwareLocationEvidence {
             $isKnownActivator = Test-ToolSoftwareKnownActivatorText -Text $artifactName
             if ($executableArtifactExtensions -contains ([string]$file.Extension).ToLowerInvariant() -and
                 ($artifactName -match $strictPattern -or $isKnownActivator)) {
-                $evidence.Add([pscustomobject][ordered]@{ Code='UnauthorizedArtifactName'; Strength='Strong'; Source='InstallLocation'; Detail=[string]$file.FullName })
+                # This is an exact artifact found under the application's own
+                # install root.  Keep it non-decisive, but record the direct
+                # correlation so a later manual quarantine plan can validate
+                # this one file instead of treating the whole product as bad.
+                $evidence.Add((New-ToolSoftwareTechnicalEvidence -Code 'UnauthorizedArtifactName' -Strength 'Strong' `
+                    -Source 'InstallLocation' -Detail ([string]$file.FullName) -EvidenceGroup 'ActivatorArtifact' `
+                    -CorrelationLevel 'Direct'))
             }
         }
     } catch {}
@@ -1836,6 +1856,52 @@ function Get-ToolSoftwareRecoveryGate {
     # repair, the Tool only quarantines independently proven crack artifacts.
     # This deliberately keeps valid WinRAR rarreg.key files intact too.
     return [pscustomobject][ordered]@{ Mode='ArtifactCleanupOnly'; ArtifactCleanupAllowed=$true; LicenseStateResetAllowed=$false; Reason='DirectCrackEvidenceConfirmed'; EvidenceSummary=$summary }
+}
+
+function Get-ToolSoftwareManualArtifactQuarantineGate {
+    param(
+        [string]$AssessmentCode,
+        [string]$TechnicalState,
+        [object[]]$Evidence = @(),
+        [bool]$IsSystemComponent = $false
+    )
+
+    # "Suspicious" is not proof that an installed product is unlicensed.  It
+    # may, however, include one exact activator-like file tied directly to that
+    # product.  This gate only marks such a file as eligible for a *manual*
+    # quarantine proposal.  Path scope, reparse-point rejection, SHA-256 and
+    # length binding are enforced again by the cleanup module before execution.
+    if ($IsSystemComponent) {
+        return [pscustomobject][ordered]@{ Allowed=$false; Reason='SystemComponent'; Evidence=@(); EvidenceCount=0 }
+    }
+    if ($AssessmentCode -ne 'Suspicious' -or $TechnicalState -ne 'Suspicious') {
+        return [pscustomobject][ordered]@{ Allowed=$false; Reason='NotSuspicious'; Evidence=@(); EvidenceCount=0 }
+    }
+    $artifactCodes = @(
+        'UnauthorizedArtifactName','KnownActivatorArtifact','SuspiciousArtifactName',
+        'KnownActivatorFileArtifact','SuspiciousActivatorFileArtifact'
+    )
+    $artifactExtensions = @('.exe','.dll','.com','.scr','.cmd','.bat','.ps1','.vbs','.js','.msi','.zip','.rar','.7z','.jar')
+    $directArtifacts = @($Evidence | Where-Object {
+        if ((Get-ToolSoftwareEvidenceCorrelationLevel -Evidence $_) -ne 'Direct') { return $false }
+        if ([string]$_.Code -notin $artifactCodes -or [string]$_.Strength -notin @('Conclusive','Strong','Moderate')) { return $false }
+        $path = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) {
+            [string]$_.Location
+        } else {
+            [string]$_.Detail
+        }
+        if ([string]::IsNullOrWhiteSpace($path)) { return $false }
+        try { $path = [Environment]::ExpandEnvironmentVariables($path) } catch { return $false }
+        return [bool]($path -match '^[A-Za-z]:\\' -and
+            $artifactExtensions -contains ([IO.Path]::GetExtension($path)).ToLowerInvariant())
+    })
+    if ($directArtifacts.Count -eq 0) {
+        return [pscustomobject][ordered]@{ Allowed=$false; Reason='NoDirectExactArtifact'; Evidence=@(); EvidenceCount=0 }
+    }
+    return [pscustomobject][ordered]@{
+        Allowed=$true; Reason='DirectExactArtifactRequiresManualConfirmation'
+        Evidence=@($directArtifacts); EvidenceCount=[int]$directArtifacts.Count
+    }
 }
 
 function Get-ToolSoftwareTechnicalState {
@@ -2566,12 +2632,32 @@ function Get-ToolSoftwareAssessments {
             elseif ($vendorScope -eq 'Autodesk' -and [string]$application.SourceKind -ne 'Appx' -and [string]$application.Name -match '(?i)\b(?:Autodesk|AutoCAD|Revit|3ds Max|Civil 3D|Navisworks|Inventor|Fusion 360)\b') { $remediationAdapter = 'Autodesk' }
         }
         # A label such as Paid, Suspicious, or a vendor-wide artifact is never
-        # enough to change a local licensing state.  The one central gate below
-        # is consumed by the UI, candidate builder, dry run, and execution.
+        # enough to change a local licensing state.  The recovery gate remains
+        # the only path to automatic/confirmed artifact cleanup.  The separate
+        # manual gate below can only propose quarantining one exact direct file.
         $recoveryGate = Get-ToolSoftwareRecoveryGate -TechnicalState $technicalState -Evidence $uniqueEvidence `
             -IsSystemComponent:$isSystemComponent -RemediationAdapter $remediationAdapter
-        $cleanupFinding = [bool]$recoveryGate.ArtifactCleanupAllowed
-        $manualEligible = [bool]$recoveryGate.ArtifactCleanupAllowed
+        $manualArtifactQuarantineGate = Get-ToolSoftwareManualArtifactQuarantineGate `
+            -AssessmentCode $statusCode -TechnicalState $technicalState -Evidence $uniqueEvidence `
+            -IsSystemComponent:$isSystemComponent
+        # A suspicious application without an exact artifact must not become
+        # invisible merely because there is no safe local deletion to run.
+        # It is selectable for a *guidance-only* plan (official Repair,
+        # Cleanup, or reinstall) while the two gates below remain the only
+        # routes that can permit a local system change.
+        # An integrity-only mismatch can be valuable audit evidence, but it is
+        # not by itself a licensing residue to remediate.  Keep it visible in
+        # the report, and only expose the guidance workflow when a separate
+        # activation/tampering signal supports it.  This prevents an unsigned
+        # or independently modified legitimate binary from being presented as
+        # a "clean this software" action.
+        $guidedRemediationEligible = [bool](
+            -not $isSystemComponent -and
+            $remediationEvidenceCount -gt 0 -and
+            $statusCode -in @('NonGenuine','Suspicious','IntegrityCompromised')
+        )
+        $cleanupFinding = [bool]($recoveryGate.ArtifactCleanupAllowed -or $manualArtifactQuarantineGate.Allowed -or $guidedRemediationEligible)
+        $manualEligible = [bool]($recoveryGate.ArtifactCleanupAllowed -or $manualArtifactQuarantineGate.Allowed)
         if ($manualEligible -and [string]::IsNullOrWhiteSpace($remediationAdapter)) {
             $remediationAdapter = 'Generic'
         }
@@ -2591,7 +2677,20 @@ function Get-ToolSoftwareAssessments {
         } elseif ($catalogMatchReason -eq 'AmbiguousCatalogMatch') {
             'Multiple signed catalog rules matched; license model remains Unknown.'
         } else { 'No signed catalog rule matched; license model remains Unknown.' }
-        $remediationImpact = if ($manualEligible) { 'ArtifactCleanupOnly' } else { 'NoChangeProposed' }
+        $remediationImpact = if ([bool]$recoveryGate.ArtifactCleanupAllowed) {
+            'ArtifactCleanupOnly'
+        } elseif ([bool]$manualArtifactQuarantineGate.Allowed) {
+            'ManualArtifactQuarantine'
+        } elseif ($guidedRemediationEligible) {
+            'GuidedOfficialRepair'
+        } else {
+            'NoChangeProposed'
+        }
+        $recoveryMode = if ([bool]$manualArtifactQuarantineGate.Allowed -and -not [bool]$recoveryGate.ArtifactCleanupAllowed) {
+            'ManualArtifactQuarantine'
+        } else {
+            [string]$recoveryGate.Mode
+        }
         # Building an ordered property bag is materially faster than thousands
         # of Add-Member calls and produces the same PSCustomObject contract.
         $resultData = [ordered]@{}
@@ -2610,16 +2709,21 @@ function Get-ToolSoftwareAssessments {
             @('NeedsReview',$needsReview), @('CleanupFinding',$cleanupFinding),
             @('RemediationEvidenceCount',[int]$remediationEvidenceCount), @('ActivationStateProbe',$knownActivationState),
             @('DirectCrackEvidenceCount',[int]$directCrackSummary.DirectStrongEvidenceCount),
-            @('RecoveryGate',$recoveryGate), @('RecoveryMode',[string]$recoveryGate.Mode),
+            @('RecoveryGate',$recoveryGate), @('RecoveryMode',$recoveryMode),
             @('ArtifactCleanupAllowed',[bool]$recoveryGate.ArtifactCleanupAllowed),
             @('LicenseStateResetAllowed',[bool]$recoveryGate.LicenseStateResetAllowed),
             @('RecoveryBlockReason',[string]$recoveryGate.Reason),
+            @('ManualArtifactQuarantineGate',$manualArtifactQuarantineGate),
+            @('ManualArtifactQuarantineAllowed',[bool]$manualArtifactQuarantineGate.Allowed),
+            @('ManualArtifactQuarantineReason',[string]$manualArtifactQuarantineGate.Reason),
+            @('ManualArtifactQuarantineEvidenceCount',[int]$manualArtifactQuarantineGate.EvidenceCount),
             @('DeepScanEnabled',[bool]$DeepScan), @('DeepScanStatus',[string]$deepResult.Status), @('DeepScanComplete',[bool]$deepResult.Complete),
             @('DeepScanRoots',@($deepResult.Roots)), @('DeepScanFilesEnumerated',[int]$deepResult.FilesEnumerated),
             @('DeepScanSignatureChecks',[int]$deepResult.SignatureChecks), @('DeepScanHashChecks',[int]$deepResult.HashChecks),
             @('RemediationAdapter',$remediationAdapter), @('RemediationSupported',$manualEligible), @('ManualEligible',$manualEligible),
+            @('GuidedRemediationSupported',$guidedRemediationEligible), @('RemediationEvidenceCount',[int]$remediationEvidenceCount),
             @('AutoEligible',$autoEligible), @('RemediationImpact',$remediationImpact),
-            @('PostRemediationStateExpectation',$(if (-not $manualEligible) {'NoChange'} elseif ([bool]$recoveryGate.LicenseStateResetAllowed) {'LocalLicenseFileRemovedThenVerify'} else {'ArtifactsRemovedLicenseStateUnverified'})),
+            @('PostRemediationStateExpectation',$(if ($manualEligible -and [bool]$recoveryGate.LicenseStateResetAllowed) {'LocalLicenseFileRemovedThenVerify'} elseif ($manualEligible) {'ArtifactsRemovedLicenseStateUnverified'} elseif ($guidedRemediationEligible) {'OfficialGuidanceRequired'} else {'NoChange'})),
             @('IsSystemComponent',$isSystemComponent), @('SystemComponentReason',$systemComponentReason),
             @('CatalogSource',$catalogSourceForResult), @('CatalogVersion',$catalogVersionForResult)
         )) { $resultData[[string]$pair[0]] = $pair[1] }

@@ -37,7 +37,9 @@ try {
     $failure = [pscustomobject][ordered]@{
         Success=$false; CatalogVersion=''; ProductRuleCount=0; CachePath=(Get-ToolSoftwareCatalogCachePath)
         SourceUrl=$CatalogUrl; Sha256=''; StartedAtUtc=''; CompletedAtUtc=[DateTime]::UtcNow.ToString('o')
-        Error=[string]$_.Exception.Message; UploadedInventory=$false; SentLicenseKeys=$false
+        Error=[string]$_.Exception.Message
+        ErrorCode=$(if (Get-Command Get-ToolSoftwareCatalogFailureCode -ErrorAction SilentlyContinue) { Get-ToolSoftwareCatalogFailureCode -Message ([string]$_.Exception.Message) } else { 'Unknown' })
+        UploadedInventory=$false; SentLicenseKeys=$false
     }
     try { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultFile), ($failure | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false))) } catch {}
     exit 3

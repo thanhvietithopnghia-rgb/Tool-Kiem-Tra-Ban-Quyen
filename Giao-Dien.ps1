@@ -3111,33 +3111,58 @@ function Start-Cleanup {
     }
 }
 
+function Start-ThirdPartyManualReview {
+    # This entry point only starts the assessment.  It never applies a cleanup
+    # on its own: the user must choose one/all eligible exact artifacts and
+    # confirm again in the final plan dialog.
+    Start-Cleanup -ScanScope "ThirdParty"
+}
+
+function Enable-DashboardOnlineForCurrentCatalogSession {
+    param([switch]$ConsentAlreadyGranted)
+
+    if (-not $ConsentAlreadyGranted) {
+        $consent = [System.Windows.Forms.MessageBox]::Show(
+            (Get-DashboardText "software.online.consentMessage"),
+            (Get-DashboardText "software.online.consentTitle"),
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Information,
+            [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
+        if ($consent -ne [System.Windows.Forms.DialogResult]::Yes) {
+            $status.Text = Get-DashboardText "software.online.cancelledStatus"
+            $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
+            return $false
+        }
+    }
+
+    # This is intentionally local to the current process.  The Offline policy
+    # writes NextLaunchMode=Offline, so a new Tool launch will fail closed even
+    # though the catalog button can enable Online for this one approved run.
+    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne '0' -or
+        -not (Test-ToolNetworkActionAllowed -Scope Internet)) {
+        $script:offlineMode = $false
+        [void](Set-ToolOfflineModePreference -OfflineMode $false)
+        $env:TOOL_OFFLINE_MODE = '0'
+        Update-DashboardOfflineUi
+        Set-DashboardTheme -Mode $script:dashboardTheme
+        Refresh-DashboardLocalizedActivity
+        [void](Write-ToolLog -Level 'AUDIT' -Event 'OnlineMode.CatalogSessionEnabled' -Message (Get-DashboardText 'offline.networkAllowedLog') -Data ([ordered]@{
+            Source='SoftwareCatalog'; SessionOnly=$true; UploadedInventory=$false; SentLicenseKeys=$false
+        }))
+    }
+    return [bool](Test-ToolNetworkActionAllowed -Scope Internet)
+}
+
 function Start-SoftwareCatalogOnlineUpdate {
     param(
         [ValidateSet("All", "Windows", "Office", "ThirdParty", "WindowsOffice", "WindowsThirdParty", "OfficeThirdParty")]
-        [string]$ScanScope = "ThirdParty"
+        [string]$ScanScope = "ThirdParty",
+        [switch]$ConsentAlreadyGranted
     )
 
     $script:softwareCatalogAutoScan = $false
     $script:softwareCatalogAutoScanScope = "ThirdParty"
-    if ($script:offlineMode -or [string]$env:TOOL_OFFLINE_MODE -ne '0' -or
-        -not (Test-ToolNetworkActionAllowed -Scope Internet)) {
-        $offlineMessage = Get-DashboardText 'foundation.offline.actionBlocked' @((Get-DashboardText 'software.online.action'))
-        $status.Text = $offlineMessage
-        $status.ForeColor = [System.Drawing.Color]::DarkOrange
-        [System.Windows.Forms.MessageBox]::Show(
-            $offlineMessage,
-            (Get-DashboardText 'software.online.consentTitle'), 'OK', 'Warning') | Out-Null
-        return
-    }
-    $consent = [System.Windows.Forms.MessageBox]::Show(
-        (Get-DashboardText "software.online.consentMessage"),
-        (Get-DashboardText "software.online.consentTitle"),
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Information,
-        [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
-    if ($consent -ne [System.Windows.Forms.DialogResult]::Yes) {
-        $status.Text = Get-DashboardText "software.online.cancelledStatus"
-        $status.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
+    if (-not (Enable-DashboardOnlineForCurrentCatalogSession -ConsentAlreadyGranted:$ConsentAlreadyGranted)) {
         return
     }
     try {
@@ -3165,6 +3190,78 @@ function Start-SoftwareCatalogOnlineUpdate {
     }
 }
 
+function Get-SoftwareCatalogOnlineFailureDetail {
+    param($Result)
+
+    $errorText = if ($Result -and $Result.PSObject.Properties['Error'] -and -not [string]::IsNullOrWhiteSpace([string]$Result.Error)) {
+        [string]$Result.Error
+    } else { Get-DashboardText 'common.unknown' }
+    $code = if ($Result -and $Result.PSObject.Properties['ErrorCode']) { [string]$Result.ErrorCode } else { '' }
+    if ([string]::IsNullOrWhiteSpace($code) -and (Get-Command Get-ToolSoftwareCatalogFailureCode -ErrorAction SilentlyContinue)) {
+        $code = Get-ToolSoftwareCatalogFailureCode -Message $errorText
+    }
+    $causeKey = switch ($code) {
+        'OfflinePolicy' { 'software.online.failure.offlinePolicy' }
+        'Allowlist' { 'software.online.failure.allowlist' }
+        'Signature' { 'software.online.failure.signature' }
+        'Schema' { 'software.online.failure.schema' }
+        'Version' { 'software.online.failure.version' }
+        'Proxy' { 'software.online.failure.proxy' }
+        'Connectivity' { 'software.online.failure.connectivity' }
+        default { 'software.online.failure.unknown' }
+    }
+    return Get-DashboardText 'software.online.failure.detail' @((Get-DashboardText $causeKey), $errorText)
+}
+
+function Show-SoftwareCatalogFailureDialog {
+    param([Parameter(Mandatory = $true)][string]$Detail)
+
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = Get-DashboardText 'software.online.failedTitle'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.FormBorderStyle = 'FixedDialog'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $dialog.ClientSize = New-Object System.Drawing.Size(650, 230)
+    $dialog.Font = $fontNormal
+    $dialog.Tag = 'Close'
+
+    $message = New-Object System.Windows.Forms.Label
+    $message.Text = $Detail
+    $message.AutoEllipsis = $true
+    $message.Location = New-Object System.Drawing.Point(20, 18)
+    $message.Size = New-Object System.Drawing.Size(610, 142)
+    $message.Anchor = 'Top,Left,Right'
+    $dialog.Controls.Add($message)
+
+    $retry = New-Object System.Windows.Forms.Button
+    $retry.Text = Get-DashboardText 'software.online.retry'
+    $retry.Size = New-Object System.Drawing.Size(160, 38)
+    $retry.Location = New-Object System.Drawing.Point(132, 174)
+    $retry.Add_Click({ $dialog.Tag='Retry'; $dialog.Close() })
+    $dialog.Controls.Add($retry)
+
+    $offline = New-Object System.Windows.Forms.Button
+    $offline.Text = Get-DashboardText 'software.online.scanOffline'
+    $offline.Size = New-Object System.Drawing.Size(176, 38)
+    $offline.Location = New-Object System.Drawing.Point(300, 174)
+    $offline.Add_Click({ $dialog.Tag='Offline'; $dialog.Close() })
+    $dialog.Controls.Add($offline)
+
+    $close = New-Object System.Windows.Forms.Button
+    $close.Text = Get-DashboardText 'app.close'
+    $close.Size = New-Object System.Drawing.Size(120, 38)
+    $close.Location = New-Object System.Drawing.Point(484, 174)
+    $close.Add_Click({ $dialog.Close() })
+    $dialog.CancelButton = $close
+    $dialog.AcceptButton = $retry
+    Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
+    [void]$dialog.ShowDialog($form)
+    $choice = [string]$dialog.Tag
+    $dialog.Dispose()
+    return $choice
+}
+
 function Complete-SoftwareCatalogOnlineUpdate {
     Set-ButtonsEnabled $true
     $shouldScan = [bool]$script:softwareCatalogAutoScan
@@ -3181,7 +3278,7 @@ function Complete-SoftwareCatalogOnlineUpdate {
         }
         $result = Get-Content -LiteralPath $script:softwareCatalogUpdateResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
     } catch {
-        $result = [pscustomobject]@{ Success=$false; Error=[string]$_.Exception.Message; CatalogVersion=''; ProductRuleCount=0; CachePath='' }
+        $result = [pscustomobject]@{ Success=$false; Error=[string]$_.Exception.Message; ErrorCode='Unknown'; CatalogVersion=''; ProductRuleCount=0; CachePath='' }
     } finally {
         if ($script:softwareCatalogUpdateResultFile -and (Test-Path -LiteralPath $script:softwareCatalogUpdateResultFile -PathType Leaf)) {
             Remove-Item -LiteralPath $script:softwareCatalogUpdateResultFile -Force -ErrorAction SilentlyContinue
@@ -3200,17 +3297,14 @@ function Complete-SoftwareCatalogOnlineUpdate {
         return
     }
 
-    $errorText = if ($result -and $result.PSObject.Properties['Error']) { [string]$result.Error } else { Get-DashboardText "common.unknown" }
+    $failureDetail = Get-SoftwareCatalogOnlineFailureDetail -Result $result
     $status.Text = Get-DashboardText "software.online.failedStatus"
     $status.ForeColor = [System.Drawing.Color]::DarkOrange
-    Write-ProgressLog (Get-DashboardText "software.online.failedLog" @($errorText))
-    $fallback = [System.Windows.Forms.MessageBox]::Show(
-        (Get-DashboardText "software.online.fallbackPrompt" @($errorText)),
-        (Get-DashboardText "software.online.failedTitle"),
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Warning,
-        [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
-    if ($shouldScan -and $fallback -eq [System.Windows.Forms.DialogResult]::Yes) {
+    Write-ProgressLog (Get-DashboardText "software.online.failedLog" @($failureDetail))
+    $fallback = Show-SoftwareCatalogFailureDialog -Detail (Get-DashboardText "software.online.fallbackPrompt" @($failureDetail))
+    if ($fallback -eq 'Retry') {
+        Start-SoftwareCatalogOnlineUpdate -ScanScope $requestedScanScope -ConsentAlreadyGranted
+    } elseif ($shouldScan -and $fallback -eq 'Offline') {
         Start-Cleanup -ScanScope $requestedScanScope
     }
 }
@@ -3767,9 +3861,20 @@ function Show-DeepCleanupSelection {
         }
         $selectedObjects = @($items | Where-Object { $selectedIds -contains [string]$_.Id })
         $licenseCount = @($selectedObjects | Where-Object { $_.Type -eq "License" }).Count
-        $applicationCount = @($selectedObjects | Where-Object { $_.Type -eq 'Application' }).Count
+        # Guidance-only application rows are deliberately counted separately:
+        # the artifact warning must never imply that selecting a vendor repair
+        # guide will quarantine or alter that application.
+        $applicationCount = @($selectedObjects | Where-Object {
+            [string]$_.Type -eq 'Application' -and
+            -not ($_.PSObject.Properties['GuidanceOnly'] -and [bool]$_.GuidanceOnly)
+        }).Count
+        $guidanceCount = @($selectedObjects | Where-Object {
+            [string]$_.Type -eq 'Guidance' -or
+            ($_.PSObject.Properties['GuidanceOnly'] -and [bool]$_.GuidanceOnly)
+        }).Count
         $licenseWarning = if ($licenseCount -gt 0) { Get-DashboardText "cleanup.selection.licenseWarning" @($licenseCount) } else { "" }
         if ($applicationCount -gt 0) { $licenseWarning += Get-DashboardText "cleanup.selection.applicationWarning" @($applicationCount) }
+        if ($guidanceCount -gt 0) { $licenseWarning += Get-DashboardText "cleanup.selection.guidanceWarning" @($guidanceCount) }
         $summary = Get-DashboardText "cleanup.selection.summary" @($selectedIds.Count, $list.Items.Count, $licenseWarning)
         $answer = [System.Windows.Forms.MessageBox]::Show($summary, (Get-DashboardText "cleanup.selection.finalTitle"), "YesNo", "Warning")
         if ($answer -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -4008,9 +4113,37 @@ function Test-GuiThirdPartyDirectRemediationEvidence {
         return [bool]($Application.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$Application.ArtifactCleanupAllowed -and
             $Application.PSObject.Properties['CleanupArtifactCleanupAllowed'] -and [bool]$Application.CleanupArtifactCleanupAllowed)
     }
+    $manualArtifactQuarantine = [bool](
+        $Application.PSObject.Properties['ManualArtifactQuarantineAllowed'] -and [bool]$Application.ManualArtifactQuarantineAllowed -and
+        $Application.PSObject.Properties['CleanupManualArtifactQuarantineOnly'] -and [bool]$Application.CleanupManualArtifactQuarantineOnly -and
+        $Application.PSObject.Properties['AssessmentCode'] -and [string]$Application.AssessmentCode -eq 'Suspicious' -and
+        $Application.PSObject.Properties['LicenseTechnicalState'] -and [string]$Application.LicenseTechnicalState -eq 'Suspicious'
+    )
+    if ($manualArtifactQuarantine) {
+        # The candidate builder has already bound this exact file to a path,
+        # SHA-256 and length.  The final picker still asks the user to confirm;
+        # this is not an automatic cleanup permission.
+        return [bool]($Application.PSObject.Properties['CleanupArtifactCleanupAllowed'] -and [bool]$Application.CleanupArtifactCleanupAllowed)
+    }
     if (-not ($Application.PSObject.Properties['LicenseTechnicalState'] -and [string]$Application.LicenseTechnicalState -eq 'CrackConfirmed')) { return $false }
     if (-not ($Application.PSObject.Properties['ArtifactCleanupAllowed'] -and [bool]$Application.ArtifactCleanupAllowed)) { return $false }
     return [bool]($Application.PSObject.Properties['CleanupArtifactCleanupAllowed'] -and [bool]$Application.CleanupArtifactCleanupAllowed)
+}
+
+function Test-GuiThirdPartySelectionAllowed {
+    param($Application)
+
+    if (Test-GuiThirdPartyDirectRemediationEvidence -Application $Application) { return $true }
+    if (-not (Test-GuiThirdPartyCleanupFinding -Application $Application)) { return $false }
+    if (-not ($Application.PSObject.Properties['CleanupCandidateId'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$Application.CleanupCandidateId))) { return $false }
+    # Guidance selection is expressly not remediation permission.  The
+    # backend accepts only a Guidance item for it and leaves the application,
+    # licence store, services, tasks and registry untouched.
+    return [bool](
+        $Application.PSObject.Properties['GuidedRemediationSupported'] -and [bool]$Application.GuidedRemediationSupported -and
+        $Application.PSObject.Properties['CleanupGuidanceOnly'] -and [bool]$Application.CleanupGuidanceOnly
+    )
 }
 
 function Get-GuiThirdPartyCleanupFindings {
@@ -4131,19 +4264,21 @@ function Get-GuiCleanupNoFindingMessage {
 function Show-ThirdPartyAssessmentResults {
     param(
         $Scan,
-        [switch]$ReadOnly
+        [switch]$ReadOnly,
+        [string[]]$Warnings = @()
     )
 
     $inventoryApplications = @($Scan.ThirdPartyApplications)
     $standaloneRows = @(Get-GuiThirdPartyStandaloneCleanupRows -Candidates @($Scan.ThirdPartyCandidates))
     $allApplications = @($inventoryApplications) + @($standaloneRows)
     $sortProperties = @(
-        @{ Expression = { if (Test-GuiThirdPartyDirectRemediationEvidence -Application $_) { 0 } else { 1 } }; Ascending = $true }
+        @{ Expression = { if (Test-GuiThirdPartyDirectRemediationEvidence -Application $_) { 0 } elseif (Test-GuiThirdPartySelectionAllowed -Application $_) { 1 } else { 2 } }; Ascending = $true }
         @{ Expression = { [string]$_.Name }; Ascending = $true }
         @{ Expression = { [string]$_.Publisher }; Ascending = $true }
     )
     $applications = @($allApplications | Sort-Object -Property $sortProperties)
     $actionableCount = @($applications | Where-Object { Test-GuiThirdPartyDirectRemediationEvidence -Application $_ }).Count
+    $selectableCount = @($applications | Where-Object { Test-GuiThirdPartySelectionAllowed -Application $_ }).Count
 
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = Get-DashboardText "software.results.title"
@@ -4172,6 +4307,7 @@ function Show-ThirdPartyAssessmentResults {
     $summary = New-Object System.Windows.Forms.Label
     $summary.Text = Get-DashboardText "software.results.summary" @(
         $allApplications.Count,
+        $selectableCount,
         $actionableCount,
         @($allApplications | Where-Object { [string]$_.AssessmentCode -eq 'NonGenuine' }).Count,
         @($allApplications | Where-Object { [string]$_.AssessmentCode -eq 'Suspicious' }).Count,
@@ -4185,6 +4321,9 @@ function Show-ThirdPartyAssessmentResults {
 
     $hint = New-Object System.Windows.Forms.Label
     $hint.Text = Get-DashboardText $(if ($ReadOnly) { "software.results.hint.readOnly" } elseif ($allApplications.Count -eq 0) { "software.results.noApplications" } else { "software.results.hint" })
+    if ($ReadOnly -and @($Warnings).Count -gt 0) {
+        $hint.Text = (Get-DashboardText 'software.results.hint.scanWarning' @((@($Warnings | Select-Object -First 3) -join '; '))) + "`r`n" + $hint.Text
+    }
     if ($Scan.PSObject.Properties['DeepSoftwareScanEnabled'] -and [bool]$Scan.DeepSoftwareScanEnabled) {
         $deepCompleteText = Get-DashboardText $(if ([bool]$Scan.DeepSoftwareScanComplete) { 'common.yes' } else { 'common.no' })
         $hint.Text = (Get-DashboardText "software.results.deepSummary" @(
@@ -4235,6 +4374,8 @@ function Show-ThirdPartyAssessmentResults {
     foreach ($application in $applications) {
         $candidateId = if ($application.PSObject.Properties['CleanupCandidateId']) { [string]$application.CleanupCandidateId } else { '' }
         $actionable = Test-GuiThirdPartyDirectRemediationEvidence -Application $application
+        $selectionAllowed = Test-GuiThirdPartySelectionAllowed -Application $application
+        $guidanceOnly = [bool]($selectionAllowed -and -not $actionable)
         $evidenceText = @($application.Evidence | ForEach-Object {
             $detail = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) { [string]$_.Location } else { [string]$_.Detail }
             if ([string]::IsNullOrWhiteSpace($detail)) { [string]$_.Code } else { "$([string]$_.Code): $detail" }
@@ -4246,12 +4387,17 @@ function Show-ThirdPartyAssessmentResults {
                 'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
                 'ArtifactCleanupOnly' { Get-DashboardText "software.results.action.artifactCleanupOnly" }
                 'ArtifactCleanup' { Get-DashboardText "software.results.action.artifactCleanup" }
+                'ManualArtifactQuarantine' { Get-DashboardText "software.results.action.manualArtifactQuarantine" }
                 'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
                 default { Get-DashboardText "software.results.action.guidedRepair" }
             }
             Get-DashboardText 'software.results.action.classified' @(
                 (Get-DashboardText 'software.results.classification.actionable'),
                 $actionDetail)
+        } elseif ($guidanceOnly) {
+            Get-DashboardText 'software.results.action.classified' @(
+                (Get-DashboardText 'software.results.classification.actionable'),
+                (Get-DashboardText 'software.results.action.guidedOnly'))
         } elseif (Test-GuiThirdPartyCleanupFinding -Application $application) {
             Get-DashboardText 'software.results.action.classified' @(
                 (Get-DashboardText 'software.results.classification.manualReview'),
@@ -4276,16 +4422,16 @@ function Show-ThirdPartyAssessmentResults {
         [void]$row.SubItems.Add([string]$confidenceLabels[$confidence])
         [void]$row.SubItems.Add($evidenceText)
         [void]$row.SubItems.Add($actionText)
-        $row.Tag = [pscustomobject]@{ Application=$application; CandidateId=$candidateId; Actionable=$actionable }
+        $row.Tag = [pscustomobject]@{ Application=$application; CandidateId=$candidateId; Actionable=$actionable; SelectionAllowed=$selectionAllowed; GuidanceOnly=$guidanceOnly }
         $row.ToolTipText = "$([string]$application.Name)`r`n$([string]$application.TechnicalStatus)`r`n$evidenceText`r`n$actionText"
-        if (-not $actionable) { $row.ForeColor = [System.Drawing.Color]::FromArgb(105, 112, 125) }
+        if (-not $selectionAllowed) { $row.ForeColor = [System.Drawing.Color]::FromArgb(105, 112, 125) }
         [void]$list.Items.Add($row)
     }
     $list.Add_ItemCheck({
         param($sender, $eventArgs)
         if ($eventArgs.Index -lt 0 -or $eventArgs.Index -ge $sender.Items.Count) { return }
         $metadata = $sender.Items[$eventArgs.Index].Tag
-        if (-not [bool]$metadata.Actionable) { $eventArgs.NewValue = [System.Windows.Forms.CheckState]::Unchecked }
+        if (-not [bool]$metadata.SelectionAllowed) { $eventArgs.NewValue = [System.Windows.Forms.CheckState]::Unchecked }
     })
     $dialog.Controls.Add($list)
 
@@ -4308,11 +4454,11 @@ function Show-ThirdPartyAssessmentResults {
     $rightButtons.WrapContents = $false
     $buttonLayout.Controls.Add($rightButtons, 1, 0)
 
-    if (-not $ReadOnly -and $actionableCount -gt 0) {
+    if (-not $ReadOnly -and $selectableCount -gt 0) {
         $selectAllButton = New-Object System.Windows.Forms.Button
         $selectAllButton.Text = Get-DashboardText "common.selectAll"
         $selectAllButton.Size = New-Object System.Drawing.Size(138, 38)
-        $selectAllButton.Add_Click({ foreach ($row in $list.Items) { if ([bool]$row.Tag.Actionable) { $row.Checked = $true } } })
+        $selectAllButton.Add_Click({ foreach ($row in $list.Items) { if ([bool]$row.Tag.SelectionAllowed) { $row.Checked = $true } } })
         $leftButtons.Controls.Add($selectAllButton)
 
         $clearButton = New-Object System.Windows.Forms.Button
@@ -4348,7 +4494,7 @@ function Show-ThirdPartyAssessmentResults {
     $dialog.CancelButton = $closeButton
     $rightButtons.Controls.Add($closeButton)
 
-    if (-not $ReadOnly -and $actionableCount -gt 0) {
+    if (-not $ReadOnly -and $selectableCount -gt 0) {
         $continueButton = New-Object System.Windows.Forms.Button
         $continueButton.Text = Get-DashboardText "software.results.continueCleanup"
         $continueButton.Font = $fontBold
@@ -4397,12 +4543,19 @@ function Complete-CleanupScan {
             Register-ToolReportPath -Path ([string]$scan.ReportPath)
             Write-ProgressLog (Get-DashboardText "cleanup.report.readyOnDemand" @($scan.ReportPath))
         }
+        $thirdPartySuggestedIds = @()
 
         if ([int]$scan.ScanWarningCount -gt 0) {
             Set-ButtonsEnabled $true
             $status.Text = Get-DashboardText "cleanup.scan.incompleteStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
             Write-ProgressLog (Get-DashboardText "cleanup.scan.incompleteLog" @($scan.ScanWarningCount))
+            if (Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "ThirdParty") {
+                # A partial scan still has useful evidence, but it must never
+                # unlock execution.  Show it read-only before the recovery
+                # choice instead of making the inventory appear empty.
+                [void](Show-ThirdPartyAssessmentResults -Scan $scan -ReadOnly -Warnings @($scan.ScanWarnings))
+            }
             $choice = Show-ScanWarningRecoveryDialog -Scan $scan
             if ($choice -eq "Repair") {
                 Start-ScanSourceRepair
@@ -4437,10 +4590,17 @@ function Complete-CleanupScan {
         }
 
         if (Test-GuiCleanupScopeIncludes -Scope $script:cleanupScanScope -Component "ThirdParty") {
-            # In a combined scan, present the complete third-party inventory for review
-            # before continuing with the Windows/Office cleanup flow. This dialog never
-            # selects or changes third-party software in a mixed scope.
-            [void](Show-ThirdPartyAssessmentResults -Scan $scan -ReadOnly)
+            # In a normal combined scan, let the user choose eligible third-party
+            # artifacts one-by-one or all at once.  The choices only preselect
+            # IDs for the unified final review; they are never auto-applied.
+            if ([bool]$script:cleanupAutoSafeMode) {
+                [void](Show-ThirdPartyAssessmentResults -Scan $scan -ReadOnly)
+            } else {
+                $assessmentChoice = Show-ThirdPartyAssessmentResults -Scan $scan
+                if ([bool]$assessmentChoice.Proceed) {
+                    $thirdPartySuggestedIds = @($assessmentChoice.SelectedCandidateIds)
+                }
+            }
         }
 
         if ($scopedCleanupItems.Count -gt 0) {
@@ -4489,7 +4649,7 @@ function Complete-CleanupScan {
                 $status.ForeColor = [System.Drawing.Color]::DarkOrange
                 return
             }
-            Start-CleanupDeep -CleanupItems $scopedCleanupItems
+            Start-CleanupDeep -CleanupItems $scopedCleanupItems -SuggestedIds $thirdPartySuggestedIds
             return
         }
 
@@ -4566,14 +4726,45 @@ function Open-GuiVendorLicenseAction {
     if (Test-GuiOfficialHttpsTarget $targetUrl) { try { Start-Process -FilePath $targetUrl } catch { [System.Windows.Forms.MessageBox]::Show((Get-DashboardText 'software.results.openOfficialFailed' @($_.Exception.Message)), (Get-DashboardText 'common.errorTitle'), 'OK', 'Error') | Out-Null } }
 }
 
+function Get-GuiPostVerificationDispositionLabel {
+    param([string]$Disposition)
+
+    $key = switch ($Disposition) {
+        'ResidualAfterSelectedAction' { 'cleanup.result.postDisposition.residual' }
+        'RemainingActionable' { 'cleanup.result.postDisposition.actionable' }
+        'OfficialActionRequired' { 'cleanup.result.postDisposition.officialAction' }
+        'OfficialGuidanceAvailable' { 'cleanup.result.postDisposition.officialGuidance' }
+        'ActionFailed' { 'cleanup.result.postDisposition.failed' }
+        'ScanIncomplete' { 'cleanup.result.postDisposition.scanIncomplete' }
+        default { 'cleanup.result.postDisposition.cannotAutoHandle' }
+    }
+    return Get-DashboardText $key
+}
+
+function Get-GuiPostVerificationOutcomeLabel {
+    param([string]$Outcome)
+
+    $key = switch ($Outcome) {
+        'VerifiedValid' { 'cleanup.result.postOutcome.verifiedValid' }
+        'FullyHandled' { 'cleanup.result.postOutcome.fullyHandled' }
+        'RemainingActionable' { 'cleanup.result.postOutcome.remainingActionable' }
+        default { 'cleanup.result.postOutcome.cannotAutoHandle' }
+    }
+    return Get-DashboardText $key
+}
+
 function Show-CleanupResultCenter {
     param($Result, [bool]$WasDeepCleanup, [bool]$SafetyBlocked)
 
     $isDryRun = [bool]($Result.PSObject.Properties['SimulationOnly'] -and [bool]$Result.SimulationOnly)
-    $remainingItems = @($Result.CleanupItems)
+    $hasPostVerification = [bool]$Result.PSObject.Properties['PostVerificationItems']
+    $postVerificationItems = if ($hasPostVerification) { @($Result.PostVerificationItems) } else { @() }
+    $remainingItems = if ($hasPostVerification) { @($postVerificationItems) } else { @($Result.CleanupItems) }
+    $postVerificationOutcome = if ($Result.PSObject.Properties['PostVerificationOutcome']) { [string]$Result.PostVerificationOutcome } else { '' }
     $thirdPartyExecutionResults = @($(if ($Result.PSObject.Properties['ThirdPartyExecutionResults']) { @($Result.ThirdPartyExecutionResults) }))
     $systemChangeApplied = [bool]($Result.PSObject.Properties['SystemChangeApplied'] -and [bool]$Result.SystemChangeApplied)
     $noAutomaticChange = [bool](-not $isDryRun -and -not $SafetyBlocked -and [int]$Result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied -and $thirdPartyExecutionResults.Count -gt 0)
+    $guidedActionOnly = [bool]($Result.PSObject.Properties['DecisionCode'] -and [string]$Result.DecisionCode -eq 'GuidedActionRequired')
     $officiallyLicensed = [bool]($Result.PSObject.Properties['OfficiallyLicensed'] -and [bool]$Result.OfficiallyLicensed)
     $officialLicenseStateCode = if ($Result.PSObject.Properties['OfficialLicenseStateCode']) { [string]$Result.OfficialLicenseStateCode } else { 'Unknown' }
     $officialPostCheck = if ($Result.PSObject.Properties['OfficialLicensePostCheck']) { $Result.OfficialLicensePostCheck } else { $null }
@@ -4592,10 +4783,14 @@ function Show-CleanupResultCenter {
         Get-DashboardText 'cleanup.dryRun.completedHeading' @([int]$Result.PlannedActionCount)
     } elseif ($SafetyBlocked) {
         Get-DashboardText "cleanup.result.blockedHeading"
+    } elseif ($guidedActionOnly) {
+        Get-DashboardText 'cleanup.result.guidedActionHeading'
     } elseif ($noAutomaticChange) {
         Get-DashboardText "cleanup.result.noAutomaticChangeHeading"
-    } elseif ($officiallyLicensed) {
+    } elseif ($postVerificationOutcome -eq 'VerifiedValid' -or $officiallyLicensed) {
         Get-DashboardText 'cleanup.result.licensedHeading'
+    } elseif ($postVerificationOutcome -eq 'FullyHandled') {
+        Get-DashboardText 'cleanup.result.fullyHandledHeading'
     } elseif ([bool]$Result.ReadyForOfficialActivation) {
         Get-DashboardText "cleanup.result.readyHeading"
     } elseif ($remainingItems.Count -gt 0) {
@@ -4603,7 +4798,7 @@ function Show-CleanupResultCenter {
     } else {
         Get-DashboardText "cleanup.result.reviewHeading"
     }
-    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ($officiallyLicensed) { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
+    $headingColor = if ($isDryRun) { [System.Drawing.Color]::FromArgb(18, 59, 116) } elseif ($officiallyLicensed -or $postVerificationOutcome -eq 'FullyHandled') { [System.Drawing.Color]::DarkGreen } else { [System.Drawing.Color]::DarkOrange }
     if ($SafetyBlocked) { $headingColor = [System.Drawing.Color]::DarkRed }
 
     $body = New-Object System.Collections.Generic.List[string]
@@ -4630,6 +4825,11 @@ function Show-CleanupResultCenter {
         $officialLicenseStateCode,
         $(if ([bool]$Result.ReadyForOfficialActivation) { 'True' } else { 'False' })
     )))
+    if ($hasPostVerification) {
+        $body.Add((Get-DashboardText 'cleanup.result.postVerificationHeading'))
+        $body.Add((Get-DashboardText 'cleanup.result.postVerificationOutcome' @(
+            (Get-GuiPostVerificationOutcomeLabel -Outcome $postVerificationOutcome))))
+    }
     if ($officialPostCheck) {
         foreach ($outcome in @($officialPostCheck.Windows, $officialPostCheck.Office) | Where-Object { $_ -and [bool]$_.Applicable }) {
             $body.Add((Get-DashboardText 'cleanup.result.componentLicenseState' @(
@@ -4693,10 +4893,20 @@ function Show-CleanupResultCenter {
 
     if ($remainingItems.Count -gt 0) {
         $body.Add("")
-        $body.Add((Get-DashboardText "cleanup.result.remainingItemsHeading"))
+        $body.Add((Get-DashboardText $(if ($hasPostVerification) { 'cleanup.result.postVerificationItemsHeading' } else { 'cleanup.result.remainingItemsHeading' })))
         foreach ($item in @($remainingItems | Select-Object -First 30)) {
-            $detail = (([string]$item.Detail) -replace "`0|`r?`n", " ").Trim()
-            $body.Add("- [$($item.Type)] $($item.Name) - $detail")
+            if ($hasPostVerification) {
+                $location = (([string]$item.Location) -replace "`0|`r?`n", " ").Trim()
+                if ([string]::IsNullOrWhiteSpace($location)) { $location = Get-DashboardText 'common.unknown' }
+                $reason = (([string]$item.Reason) -replace "`0|`r?`n", " ").Trim()
+                if ([string]::IsNullOrWhiteSpace($reason)) { $reason = (([string]$item.Detail) -replace "`0|`r?`n", " ").Trim() }
+                $body.Add((Get-DashboardText 'cleanup.result.postVerificationItem' @(
+                    (Get-GuiPostVerificationDispositionLabel -Disposition ([string]$item.Disposition)),
+                    [string]$item.Name, $location, $reason)))
+            } else {
+                $detail = (([string]$item.Detail) -replace "`0|`r?`n", " ").Trim()
+                $body.Add("- [$($item.Type)] $($item.Name) - $detail")
+            }
         }
         if ($remainingItems.Count -gt 30) { $body.Add((Get-DashboardText "cleanup.result.moreItems" @($remainingItems.Count - 30))) }
     }
@@ -4724,7 +4934,7 @@ function Show-CleanupResultCenter {
     $body.Add((Get-DashboardText "common.reportPath" @($Result.ReportPath)))
 
     $dialog = New-Object System.Windows.Forms.Form
-    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ($officiallyLicensed) { Get-DashboardText 'cleanup.result.licensedTitle' } elseif ($noAutomaticChange) { Get-DashboardText 'cleanup.result.noAutomaticChangeTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
+    $dialog.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultTitle' } elseif ($postVerificationOutcome -eq 'VerifiedValid' -or $officiallyLicensed) { Get-DashboardText 'cleanup.result.licensedTitle' } elseif ($postVerificationOutcome -eq 'FullyHandled') { Get-DashboardText 'cleanup.result.fullyHandledTitle' } elseif ($guidedActionOnly) { Get-DashboardText 'cleanup.result.guidedActionTitle' } elseif ($noAutomaticChange) { Get-DashboardText 'cleanup.result.noAutomaticChangeTitle' } elseif ([bool]$Result.ReadyForOfficialActivation) { Get-DashboardText "cleanup.result.readyTitle" } else { Get-DashboardText "cleanup.result.remainingTitle" }
     $dialog.StartPosition = "CenterParent"
     $dialog.FormBorderStyle = "Sizable"
     $dialog.MaximizeBox = $true
@@ -4761,7 +4971,7 @@ function Show-CleanupResultCenter {
     $heading.Height = 38
     $header.Controls.Add($heading)
     $subheading = New-Object System.Windows.Forms.Label
-    $subheading.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultHint' } elseif ($SafetyBlocked) { Get-DashboardText "cleanup.result.blockedHint" } elseif ($remainingItems.Count -gt 0) { Get-DashboardText "cleanup.result.remainingHint" } else { Get-DashboardText "cleanup.result.defaultHint" }
+    $subheading.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultHint' } elseif ($SafetyBlocked) { Get-DashboardText "cleanup.result.blockedHint" } elseif ($guidedActionOnly) { Get-DashboardText 'cleanup.result.guidedActionHint' } elseif ($postVerificationOutcome -eq 'FullyHandled') { Get-DashboardText 'cleanup.result.fullyHandledHint' } elseif ($postVerificationOutcome -eq 'CannotAutoHandle') { Get-DashboardText 'cleanup.result.cannotAutoHandleHint' } elseif ($remainingItems.Count -gt 0) { Get-DashboardText "cleanup.result.remainingHint" } else { Get-DashboardText "cleanup.result.defaultHint" }
     $subheading.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
     $subheading.Dock = "Fill"
     $header.Controls.Add($subheading)
@@ -4850,6 +5060,8 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             $script:cleanupScanScope = [string]$result.ScanScope
         }
         $result.CleanupItems = @(Get-GuiScopedCleanupItems -CleanupItems @($result.CleanupItems) -Scope $script:cleanupScanScope)
+        $postVerificationItems = if ($result.PSObject.Properties['PostVerificationItems']) { @($result.PostVerificationItems) } else { @($result.CleanupItems) }
+        $postVerificationSuggestedIds = if ($result.PSObject.Properties['PostVerificationSuggestedIds']) { @($result.PostVerificationSuggestedIds) } else { @() }
         $overallReadyForActivation = [bool]$result.ReadyForOfficialActivation
         $scopeReadyForOriginalState = if ($result.PSObject.Properties['ScopeReadyForOriginalState']) { [bool]$result.ScopeReadyForOriginalState } else { $overallReadyForActivation }
         $result | Add-Member -NotePropertyName OverallReadyForOfficialActivation -NotePropertyValue $overallReadyForActivation -Force
@@ -4870,7 +5082,7 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             SelectedItemCount=[int]$result.SelectedCleanupItemCount
             ConfirmedActionCount=$confirmedActionCount
             ReadyForOfficialActivation=[bool]$result.ReadyForOfficialActivation
-            RemainingItemCount=[int](@($result.CleanupItems).Count)
+            RemainingItemCount=[int]$postVerificationItems.Count
             BackupCreated=[bool](-not [string]::IsNullOrWhiteSpace([string]$result.BackupDirectory))
             AutomaticSafeMode=$completedAutoSafeMode
             SimulationOnly=$completedDryRunMode
@@ -4882,6 +5094,9 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
         } elseif ($wasSafetyBlocked) {
             $status.Text = Get-DashboardText "cleanup.remediation.blockedStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
+        } elseif ($result.PSObject.Properties['PostVerificationOutcome'] -and [string]$result.PostVerificationOutcome -eq 'FullyHandled') {
+            $status.Text = Get-DashboardText 'cleanup.remediation.fullyHandledStatus'
+            $status.ForeColor = [System.Drawing.Color]::DarkGreen
         } elseif ([int]$result.SelectedCleanupItemCount -gt 0 -and -not $systemChangeApplied) {
             $status.Text = Get-DashboardText "cleanup.remediation.noAutomaticChangeStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
@@ -4892,7 +5107,7 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             $status.Text = Get-DashboardText "cleanup.remediation.readyStatus"
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
         } else {
-            $status.Text = Get-DashboardText "cleanup.remediation.remainingStatus" @(@($result.CleanupItems).Count)
+            $status.Text = Get-DashboardText "cleanup.remediation.remainingStatus" @($postVerificationItems.Count)
             $status.ForeColor = [System.Drawing.Color]::DarkOrange
         }
         Write-ProgressLog (Get-DashboardText "cleanup.remediation.completedLog" @($result.CleanupConclusion))
@@ -4909,7 +5124,7 @@ function Complete-CleanupRemediation([bool]$wasDeepCleanup) {
             }
             "RemediateRemaining" {
                 Write-ProgressLog (Get-DashboardText "cleanup.remediation.openRemainingLog")
-                Start-CleanupDeep -CleanupItems @($result.CleanupItems)
+                Start-CleanupDeep -CleanupItems @($result.CleanupItems) -SuggestedIds @($postVerificationSuggestedIds)
                 return
             }
             "ConfigureApprovedKms" {
@@ -6729,7 +6944,7 @@ Add-MenuButton 1 "menu.1.title" "menu.1.description" 0 { Start-Report "All" (Get
 Add-MenuButton 2 "menu.2.title" "menu.2.description" 1 { Start-Report "Hardware" (Get-ToolText -Key "menu.2.title" -Culture $script:dashboardCulture) } $false
 Add-MenuButton 3 "menu.3.title" "menu.3.description" 2 { Start-Report "Windows" (Get-ToolText -Key "menu.3.title" -Culture $script:dashboardCulture) } $false
 Add-MenuButton 4 "menu.4.title" "menu.4.description" 3 { Start-Report "Office" (Get-ToolText -Key "menu.4.title" -Culture $script:dashboardCulture) } $false
-Add-MenuButton 5 "menu.5.title" "menu.5.description" 4 { Start-Report "Software" (Get-ToolText -Key "menu.5.title" -Culture $script:dashboardCulture) } $false
+Add-MenuButton 5 "menu.5.title" "menu.5.description" 4 { Start-ThirdPartyManualReview } $false
 Add-MenuButton 6 "menu.6.title" "menu.6.description" 5 { Show-CleanupMenu } $true
 Add-MenuButton 7 "menu.7.title" "menu.7.description" 6 { Start-OemInspect } $true
 Add-MenuButton 8 "menu.8.title" "menu.8.description" 7 { Open-LicenseManager } $false

@@ -421,12 +421,12 @@ if ([string]$viCatalog.'cleanup.remediation.readyStatus' -notmatch 'OfficiallyLi
 }
 Assert-SourcePattern $text 'progress\.slowTask' 'Dashboard thiếu cảnh báo tác vụ chạy lâu nhưng còn phản hồi.'
 if ([string]$viCatalog.'menu.5.title' -ne 'Phần mềm & dấu hiệu can thiệp' -or
-    [string]$viCatalog.'menu.5.description' -ne 'Ứng dụng đã cài, activator, crack và KMS cần xác minh' -or
+    [string]$viCatalog.'menu.5.description' -ne 'Quét bằng chứng và chọn thủ công từng/tất cả tệp nghi vấn đã xác thực' -or
     [string]$enCatalog.'menu.5.title' -ne 'Software & tampering indicators' -or
-    [string]$enCatalog.'menu.5.description' -ne 'Installed apps, activators, cracks and KMS items to verify' -or
+    [string]$enCatalog.'menu.5.description' -ne 'Scan evidence and manually select one/all verified suspicious artifacts' -or
     [string]$viCatalog.'report.title.software' -ne 'Báo cáo phần mềm và dấu hiệu can thiệp' -or
     [string]$enCatalog.'report.title.software' -ne 'Software and tampering indicator report') {
-    Add-Failure 'Mục 5 chưa khôi phục đúng hợp đồng giao diện/báo cáo của v4.3.0.3.'
+    Add-Failure 'Mục 5 chưa giữ đúng hợp đồng kiểm kê/báo cáo và luồng chọn thủ công artifact đã xác thực.'
 }
 if ([string]$viCatalog.'menu.7.description' -ne 'Kiểm tra key firmware; chỉ áp dụng sau khi xác nhận' -or
     [string]::IsNullOrWhiteSpace([string]$viCatalog.'about.card.config.body') -or
@@ -688,7 +688,8 @@ foreach ($pattern in @(
     'Start-Report\s+"Hardware"',
     'Start-Report\s+"Windows"',
     'Start-Report\s+"Office"',
-    'Start-Report\s+"Software"',
+    'Start-ThirdPartyManualReview',
+    'Start-Cleanup\s+-ScanScope\s+"ThirdParty"',
     'Show-CleanupMenu',
     'Start-OemInspect',
     'Open-LicenseManager',

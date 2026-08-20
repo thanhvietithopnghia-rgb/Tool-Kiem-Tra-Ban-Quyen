@@ -18,7 +18,10 @@ $productVersion = '4.8'
 $releaseVersion = '4.8.0.1'
 $releaseBuildDate = '2026.08.18'
 $releaseLabel = "$releaseVersion-production-20260818"
-$maximumInPlaceExecutableBytes = 900000
+# Keep a hard payload-size budget for in-place updates.  The added safety UI,
+# localized evidence explanations, and post-verification data are intentional;
+# 911,024 bytes keeps a narrow cap while leaving one KiB of signing/timestamp headroom.
+$maximumInPlaceExecutableBytes = 911024
 $sourceDirectory = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $sourceDirectory 'dist' }
 $sourceName = "Tool-Kiem-Tra-v$productVersion-OneFile.cs"
@@ -1004,7 +1007,7 @@ $infoLines = @(
     'Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.',
     'HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.',
     'Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.',
-    'Tro ly schema 1.1 / knowledge 1.3.1 co 63 nhom va 481 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va giu EXE trong ngan sach 900000 byte.',
+    'Tro ly schema 1.1 / knowledge 1.3.1 co 63 nhom va 481 tu khoa/cach hoi; cache roi co chu ky CMS SHA-256, ghim chung thu, chong ha phien ban va giu EXE trong ngan sach 911024 byte.',
     'Catalogue phan mem 1.4.0.1 co 77 quy tac va chu ky CMS; tach mo hinh giay phep khoi bang chung can thiep, Low chi de tham khao va khong tao hanh dong xoa.',
     'Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.',
     'Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.',

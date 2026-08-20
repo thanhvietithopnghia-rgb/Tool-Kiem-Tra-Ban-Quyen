@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.4.0.1",
-  "GeneratedAtUtc": "2026-08-18T14:00:00Z",
+  "CatalogVersion": "1.4.0.2",
+  "GeneratedAtUtc": "2026-08-20T02:50:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -60,7 +60,7 @@
     {
       "Id": "adobe-creative-cloud-paid",
       "Vendor": "Adobe",
-      "NamePatterns": ["\\bAdobe (?:Photoshop|Illustrator|InDesign|Lightroom|Premiere(?: Pro)?|After Effects|Audition|Animate|Dreamweaver|Acrobat|Media Encoder|Substance 3D|Dimension|InCopy|Fresco)(?:\\s|$)", "\\bCreative Cloud\\b", "\\bAcrobat\\s+Distiller\\b", "^Adobe Acrobat \\(64-bit\\)$"],
+      "NamePatterns": ["\\bAdobe (?:Photoshop|Illustrator|InDesign|Lightroom|Premiere(?: Pro)?|After Effects|Audition|Animate|Dreamweaver|Acrobat(?!\\s+Reader\\b)|Media Encoder|Substance 3D|Dimension|InCopy|Fresco)(?:\\s|$)", "\\bCreative Cloud\\b", "\\bAcrobat\\s+Distiller\\b", "^Adobe Acrobat \\(64-bit\\)$"],
       "PublisherPatterns": ["\\bAdobe\\b"],
       "LicenseModel": "Subscription",
       "OfficialUrl": "https://www.adobe.com/creativecloud/plans.html",
@@ -348,7 +348,7 @@
     {
       "Id": "media-freeware",
       "Vendor": "Various",
-      "NamePatterns": ["\\bK-Lite Codec Pack\\b", "\\bKMPlayer\\b", "\\bFormatFactory\\b"],
+      "NamePatterns": ["\\bK-Lite Codec Pack\\b", "\\bKMPlayer\\b", "\\bFormat[\\s._-]*Factory\\b"],
       "PublisherPatterns": [],
       "LicenseModel": "Freeware",
       "OfficialUrl": "",
@@ -363,6 +363,16 @@
       "LicenseModel": "Freeware",
       "OfficialUrl": "",
       "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "dahua-smartpss-pc-nvr",
+      "Vendor": "Dahua",
+      "NamePatterns": ["^\\s*PC[\\s._-]*NVR\\s*$"],
+      "PublisherPatterns": [],
+      "LicenseModel": "Freeware",
+      "OfficialUrl": "https://www.dahuasecurity.com/in/about-dahua/news-events/news/product-launches/dahua-releases-new-smart-professional-surveillance-system",
+      "LicenseDomains": ["(?:^|\\.)dahuasecurity\\.com$"],
       "UnauthorizedNamePatterns": []
     },
     {

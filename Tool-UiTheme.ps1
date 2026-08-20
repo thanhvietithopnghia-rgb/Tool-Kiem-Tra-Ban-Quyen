@@ -503,7 +503,9 @@ function Set-ToolUiFlowButtonSpacing {
         # horizontal gaps when a DPI-scaled/localized footer becomes narrow.
         $button.Margin = New-Object Windows.Forms.Padding($sideMargin, 3, $sideMargin, 3)
     }
-    $Panel.AutoScroll = ($buttonWidth -gt $availableWidth)
+    # A wrapping footer grows vertically; enabling AutoScroll here would create
+    # a misleading horizontal scrollbar after action icons expand the buttons.
+    $Panel.AutoScroll = [bool](-not $Panel.WrapContents -and $buttonWidth -gt $availableWidth)
     $Panel.PerformLayout()
 }
 

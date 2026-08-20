@@ -135,6 +135,19 @@ Assert-SourcePattern $text 'function\s+Get-DashboardMenuIconKind' 'Các tác v�
 Assert-SourcePattern $text 'TextImageRelation\]::ImageBeforeText' 'Tile/sidebar chưa ghép icon với nội dung.'
 Assert-SourcePattern $text 'function\s+Get-DashboardStatusPalette' 'Các thẻ trạng thái chưa có palette màu riêng.'
 Assert-SourcePattern $text 'Set-ToolUiActionButtonVisual\s+-Button\s+[$]actionButton' 'Các nút Hoạt động chưa dùng màu và icon hành động chung.'
+Assert-SourcePattern $text 'function\s+Test-GuiSystemComponent' 'Dashboard chưa dùng cờ IsSystemComponent cuối cùng để tách phần mềm.'
+Assert-SourcePattern $text 'function\s+Show-ThirdPartyAssessmentResults\s*\{' 'Dashboard thiếu hộp kết quả phần mềm responsive.'
+Assert-SourcePattern $text 'software\.results\.tab\.thirdParty' 'Kết quả phần mềm chưa có tab ứng dụng người dùng/bên thứ ba.'
+Assert-SourcePattern $text 'software\.results\.tab\.system' 'Kết quả phần mềm chưa có tab thành phần hệ thống.'
+Assert-SourcePattern $text '[$]footer\.WrapContents\s*=\s*[$]true' 'Footer kết quả phần mềm chưa tự xuống hàng.'
+Assert-SourcePattern $text '[$]footer\.AutoScroll\s*=\s*[$]false' 'Footer kết quả phần mềm còn có thể mở thanh cuộn ngang.'
+Assert-SourcePattern $text '[$]details\.WordWrap\s*=\s*[$]true' 'Khung chi tiết kết quả chưa xuống dòng.'
+if ($text -match 'thirdPartyExecutionResults\s*\|\s*Select-Object\s+-First\s+30' -or
+    $text -match 'remainingItems\s*\|\s*Select-Object\s+-First\s+30' -or
+    $text -match 'rawActions\s*\|\s*Select-Object\s+-First\s+14' -or
+    $text -match '[$]line\.Length\s+-gt\s+240') {
+    Add-Failure 'Cửa sổ kết quả vẫn cắt danh sách hành động hoặc bằng chứng dài mà không có đường xem toàn bộ.'
+}
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 . (Join-Path $root 'Tool-UiTheme.ps1')
@@ -296,6 +309,48 @@ try {
     }
 } finally {
     $cleanupFooterFont.Dispose()
+}
+$responsiveFooterFont = New-Object Drawing.Font('Segoe UI', 8.5, [Drawing.FontStyle]::Regular)
+try {
+    foreach ($responsiveFooterCase in @(
+        @('Light', $fitViCatalog),
+        @('Dark', $fitViCatalog),
+        @('Light', $fitEnCatalog),
+        @('Dark', $fitEnCatalog)
+    )) {
+        foreach ($responsiveWidth in @(620, 900)) {
+            $responsiveFooter = New-Object Windows.Forms.FlowLayoutPanel
+            $responsiveFooter.Size = New-Object Drawing.Size($responsiveWidth, 300)
+            $responsiveFooter.FlowDirection = [Windows.Forms.FlowDirection]::RightToLeft
+            $responsiveFooter.WrapContents = $true
+            $responsiveFooter.AutoScroll = $false
+            $responsiveFooter.Padding = New-Object Windows.Forms.Padding(0, 8, 0, 0)
+            $responsiveButtons = @()
+            foreach ($responsiveKey in @('common.close', 'common.openReport', 'cleanup.dryRun.button', 'cleanup.menu.cleanupAction', 'software.online.button', 'common.back')) {
+                $responsiveButton = New-Object Windows.Forms.Button
+                $responsiveButton.Text = [string]$responsiveFooterCase[1].PSObject.Properties[$responsiveKey].Value
+                $responsiveButton.Font = $responsiveFooterFont
+                $responsiveButton.Size = New-Object Drawing.Size(90, 38)
+                $responsiveFooter.Controls.Add($responsiveButton)
+                $responsiveButtons += $responsiveButton
+            }
+            Set-ToolWindowTheme -Root $responsiveFooter -Mode ([string]$responsiveFooterCase[0])
+            Set-ToolUiFlowButtonSpacing -Panel $responsiveFooter -PreferredSideMargin 3
+            $responsiveFooter.PerformLayout()
+            if ($responsiveFooter.AutoScroll -or $responsiveFooter.HorizontalScroll.Visible) {
+                Add-Failure "Footer responsive $([string]$responsiveFooterCase[0]) vẫn tạo cuộn ngang ở $responsiveWidth px."
+            }
+            foreach ($responsiveButton in $responsiveButtons) {
+                if ($responsiveButton.Width -lt (Get-ToolUiButtonRequiredWidth -Button $responsiveButton) -or
+                    $responsiveButton.Left -lt 0 -or $responsiveButton.Right -gt $responsiveFooter.ClientSize.Width) {
+                    Add-Failure "Footer responsive cắt nút '$($responsiveButton.Text)' ở $responsiveWidth px / $([string]$responsiveFooterCase[0])."
+                }
+            }
+            $responsiveFooter.Dispose()
+        }
+    }
+} finally {
+    $responsiveFooterFont.Dispose()
 }
 $enterpriseColorPairs = @(
     @('Light', [Drawing.Color]::FromArgb(30,64,105), [Drawing.Color]::FromArgb(244,247,251)),

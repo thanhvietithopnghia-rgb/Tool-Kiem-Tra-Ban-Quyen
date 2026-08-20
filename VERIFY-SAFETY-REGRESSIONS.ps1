@@ -1718,9 +1718,9 @@ if ($softwareInventory) {
         $catalogSignaturePath = $catalogPath + '.p7s'
         $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $catalogIds = @($catalog.Products | ForEach-Object { [string]$_.Id })
-        if ([string]$catalog.CatalogVersion -ne '1.4.0.1' -or [string]$catalog.GeneratedAtUtc -ne '2026-08-18T14:00:00Z' -or
-            $catalogIds.Count -lt 77 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
-            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.4.0.1 / ngày phát hành / 77 quy tắc duy nhất.'
+        if ([string]$catalog.CatalogVersion -ne '1.4.0.2' -or [string]$catalog.GeneratedAtUtc -ne '2026-08-20T02:50:00Z' -or
+            $catalogIds.Count -lt 78 -or @($catalogIds | Select-Object -Unique).Count -ne $catalogIds.Count) {
+            Fail 'Catalogue phần mềm v4.8 chưa đạt 1.4.0.2 / ngày phát hành / 78 quy tắc duy nhất.'
         }
         foreach ($requiredCatalogId in @('iobit-driver-booster','winrar','adobe-creative-cloud-paid','autodesk-commercial','commercial-pdf-editors','internet-download-manager','mathworks-matlab-simulink','wiris-mathtype','microsoft-visual-studio-community','microsoft-visual-studio-paid')) {
             if ($catalogIds -notcontains $requiredCatalogId) { Fail "Catalogue phần mềm thiếu quy tắc: $requiredCatalogId" }
@@ -1737,7 +1737,7 @@ if ($softwareInventory) {
         }
         $trustedBundledCatalog = Import-ToolSoftwareCatalogFile -Path $catalogPath -SignaturePath $catalogSignaturePath -Source 'Bundled' -RequireSignature
         if (-not $trustedBundledCatalog -or -not [bool]$trustedBundledCatalog.CatalogSignatureValid -or
-            [string]$trustedBundledCatalog.CatalogVersion -ne '1.4.0.1') {
+            [string]$trustedBundledCatalog.CatalogVersion -ne '1.4.0.2') {
             Fail 'Catalogue phần mềm tích hợp chưa mở được bằng chữ ký CMS và signer đã ghim.'
         }
         $forgedCatalog = (Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json)
@@ -1780,7 +1780,14 @@ if ($softwareInventory) {
             (New-ToolSoftwareInventoryRecord -Name 'Zoom Workplace' -Version '6.0' -Publisher 'Zoom Video Communications, Inc.' -InstallLocation 'C:\Fixture\Zoom' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
             (New-ToolSoftwareInventoryRecord -Name 'MATLAB Runtime R2025a' -Version '25.1' -Publisher 'MathWorks' -InstallLocation 'C:\Fixture\MATLABRuntime' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
             (New-ToolSoftwareInventoryRecord -Name 'Microsoft Visual Studio Community 2022' -Version '17.0' -Publisher 'Microsoft Corporation' -InstallLocation 'C:\Fixture\VSCommunity' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
-            (New-ToolSoftwareInventoryRecord -Name 'Microsoft Visual Studio Professional 2022' -Version '17.0' -Publisher 'Microsoft Corporation' -InstallLocation 'C:\Fixture\VSProfessional' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery)
+            (New-ToolSoftwareInventoryRecord -Name 'Microsoft Visual Studio Professional 2022' -Version '17.0' -Publisher 'Microsoft Corporation' -InstallLocation 'C:\Fixture\VSProfessional' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'ABBYY FineReader PDF' -Version '16.0' -Publisher 'ABBYY Development, Inc.' -InstallLocation 'C:\Fixture\FineReader' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Adobe Acrobat Reader' -Version '25.0' -Publisher 'Adobe' -InstallLocation 'C:\Fixture\AcrobatReader' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Adobe Acrobat (64-bit)' -Version '25.0' -Publisher 'Adobe' -InstallLocation 'C:\Fixture\Acrobat' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Adobe Lightroom Classic' -Version '14.0' -Publisher 'Adobe Inc.' -InstallLocation 'C:\Fixture\Lightroom' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Adobe Premiere Pro 2025' -Version '25.0' -Publisher 'Adobe Inc.' -InstallLocation 'C:\Fixture\Premiere' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'Format Factory' -Version '5.0' -Publisher '' -InstallLocation 'C:\Fixture\FormatFactory' -SourceKind 'Shortcut' -SourceDetail 'StartMenu' -SkipSignature -SkipExecutableDiscovery),
+            (New-ToolSoftwareInventoryRecord -Name 'PC-NVR' -Version '' -Publisher '' -InstallLocation 'C:\Fixture\SmartPSS\PC-NVR' -SourceKind 'Shortcut' -SourceDetail 'StartMenu' -SkipSignature -SkipExecutableDiscovery)
         )
         $classificationResults = @(Get-ToolSoftwareAssessments -Applications $classificationApps -Catalog $trustedBundledCatalog)
         $iobitResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'iobit-driver-booster' })
@@ -1791,6 +1798,13 @@ if ($softwareInventory) {
         $matlabRuntimeResult = @($classificationResults | Where-Object { $_.Name -eq 'MATLAB Runtime R2025a' })
         $visualStudioCommunityResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'microsoft-visual-studio-community' })
         $visualStudioPaidResult = @($classificationResults | Where-Object { $_.CatalogProductId -eq 'microsoft-visual-studio-paid' })
+        $abbyyResult = @($classificationResults | Where-Object { $_.Name -eq 'ABBYY FineReader PDF' })
+        $readerResult = @($classificationResults | Where-Object { $_.Name -eq 'Adobe Acrobat Reader' })
+        $acrobatResult = @($classificationResults | Where-Object { $_.Name -eq 'Adobe Acrobat (64-bit)' })
+        $lightroomResult = @($classificationResults | Where-Object { $_.Name -eq 'Adobe Lightroom Classic' })
+        $premiereResult = @($classificationResults | Where-Object { $_.Name -eq 'Adobe Premiere Pro 2025' })
+        $formatFactoryResult = @($classificationResults | Where-Object { $_.Name -eq 'Format Factory' })
+        $pcNvrResult = @($classificationResults | Where-Object { $_.Name -eq 'PC-NVR' })
         if ($iobitResult.Count -ne 1 -or [string]$iobitResult[0].LicenseModel -ne 'Freemium' -or [bool]$iobitResult[0].IsSystemComponent) {
             Fail 'IObit Driver Booster vẫn bị bỏ sót hoặc phân loại nhầm thành driver hệ thống.'
         }
@@ -1807,6 +1821,27 @@ if ($softwareInventory) {
         if ($visualStudioCommunityResult.Count -ne 1 -or [string]$visualStudioCommunityResult[0].LicenseModel -ne 'Free' -or
             $visualStudioPaidResult.Count -ne 1 -or [string]$visualStudioPaidResult[0].LicenseModel -ne 'Paid') {
             Fail 'Visual Studio Community/Professional chưa được tách mô hình giấy phép fail-closed.'
+        }
+        if ($abbyyResult.Count -ne 1 -or [string]$abbyyResult[0].CatalogProductId -ne 'abbyy-finereader' -or
+            [string]$abbyyResult[0].LicenseModel -ne 'Paid' -or [bool]$abbyyResult[0].IsSystemComponent) {
+            Fail 'ABBYY FineReader chưa được nhận diện là ứng dụng bên thứ ba trả phí.'
+        }
+        if ($readerResult.Count -ne 1 -or [string]$readerResult[0].CatalogProductId -ne 'adobe-acrobat-reader' -or
+            [string]$readerResult[0].CatalogMatchReason -eq 'AmbiguousCatalogMatch' -or [string]$readerResult[0].LicenseModel -ne 'Free') {
+            Fail 'Adobe Acrobat Reader còn bị chồng với quy tắc Acrobat thương mại.'
+        }
+        if ($acrobatResult.Count -ne 1 -or [string]$acrobatResult[0].CatalogProductId -ne 'adobe-creative-cloud-paid' -or
+            $lightroomResult.Count -ne 1 -or [string]$lightroomResult[0].CatalogProductId -ne 'adobe-creative-cloud-paid' -or
+            $premiereResult.Count -ne 1 -or [string]$premiereResult[0].CatalogProductId -ne 'adobe-creative-cloud-paid') {
+            Fail 'Adobe Acrobat, Lightroom hoặc Premiere chưa được nhận diện đúng bằng catalogue.'
+        }
+        if ($formatFactoryResult.Count -ne 1 -or [string]$formatFactoryResult[0].CatalogProductId -ne 'media-freeware' -or
+            [string]$formatFactoryResult[0].LicenseModel -ne 'Free' -or [bool]$formatFactoryResult[0].IsSystemComponent) {
+            Fail 'Format Factory có khoảng trắng chưa được nhận diện là ứng dụng freeware bên thứ ba.'
+        }
+        if ($pcNvrResult.Count -ne 1 -or [string]$pcNvrResult[0].CatalogProductId -ne 'dahua-smartpss-pc-nvr' -or
+            [string]$pcNvrResult[0].LicenseModel -ne 'Free' -or [bool]$pcNvrResult[0].IsSystemComponent) {
+            Fail 'PC-NVR chưa được nhận diện là ứng dụng freeware bên thứ ba.'
         }
 
         $publisherUnavailableApp = New-ToolSoftwareInventoryRecord -Name 'Adobe Photoshop 2025' -Version '26.0' -Publisher '' -InstallLocation 'C:\Fixture\PublisherUnavailable' -SourceKind 'Registry' -SourceDetail 'HKLM' -SkipSignature -SkipExecutableDiscovery

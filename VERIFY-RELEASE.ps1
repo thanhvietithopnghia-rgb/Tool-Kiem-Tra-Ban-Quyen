@@ -646,9 +646,9 @@ if (-not (Test-Path -LiteralPath $releaseManifestPath -PathType Leaf)) {
             [string]$releaseManifest.DeepSoftwareScanCatalogTrust -notmatch 'pinned-signer') {
             throw 'Thiếu metadata quét sâu phần mềm phổ quát v4.6.'
         }
-        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.4.0.1' -or
-            [string]$releaseManifest.SoftwareLicenseCatalogGeneratedAtUtc -ne '2026-08-18T14:00:00Z' -or
-            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 77 -or
+        if ([string]$releaseManifest.SoftwareLicenseCatalogVersion -ne '1.4.0.2' -or
+            [string]$releaseManifest.SoftwareLicenseCatalogGeneratedAtUtc -ne '2026-08-20T02:50:00Z' -or
+            [int]$releaseManifest.SoftwareLicenseCatalogProductRules -lt 78 -or
             [string]$releaseManifest.SoftwareLicenseCatalogSignatureFile -ne 'software-license-catalog-v1.0.json.p7s' -or
             -not [bool]$releaseManifest.SoftwareLicenseCatalogSignatureRequired -or
             [string]$releaseManifest.SoftwareLicenseCatalogSignerCertificateSha256 -ne '90857DC1698CDDEAF7C405F5991992E6615D28299A78C7D1445A1B504F8044C3' -or

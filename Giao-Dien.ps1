@@ -4100,6 +4100,16 @@ function Test-GuiThirdPartyCleanupFinding {
     return [bool]([string]$Application.AssessmentCode -in @('NonGenuine','Suspicious','IntegrityCompromised'))
 }
 
+function Test-GuiSystemComponent {
+    param($Application)
+
+    # The final assessment owns this classification.  Do not infer it from a
+    # product being free, paid, a runtime, its publisher, or its name: that
+    # would put user applications such as PC-NVR in the wrong view.
+    return [bool]($Application -and $Application.PSObject.Properties['IsSystemComponent'] -and
+        [bool]$Application.IsSystemComponent)
+}
+
 function Test-GuiThirdPartyDirectRemediationEvidence {
     param($Application)
 
@@ -4162,6 +4172,7 @@ function Get-GuiThirdPartyStandaloneCleanupRows {
             Id=('standalone:' + [string]$candidate.Id); Name=[string]$candidate.Name; Version=''; Publisher=''
             LicenseModel='Unknown'; AssessmentCode='Suspicious'; TechnicalStatus=(Get-DashboardText 'report.software.status.suspicious')
             Confidence='Medium'; Evidence=@($candidate.Evidence); NeedsReview=$true; CleanupFinding=$true
+            IsSystemComponent=$false; SystemComponentReason=''
             RemediationSupported=$true; CleanupCandidateId=[string]$candidate.Id
             CleanupRemediationMode=[string]$candidate.RemediationMode; OfficialReferenceUrl=''
             StandaloneArtifact=$true; LicenseTechnicalState='ArtifactConfirmed'
@@ -4277,32 +4288,50 @@ function Show-ThirdPartyAssessmentResults {
         @{ Expression = { [string]$_.Publisher }; Ascending = $true }
     )
     $applications = @($allApplications | Sort-Object -Property $sortProperties)
-    $actionableCount = @($applications | Where-Object { Test-GuiThirdPartyDirectRemediationEvidence -Application $_ }).Count
-    $selectableCount = @($applications | Where-Object { Test-GuiThirdPartySelectionAllowed -Application $_ }).Count
+    # Do not treat free software as a system component.  The final assessment's
+    # IsSystemComponent field is the only source of truth for this split.
+    $thirdPartyApplications = @($applications | Where-Object { -not (Test-GuiSystemComponent -Application $_) })
+    $systemApplications = @($applications | Where-Object { Test-GuiSystemComponent -Application $_ })
+    $actionableCount = @($thirdPartyApplications | Where-Object { Test-GuiThirdPartyDirectRemediationEvidence -Application $_ }).Count
+    $selectableCount = @($thirdPartyApplications | Where-Object { Test-GuiThirdPartySelectionAllowed -Application $_ }).Count
 
     $dialog = New-Object System.Windows.Forms.Form
     $dialog.Text = Get-DashboardText "software.results.title"
     $dialog.StartPosition = "CenterParent"
     $dialog.FormBorderStyle = "Sizable"
     $dialog.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
+    $dialog.MaximizeBox = $true
     $workArea = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
-    $dialogWidth = [Math]::Max(960, [Math]::Min(1460, $workArea.Width - 36))
-    $dialogHeight = [Math]::Max(620, [Math]::Min(820, $workArea.Height - 54))
-    $dialog.MinimumSize = New-Object System.Drawing.Size([Math]::Min(960, $dialogWidth), [Math]::Min(620, $dialogHeight))
+    $dialogWidth = [Math]::Max(660, [Math]::Min(1460, $workArea.Width - 36))
+    $dialogHeight = [Math]::Max(560, [Math]::Min(820, $workArea.Height - 54))
+    $dialog.MinimumSize = New-Object System.Drawing.Size(660, 560)
     $dialog.ClientSize = New-Object System.Drawing.Size($dialogWidth, $dialogHeight)
     $dialog.BackColor = [System.Drawing.Color]::FromArgb(244, 246, 249)
     $dialog.Font = $fontNormal
     $dialog.Tag = [pscustomobject]@{ Proceed=$false; SelectedCandidateIds=@() }
 
+    $mainLayout = New-Object System.Windows.Forms.TableLayoutPanel
+    $mainLayout.Dock = "Fill"
+    $mainLayout.Padding = New-Object System.Windows.Forms.Padding(18)
+    $mainLayout.ColumnCount = 1
+    $mainLayout.RowCount = 6
+    [void]$mainLayout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 112)))
+    [void]$mainLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    $dialog.Controls.Add($mainLayout)
+
     $heading = New-Object System.Windows.Forms.Label
     $heading.Text = Get-DashboardText $(if ($ReadOnly) { "software.results.heading.readOnly" } else { "software.results.heading" })
     $heading.Font = $fontTitle
     $heading.ForeColor = [System.Drawing.Color]::FromArgb(18, 59, 116)
+    $heading.AutoSize = $true
     $heading.TextAlign = "MiddleCenter"
-    $heading.Location = New-Object System.Drawing.Point(18, 10)
-    $heading.Size = New-Object System.Drawing.Size(($dialogWidth - 36), 40)
-    $heading.Anchor = "Top,Left,Right"
-    $dialog.Controls.Add($heading)
+    $heading.Dock = "Top"
+    $mainLayout.Controls.Add($heading, 0, 0)
 
     $summary = New-Object System.Windows.Forms.Label
     $summary.Text = Get-DashboardText "software.results.summary" @(
@@ -4314,10 +4343,9 @@ function Show-ThirdPartyAssessmentResults {
         @($allApplications | Where-Object { [string]$_.AssessmentCode -in @('Unverified','TrialOrUnverified') }).Count)
     $summary.Font = $fontBold
     $summary.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
-    $summary.Location = New-Object System.Drawing.Point(22, 52)
-    $summary.Size = New-Object System.Drawing.Size(($dialogWidth - 44), 28)
-    $summary.Anchor = "Top,Left,Right"
-    $dialog.Controls.Add($summary)
+    $summary.AutoSize = $true
+    $summary.Dock = "Top"
+    $mainLayout.Controls.Add($summary, 0, 1)
 
     $hint = New-Object System.Windows.Forms.Label
     $hint.Text = Get-DashboardText $(if ($ReadOnly) { "software.results.hint.readOnly" } elseif ($allApplications.Count -eq 0) { "software.results.noApplications" } else { "software.results.hint" })
@@ -4335,30 +4363,21 @@ function Show-ThirdPartyAssessmentResults {
             [int]$Scan.DeepSoftwareScanAccessWarningCount)) + "`r`n" + $hint.Text
     }
     $hint.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
-    $hint.Location = New-Object System.Drawing.Point(22, 80)
-    $hint.Size = New-Object System.Drawing.Size(($dialogWidth - 44), 64)
-    $hint.Anchor = "Top,Left,Right"
-    $dialog.Controls.Add($hint)
+    $hint.AutoSize = $true
+    $hint.Dock = "Top"
+    $mainLayout.Controls.Add($hint, 0, 2)
 
-    $list = New-Object System.Windows.Forms.ListView
-    $list.CheckBoxes = -not [bool]$ReadOnly
-    $list.View = [System.Windows.Forms.View]::Details
-    $list.FullRowSelect = $true
-    $list.GridLines = $true
-    $list.HideSelection = $false
-    $list.ShowItemToolTips = $true
-    $list.MultiSelect = $true
-    $list.Location = New-Object System.Drawing.Point(22, 148)
-    $list.Size = New-Object System.Drawing.Size(($dialogWidth - 44), ($dialogHeight - 232))
-    $list.Anchor = "Top,Bottom,Left,Right"
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.application"), 230)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.version"), 105)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.publisher"), 180)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.model"), 120)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.status"), 155)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.confidence"), 100)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.evidence"), 270)
-    [void]$list.Columns.Add((Get-DashboardText "software.results.column.action"), 230)
+    $details = New-Object System.Windows.Forms.RichTextBox
+    $details.Dock = "Fill"
+    $details.ReadOnly = $true
+    $details.DetectUrls = $false
+    $details.WordWrap = $true
+    $details.ScrollBars = "ForcedVertical"
+    $details.BackColor = [System.Drawing.Color]::White
+    $details.ForeColor = [System.Drawing.Color]::FromArgb(35, 45, 62)
+    $details.Font = $fontNormal
+    $details.Text = Get-DashboardText 'software.results.detail.selectRow'
+    $mainLayout.Controls.Add($details, 0, 4)
 
     $licenseLabels = @{
         Free=(Get-DashboardText "software.license.free"); OpenSource=(Get-DashboardText "software.license.openSource")
@@ -4371,128 +4390,201 @@ function Show-ThirdPartyAssessmentResults {
     $confidenceLabels = @{
         High=(Get-DashboardText "software.confidence.high"); Medium=(Get-DashboardText "software.confidence.medium"); Low=(Get-DashboardText "software.confidence.low")
     }
-    foreach ($application in $applications) {
-        $candidateId = if ($application.PSObject.Properties['CleanupCandidateId']) { [string]$application.CleanupCandidateId } else { '' }
-        $actionable = Test-GuiThirdPartyDirectRemediationEvidence -Application $application
-        $selectionAllowed = Test-GuiThirdPartySelectionAllowed -Application $application
-        $guidanceOnly = [bool]($selectionAllowed -and -not $actionable)
-        $evidenceText = @($application.Evidence | ForEach-Object {
-            $detail = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) { [string]$_.Location } else { [string]$_.Detail }
-            if ([string]::IsNullOrWhiteSpace($detail)) { [string]$_.Code } else { "$([string]$_.Code): $detail" }
-        }) -join '; '
-        if ([string]::IsNullOrWhiteSpace($evidenceText)) { $evidenceText = Get-DashboardText "software.results.noEvidence" }
-        $remediationMode = if ($application.PSObject.Properties['CleanupRemediationMode']) { [string]$application.CleanupRemediationMode } else { '' }
-        $actionText = if ($actionable) {
-            $actionDetail = switch ($remediationMode) {
-                'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
-                'ArtifactCleanupOnly' { Get-DashboardText "software.results.action.artifactCleanupOnly" }
-                'ArtifactCleanup' { Get-DashboardText "software.results.action.artifactCleanup" }
-                'ManualArtifactQuarantine' { Get-DashboardText "software.results.action.manualArtifactQuarantine" }
-                'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
-                default { Get-DashboardText "software.results.action.guidedRepair" }
+
+    $resizeListColumns = {
+        param($Target)
+        if ($null -eq $Target -or $Target.Columns.Count -lt 6) { return }
+        $availableWidth = [Math]::Max(280, [int]$Target.ClientSize.Width - 8)
+        $Target.BeginUpdate()
+        try {
+            if ($availableWidth -lt 860) {
+                # At narrow widths, keep just identity, version and status. All
+                # hidden values remain visible in the word-wrapped detail pane.
+                $applicationWidth = [Math]::Max(170, [int][Math]::Floor($availableWidth * 0.48))
+                $versionWidth = [Math]::Max(80, [int][Math]::Floor($availableWidth * 0.16))
+                $statusWidth = [Math]::Max(1, $availableWidth - $applicationWidth - $versionWidth)
+                $widths = @($applicationWidth, $versionWidth, 0, 0, $statusWidth, 0)
+            } else {
+                $applicationWidth = [Math]::Max(190, [int][Math]::Floor($availableWidth * 0.25))
+                $versionWidth = [Math]::Max(75, [int][Math]::Floor($availableWidth * 0.11))
+                $publisherWidth = [Math]::Max(110, [int][Math]::Floor($availableWidth * 0.18))
+                $modelWidth = [Math]::Max(80, [int][Math]::Floor($availableWidth * 0.13))
+                $statusWidth = [Math]::Max(130, [int][Math]::Floor($availableWidth * 0.18))
+                $confidenceWidth = [Math]::Max(1, $availableWidth - $applicationWidth - $versionWidth - $publisherWidth - $modelWidth - $statusWidth)
+                $widths = @($applicationWidth, $versionWidth, $publisherWidth, $modelWidth, $statusWidth, $confidenceWidth)
             }
-            Get-DashboardText 'software.results.action.classified' @(
-                (Get-DashboardText 'software.results.classification.actionable'),
-                $actionDetail)
-        } elseif ($guidanceOnly) {
-            Get-DashboardText 'software.results.action.classified' @(
-                (Get-DashboardText 'software.results.classification.actionable'),
-                (Get-DashboardText 'software.results.action.guidedOnly'))
-        } elseif (Test-GuiThirdPartyCleanupFinding -Application $application) {
-            Get-DashboardText 'software.results.action.classified' @(
-                (Get-DashboardText 'software.results.classification.manualReview'),
-                (Get-DashboardText "software.results.action.officialRepair"))
-        } elseif (($application.PSObject.Properties['NeedsReview'] -and [bool]$application.NeedsReview) -or
-            [string]$application.AssessmentCode -in @('Unverified','TrialOrUnverified','IntegrityCompromised')) {
-            Get-DashboardText 'software.results.action.classified' @(
-                (Get-DashboardText 'software.results.classification.manualReview'),
-                (Get-DashboardText 'software.results.action.manualReview'))
-        } else {
-            Get-DashboardText "software.results.action.none"
+            for ($columnIndex = 0; $columnIndex -lt $widths.Count; $columnIndex++) {
+                $Target.Columns[$columnIndex].Width = [int]$widths[$columnIndex]
+            }
+        } finally {
+            $Target.EndUpdate()
         }
-        $licenseModel = [string]$application.LicenseModel
-        if (-not $licenseLabels.ContainsKey($licenseModel)) { $licenseModel = 'Unknown' }
-        $confidence = [string]$application.Confidence
-        if (-not $confidenceLabels.ContainsKey($confidence)) { $confidence = 'Low' }
-        $row = New-Object System.Windows.Forms.ListViewItem([string]$application.Name)
-        [void]$row.SubItems.Add([string]$application.Version)
-        [void]$row.SubItems.Add([string]$application.Publisher)
-        [void]$row.SubItems.Add([string]$licenseLabels[$licenseModel])
-        [void]$row.SubItems.Add([string]$application.TechnicalStatus)
-        [void]$row.SubItems.Add([string]$confidenceLabels[$confidence])
-        [void]$row.SubItems.Add($evidenceText)
-        [void]$row.SubItems.Add($actionText)
-        $row.Tag = [pscustomobject]@{ Application=$application; CandidateId=$candidateId; Actionable=$actionable; SelectionAllowed=$selectionAllowed; GuidanceOnly=$guidanceOnly }
-        $row.ToolTipText = "$([string]$application.Name)`r`n$([string]$application.TechnicalStatus)`r`n$evidenceText`r`n$actionText"
-        if (-not $selectionAllowed) { $row.ForeColor = [System.Drawing.Color]::FromArgb(105, 112, 125) }
-        [void]$list.Items.Add($row)
     }
-    $list.Add_ItemCheck({
+
+    $renderSelectionDetails = {
+        param($SourceList)
+        if ($null -eq $SourceList -or $SourceList.SelectedItems.Count -eq 0) {
+            $details.Text = Get-DashboardText 'software.results.detail.selectRow'
+            return
+        }
+        $metadata = $SourceList.SelectedItems[0].Tag
+        $application = $metadata.Application
+        $lines = New-Object System.Collections.Generic.List[string]
+        $lines.Add((Get-DashboardText 'software.results.column.application') + ': ' + [string]$application.Name)
+        $lines.Add((Get-DashboardText 'software.results.column.version') + ': ' + [string]$application.Version)
+        $lines.Add((Get-DashboardText 'software.results.column.publisher') + ': ' + [string]$application.Publisher)
+        $lines.Add((Get-DashboardText 'software.results.column.model') + ': ' + [string]$metadata.LicenseText)
+        $lines.Add((Get-DashboardText 'software.results.column.status') + ': ' + [string]$application.TechnicalStatus)
+        $lines.Add((Get-DashboardText 'software.results.column.confidence') + ': ' + [string]$metadata.ConfidenceText)
+        if ([bool]$metadata.IsSystemComponent) {
+            $lines.Add('')
+            $lines.Add((Get-DashboardText 'software.results.detail.systemReadOnly'))
+        }
+        $lines.Add('')
+        $lines.Add((Get-DashboardText 'software.results.detail.evidence'))
+        $lines.Add([string]$metadata.EvidenceText)
+        $lines.Add('')
+        $lines.Add((Get-DashboardText 'software.results.detail.action'))
+        $lines.Add([string]$metadata.ActionText)
+        $details.Text = $lines -join "`r`n"
+        $details.SelectionStart = 0
+        $details.SelectionLength = 0
+        $details.ScrollToCaret()
+    }
+
+    $newApplicationList = {
+        param(
+            [object[]]$Rows = @(),
+            [bool]$IsSystemView = $false
+        )
+
+        $list = New-Object System.Windows.Forms.ListView
+        $list.CheckBoxes = [bool](-not $ReadOnly -and -not $IsSystemView)
+        $list.View = [System.Windows.Forms.View]::Details
+        $list.FullRowSelect = $true
+        $list.GridLines = $true
+        $list.HideSelection = $false
+        $list.ShowItemToolTips = $true
+        $list.MultiSelect = $true
+        $list.Dock = "Fill"
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.application"), 220)
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.version"), 92)
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.publisher"), 152)
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.model"), 110)
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.status"), 152)
+        [void]$list.Columns.Add((Get-DashboardText "software.results.column.confidence"), 96)
+
+        foreach ($application in @($Rows)) {
+            $candidateId = if ($application.PSObject.Properties['CleanupCandidateId']) { [string]$application.CleanupCandidateId } else { '' }
+            $actionable = if ($IsSystemView) { $false } else { Test-GuiThirdPartyDirectRemediationEvidence -Application $application }
+            $selectionAllowed = if ($IsSystemView) { $false } else { Test-GuiThirdPartySelectionAllowed -Application $application }
+            $guidanceOnly = [bool]($selectionAllowed -and -not $actionable)
+            $evidenceText = @($application.Evidence | ForEach-Object {
+                $detail = if ($_.PSObject.Properties['Location'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Location)) { [string]$_.Location } else { [string]$_.Detail }
+                if ([string]::IsNullOrWhiteSpace($detail)) { [string]$_.Code } else { "$([string]$_.Code): $detail" }
+            }) -join '; '
+            if ([string]::IsNullOrWhiteSpace($evidenceText)) { $evidenceText = Get-DashboardText "software.results.noEvidence" }
+            $remediationMode = if ($application.PSObject.Properties['CleanupRemediationMode']) { [string]$application.CleanupRemediationMode } else { '' }
+            $actionText = if ($IsSystemView) {
+                Get-DashboardText 'software.results.detail.systemReadOnly'
+            } elseif ($actionable) {
+                $actionDetail = switch ($remediationMode) {
+                    'VendorSharedReset' { Get-DashboardText "software.results.action.resetSupported" }
+                    'ArtifactCleanupOnly' { Get-DashboardText "software.results.action.artifactCleanupOnly" }
+                    'ArtifactCleanup' { Get-DashboardText "software.results.action.artifactCleanup" }
+                    'ManualArtifactQuarantine' { Get-DashboardText "software.results.action.manualArtifactQuarantine" }
+                    'ManualOfficialReinstall' { Get-DashboardText "software.results.action.manualReinstall" }
+                    default { Get-DashboardText "software.results.action.guidedRepair" }
+                }
+                Get-DashboardText 'software.results.action.classified' @(
+                    (Get-DashboardText 'software.results.classification.actionable'), $actionDetail)
+            } elseif ($guidanceOnly) {
+                Get-DashboardText 'software.results.action.classified' @(
+                    (Get-DashboardText 'software.results.classification.actionable'),
+                    (Get-DashboardText 'software.results.action.guidedOnly'))
+            } elseif (Test-GuiThirdPartyCleanupFinding -Application $application) {
+                Get-DashboardText 'software.results.action.classified' @(
+                    (Get-DashboardText 'software.results.classification.manualReview'),
+                    (Get-DashboardText "software.results.action.officialRepair"))
+            } elseif (($application.PSObject.Properties['NeedsReview'] -and [bool]$application.NeedsReview) -or
+                [string]$application.AssessmentCode -in @('Unverified','TrialOrUnverified','IntegrityCompromised')) {
+                Get-DashboardText 'software.results.action.classified' @(
+                    (Get-DashboardText 'software.results.classification.manualReview'),
+                    (Get-DashboardText 'software.results.action.manualReview'))
+            } else {
+                Get-DashboardText "software.results.action.none"
+            }
+            $licenseModel = [string]$application.LicenseModel
+            if (-not $licenseLabels.ContainsKey($licenseModel)) { $licenseModel = 'Unknown' }
+            $confidence = [string]$application.Confidence
+            if (-not $confidenceLabels.ContainsKey($confidence)) { $confidence = 'Low' }
+            $licenseText = [string]$licenseLabels[$licenseModel]
+            $confidenceText = [string]$confidenceLabels[$confidence]
+            $row = New-Object System.Windows.Forms.ListViewItem([string]$application.Name)
+            [void]$row.SubItems.Add([string]$application.Version)
+            [void]$row.SubItems.Add([string]$application.Publisher)
+            [void]$row.SubItems.Add($licenseText)
+            [void]$row.SubItems.Add([string]$application.TechnicalStatus)
+            [void]$row.SubItems.Add($confidenceText)
+            $row.Tag = [pscustomobject]@{
+                Application=$application; CandidateId=$candidateId; Actionable=$actionable; SelectionAllowed=$selectionAllowed
+                GuidanceOnly=$guidanceOnly; IsSystemComponent=$IsSystemView; EvidenceText=$evidenceText; ActionText=$actionText
+                LicenseText=$licenseText; ConfidenceText=$confidenceText
+            }
+            $row.ToolTipText = "$([string]$application.Name)`r`n$([string]$application.TechnicalStatus)`r`n$evidenceText`r`n$actionText"
+            if (-not $selectionAllowed) { $row.ForeColor = [System.Drawing.Color]::FromArgb(105, 112, 125) }
+            [void]$list.Items.Add($row)
+        }
+        $list.Add_ItemCheck({
+            param($sender, $eventArgs)
+            if ($eventArgs.Index -lt 0 -or $eventArgs.Index -ge $sender.Items.Count) { return }
+            $metadata = $sender.Items[$eventArgs.Index].Tag
+            if (-not [bool]$metadata.SelectionAllowed) { $eventArgs.NewValue = [System.Windows.Forms.CheckState]::Unchecked }
+        })
+        $list.Add_SelectedIndexChanged({ param($sender, $eventArgs) & $renderSelectionDetails $sender })
+        $list.Add_SizeChanged({ param($sender, $eventArgs) & $resizeListColumns $sender })
+        & $resizeListColumns $list
+        return $list
+    }
+
+    $tabControl = New-Object System.Windows.Forms.TabControl
+    $tabControl.Dock = "Fill"
+    $tabControl.Multiline = $true
+    $thirdPartyPage = New-Object System.Windows.Forms.TabPage
+    $thirdPartyPage.Text = Get-DashboardText 'software.results.tab.thirdParty' @($thirdPartyApplications.Count)
+    $systemPage = New-Object System.Windows.Forms.TabPage
+    $systemPage.Text = Get-DashboardText 'software.results.tab.system' @($systemApplications.Count)
+    $thirdPartyList = & $newApplicationList -Rows $thirdPartyApplications -IsSystemView $false
+    $systemList = & $newApplicationList -Rows $systemApplications -IsSystemView $true
+    $thirdPartyPage.Controls.Add($thirdPartyList)
+    $systemPage.Controls.Add($systemList)
+    $thirdPartyPage.Tag = $thirdPartyList
+    $systemPage.Tag = $systemList
+    [void]$tabControl.TabPages.Add($thirdPartyPage)
+    [void]$tabControl.TabPages.Add($systemPage)
+    $tabControl.Add_SelectedIndexChanged({
         param($sender, $eventArgs)
-        if ($eventArgs.Index -lt 0 -or $eventArgs.Index -ge $sender.Items.Count) { return }
-        $metadata = $sender.Items[$eventArgs.Index].Tag
-        if (-not [bool]$metadata.SelectionAllowed) { $eventArgs.NewValue = [System.Windows.Forms.CheckState]::Unchecked }
+        $selectedList = if ($sender.SelectedTab -and $sender.SelectedTab.Tag) { $sender.SelectedTab.Tag } else { $null }
+        & $renderSelectionDetails $selectedList
     })
-    $dialog.Controls.Add($list)
+    $mainLayout.Controls.Add($tabControl, 0, 3)
 
-    $buttonLayout = New-Object System.Windows.Forms.TableLayoutPanel
-    $buttonLayout.Location = New-Object System.Drawing.Point(22, ($dialogHeight - 68))
-    $buttonLayout.Size = New-Object System.Drawing.Size(($dialogWidth - 44), 48)
-    $buttonLayout.Anchor = "Bottom,Left,Right"
-    $buttonLayout.ColumnCount = 2
-    [void]$buttonLayout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 50)))
-    [void]$buttonLayout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 50)))
-    $dialog.Controls.Add($buttonLayout)
-
-    $leftButtons = New-Object System.Windows.Forms.FlowLayoutPanel
-    $leftButtons.Dock = "Fill"
-    $leftButtons.WrapContents = $false
-    $buttonLayout.Controls.Add($leftButtons, 0, 0)
-    $rightButtons = New-Object System.Windows.Forms.FlowLayoutPanel
-    $rightButtons.Dock = "Fill"
-    $rightButtons.FlowDirection = "RightToLeft"
-    $rightButtons.WrapContents = $false
-    $buttonLayout.Controls.Add($rightButtons, 1, 0)
-
-    if (-not $ReadOnly -and $selectableCount -gt 0) {
-        $selectAllButton = New-Object System.Windows.Forms.Button
-        $selectAllButton.Text = Get-DashboardText "common.selectAll"
-        $selectAllButton.Size = New-Object System.Drawing.Size(138, 38)
-        $selectAllButton.Add_Click({ foreach ($row in $list.Items) { if ([bool]$row.Tag.SelectionAllowed) { $row.Checked = $true } } })
-        $leftButtons.Controls.Add($selectAllButton)
-
-        $clearButton = New-Object System.Windows.Forms.Button
-        $clearButton.Text = Get-DashboardText "common.clearAll"
-        $clearButton.Size = New-Object System.Drawing.Size(138, 38)
-        $clearButton.Add_Click({ foreach ($row in $list.Items) { $row.Checked = $false } })
-        $leftButtons.Controls.Add($clearButton)
-    }
-
-    $officialButton = New-Object System.Windows.Forms.Button
-    $officialButton.Text = Get-DashboardText "software.results.openOfficial"
-    $officialButton.Size = New-Object System.Drawing.Size(190, 38)
-    $officialButton.Add_Click({
-        if ($list.SelectedItems.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.selectForOfficial"), (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
-            return
-        }
-        $url = [string]$list.SelectedItems[0].Tag.Application.OfficialReferenceUrl
-        if ([string]::IsNullOrWhiteSpace($url)) {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.noOfficialLink"), (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
-            return
-        }
-        try { Start-Process -FilePath $url } catch {
-            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.openOfficialFailed" @($_.Exception.Message)), (Get-DashboardText "common.errorTitle"), "OK", "Error") | Out-Null
-        }
-    })
-    $leftButtons.Controls.Add($officialButton)
+    $footer = New-Object System.Windows.Forms.FlowLayoutPanel
+    $footer.Dock = "Top"
+    $footer.FlowDirection = "RightToLeft"
+    $footer.WrapContents = $true
+    $footer.AutoScroll = $false
+    $footer.AutoSize = $true
+    $footer.AutoSizeMode = "GrowAndShrink"
+    $footer.Padding = New-Object System.Windows.Forms.Padding(0, 8, 0, 0)
+    $mainLayout.Controls.Add($footer, 0, 5)
 
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = Get-DashboardText "app.close"
     $closeButton.Size = New-Object System.Drawing.Size(116, 38)
     $closeButton.Add_Click({ $dialog.Close() })
     $dialog.CancelButton = $closeButton
-    $rightButtons.Controls.Add($closeButton)
+    $footer.Controls.Add($closeButton)
 
     if (-not $ReadOnly -and $selectableCount -gt 0) {
         $continueButton = New-Object System.Windows.Forms.Button
@@ -4500,7 +4592,7 @@ function Show-ThirdPartyAssessmentResults {
         $continueButton.Font = $fontBold
         $continueButton.Size = New-Object System.Drawing.Size(210, 38)
         $continueButton.Add_Click({
-            $candidateIds = @($list.CheckedItems | ForEach-Object { [string]$_.Tag.CandidateId } | Where-Object { $_ } | Select-Object -Unique)
+            $candidateIds = @($thirdPartyList.CheckedItems | ForEach-Object { [string]$_.Tag.CandidateId } | Where-Object { $_ } | Select-Object -Unique)
             if ($candidateIds.Count -eq 0) {
                 [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.selectionRequired"), (Get-DashboardText "software.results.selectionRequiredTitle"), "OK", "Warning") | Out-Null
                 return
@@ -4516,8 +4608,64 @@ function Show-ThirdPartyAssessmentResults {
                 $dialog.Close()
             }
         })
-        $rightButtons.Controls.Add($continueButton)
+        $footer.Controls.Add($continueButton)
     }
+
+    $officialButton = New-Object System.Windows.Forms.Button
+    $officialButton.Text = Get-DashboardText "software.results.openOfficial"
+    $officialButton.Size = New-Object System.Drawing.Size(190, 38)
+    $officialButton.Add_Click({
+        $selectedList = if ($tabControl.SelectedTab -and $tabControl.SelectedTab.Tag) { $tabControl.SelectedTab.Tag } else { $thirdPartyList }
+        if ($selectedList.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.selectForOfficial"), (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
+            return
+        }
+        $url = [string]$selectedList.SelectedItems[0].Tag.Application.OfficialReferenceUrl
+        if ([string]::IsNullOrWhiteSpace($url)) {
+            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.noOfficialLink"), (Get-DashboardText "software.results.title"), "OK", "Information") | Out-Null
+            return
+        }
+        try { Start-Process -FilePath $url } catch {
+            [System.Windows.Forms.MessageBox]::Show((Get-DashboardText "software.results.openOfficialFailed" @($_.Exception.Message)), (Get-DashboardText "common.errorTitle"), "OK", "Error") | Out-Null
+        }
+    })
+    $footer.Controls.Add($officialButton)
+
+    if (-not $ReadOnly -and $selectableCount -gt 0) {
+        $clearButton = New-Object System.Windows.Forms.Button
+        $clearButton.Text = Get-DashboardText "common.clearAll"
+        $clearButton.Size = New-Object System.Drawing.Size(138, 38)
+        $clearButton.Add_Click({ foreach ($row in $thirdPartyList.Items) { $row.Checked = $false } })
+        $footer.Controls.Add($clearButton)
+
+        $selectAllButton = New-Object System.Windows.Forms.Button
+        $selectAllButton.Text = Get-DashboardText "common.selectAll"
+        $selectAllButton.Size = New-Object System.Drawing.Size(138, 38)
+        $selectAllButton.Add_Click({ foreach ($row in $thirdPartyList.Items) { if ([bool]$row.Tag.SelectionAllowed) { $row.Checked = $true } } })
+        $footer.Controls.Add($selectAllButton)
+    }
+
+    $setTextMaximumWidth = {
+        $availableWidth = [Math]::Max(120, $mainLayout.ClientSize.Width - $mainLayout.Padding.Horizontal)
+        foreach ($label in @($heading, $summary, $hint)) {
+            if ($label.MaximumSize.Width -ne $availableWidth) {
+                $label.MaximumSize = New-Object System.Drawing.Size($availableWidth, 0)
+            }
+        }
+    }
+    $refreshLayout = {
+        $mainLayout.SuspendLayout()
+        try {
+            & $setTextMaximumWidth
+            foreach ($targetList in @($thirdPartyList, $systemList)) { & $resizeListColumns $targetList }
+            $footer.AutoScroll = $false
+            $footer.PerformLayout()
+        } finally {
+            $mainLayout.ResumeLayout($true)
+        }
+    }
+    $mainLayout.Add_SizeChanged({ & $refreshLayout })
+    $dialog.Add_Shown({ & $refreshLayout })
 
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
     [void]$dialog.ShowDialog($form)
@@ -4862,7 +5010,7 @@ function Show-CleanupResultCenter {
     if ($thirdPartyExecutionResults.Count -gt 0) {
         $body.Add("")
         $body.Add((Get-DashboardText 'cleanup.result.thirdPartyExecutionHeading'))
-        foreach ($execution in @($thirdPartyExecutionResults | Select-Object -First 30)) {
+        foreach ($execution in @($thirdPartyExecutionResults)) {
             $statusKey = if ($execution.PSObject.Properties['PostCheckStatus'] -and [string]$execution.PostCheckStatus -eq 'ResidualRemaining') {
                 'cleanup.result.execution.residueRemaining'
             } else { switch ([string]$execution.Status) {
@@ -4876,7 +5024,6 @@ function Show-CleanupResultCenter {
             $executionTarget = if ([string]::IsNullOrWhiteSpace([string]$execution.Target)) { Get-DashboardText 'common.unknown' } else { [string]$execution.Target }
             $body.Add("- [$executionStatus] $([string]$execution.Name) - $executionTarget")
         }
-        if ($thirdPartyExecutionResults.Count -gt 30) { $body.Add((Get-DashboardText 'cleanup.result.moreItems' @($thirdPartyExecutionResults.Count - 30))) }
     }
 
     if ($nextActions.Count -gt 0) {
@@ -4894,7 +5041,7 @@ function Show-CleanupResultCenter {
     if ($remainingItems.Count -gt 0) {
         $body.Add("")
         $body.Add((Get-DashboardText $(if ($hasPostVerification) { 'cleanup.result.postVerificationItemsHeading' } else { 'cleanup.result.remainingItemsHeading' })))
-        foreach ($item in @($remainingItems | Select-Object -First 30)) {
+        foreach ($item in @($remainingItems)) {
             if ($hasPostVerification) {
                 $location = (([string]$item.Location) -replace "`0|`r?`n", " ").Trim()
                 if ([string]::IsNullOrWhiteSpace($location)) { $location = Get-DashboardText 'common.unknown' }
@@ -4908,7 +5055,6 @@ function Show-CleanupResultCenter {
                 $body.Add("- [$($item.Type)] $($item.Name) - $detail")
             }
         }
-        if ($remainingItems.Count -gt 30) { $body.Add((Get-DashboardText "cleanup.result.moreItems" @($remainingItems.Count - 30))) }
     }
 
     $guidance = @($Result.HandlingGuidance)
@@ -4922,12 +5068,10 @@ function Show-CleanupResultCenter {
     if ($rawActions.Count -gt 0) {
         $body.Add("")
         $body.Add((Get-DashboardText "cleanup.result.actionsHeading"))
-        foreach ($action in @($rawActions | Select-Object -First 14)) {
+        foreach ($action in @($rawActions)) {
             $line = (([string]$action) -replace "`0|`r?`n", " | ").Trim()
-            if ($line.Length -gt 240) { $line = $line.Substring(0, 237) + "..." }
             $body.Add("• $line")
         }
-        if ($rawActions.Count -gt 14) { $body.Add((Get-DashboardText "cleanup.result.moreActions" @($rawActions.Count - 14))) }
     }
     $body.Add("")
     $body.Add([string]$Result.ScopeNote)
@@ -4956,25 +5100,33 @@ function Show-CleanupResultCenter {
     $layout.ColumnCount = 1
     $layout.RowCount = 3
     [void]$layout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
-    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 68)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
     [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
-    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 58)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
     $dialog.Controls.Add($layout)
 
-    $header = New-Object System.Windows.Forms.Panel
-    $header.Dock = "Fill"
+    $header = New-Object System.Windows.Forms.TableLayoutPanel
+    $header.Dock = "Top"
+    $header.AutoSize = $true
+    $header.AutoSizeMode = "GrowAndShrink"
+    $header.ColumnCount = 1
+    $header.RowCount = 2
+    [void]$header.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$header.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$header.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
     $heading = New-Object System.Windows.Forms.Label
     $heading.Text = $headingText
     $heading.Font = $fontTitle
     $heading.ForeColor = $headingColor
+    $heading.AutoSize = $true
     $heading.Dock = "Top"
-    $heading.Height = 38
-    $header.Controls.Add($heading)
+    $header.Controls.Add($heading, 0, 0)
     $subheading = New-Object System.Windows.Forms.Label
     $subheading.Text = if ($isDryRun) { Get-DashboardText 'cleanup.dryRun.resultHint' } elseif ($SafetyBlocked) { Get-DashboardText "cleanup.result.blockedHint" } elseif ($guidedActionOnly) { Get-DashboardText 'cleanup.result.guidedActionHint' } elseif ($postVerificationOutcome -eq 'FullyHandled') { Get-DashboardText 'cleanup.result.fullyHandledHint' } elseif ($postVerificationOutcome -eq 'CannotAutoHandle') { Get-DashboardText 'cleanup.result.cannotAutoHandleHint' } elseif ($remainingItems.Count -gt 0) { Get-DashboardText "cleanup.result.remainingHint" } else { Get-DashboardText "cleanup.result.defaultHint" }
     $subheading.ForeColor = [System.Drawing.Color]::FromArgb(52, 64, 84)
-    $subheading.Dock = "Fill"
-    $header.Controls.Add($subheading)
+    $subheading.AutoSize = $true
+    $subheading.Dock = "Top"
+    $header.Controls.Add($subheading, 0, 1)
     $layout.Controls.Add($header, 0, 0)
 
     $details = New-Object System.Windows.Forms.RichTextBox
@@ -4990,10 +5142,12 @@ function Show-CleanupResultCenter {
     $layout.Controls.Add($details, 0, 1)
 
     $buttonBar = New-Object System.Windows.Forms.FlowLayoutPanel
-    $buttonBar.Dock = "Fill"
+    $buttonBar.Dock = "Top"
     $buttonBar.FlowDirection = "RightToLeft"
-    $buttonBar.WrapContents = $false
-    $buttonBar.AutoScroll = $true
+    $buttonBar.WrapContents = $true
+    $buttonBar.AutoScroll = $false
+    $buttonBar.AutoSize = $true
+    $buttonBar.AutoSizeMode = "GrowAndShrink"
     $buttonBar.Padding = New-Object System.Windows.Forms.Padding(0, 8, 0, 0)
     $layout.Controls.Add($buttonBar, 0, 2)
 
@@ -5031,7 +5185,22 @@ function Show-CleanupResultCenter {
         if (-not $dialog.AcceptButton -and [string]$next.Code -in @('ExecuteDryRunPlan','RemediateRemaining','RepairScanSources','OpenLicenseManager','ReviewVendorActivation','OpenVendorActivation','OpenVendorRepair','Recheck')) { $dialog.AcceptButton = $actionButton }
     }
 
-    $dialog.Add_Shown({ $details.SelectionStart = 0; $details.SelectionLength = 0; $details.ScrollToCaret() })
+    $updateResultHeaderWidth = {
+        $availableWidth = [Math]::Max(120, $layout.ClientSize.Width - $layout.Padding.Horizontal)
+        foreach ($label in @($heading, $subheading)) {
+            if ($label.MaximumSize.Width -ne $availableWidth) {
+                $label.MaximumSize = New-Object System.Drawing.Size($availableWidth, 0)
+            }
+        }
+        $layout.PerformLayout()
+    }
+    $layout.Add_SizeChanged({ & $updateResultHeaderWidth })
+    $dialog.Add_Shown({
+        & $updateResultHeaderWidth
+        $buttonBar.AutoScroll = $false
+        $buttonBar.PerformLayout()
+        $details.SelectionStart = 0; $details.SelectionLength = 0; $details.ScrollToCaret()
+    })
     Set-ToolWindowTheme -Root $dialog -Mode $script:dashboardTheme
     [void]$dialog.ShowDialog($form)
     $choice = [string]$dialog.Tag

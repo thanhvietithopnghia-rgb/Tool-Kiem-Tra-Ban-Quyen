@@ -1,6 +1,6 @@
 # Computer Configuration and Software License Check Tool — Version History
 
-This document summarizes the main public releases from v1.0 through v4.9.0.0. The v4.8 and earlier history remains unchanged below.
+This document summarizes the core changes in the main public releases.
 
 Current release: **v4.9.0.0**
 FileVersion: **4.9.0.0** · Build **2026.08.22**
@@ -10,58 +10,18 @@ Stable latest-release page:
 
 ## v4.9.0.0 — August 22, 2026
 
-- **Fail-closed provenance:** the launcher verifies its signature, pinned certificate, metadata, Build ID, and provenance manifest. A modified or unverifiable build displays a clear warning and cannot self-update or perform system-changing actions.
-- **Signed online catalog:** expanded recognition uses allowlisted declarative rules, detached CMS signatures, strict schema limits, a previous-cache fallback, and a persistent version floor that rejects downgrades. Catalog data cannot supply arbitrary commands or scripts.
-- **Cautious recognition:** Product ID, publisher, file signature, path, service, task, Registry, and licensing state can be correlated. Insufficient evidence remains `Unverified`; it is not automatically called a crack and is not eligible for automatic cleanup.
-- **Identity and remediation states:** each Windows, Office, or software item is tracked independently. `Pending`, `Running`, `VerifiedClean`, `ApprovedInternalKMS`, `RetryableFailure`, `BlockedByPolicy`, and `NeedsOfficeRepair` prevent a previous attempt from incorrectly blocking a retry.
-- **Mandatory post-check:** `VerifiedClean` is emitted only when a fresh scan confirms that the targeted evidence is gone and the licensing state meets the safe rule. Organization policy is never silently removed; Volume editions, modified files, and Office configurations that need repair are routed to official Repair/reinstallation guidance.
-- **Private reports by default:** serial numbers, UUID, Processor ID, and Asset Tag are redacted by default. Identifiers are retained only when the user deliberately chooses the full internal report.
-- **Diagnosable licensing reads:** whole-machine scans request UAC, check `Winmgmt`/`sppsvc`, try CIM and then WMI, and report permission, service, or class failures separately; an unreadable source is never treated as an unactivated license.
-- **Multi-source grouped inventory:** AppX/MSIX, shortcuts from all user profiles, Scoop, Chocolatey, Steam, and bounded portable locations are included. Duplicate records are merged and companion components are grouped under the primary product as read-only entries.
-- **Community development with controlled source from v4.9:** the official executable remains free, and the project welcomes bug reports, proposals, documentation, translations, testing, and technical contributions. Anyone wishing to review, study, research, security-test, or contribute to the source must first obtain the author's written approval; viewing does not itself permit copying, disclosure, modification, packaging, commercialization, training-data use, or rebranding.
-- **Policy rationale:** the author observed near-verbatim copying of the Tool's content, interface, descriptions, and development work, followed by renaming or rebranding as a personal product without permission or attribution. This does not claim that backend or source code was taken where technical evidence has not established that.
-- **No retroactive change:** the controlled-source policy applies to source from v4.9 onward. Older releases remain governed by the terms distributed with them.
+- **More accurate recognition:** inventories Registry, AppX/MSIX, WinGet, shortcuts, package managers, and bounded portable locations; distinguishes confirmed installations from portable/residual files and merges duplicate records by product family.
+- **Adaptive integrity scanning:** vendor host blocks or disabled licensing services trigger broader Authenticode checks within the exact product directory; evidence no longer leaks between products from the same vendor.
+- **Diagnosable licensing and safe remediation:** unreadable data is distinct from unactivated status, CIM/WMI fallbacks are used, elevation is requested when necessary, and changes require direct evidence plus a post-check.
+- **Protected release chain:** the EXE, provenance, catalog, and update manifest are signed; online comparison accepts declarative data only from pinned official sources and uploads no software inventory or device data.
+- **Policy from v4.9:** the Tool remains free and community-oriented; source is no longer published free of charge, is not open source, and requires the author's prior written approval for access.
 
-Limitation: catalog and post-check improvements reduce false conclusions and unsafe handling, but cannot guarantee recognition or cleanup of 100% of all products, versions, and variants. Technical results do not replace vendor entitlement evidence.
+## v4.8.0.0 — August 10, 2026
 
-## v4.8.0.1 — August 18, 2026
-
-- **Separately verified activation state:** Windows and Office are no longer collapsed into a generic “no KMS/crack detected” message. Office is only concluded when `OSPP.VBS /dstatusall` has complete readable coverage; a missing OSPP utility, timeout, fallback, or unreadable output is shown as **Unverified** and blocks automatic remediation.
-- **Safer Office KMS restoration:** before any KMS removal, the Tool rechecks the exact OSPP path/SKU/key and blocks duplicate last-five key values, approved KMS, or a shared path with a licensed Retail/MAK/Subscription SKU. It does not delete Office accounts/tokens, rearm Office, or alter Windows OEM/digital entitlement to force a watermark.
-- **Transparent software results:** after inventory, the Tool always opens the full scanned-software list. Only items with direct remediation evidence can be selected; Unverified/Manual-review items remain visible but cannot be automatically reset.
-- **Interface wording:** removed personal forms of address from user-visible text.
-- **Safe application updates:** an update is offered only for a newer release, or for a same-version replacement when the installed EXE hash is verified and differs. Missing or invalid hashes fail closed. Check and Apply revalidate the launcher hash, retain a backup, and roll back if the replacement does not start reliably.
-- **A new public version:** FileVersion/ProductVersion is now `4.8.0.1` so devices on `4.8.0.0` can receive this release through the user-consented Online update flow; there are no silent updates or telemetry.
-
-## v4.8.0 — August 10, 2026 · in-place updates August 14 and 17, 2026
-
-**v4.8 is a direct upgrade from v4.6, focused on these main changes:**
-
-**In-place maintenance update on August 17, 2026:**
-
-- **Hardware and platform security:** complete TPM Present/Ready/Enabled/Activated and version reporting, Secure Boot fallback, and per-volume BitLocker details; expanded serial/identity collection for BIOS, system, baseboard, chassis, CPU, memory, storage, GPU, monitors, batteries, and networking. Full internal reports retain serials; shareable reports redact identifying values.
-- **Software inventory and catalog:** detached-CMS-signed catalog `1.4.0.1` with scope/update-policy metadata and 77 fail-closed rules. Parallel installs at different locations or patch versions remain separate; reports separate license model, technical state, reason, source, evidence, and confidence, with confirmed crack/strong evidence first.
-- **Safe remediation:** a generic filename containing “crack” is review-only; only allowlisted Strong/Conclusive evidence can create a candidate. System/driver components are never remediated, and `rarreg.key` alone proves neither valid entitlement nor abuse.
-- **Official activation and post-checks:** after tampering evidence is removed, the Tool separates “clean and ready for activation” from “licensed.” Windows returns `ActivationConfirmed = TRUE` only when Software Protection reports `LicenseStatus=1` for the submitted key; Office returns TRUE only when `OSPP.VBS /dstatusall` reports `LICENSED` for the same last five characters. Otherwise it remains FALSE, reports Unactivated/Needs repair, and opens the official activation surface; verified OEM/Retail/MAK or approved organization KMS licensing is preserved.
-- **Tool Assistant:** handles more short, misspelled, and follow-up questions; correctly explains that the Tool is provided free of charge, v1.0 was released on 17 July 2026, the source is publicly inspectable but not currently open source, and Undetermined/Unverified/Suspicious/Crack-confirmed are distinct states.
-
-**Report-feedback update on August 14, 2026:**
-
-- **Context-correct assessment:** separates the license model from technical evidence; free/open-source applications no longer request purchase invoices. Only real crack, activator, unauthorized command/task, or tampering indicators enter the evidence table.
-- **Specific handling conditions:** `Low` is informational and cannot justify removing an application or bloatware. Unverified, Suspicious, Non-genuine, and Integrity-compromised states have distinct guidance. The Tool targets the exact artifact/command/task and preserves the application.
-- **Additional detection:** conservatively detects MAS/PMAS, Activation Program 1.17, and Startup commands that point exactly to `erturk-dev.netlify.app/run`; existing KMSPico coverage remains, with benign PowerShell/Netlify negative fixtures.
-- **WinRAR and official sources:** a `rarreg.key` file alone is not treated as abuse and is not automatically removed; an expired trial recommends a license or lawful alternative. MathType and WinRAR links resolve to the vendors' official pages.
-- **Parallel installations:** shown only when different versions exist in different locations; duplicate Registry/AppX/shortcut records such as Zalo/Telegram are not counted as separate installs, and the table states that this is not licensing evidence.
-- **Reports/PDF:** the software appendix uses a dedicated teal palette with better spacing and contrast; wide tables split into Context/Decision groups, and detailed A4 output uses larger type, line height, padding, repeated headers, and cleaner page breaks.
-- **Full/Software PDF hotfix:** renderer-generated official HTTPS references are no longer mistaken for remotely loaded resources by the Offline gate, so detailed PDFs export normally; remote image/CSS/SVG/form content and untrusted links remain blocked. Completion logs now include PDF status, engine, and error details.
-- **Tool Assistant:** responds with conclusion–evidence–action structure, distinguishes Windows/Office/third-party software, explains model–status–confidence–remediation, and avoids legal overclaims or automatic remediation.
-
-- **Interface:** clearer layout, better Light/Dark and DPI behavior, and a fix for the **Redacted report** button being clipped or fading on hover.
-- **Checks and remediation:** Online and Dry Run now share three checkboxes—**Windows, Office, and Other software**. One or more scopes can be selected, and only those scopes are scanned or handled. Preview, confirmation, backup, and post-verification remain mandatory.
-- **Scanning and performance:** faster inventory and assessment, a 76-rule catalog, and more cautious result classification.
-- **Reports:** fixes clipped/missing PDF lines, simplifies layout, and supports redacted reports for sharing.
-- **Assistant and connectivity:** understands Tool-related questions across 63 structured topics and 481 keywords/phrasing variants, bundled guides, report data, and prior-turn context. Knowledge `1.3.1` uses detached JSON plus a CMS SHA-256 signature, a pinned publisher certificate, downgrade protection, and a previous-cache fallback; it checks after explicit Online consent, keeps growing knowledge outside the EXE, uploads no questions/reports/device data, and enforces Tool-only scope.
-- **Safety and privacy:** Offline by default, networking and updates only with consent, elevation only when needed, and no telemetry or silent updates.
+- **Broad inventory and assessment:** expanded Windows, Office, third-party software, and hardware checks while separating licence model, technical state, and confidence.
+- **Deep scan and signed catalog:** introduced multi-tier evidence and `Unverified` outcomes to avoid conclusions when data is incomplete.
+- **Controlled remediation:** scope selection, preview, confirmation, backup, and post-verification are mandatory; weak evidence never removes software or changes the system automatically.
+- **Usability:** completed the Dashboard, HTML/PDF reports, local Assistant, and server–workstation management while keeping Offline as the default.
 
 ## v4.6 — August 6, 2026
 

@@ -15,15 +15,17 @@ không được đăng lại tệp, đóng gói kèm sản phẩm khác, sửa �
 tên/đổi thương hiệu, mạo danh tác giả, xóa thông tin nguồn gốc hoặc vượt qua cơ
 chế xác minh bản chính thức.
 
-Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát. Cá nhân hoặc
-tổ chức muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hay đóng góp phải
-xin ý kiến và nhận chấp thuận bằng văn bản của tác giả trước khi truy cập. Mỗi
-chấp thuận chỉ có hiệu lực cho đúng người, mục đích, phạm vi, thời hạn và điều
-kiện được ghi rõ; tác giả có quyền giới hạn hoặc từ chối yêu cầu.
+Kể từ phiên bản v4.9, mã nguồn không còn được công khai miễn phí và không được
+phát hành theo giấy phép mã nguồn mở. Việc tiếp cận, tham khảo và sử dụng mã
+nguồn được tác giả quản lý theo cơ chế có kiểm soát. Cá nhân hoặc tổ chức muốn
+xem mã nguồn để học tập, nghiên cứu, đánh giá bảo mật hay đóng góp phát triển
+phải được tác giả chấp thuận trước bằng văn bản. Mỗi chấp thuận chỉ có hiệu lực
+cho đúng người, mục đích, phạm vi, thời hạn và điều kiện được ghi rõ; tác giả có
+quyền giới hạn hoặc từ chối yêu cầu.
 
-Quyền xem mã không tự cho phép sao chép, chia sẻ, công bố, mirror, sửa đổi, tạo
-sản phẩm phái sinh, đóng gói, tích hợp, thương mại hóa, dùng làm dữ liệu huấn
-luyện, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chỉ được thực hiện các hành vi
+Quyền xem mã không tự cho phép sao chép, trích xuất, chia sẻ, công bố, mirror,
+sửa đổi, dịch ngược, tạo sản phẩm phái sinh, đóng gói, tích hợp, thương mại hóa,
+dùng làm dữ liệu huấn luyện, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chỉ được thực hiện các hành vi
 nêu trên khi văn bản chấp thuận cho phép rõ ràng. Đóng góp mã nguồn chỉ được tiếp
 nhận theo phạm vi, kênh gửi, điều kiện quyền tác giả và kiểm thử do tác giả chấp
 thuận riêng.
@@ -51,15 +53,18 @@ the file may not be rehosted, bundled, modified, sold, monetized, renamed,
 rebranded, claimed as another person's work, stripped of origin notices, or
 altered to bypass official-build verification.
 
-Starting with v4.9, source code is managed through controlled access. Anyone who
-wants to review, study, research, security-test, or contribute to the source
-must first request and receive the author's written approval. Each approval is
-limited to the named recipient, purpose, scope, duration, and conditions. The
-author may limit or decline a request.
+Starting with v4.9, source code is no longer published free of charge and is not
+released under an open-source licence. Access, review, and use are managed by
+the author through controlled access. Anyone who wants to review, study,
+research, security-test, or contribute to the source must first receive the
+author's written approval. Each approval is limited to the named recipient,
+purpose, scope, duration, and conditions. The author may limit or decline a
+request.
 
-Permission to view source does not itself permit copying, disclosure,
-publication, mirroring, modification, derivative works, packaging, integration,
-commercialization, training-data use, rebranding, or removal of attribution.
+Permission to view source does not itself permit copying, extraction,
+disclosure, publication, mirroring, modification, reverse engineering,
+derivative works, packaging, integration, commercialization, training-data use,
+rebranding, or removal of attribution.
 Such activity is allowed only when expressly stated in the written approval.
 Source contributions are accepted only under separately approved scope,
 submission channel, copyright terms, and test requirements.

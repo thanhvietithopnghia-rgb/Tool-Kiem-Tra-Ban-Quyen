@@ -27,7 +27,8 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.9.exe |
 - **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
 - **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.
 - **Nhận diện mở rộng nhưng thận trọng:** đối chiếu Product ID, publisher, chữ ký, đường dẫn, service, task, Registry và trạng thái cấp phép. `Chưa xác minh` không tự biến thành kết luận crack và không đủ điều kiện tự động làm sạch.
-- **Kiểm kê toàn máy rõ nguồn:** bổ sung AppX/MSIX, shortcut mọi hồ sơ người dùng, Scoop, Chocolatey, Steam và vùng portable giới hạn; gom bản ghi trùng, nhóm thành phần phụ theo sản phẩm chính và công bố phạm vi đọc có/không có quyền quản trị.
+- **Kiểm kê toàn máy rõ nguồn:** bổ sung AppX/MSIX, Winget, shortcut mọi hồ sơ người dùng, Scoop, Chocolatey, Steam, đăng ký cấp phép Autodesk chỉ-đọc và vùng portable giới hạn; phân biệt bản cài đã xác nhận với portable/tệp còn sót, gom bản ghi trùng theo họ sản phẩm và công bố phạm vi đọc có/không có quyền quản trị.
+- **Quét toàn vẹn thích ứng:** khi hosts, firewall hoặc dịch vụ hãng có dấu hiệu bất thường, Tool tăng phạm vi kiểm tra Authenticode trong đúng thư mục sản phẩm. Đường dẫn cụ thể nhất được ưu tiên để bằng chứng Acrobat không lan sang Lightroom/Premiere.
 - **Đọc cấp phép có chẩn đoán:** lượt quét Windows/Office/Phần mềm/Toàn bộ yêu cầu UAC, kiểm tra dịch vụ cần thiết, thử CIM rồi WMI và phân biệt `không đọc được dữ liệu` với `chưa kích hoạt`.
 - **Khắc phục có hậu kiểm:** từng mục có định danh và trạng thái riêng. Tool chỉ báo `VerifiedClean` khi hậu kiểm chứng minh dấu vết đã hết và trạng thái cấp phép phù hợp; lỗi có thể thử lại, còn policy hoặc bản cài cần sửa chữa được báo riêng thay vì báo thành công giả.
 - **Quyền riêng tư mặc định:** báo cáo dòng lệnh và bản chia sẻ mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ lựa chọn nội bộ đầy đủ mới giữ định danh.
@@ -63,7 +64,7 @@ Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. Bản chia sẻ mặc đ�
 
 ## Phát triển cộng đồng và mã nguồn có kiểm soát từ v4.9
 
-Bản thực thi chính thức của Tool tiếp tục **miễn phí cho cộng đồng** cho các mục đích hợp pháp theo điều khoản đi kèm. Dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật của cộng đồng. Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát; đây không phải giấy phép mã nguồn mở.
+Bản thực thi chính thức của Tool tiếp tục **miễn phí cho cộng đồng** cho các mục đích hợp pháp theo điều khoản đi kèm. Dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật của cộng đồng. Kể từ v4.9, mã nguồn không còn được công khai miễn phí, không được phát hành theo giấy phép mã nguồn mở và được quản lý theo cơ chế truy cập có kiểm soát.
 
 Thay đổi này được đưa ra sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển của Tool bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hoặc ghi nhận tác giả. Nội dung này **không khẳng định mã nguồn hoặc backend đã bị lấy** khi chưa có bằng chứng kỹ thuật xác nhận.
 

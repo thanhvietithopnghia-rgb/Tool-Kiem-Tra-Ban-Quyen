@@ -1,5 +1,15 @@
 # Tool Kiểm Tra v4.9.0.0
 
+## Bản bảo trì nhận diện ngày 22/08/2026
+
+- Phân biệt rõ cài đặt đã xác nhận, đăng ký đơn nguồn, ứng dụng portable và bộ tệp còn sót; AutoCAD chỉ tìm thấy từ cây tệp không còn bị trình bày như một bản cài chính thức.
+- Tích hợp Winget làm nguồn đối chiếu cục bộ và adapter chỉ-đọc cho đăng ký Autodesk khi dịch vụ hãng có sẵn.
+- Gộp Registry, MSIX, Winget, shortcut và Distiller vào đúng họ Adobe Acrobat; ưu tiên đường dẫn tệp chạy chính thay vì uninstaller dùng chung.
+- Khi phát hiện hosts/firewall hoặc dịch vụ hãng bất thường, tự mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm. Kiểm thử thực tế đã phát hiện 9 tệp Acrobat `HashMismatch` mà cơ chế giới hạn cũ bỏ sót.
+- Bằng chứng dùng đường dẫn cụ thể nhất nên không còn lan từ Acrobat sang Lightroom/Premiere; nguồn lặp lại không được đếm như bằng chứng độc lập.
+- Catalog `1.6.0.0` bổ sung tệp lõi và signer Adobe/Autodesk, vẫn là dữ liệu khai báo ký số, không chứa lệnh và không tải dữ liệu máy lên Internet.
+- Cập nhật điều khoản từ v4.9 và rút gọn lịch sử v4.8/v4.9 theo thay đổi cốt lõi; bỏ mốc v4.8.0.1 khỏi lịch sử hiển thị.
+
 Build: **2026.08.22**
 
 ## Điểm mới
@@ -18,7 +28,7 @@ Build: **2026.08.22**
 ## Phát hành
 
 - Tool chính thức tiếp tục miễn phí cho cộng đồng.
-- Từ v4.9, dự án phát triển cùng cộng đồng với mã nguồn có kiểm soát. Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả; quyền xem không tự cấp quyền sao chép, phân phối, sửa đổi, đóng gói lại, thương mại hóa, dùng làm dữ liệu huấn luyện hoặc đổi thương hiệu.
+- Kể từ v4.9, mã nguồn không còn được công khai miễn phí, không được phát hành theo giấy phép mã nguồn mở và được quản lý theo cơ chế có kiểm soát. Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải nhận chấp thuận trước bằng văn bản của tác giả; quyền xem không tự cấp quyền sao chép, trích xuất, sửa đổi, dịch ngược, phân phối, đóng gói lại, thương mại hóa, dùng làm dữ liệu huấn luyện hoặc đổi thương hiệu.
 - Các phiên bản cũ đã công khai tiếp tục theo điều khoản đi kèm tại thời điểm phát hành.
 
 ## An toàn

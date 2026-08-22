@@ -4,7 +4,7 @@
 
 ## Mô hình phát triển
 
-Tool Kiểm Tra được cung cấp miễn phí và phát triển cùng cộng đồng thông qua báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Từ v4.9, mã nguồn được quản lý trong môi trường truy cập có kiểm soát bởi tác giả Thanh Việt; đây không phải giấy phép mã nguồn mở. Bản thực thi chính thức được cung cấp miễn phí tại:
+Tool Kiểm Tra được cung cấp miễn phí và phát triển cùng cộng đồng thông qua báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Kể từ v4.9, mã nguồn không còn được công khai miễn phí, không được phát hành theo giấy phép mã nguồn mở và được tác giả Thanh Việt quản lý theo cơ chế truy cập có kiểm soát. Bản thực thi chính thức tiếp tục được cung cấp miễn phí tại:
 
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 

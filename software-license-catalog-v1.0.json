@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.5.0.0",
-  "GeneratedAtUtc": "2026-08-21T00:00:00Z",
+  "CatalogVersion": "1.6.0.0",
+  "GeneratedAtUtc": "2026-08-22T11:00:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -67,6 +67,10 @@
       "OfficialUrl": "https://www.adobe.com/creativecloud/plans.html",
       "LicenseDomains": ["(?:^|\\.)adobe\\.com$", "(?:^|\\.)adobelogin\\.com$", "(?:^|\\.)adobeims\\.com$"],
       "UnauthorizedNamePatterns": ["\\bGenP\\b", "\\bCCMaker\\b", "\\bamtlib[._ -]*(?:patch|emulator)\\b", "\\bcrack(?:ed)?\\b"],
+      "CriticalFilePatterns": ["(?i)\\\\(?:Acrobat|acrotray)\\.exe$", "(?i)\\\\(?:Acrobat|acrodistdll|ccme_[^\\\\]+|cryptocme)\\.dll$"],
+      "ExpectedSignedFilePatterns": ["(?i)\\\\(?:Acrobat|acrotray)\\.exe$", "(?i)\\\\(?:Acrobat|acrodistdll|ccme_[^\\\\]+|cryptocme)\\.dll$"],
+      "ExpectedSignerPatterns": ["(?i)\\bAdobe\\b"],
+      "LicenseProcessPatterns": ["(?i)\\b(?:Adobe Genuine|AGSService|AdobeARM|AcroCEF|Acrobat)\\b"],
       "RemediationAdapter": "Adobe",
       "DetectionProfileId": "InstalledProgram.IdentityV1",
       "RemediationProfileId": "Adobe.ArtifactCleanupOnly"
@@ -80,6 +84,10 @@
       "OfficialUrl": "https://www.autodesk.com/products/autocad/overview",
       "LicenseDomains": ["(?:^|\\.)autodesk\\.com$", "(?:^|\\.)autodesk360\\.com$"],
       "UnauthorizedNamePatterns": ["\\bXF[._ -]*ADSK\\b", "\\bX[._ -]*Force\\b", "\\blicense[._ -]*patch\\b", "\\bcrack(?:ed)?\\b"],
+      "CriticalFilePatterns": ["(?i)\\\\(?:acad|AdskLicensingInstHelper|AdskLicensingService)\\.exe$"],
+      "ExpectedSignedFilePatterns": ["(?i)\\\\(?:acad|AdskLicensingInstHelper|AdskLicensingService)\\.exe$"],
+      "ExpectedSignerPatterns": ["(?i)\\bAutodesk\\b"],
+      "LicenseProcessPatterns": ["(?i)\\b(?:AdskLicensing|Autodesk Licensing|Autodesk Desktop Licensing)\\b"],
       "RemediationAdapter": "Autodesk",
       "DetectionProfileId": "InstalledProgram.IdentityV1",
       "RemediationProfileId": "Autodesk.ArtifactCleanupOnly"

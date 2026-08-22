@@ -468,7 +468,7 @@ Tác vụ có vẻ treo:
 
 ## Mã nguồn và quyền sử dụng từ v4.9
 
-Bản thực thi chính thức tiếp tục miễn phí cho cộng đồng theo điều khoản đi kèm. Dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát; “phát triển cùng cộng đồng” không đồng nghĩa mã nguồn mở. Chính sách bảo vệ nguồn gốc sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển bị sao chép gần như nguyên trạng rồi đổi tên/đổi thương hiệu mà không xin phép hoặc ghi nhận tác giả; nội dung này không khẳng định backend/mã nguồn đã bị lấy khi chưa có bằng chứng kỹ thuật.
+Bản thực thi chính thức tiếp tục miễn phí cho cộng đồng theo điều khoản đi kèm. Dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Kể từ v4.9, mã nguồn không còn được công khai miễn phí, không được phát hành theo giấy phép mã nguồn mở và được tác giả quản lý theo cơ chế truy cập có kiểm soát. Chính sách bảo vệ nguồn gốc sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển bị sao chép gần như nguyên trạng rồi đổi tên/đổi thương hiệu mà không xin phép hoặc ghi nhận tác giả; nội dung này không khẳng định backend/mã nguồn đã bị lấy khi chưa có bằng chứng kỹ thuật.
 
 Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả trước khi truy cập. Quyền xem không tự cho phép sao chép, chia sẻ, sửa đổi, đóng gói, thương mại hóa, dùng làm dữ liệu huấn luyện, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chính sách áp dụng từ v4.9, không hồi tố điều khoản của phiên bản cũ. Xem `SOURCE-POLICY-v4.9.md` và `LICENSE-NOTICE.txt` trong kho phát hành.
 

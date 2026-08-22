@@ -8,8 +8,9 @@ Tool Kiểm Tra được phát triển và cung cấp miễn phí để phục v
 khuyến khích người dùng báo lỗi, đề xuất tính năng, cải thiện tài liệu, bản dịch,
 kiểm thử và đóng góp kỹ thuật theo quy trình do tác giả công bố.
 
-Đây là mô hình **phát triển cùng cộng đồng với mã nguồn có kiểm soát**, không
-phải giấy phép mã nguồn mở. Việc Tool miễn phí hoặc tiếp nhận đóng góp không làm
+Kể từ phiên bản v4.9, mã nguồn không còn được công khai miễn phí và không được
+phát hành theo giấy phép mã nguồn mở. Đây là mô hình **phát triển cùng cộng đồng
+với mã nguồn có kiểm soát**. Việc Tool miễn phí hoặc tiếp nhận đóng góp không làm
 phát sinh quyền tự động truy cập, sao chép, sửa đổi, phân phối hay thương mại hóa
 mã nguồn.
 

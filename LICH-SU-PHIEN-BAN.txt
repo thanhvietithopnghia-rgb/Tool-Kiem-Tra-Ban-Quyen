@@ -1,67 +1,27 @@
 # Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
 
-Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.9.0.0. Lịch sử v4.8 và các phiên bản cũ được giữ nguyên bên dưới.
+Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
 Phiên bản hiện tại: **v4.9.0.0**
 FileVersion: **4.9.0.0** · Build **2026.08.22**
 
-Trang tải luôn trỏ tới bản mới nhất:
+Trang tải mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
 ## v4.9.0.0 — 22/08/2026
 
-- **Xác minh nguồn gốc fail-closed:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được hiển thị cảnh báo rõ, không được tự cập nhật và không được thực hiện thao tác thay đổi hệ thống.
-- **Catalog online có ký số:** catalog mở rộng nhận diện bằng các quy tắc khai báo được allowlist, chữ ký CMS, giới hạn schema, cache dự phòng và mốc phiên bản bền vững để chống hạ phiên bản. Catalog không được phép mang lệnh hoặc script tùy ý.
-- **Nhận diện thận trọng:** kết hợp Product ID, publisher, chữ ký file, đường dẫn, service, task, Registry và trạng thái cấp phép. Mục thiếu bằng chứng vẫn là `Chưa xác minh`, không tự bị kết luận crack và không đủ điều kiện làm sạch tự động.
-- **Khắc phục theo định danh và trạng thái:** mỗi mục Windows/Office/phần mềm có định danh riêng; luồng dùng các trạng thái `Pending`, `Running`, `VerifiedClean`, `ApprovedInternalKMS`, `RetryableFailure`, `BlockedByPolicy` và `NeedsOfficeRepair` để không khóa nhầm lần thử lại.
-- **Hậu kiểm bắt buộc:** chỉ báo `VerifiedClean` khi quét mới xác nhận dấu vết đích đã hết và trạng thái cấp phép đáp ứng điều kiện an toàn. Policy tổ chức không bị âm thầm xóa; bản cài Volume, tệp đã sửa hoặc Office cần cấu hình lại được chuyển sang hướng Repair/cài lại chính thức.
-- **Quyền riêng tư báo cáo:** báo cáo mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ chế độ nội bộ đầy đủ do người dùng chủ động chọn mới giữ định danh.
-- **Đọc cấp phép có chẩn đoán:** lượt quét toàn máy yêu cầu UAC, kiểm tra `Winmgmt`/`sppsvc`, thử CIM rồi WMI và báo riêng lỗi quyền, dịch vụ hay lớp dữ liệu; không còn coi lỗi đọc là trạng thái chưa kích hoạt.
-- **Kiểm kê nhiều nguồn và gom nhóm:** bổ sung AppX/MSIX, shortcut mọi hồ sơ người dùng, Scoop, Chocolatey, Steam cùng vùng portable giới hạn; bản ghi trùng được gom và thành phần phụ được gắn với sản phẩm chính ở chế độ chỉ đọc.
-- **Phát triển cộng đồng, mã nguồn có kiểm soát từ v4.9:** bản thực thi chính thức tiếp tục miễn phí; dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả; quyền xem không tự cho phép sao chép, chia sẻ, sửa, đóng gói, thương mại hóa, dùng làm dữ liệu huấn luyện hoặc đổi thương hiệu.
-- **Lý do chính sách:** tác giả đã ghi nhận nội dung, giao diện, mô tả và thành quả phát triển bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép/ghi công. Ghi nhận này không khẳng định backend hay mã nguồn đã bị lấy khi chưa có bằng chứng kỹ thuật.
-- **Không hồi tố:** chính sách mã nguồn có kiểm soát áp dụng cho mã từ v4.9 trở đi; các phiên bản cũ tiếp tục theo điều khoản đã đi kèm tại thời điểm phát hành.
+- **Nhận diện chính xác hơn:** kiểm kê Registry, AppX/MSIX, Winget, shortcut, trình quản lý gói và vùng portable; phân biệt cài đặt đã xác nhận, portable và tệp còn sót; gộp bản ghi trùng theo họ sản phẩm.
+- **Quét toàn vẹn thích ứng:** khi có dấu hiệu chặn máy chủ hoặc vô hiệu hóa dịch vụ hãng, Tool mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm; bằng chứng không còn lan giữa các phần mềm cùng hãng.
+- **Đọc bản quyền và khắc phục an toàn:** phân biệt lỗi đọc dữ liệu với chưa kích hoạt, dùng CIM/WMI dự phòng, yêu cầu quyền khi cần và chỉ khắc phục khi có bằng chứng trực tiếp cùng hậu kiểm.
+- **Bảo vệ bản phát hành:** EXE, provenance, catalog và manifest cập nhật được ký số; catalog online chỉ nhận dữ liệu khai báo từ nguồn chính thức đã ghim, không tải danh sách phần mềm hoặc dữ liệu máy lên Internet.
+- **Chính sách từ v4.9:** Tool tiếp tục miễn phí và phát triển hướng tới cộng đồng; mã nguồn không còn được công khai miễn phí, không phải mã nguồn mở và chỉ được tiếp cận khi tác giả chấp thuận bằng văn bản.
 
-Giới hạn: catalog và hậu kiểm giúp giảm kết luận/xử lý sai nhưng không cam kết nhận diện hoặc làm sạch 100% mọi phần mềm, phiên bản và biến thể. Kết quả kỹ thuật không thay thế bằng chứng quyền sử dụng của hãng.
+## v4.8.0.0 — 10/08/2026
 
-## v4.8.0.1 — 18/08/2026
-
-- **Trạng thái kích hoạt được xác minh riêng:** Windows và Office không còn bị gộp vào thông báo “không phát hiện KMS/crack”. Office chỉ được kết luận khi `OSPP.VBS /dstatusall` đọc đầy đủ; thiếu OSPP, timeout, fallback hoặc không đọc được sẽ hiển thị **Chưa xác minh** và chặn mọi xử lý tự động.
-- **Khôi phục Office KMS an toàn hơn:** trước khi gỡ KMS, Tool quét lại đúng OSPP/SKU/key, chặn key 5 ký tự cuối bị trùng, KMS được phê duyệt hoặc cùng đường dẫn có Retail/MAK/Subscription đang Licensed. Không xóa token/tài khoản Office, không rearm và không can thiệp OEM/digital entitlement Windows để ép watermark.
-- **Kết quả phần mềm minh bạch:** sau khi kiểm kê, Tool luôn mở danh sách toàn bộ phần mềm đã quét. Mục có bằng chứng trực tiếp mới được chọn để xử lý; mục Chưa xác minh/Cần kiểm tra thủ công chỉ hiển thị và không tự đưa về trạng thái gốc.
-- **Ngôn ngữ giao diện:** loại bỏ cách xưng hô cá nhân khỏi nội dung hiển thị cho người dùng.
-- **Cập nhật ứng dụng an toàn:** bản cũ chỉ được đề nghị cập nhật khi release mới hơn, hoặc khi cùng phiên bản nhưng hash EXE đã được xác minh là khác; thiếu/sai hash đều fail-closed. Luồng Check và Apply đều đối chiếu lại hash launcher, giữ backup và rollback nếu bản mới không khởi động ổn định.
-- **Phát hành có phiên bản mới:** nâng FileVersion/ProductVersion lên `4.8.0.1` để thiết bị đang chạy `4.8.0.0` nhận bản mới qua luồng cập nhật đã được người dùng cho phép Online; không có cập nhật im lặng hoặc telemetry.
-
-## v4.8.0 — 10/08/2026 · cập nhật trực tiếp 14/08/2026 và 17/08/2026
-
-**v4.8 nâng cấp trực tiếp từ v4.6, tập trung vào các thay đổi chính:**
-
-**Bản bảo trì tại chỗ ngày 17/08/2026:**
-
-- **Phần cứng và nền tảng bảo mật:** báo cáo đầy đủ TPM Present/Ready/Enabled/Activated cùng phiên bản, Secure Boot có phương án đọc dự phòng, BitLocker theo từng phân vùng; mở rộng serial/định danh BIOS, hệ thống, mainboard, chassis, CPU, RAM, ổ đĩa, GPU, màn hình, pin và mạng. Bản đầy đủ nội bộ giữ nguyên serial; bản chia sẻ mới che dữ liệu nhận dạng.
-- **Kiểm kê và catalog phần mềm:** catalog `1.4.0.1` có chữ ký CMS tách rời, metadata phạm vi/chính sách cập nhật và 77 quy tắc fail-closed. Cài song song khác vị trí/phiên bản được giữ riêng; kết quả tách mô hình giấy phép khỏi trạng thái kỹ thuật, lý do, nguồn, bằng chứng và độ tin cậy; crack/bằng chứng mạnh được xếp trước.
-- **Khắc phục an toàn:** tên tệp có chữ “crack” chung chỉ tạo cảnh báo xem xét; chỉ bằng chứng Strong/Conclusive thuộc allowlist mới tạo ứng viên. Thành phần hệ thống/driver không bao giờ được đưa vào khắc phục và `rarreg.key` đơn lẻ không chứng minh giấy phép hợp lệ hay vi phạm.
-- **Kích hoạt chính hãng và hậu kiểm:** sau khi loại bỏ dấu vết can thiệp, Tool tách trạng thái “sạch và sẵn sàng kích hoạt” khỏi “đã có giấy phép”. Windows chỉ trả `ActivationConfirmed = TRUE` khi Software Protection báo `LicenseStatus=1` và đúng key vừa nhập; Office chỉ trả TRUE khi `OSPP.VBS /dstatusall` báo `LICENSED` cho đúng 5 ký tự cuối. Nếu chưa đạt, Tool giữ `FALSE`, hiển thị Chưa kích hoạt/Cần sửa chữa và mở giao diện kích hoạt chính thức; giấy phép OEM/Retail/MAK hoặc KMS nội bộ đã xác minh được giữ nguyên.
-- **Trợ lý Tool:** hiểu thêm câu hỏi ngắn, sai chính tả và câu nối tiếp; trả lời đúng Tool miễn phí, v1.0 ngày 17/07/2026, kho mã nguồn công khai nhưng chưa phải giấy phép mã nguồn mở, đồng thời phân biệt Chưa xác định/Chưa xác minh/Nghi vấn/Crack đã xác nhận.
-
-**Cập nhật theo phản hồi báo cáo ngày 14/08/2026:**
-
-- **Đánh giá đúng ngữ cảnh:** tách mô hình cấp phép khỏi bằng chứng kỹ thuật; phần mềm miễn phí/mã nguồn mở không còn bị yêu cầu hóa đơn. Chỉ crack, activator, lệnh/tác vụ kích hoạt hoặc dấu hiệu can thiệp có thật mới vào bảng bằng chứng.
-- **Điều kiện xử lý cụ thể:** `Low` chỉ là thông tin và không đủ căn cứ xóa ứng dụng/bloatware; các trạng thái Chưa xác minh, Nghi vấn, Không chính hãng và Ảnh hưởng tính toàn vẹn có hướng xử lý riêng. Tool ưu tiên cô lập đúng artifact/lệnh/tác vụ và giữ nguyên ứng dụng.
-- **Nhận diện bổ sung:** phát hiện bảo thủ MAS/PMAS, Activation Program 1.17 và lệnh Startup trỏ chính xác tới `erturk-dev.netlify.app/run`; giữ KMSPico và các mẫu đặc hiệu hiện có, đồng thời có fixture chống nhận nhầm PowerShell/Netlify hợp lệ.
-- **WinRAR và nguồn chính thức:** không xem `rarreg.key` đơn lẻ là bằng chứng vi phạm và không tự xóa; bản hết thời gian dùng thử được hướng dẫn mua giấy phép hoặc dùng lựa chọn hợp pháp khác. MathType và WinRAR mở đúng trang chính thức của hãng.
-- **Phiên bản cài song song:** chỉ hiện khi có phiên bản khác nhau tại vị trí cài khác nhau; record trùng Registry/AppX/shortcut như Zalo/Telegram không còn bị đếm thành nhiều bản, và bảng nói rõ đây không phải bằng chứng bản quyền.
-- **Báo cáo/PDF:** phụ lục phần mềm dùng bảng màu xanh lục lam riêng, khoảng trắng và tương phản tốt hơn; bảng rộng tách thành nhóm Ngữ cảnh/Quyết định, tăng cỡ chữ/line-height/padding, lặp header và ngắt trang dễ đọc hơn.
-- **Hotfix PDF Toàn bộ/Phần mềm:** liên kết HTTPS chính thức do renderer tạo không còn bị chính sách Offline nhận nhầm là tài nguyên mạng, nên PDF chi tiết được xuất bình thường; ảnh/CSS/SVG/form mạng và liên kết không tin cậy vẫn bị chặn. Trạng thái, engine và lỗi PDF được ghi vào log hoàn tất.
-- **Trợ lý Tool:** trả lời theo cấu trúc kết luận–bằng chứng–hành động, phân biệt Windows/Office/phần mềm bên thứ ba, giải thích mô hình–trạng thái–độ tin cậy–điều kiện khắc phục và tránh suy diễn pháp lý hoặc khắc phục tự động.
-
-- **Giao diện:** bố cục rõ hơn, hiển thị Sáng/Tối và DPI tốt hơn; sửa nút **Bản đã che thông tin** bị mất chữ hoặc mờ khi rê chuột.
-- **Kiểm tra và khắc phục:** Online và Dry Run cùng có 3 ô chọn **Windows, Office, Phần mềm khác**; cho chọn một hoặc nhiều phạm vi và chỉ quét/xử lý đúng mục đã chọn. Vẫn bắt buộc xem trước, xác nhận, backup và hậu kiểm.
-- **Quét và hiệu năng:** tăng tốc kiểm kê–đánh giá, mở rộng catalogue lên 76 quy tắc và phân loại kết quả thận trọng hơn.
-- **Báo cáo:** sửa PDF cắt chữ/khuyết dòng, sắp xếp nội dung gọn hơn và hỗ trợ bản báo cáo đã che thông tin.
-- **Trợ lý và kết nối:** hiểu câu hỏi liên quan đến Tool theo 63 nhóm tri thức/481 từ khóa và cách hỏi, HDSD nhúng, dữ liệu báo cáo và ngữ cảnh lượt trước. Knowledge `1.3.1` dùng gói JSON + chữ ký CMS SHA-256 rời, ghim chứng thư nhà phát hành, chống hạ phiên bản, giữ cache dự phòng và tự kiểm tra sau khi người dùng bật Online; tri thức tăng thêm không nằm trong EXE, không tải lên câu hỏi/báo cáo/dữ liệu máy và không vượt phạm vi Tool.
-- **An toàn và riêng tư:** mặc định Offline, chỉ kết nối/cập nhật khi người dùng đồng ý; chỉ xin quyền quản trị lúc cần và không có telemetry hay cập nhật im lặng.
+- **Kiểm kê và đánh giá toàn diện:** mở rộng kiểm tra Windows, Office, phần mềm bên thứ ba và phần cứng; tách mô hình giấy phép khỏi trạng thái kỹ thuật và độ tin cậy.
+- **Quét sâu và catalog:** bổ sung catalog ký số, bằng chứng nhiều tầng và trạng thái `Chưa xác minh` để tránh kết luận khi thiếu dữ liệu.
+- **Khắc phục có kiểm soát:** chọn đúng phạm vi, xem trước, xác nhận, backup và hậu kiểm; không tự xóa phần mềm hoặc thay đổi hệ thống chỉ từ dấu hiệu yếu.
+- **Trải nghiệm sử dụng:** hoàn thiện Dashboard, báo cáo HTML/PDF, Trợ lý cục bộ và quản lý máy chủ–máy trạm, giữ Offline làm mặc định.
 
 ## v4.6 — 06/08/2026
 

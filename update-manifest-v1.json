@@ -11,29 +11,31 @@
     "Changes":  {
                     "vi-VN":  [
                                   "Xác thực nguồn gốc bằng Authenticode và manifest provenance ký số; bản bị sửa hoặc đóng gói lại bị khóa cập nhật và thao tác thay đổi hệ thống.",
-                                  "Catalog online 1.5.0.0 mở rộng lên 92 nhóm sản phẩm, chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist và chống hạ phiên bản bằng watermark bền vững.",
+                                  "Catalog online 1.6.0.0 bao phủ 92 nhóm sản phẩm, bổ sung mẫu tệp lõi Adobe/Autodesk và chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist.",
                                   "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
                                   "Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag; chỉ bản FullInternal do người dùng chủ động chọn mới giữ đầy đủ.",
                                   "Quét toàn máy yêu cầu UAC, kiểm tra Winmgmt/sppsvc, thử CIM rồi WMI và phân biệt lỗi nguồn dữ liệu với trạng thái chưa kích hoạt.",
-                                  "Kiểm kê bổ sung AppX/MSIX, shortcut mọi hồ sơ, Scoop, Chocolatey, Steam và vùng portable giới hạn; bản ghi trùng được gom và thành phần phụ được nhóm theo sản phẩm chính.",
-                                  "Từ v4.9, Tool miễn phí phát triển cùng cộng đồng với mã nguồn có kiểm soát; người muốn tham khảo, học tập, nghiên cứu hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả.",
+                                  "Kiểm kê bổ sung AppX/MSIX, Winget, shortcut, trình quản lý gói và adapter Autodesk chỉ-đọc; phân biệt bản cài đã xác nhận với portable/tệp còn sót và gộp Adobe Acrobat theo họ sản phẩm.",
+                                  "Quét toàn vẹn thích ứng mở rộng Authenticode trong đúng thư mục sản phẩm khi hosts, firewall hoặc dịch vụ hãng bất thường; bằng chứng không còn lan giữa các sản phẩm Adobe.",
+                                  "Kể từ v4.9, Tool tiếp tục miễn phí nhưng mã nguồn không còn được công khai miễn phí, không phải mã nguồn mở và chỉ được tiếp cận khi tác giả chấp thuận trước bằng văn bản.",
                                   "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
                                   "Authenticode and a signed provenance manifest verify origin; modified or repackaged builds cannot self-update or perform system-changing actions.",
-                                  "Online catalog 1.5.0.0 expands coverage to 92 product families and accepts only signed declarative data with allowlisted fields/profiles and a persistent anti-rollback watermark.",
+                                  "Online catalog 1.6.0.0 covers 92 product families, adds Adobe/Autodesk core-file rules, and accepts only signed declarative data with allowlisted fields and profiles.",
                                   "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
                                   "Reports redact serials, UUIDs, Processor IDs, and asset tags by default; only a user-selected FullInternal copy retains them.",
                                   "Whole-machine scans request UAC, check Winmgmt/sppsvc, try CIM then WMI, and distinguish data-source failures from an unactivated state.",
-                                  "Inventory adds AppX/MSIX, shortcuts across user profiles, Scoop, Chocolatey, Steam, and bounded portable roots; duplicates are merged and companion components are grouped under the primary product.",
-                                  "From v4.9 onward, the free Tool is community-developed with controlled source; anyone wishing to review, study, research, or contribute to the source must first obtain the author\u0027s written approval.",
+                                  "Inventory adds AppX/MSIX, WinGet, shortcuts, package managers, and a read-only Autodesk adapter; it distinguishes confirmed installs from portable/residual files and merges Adobe Acrobat by product family.",
+                                  "Adaptive integrity scanning expands Authenticode checks inside the exact product directory when vendor hosts, firewall rules, or licensing services are abnormal; Adobe evidence no longer leaks across products.",
+                                  "Starting with v4.9, the Tool remains free, but source is no longer published free of charge, is not open source, and requires the author\u0027s prior written approval for access.",
                                   "Offline remains the default with no telemetry; online update metadata now requires a detached signature from the hard-pinned author certificate."
                               ]
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.9.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.9.0.0/Tool-Kiem-Tra-v4.9.exe",
-    "DownloadSha256":  "27F700721B32A22CFA0A079CB7059A18EBBC25A1BF366428A7B2B71706976E90",
-    "DownloadSize":  694248,
+    "DownloadSha256":  "299F747122869E8E248A3AABF42EC08F3157EE4ADF8F05F0AD7428E2F76D7892",
+    "DownloadSize":  692200,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

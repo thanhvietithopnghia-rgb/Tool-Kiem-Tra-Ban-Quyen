@@ -12,7 +12,7 @@
                           "FileName":  "Tool-Kiem-Tra-v4.9.exe",
                           "Architecture":  "AnyCPU",
                           "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
-                          "Sha256":  "5CA82CF8872A3724653294DE360C908AD6B121A8AF71D7E75081E82D82303078",
+                          "Sha256":  "A525D730D702838B8234F86798A11EA2B83346F05DD6EF5696D13566272B884C",
                           "AuthenticodeStatus":  "Valid",
                           "AuthenticodeSigner":  "CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing)",
                           "AuthenticodeThumbprint":  "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA",
@@ -45,10 +45,10 @@
                                "ResourceCount":  1,
                                "PayloadCount":  54,
                                "HeaderBytes":  456,
-                               "SourceBytes":  3000448,
-                               "BundleBytes":  3000904,
-                               "EmbeddedBytes":  640001,
-                               "SavedBytes":  2360447,
+                               "SourceBytes":  3003861,
+                               "BundleBytes":  3004317,
+                               "EmbeddedBytes":  640651,
+                               "SavedBytes":  2363210,
                                "SavingsPercent":  78.67,
                                "MaximumPayloadBytes":  8388608,
                                "MaximumPayloadDataBytes":  16777216,
@@ -313,6 +313,7 @@
     "ReportExportSchemaVersion":  "1.4",
     "ReportHtmlPresentation":  "Summary",
     "ReportPdfPresentation":  "Detailed",
+    "ReportPdfTheme":  "v4.8-classic-a4",
     "ReportContentSplit":  "HTML summary for quick review; PDF contains the complete technical report",
     "ReportSummaryWideCardCount":  5,
     "ReportConclusionPanels":  [
@@ -370,5 +371,5 @@
                              "Status":  "NotClaimed",
                              "Reason":  "Launcher la managed IL; CSC khong tao CFG instrumentation/load-config native. Khong gan co GUARD_CF gia."
                          },
-    "BuiltAtUtc":  "2026-08-22T18:11:10.0736460Z"
+    "BuiltAtUtc":  "2026-08-22T19:01:23.4753199Z"
 }

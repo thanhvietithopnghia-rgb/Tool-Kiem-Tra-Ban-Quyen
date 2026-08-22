@@ -1,4 +1,5 @@
 *.json text eol=lf
+update-manifest-v1.json binary
 *.p7s binary
 *.ico binary
 *.exe binary

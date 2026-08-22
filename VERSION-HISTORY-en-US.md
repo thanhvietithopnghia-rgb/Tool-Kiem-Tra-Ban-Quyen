@@ -12,7 +12,8 @@ Stable latest-release page:
 
 - **More accurate recognition:** inventories Registry, AppX/MSIX, WinGet, shortcuts, package managers, and bounded portable locations; distinguishes confirmed installations from portable/residual files and merges duplicate records by product family.
 - **Adaptive integrity scanning:** vendor host blocks or disabled licensing services trigger broader Authenticode checks within the exact product directory; evidence no longer leaks between products from the same vendor.
-- **Diagnosable licensing and safe remediation:** unreadable data is distinct from unactivated status, CIM/WMI fallbacks are used, elevation is requested when necessary, and changes require direct evidence plus a post-check.
+- **Diagnosable licensing and safe remediation:** unreadable data is distinct from unactivated status; reports are read-only; remediation removes only the selected bad key/Activation ID, preserves coexisting genuine licences, and verifies the exact selected scope afterward.
+- **Controlled complete uninstall:** an application can be fully removed only after explicit selection and validation of a source-bound MSI/AppX identity; the preview, backup, execution result, and absence post-check remain mandatory.
 - **Protected release chain:** the EXE, provenance, catalog, and update manifest are signed; online comparison accepts declarative data only from pinned official sources and uploads no software inventory or device data.
 - **Policy from v4.9:** the Tool remains free and community-oriented; source is no longer published free of charge, is not open source, and requires the author's prior written approval for access.
 

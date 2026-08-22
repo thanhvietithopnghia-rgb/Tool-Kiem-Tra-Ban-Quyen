@@ -8,6 +8,10 @@
 - Khi phát hiện hosts/firewall hoặc dịch vụ hãng bất thường, tự mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm. Kiểm thử thực tế đã phát hiện 9 tệp Acrobat `HashMismatch` mà cơ chế giới hạn cũ bỏ sót.
 - Bằng chứng dùng đường dẫn cụ thể nhất nên không còn lan từ Acrobat sang Lightroom/Premiere; nguồn lặp lại không được đếm như bằng chứng độc lập.
 - Catalog `1.6.0.0` bổ sung tệp lõi và signer Adobe/Autodesk, vẫn là dữ liệu khai báo ký số, không chứa lệnh và không tải dữ liệu máy lên Internet.
+- Tách tuyệt đối **Quét/Báo cáo** khỏi **Khắc phục**: các chế độ báo cáo chỉ đọc; mọi thay đổi hệ thống phải đi qua xem trước, chọn mục, backup và xác nhận.
+- Khắc phục Windows/Office theo đúng Activation ID hoặc 5 ký tự cuối của khóa được chọn, bảo toàn Retail/OEM/MAK/Subscription hợp lệ cùng tồn tại; không còn chạy thao tác rộng sau khi gỡ khóa đích.
+- Bổ sung gỡ cài đặt hoàn chỉnh thủ công cho ứng dụng bên thứ ba được chọn rõ ràng, chỉ chấp nhận danh tính MSI hoặc AppX gắn với nguồn; hậu kiểm yêu cầu ứng dụng và dấu vết thuộc đúng mục đã chọn không còn tồn tại.
+- Làm sạch Activator kiểm tra lại PID, đường dẫn tiến trình/dịch vụ, hành động tác vụ và giá trị Startup/IFEO ngay trước khi xóa; chỉ xóa đúng giá trị hoặc tệp đã xác minh.
 - Cập nhật điều khoản từ v4.9 và rút gọn lịch sử v4.8/v4.9 theo thay đổi cốt lõi; bỏ mốc v4.8.0.1 khỏi lịch sử hiển thị.
 
 Build: **2026.08.22**
@@ -34,5 +38,5 @@ Build: **2026.08.22**
 ## An toàn
 
 - Không tự kích hoạt Windows, Office hoặc phần mềm bên thứ ba.
-- Không tự xóa policy tổ chức, không tự gỡ ứng dụng và không tự đặt lại kho bản quyền của hãng.
+- Không tự xóa policy tổ chức, không tự gỡ ứng dụng ngoài mục người dùng chủ động chọn và không tự đặt lại kho bản quyền của hãng.
 - Khắc phục thật vẫn yêu cầu xem trước, xác nhận, backup và kiểm tra lại sau xử lý.

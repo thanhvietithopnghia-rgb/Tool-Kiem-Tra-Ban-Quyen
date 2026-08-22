@@ -13,6 +13,7 @@
                                   "Xác thực nguồn gốc bằng Authenticode và manifest provenance ký số; bản bị sửa hoặc đóng gói lại bị khóa cập nhật và thao tác thay đổi hệ thống.",
                                   "Catalog online 1.6.0.0 bao phủ 92 nhóm sản phẩm, bổ sung mẫu tệp lõi Adobe/Autodesk và chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist.",
                                   "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
+                                  "Các chế độ Quét/Báo cáo chỉ đọc; Khắc phục gỡ đúng khóa hoặc Activation ID xấu, bảo toàn bản quyền hợp lệ cùng tồn tại và chỉ cho phép gỡ hoàn chỉnh ứng dụng được chọn khi danh tính MSI/AppX gắn với nguồn đã được xác minh.",
                                   "Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag; chỉ bản FullInternal do người dùng chủ động chọn mới giữ đầy đủ.",
                                   "Quét toàn máy yêu cầu UAC, kiểm tra Winmgmt/sppsvc, thử CIM rồi WMI và phân biệt lỗi nguồn dữ liệu với trạng thái chưa kích hoạt.",
                                   "Kiểm kê bổ sung AppX/MSIX, Winget, shortcut, trình quản lý gói và adapter Autodesk chỉ-đọc; phân biệt bản cài đã xác nhận với portable/tệp còn sót và gộp Adobe Acrobat theo họ sản phẩm.",
@@ -24,6 +25,7 @@
                                   "Authenticode and a signed provenance manifest verify origin; modified or repackaged builds cannot self-update or perform system-changing actions.",
                                   "Online catalog 1.6.0.0 covers 92 product families, adds Adobe/Autodesk core-file rules, and accepts only signed declarative data with allowlisted fields and profiles.",
                                   "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
+                                  "Scan and report modes are read-only; remediation removes only the selected bad key or Activation ID, preserves coexisting genuine licences, and permits complete removal of an explicitly selected application only through a validated source-bound MSI/AppX identity.",
                                   "Reports redact serials, UUIDs, Processor IDs, and asset tags by default; only a user-selected FullInternal copy retains them.",
                                   "Whole-machine scans request UAC, check Winmgmt/sppsvc, try CIM then WMI, and distinguish data-source failures from an unactivated state.",
                                   "Inventory adds AppX/MSIX, WinGet, shortcuts, package managers, and a read-only Autodesk adapter; it distinguishes confirmed installs from portable/residual files and merges Adobe Acrobat by product family.",
@@ -34,8 +36,8 @@
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.9.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.9.0.0/Tool-Kiem-Tra-v4.9.exe",
-    "DownloadSha256":  "299F747122869E8E248A3AABF42EC08F3157EE4ADF8F05F0AD7428E2F76D7892",
-    "DownloadSize":  692200,
+    "DownloadSha256":  "5CA82CF8872A3724653294DE360C908AD6B121A8AF71D7E75081E82D82303078",
+    "DownloadSize":  701416,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

@@ -12,7 +12,8 @@ https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/late
 
 - **Nhận diện chính xác hơn:** kiểm kê Registry, AppX/MSIX, Winget, shortcut, trình quản lý gói và vùng portable; phân biệt cài đặt đã xác nhận, portable và tệp còn sót; gộp bản ghi trùng theo họ sản phẩm.
 - **Quét toàn vẹn thích ứng:** khi có dấu hiệu chặn máy chủ hoặc vô hiệu hóa dịch vụ hãng, Tool mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm; bằng chứng không còn lan giữa các phần mềm cùng hãng.
-- **Đọc bản quyền và khắc phục an toàn:** phân biệt lỗi đọc dữ liệu với chưa kích hoạt, dùng CIM/WMI dự phòng, yêu cầu quyền khi cần và chỉ khắc phục khi có bằng chứng trực tiếp cùng hậu kiểm.
+- **Đọc bản quyền và khắc phục an toàn:** phân biệt lỗi đọc dữ liệu với chưa kích hoạt; báo cáo luôn chỉ đọc; khắc phục gỡ đúng khóa/Activation ID xấu, bảo toàn bản quyền hợp lệ cùng tồn tại và hậu kiểm theo đúng mục đã chọn.
+- **Gỡ ứng dụng có kiểm soát:** chỉ cho phép gỡ hoàn chỉnh khi người dùng chọn rõ ứng dụng và Tool xác minh được danh tính MSI/AppX gắn với nguồn; mọi thao tác đều được liệt kê trước, backup và kiểm tra lại sau xử lý.
 - **Bảo vệ bản phát hành:** EXE, provenance, catalog và manifest cập nhật được ký số; catalog online chỉ nhận dữ liệu khai báo từ nguồn chính thức đã ghim, không tải danh sách phần mềm hoặc dữ liệu máy lên Internet.
 - **Chính sách từ v4.9:** Tool tiếp tục miễn phí và phát triển hướng tới cộng đồng; mã nguồn không còn được công khai miễn phí, không phải mã nguồn mở và chỉ được tiếp cận khi tác giả chấp thuận bằng văn bản.
 

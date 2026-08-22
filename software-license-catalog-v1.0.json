@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.4.0.2",
-  "GeneratedAtUtc": "2026-08-20T02:50:00Z",
+  "CatalogVersion": "1.5.0.0",
+  "GeneratedAtUtc": "2026-08-21T00:00:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -55,7 +55,8 @@
       "LicenseModel": "Free",
       "OfficialUrl": "https://www.adobe.com/acrobat/pdf-reader.html",
       "LicenseDomains": ["(?:^|\\.)adobe\\.com$", "(?:^|\\.)adobelogin\\.com$"],
-      "UnauthorizedNamePatterns": []
+      "UnauthorizedNamePatterns": [],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
     },
     {
       "Id": "adobe-creative-cloud-paid",
@@ -66,7 +67,9 @@
       "OfficialUrl": "https://www.adobe.com/creativecloud/plans.html",
       "LicenseDomains": ["(?:^|\\.)adobe\\.com$", "(?:^|\\.)adobelogin\\.com$", "(?:^|\\.)adobeims\\.com$"],
       "UnauthorizedNamePatterns": ["\\bGenP\\b", "\\bCCMaker\\b", "\\bamtlib[._ -]*(?:patch|emulator)\\b", "\\bcrack(?:ed)?\\b"],
-      "RemediationAdapter": "Adobe"
+      "RemediationAdapter": "Adobe",
+      "DetectionProfileId": "InstalledProgram.IdentityV1",
+      "RemediationProfileId": "Adobe.ArtifactCleanupOnly"
     },
     {
       "Id": "autodesk-commercial",
@@ -77,7 +80,9 @@
       "OfficialUrl": "https://www.autodesk.com/products/autocad/overview",
       "LicenseDomains": ["(?:^|\\.)autodesk\\.com$", "(?:^|\\.)autodesk360\\.com$"],
       "UnauthorizedNamePatterns": ["\\bXF[._ -]*ADSK\\b", "\\bX[._ -]*Force\\b", "\\blicense[._ -]*patch\\b", "\\bcrack(?:ed)?\\b"],
-      "RemediationAdapter": "Autodesk"
+      "RemediationAdapter": "Autodesk",
+      "DetectionProfileId": "InstalledProgram.IdentityV1",
+      "RemediationProfileId": "Autodesk.ArtifactCleanupOnly"
     },
     {
       "Id": "abbyy-finereader",
@@ -129,7 +134,9 @@
       "LicenseModel": "Subscription",
       "OfficialUrl": "https://www.microsoft.com/microsoft-365",
       "LicenseDomains": ["(?:^|\\.)microsoftonline\\.com$", "(?:^|\\.)office\\.com$"],
-      "UnauthorizedNamePatterns": ["\\bKMS\\b", "\\bactivator\\b", "\\bcrack(?:ed)?\\b"]
+      "UnauthorizedNamePatterns": ["\\bKMS\\b", "\\bactivator\\b", "\\bcrack(?:ed)?\\b"],
+      "DetectionProfileId": "MicrosoftOffice.InventoryV1",
+      "LicenseStateProfileId": "MicrosoftOffice.OfficialStatusV1"
     },
     {
       "Id": "microsoft-runtime-component",
@@ -203,7 +210,10 @@
       "LicenseDomains": ["(?:^|\\.)rarlab\\.com$"],
       "UnauthorizedNamePatterns": ["\\bcrack(?:ed)?\\b", "\\bkeygen\\b"],
       "CriticalFilePatterns": ["(?:^|\\\\)(?:WinRAR|Rar)\\.exe$"],
-      "RemediationAdapter": "WinRAR"
+      "RemediationAdapter": "WinRAR",
+      "DetectionProfileId": "WinRAR.InventoryV1",
+      "RemediationProfileId": "WinRAR.ArtifactCleanupOnly",
+      "LicenseStateProfileId": "WinRAR.LocalArtifactV1"
     },
     {
       "Id": "easeus-data-recovery",
@@ -631,6 +641,90 @@
       "Id": "internet-download-manager", "Category": "Utilities", "Vendor": "Tonec",
       "NamePatterns": ["\\bInternet Download Manager\\b", "^IDM(?:\\s+\\d+(?:\\.\\d+)*)?$"], "PublisherPatterns": ["\\bTonec\\b"], "LicenseModel": "Trialware", "OfficialUrl": "https://www.internetdownloadmanager.com/", "LicenseDomains": [],
       "UnauthorizedNamePatterns": ["\\bIDM[._ -]*(?:crack|patch|keygen|reset)\\b"]
+    },
+    {
+      "Id": "techsmith-snagit", "Category": "Screen Capture", "Vendor": "TechSmith",
+      "NamePatterns": ["\\bTechSmith Snagit\\b", "^Snagit(?: \\d+)?$"], "PublisherPatterns": ["\\bTechSmith\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.techsmith.com/snagit/", "LicenseDomains": ["(?:^|\\.)techsmith\\.com$"], "UnauthorizedNamePatterns": ["\\bSnagit[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "bandicam-commercial", "Category": "Screen Capture", "Vendor": "Bandicam Company",
+      "NamePatterns": ["^Bandicam(?: \\d+(?:\\.\\d+)*)?$"], "PublisherPatterns": ["\\bBandicam(?: Company)?\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.bandicam.com/", "LicenseDomains": ["(?:^|\\.)bandicam\\.com$"], "UnauthorizedNamePatterns": ["\\bBandicam[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "beyond-compare-commercial", "Category": "Utilities", "Vendor": "Scooter Software",
+      "NamePatterns": ["^Beyond Compare(?: \\d+)?$"], "PublisherPatterns": ["\\bScooter Software\\b"], "LicenseModel": "Trialware",
+      "OfficialUrl": "https://www.scootersoftware.com/", "LicenseDomains": ["(?:^|\\.)scootersoftware\\.com$"], "UnauthorizedNamePatterns": ["\\bBeyond[._ -]*Compare[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "total-commander-commercial", "Category": "Utilities", "Vendor": "Ghisler Software",
+      "NamePatterns": ["^Total Commander(?: \\d+(?:\\.\\d+)*)?$"], "PublisherPatterns": ["\\bGhisler Software\\b"], "LicenseModel": "Trialware",
+      "OfficialUrl": "https://www.ghisler.com/", "LicenseDomains": ["(?:^|\\.)ghisler\\.com$"], "UnauthorizedNamePatterns": ["\\bTotal[._ -]*Commander[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "acronis-home-commercial", "Category": "Backup", "Vendor": "Acronis",
+      "NamePatterns": ["\\bAcronis True Image\\b", "\\bAcronis Cyber Protect Home Office\\b"], "PublisherPatterns": ["\\bAcronis\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.acronis.com/", "LicenseDomains": ["(?:^|\\.)acronis\\.com$"], "UnauthorizedNamePatterns": ["\\bAcronis[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "macrium-reflect-commercial", "Category": "Backup", "Vendor": "Paramount Software UK",
+      "NamePatterns": ["^Macrium Reflect(?: Home| Workstation| Server)?(?: \\d+)?$"], "PublisherPatterns": ["\\bParamount Software\\b", "\\bMacrium Software\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.macrium.com/", "LicenseDomains": ["(?:^|\\.)macrium\\.com$"], "UnauthorizedNamePatterns": ["\\bMacrium[._ -]*Reflect[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "bluebeam-revu-commercial", "Category": "Productivity/PDF", "Vendor": "Bluebeam",
+      "NamePatterns": ["^Bluebeam Revu(?: \\d+)?$"], "PublisherPatterns": ["\\bBluebeam\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://www.bluebeam.com/", "LicenseDomains": ["(?:^|\\.)bluebeam\\.com$"], "UnauthorizedNamePatterns": ["\\bBluebeam[._ -]*Revu[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "capture-one-pro", "Category": "Photography", "Vendor": "Capture One",
+      "NamePatterns": ["^Capture One(?: Pro)?(?: \\d+)?$"], "PublisherPatterns": ["\\bCapture One\\b", "\\bPhase One\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.captureone.com/", "LicenseDomains": ["(?:^|\\.)captureone\\.com$"], "UnauthorizedNamePatterns": ["\\bCapture[._ -]*One[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "dxo-photolab-commercial", "Category": "Photography", "Vendor": "DxO Labs",
+      "NamePatterns": ["^DxO PhotoLab(?: \\d+)?$", "^DxO PureRAW(?: \\d+)?$"], "PublisherPatterns": ["\\bDxO Labs\\b", "^DxO$"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.dxo.com/", "LicenseDomains": ["(?:^|\\.)dxo\\.com$"], "UnauthorizedNamePatterns": ["\\bDxO[._ -]*(?:PhotoLab|PureRAW)[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "cyberlink-creative-commercial", "Category": "Media", "Vendor": "CyberLink",
+      "NamePatterns": ["\\bCyberLink (?:PowerDirector|PhotoDirector|AudioDirector|ColorDirector|PowerDVD)\\b"], "PublisherPatterns": ["\\bCyberLink\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.cyberlink.com/", "LicenseDomains": ["(?:^|\\.)cyberlink\\.com$"], "UnauthorizedNamePatterns": ["\\b(?:PowerDirector|PhotoDirector|PowerDVD)[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "lumion-commercial", "Category": "3D/Rendering", "Vendor": "Lumion",
+      "NamePatterns": ["^Lumion(?: Pro)?(?: \\d+(?:\\.\\d+)*)?$"], "PublisherPatterns": ["\\bLumion\\b", "\\bAct-3D\\b"], "LicenseModel": "Subscription",
+      "OfficialUrl": "https://lumion.com/", "LicenseDomains": ["(?:^|\\.)lumion\\.com$"], "UnauthorizedNamePatterns": ["\\bLumion[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "bricscad-commercial", "Category": "CAD", "Vendor": "Bricsys",
+      "NamePatterns": ["^BricsCAD(?: \\d+)?$"], "PublisherPatterns": ["\\bBricsys\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.bricsys.com/", "LicenseDomains": ["(?:^|\\.)bricsys\\.com$"], "UnauthorizedNamePatterns": ["\\bBricsCAD[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "zwcad-commercial", "Category": "CAD", "Vendor": "ZWSOFT",
+      "NamePatterns": ["^ZWCAD(?: \\d+)?$"], "PublisherPatterns": ["\\bZWSOFT\\b", "\\bZWSoft\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.zwsoft.com/", "LicenseDomains": ["(?:^|\\.)zwsoft\\.com$"], "UnauthorizedNamePatterns": ["\\bZWCAD[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
+    },
+    {
+      "Id": "rhinoceros-3d-commercial", "Category": "CAD/3D", "Vendor": "Robert McNeel & Associates",
+      "NamePatterns": ["^Rhinoceros(?: \\d+)?(?: \\(64-bit\\))?$", "^Rhino(?: \\d+)?$"], "PublisherPatterns": ["\\bRobert McNeel\\b", "\\bMcNeel\\b"], "LicenseModel": "Commercial",
+      "OfficialUrl": "https://www.rhino3d.com/", "LicenseDomains": ["(?:^|\\.)rhino3d\\.com$"], "UnauthorizedNamePatterns": ["\\b(?:Rhinoceros|Rhino)[._ -]*(?:crack|patch|keygen)\\b"],
+      "DetectionProfileId": "InstalledProgram.IdentityV1"
     },
     {
       "Id": "security-freemium", "Category": "Security", "Vendor": "Security vendors",

@@ -1,160 +1,80 @@
-# Công cụ kiểm tra cấu hình máy và bản quyền phần mềm v4.8.0 — mã nguồn
+# Hướng dẫn tiếp cận mã nguồn riêng từ v4.9
 
-Release `4.8.0.1`, build `2026.08.18`, tập trung vào tốc độ, khả năng sử dụng và an toàn; bản này bổ sung luồng cập nhật ứng dụng an toàn theo phiên bản và hash. Người dùng cuối chạy một tệp `Tool-Kiem-Tra-v4.8.exe`; launcher AnyCPU tự chọn CLR/Windows PowerShell native phù hợp.
+Áp dụng cho Tool Kiểm Tra v4.9.0.0, build 2026.08.21 và các phiên bản mới hơn.
 
-## Điểm mới v4.8.0 — Nhanh hơn, dễ dùng hơn, an toàn hơn
+## Trạng thái mã nguồn
 
-- `Tool-Assistant.ps1` dùng schema 1.1, hàng đợi `BeginInvoke` và lượt vẽ/scroll cuối để câu trả lời xuất hiện trong đúng lượt gửi; khung chat/bong bóng thu gọn, màu hỏi–đáp riêng. Bộ định tuyến ưu tiên ý định cụ thể, hiểu câu tiếp nối theo lượt trước, kết hợp kho tri thức với HDSD nhúng và chỉ dùng từ chối ngoài phạm vi khi câu hỏi thật sự không liên quan; câu ngoài phạm vi được diễn đạt theo từng ngữ cảnh.
-- `tool-assistant-knowledge-v1.1.json` khai báo ToolVersion min/max, knowledge `1.3.1`, 63 nhóm nội dung và 481 từ khóa/cách hỏi. `tool-assistant-knowledge-v1.1.json.p7s` là chữ ký CMS SHA-256 rời; runtime ghim SHA-256 chứng thư nhà phát hành, chỉ nhận phiên bản tương thích cao hơn, giữ một bản cache dự phòng và từ chối dữ liệu bị sửa/hạ phiên bản. Kho tăng thêm nằm ngoài EXE; không tải lên câu hỏi, báo cáo hoặc dữ liệu máy.
-- `Tool-SoftwareInventory.ps1` gộp record trùng theo định danh sản phẩm/hãng/dòng phiên bản, gồm cả bản vá cùng dòng và x86/x64; giữ mọi DiscoverySource, vị trí, kiến trúc, phân loại thành phần hệ thống và dùng `IntegrityCompromised` cho HashMismatch không kèm bằng chứng giấy phép trực tiếp.
-- Nút thắt gộp inventory được đổi sang descriptor tính một lần; Authenticode nhanh chạy theo lô tối đa bốn worker. Đối chứng cùng dữ liệu đạt 0 khác biệt, bước gộp 664→480 record giảm 118,33 giây xuống 11,05 giây và lượt Software đầy đủ trên máy kiểm thử giảm khoảng 189 giây xuống 83 giây.
-- `software-license-catalog-v1.0.json` nâng CatalogVersion lên `1.4.0.1` với 77 quy tắc sản phẩm duy nhất và chữ ký CMS tách rời `software-license-catalog-v1.0.json.p7s`.
-- `kiem-tra-cau-hinh-ban-quyen.ps1` tách ứng dụng chính và phụ lục hệ thống, chia bảng đánh giá 11 cột thành hai bảng 6 cột, thêm liên kết nội bộ và xuất toàn bộ tệp trực tiếp vào một thư mục báo cáo chung với timestamp mili-giây.
-- `Tool-ReportExport.ps1` mở đầy đủ `<details>` khi in, lặp header, cân line-height/padding, tránh cắt hàng và tạo liên kết tương đối HTML → PDF.
-- `Tool-Enterprise.ps1` nhận `IP:cổng`, chẩn đoán Endpoint/TCP/Service/Protocol/Version, quét Neighbor/ARP + ICMP + TCP, dò đúng protocol/tool version và giữ outbox DPAPI để gửi lại.
-- `enterprise-license-manager.ps1` tự dò khi ô địa chỉ trống, phân biệt LAN với Internet, cấu hình URLACL/Firewall qua UAC và không lặp exception kỹ thuật trên status/popup.
-- `VERIFY-ASSISTANT.ps1`, `VERIFY-SAFETY-REGRESSIONS.ps1`, `VERIFY-REPORT-SCHEMA.ps1` và `VERIFY-ENTERPRISE.ps1` có fixture hồi quy cho các yêu cầu v4.8; Enterprise còn khởi chạy listener loopback thật để chẩn đoán, ghép nối và gửi báo cáo đầu-cuối.
+Từ v4.9, mã nguồn phiên bản mới không còn được phân phối công khai. Mã được lưu trong kho riêng, do tác giả Thanh Việt kiểm soát. Bản thực thi chính thức vẫn được cung cấp miễn phí cho cộng đồng tại:
 
-## Nền tảng v4.6 được kế thừa và hoàn thiện trong v4.8
+<https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-- Dashboard schema 2.0: Modern WinForms 1040 × 820, card Windows/Office, tile có mô tả, responsive DPI và dark mode toàn công cụ; Trung tâm quản lý giấy phép có màu nhận diện riêng.
-- Kiểm kê toàn bộ phần mềm từ Uninstall Registry, AppX/MSIX, Start Menu, Desktop và các vị trí cài đặt/portable có giới hạn; phân loại theo mô hình cấp phép và bằng chứng kỹ thuật, không mặc định “không có bằng chứng” là chính hãng.
-- Quét sâu phổ quát cho từng ứng dụng bằng nhiều EXE/DLL, Authenticode, hash xấu đã biết và dấu vết hệ thống tương quan; ngân sách chữ ký được phân bổ có trọng số cho nhóm trả phí/dùng thử/có dấu vết nhưng vẫn giữ lượt cho nhóm khác, còn trạng thái độ phủ/timeout được xuất máy đọc được.
-- Nút **Kết nối online** xin phép trước khi tải danh mục HTTPS cố định để đối chiếu tên/phiên bản/nhà phát hành; không tải lên inventory, đường dẫn, khóa hay token và không thay đổi chế độ Offline mặc định.
-- Chức năng **Khắc phục KMS/Activator** tách Quét toàn bộ, Windows & Office và Phần mềm khác; danh sách xử lý chỉ hiện bằng chứng activator/can thiệp đang còn, còn `Unverified` đơn thuần vẫn nằm trong báo cáo kiểm kê nhưng không quay lại hàng đợi sau hậu kiểm. Tệp activator độc lập trong vùng người dùng có candidate cách ly thủ công đúng đường dẫn; kho backup/quarantine bị loại trừ. Tự động chỉ dùng kế hoạch đã khóa phạm vi khi có bằng chứng `CrackConfirmed` trực tiếp: cách ly đúng artifact hoặc khôi phục đúng hosts sau khi tái kiểm tra hash/kích thước. Tool không reset kho license của hãng, không chạy Repair MSI và không tự thay đổi Firewall, tiến trình, dịch vụ, tác vụ, thư mục hay Registry; gỡ/cài lại chính thức luôn là hướng dẫn thủ công.
-- Quét Office/SFC/CIM có timeout, tiến trình dài có heartbeat/cảnh báo, và báo cáo HTML/PDF chỉ được dựng theo yêu cầu để tránh khóa giao diện.
-- Offline toàn ứng dụng mặc định; Trung tâm quản lý giấy phép có công tắc mạng riêng fail-closed, bật/tắt lại được mà không ẩn chức năng hoặc xóa cấu hình; không telemetry và không kiểm tra/cập nhật khi Offline.
-- Đa ngôn ngữ `vi-VN`/`en-US` cho dashboard, menu, trung tâm doanh nghiệp, trình quản lý cục bộ Windows/Office và report shell; có English user guide.
-- Catalog Lifecycle 1.1 cho Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1, Office 2021/2024 và Microsoft 365 channels; có cảnh báo tuổi 30/45 ngày và chế độ chỉ đọc cho phiên bản tương lai chưa xác minh.
-- Catalog freshness gate 45 ngày và GitHub Actions kiểm tra hàng tuần.
-- Catalogue phần mềm hiện tại `1.4.0.1`: 77 quy tắc, gồm IObit Driver Booster, WIRIS MathType, nhóm PDF editor thương mại, IDM và các nhóm kỹ thuật CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering; tách mô hình giấy phép khỏi bằng chứng crack/can thiệp và không dùng mức `Low` để tự động xóa.
-- Dry Run cho khắc phục lập danh sách mục tiêu/hành động/backup/restorability mà không gọi lệnh thay đổi; thực hiện thật luôn chọn và xác nhận lại.
-- Data lifecycle schema 2.0 tách vùng ghi v4.6, migrate một lần qua staging đã kiểm tra SHA-256, commit có rollback và giữ v4.4/v4.5 nguyên vẹn.
-- HTML/PDF hiện đại, CSS tự chứa, CSP, offline safety validation và stylesheet A4.
-- Tài liệu kiến trúc, entry point, schema, safety, offline, localization và compatibility tách rõ.
+Tệp thực thi chuẩn của nhánh phiên bản này là `Tool-Kiem-Tra-v4.9.exe`.
 
-v4.3 chọn nâng cấp WinForms thay vì WPF/WebView2 để giữ tương thích .NET Framework 4, Windows PowerShell 3+ và không phụ thuộc runtime/asset web.
+Việc chuyển sang nguồn riêng nhằm bảo vệ nguồn gốc và công sức phát triển sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả của Tool bị sao chép gần như nguyên trạng, đổi tên hoặc đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hay ghi nhận tác giả. Tuyên bố này không khẳng định mã nguồn/backend đã bị lấy khi chưa có bằng chứng kỹ thuật xác nhận.
 
-## Thành phần nền
+## Ai có thể yêu cầu truy cập
 
-- `Tool-Kiem-Tra-v4.8-OneFile.cs` / `.manifest`: launcher nhúng payload phát hành.
-- `Tool-ScanOptimization.ps1`: quét Office/tệp song song có giới hạn và giữ nguyên nguồn quét.
-- `Giao-Dien.ps1`: dashboard và trung tâm hành động.
-- `Tool-UiTheme.ps1`: palette Light/Dark dùng chung.
-- `Tool-Localization.ps1`, `Tool-Strings.*.json`: localization schema 1.0.
-- `Tool-OfflinePolicy.ps1`: Offline fail-closed schema 1.0.
-- `Tool-Assistant.ps1`, `tool-assistant-knowledge-v1.1.json`, `.p7s`: Trợ lý chuyên biệt cục bộ; kho tri thức download-only có chữ ký, khóa phạm vi Tool, chống hạ phiên bản và cache dự phòng theo người dùng.
-- `Tool-SoftwareInventory.ps1`, `software-license-catalog-v1.0.json`: inventory schema 1.0, catalog 1.4 và bộ quét sâu/chấm điểm bằng chứng dùng chung cho mọi hãng.
-- `Tool-DataLifecycle.ps1`: DataSchema 2.0, `ProducerVersion`, staging/verify/commit/rollback và chính sách chỉ đọc dữ liệu log/backup cũ.
-- `Tool-Compatibility.ps1`, `compatibility-catalog-v1.0.json`: module compatibility schema 1.0, catalog schema 1.1 điều khiển bằng dữ liệu.
-- `VERIFY-MICROSOFT-CATALOG-SOURCES.ps1`: đối chiếu nguồn Microsoft chính thức và tạo báo cáo CI máy đọc, không tự sửa catalog.
-- `Tool-Capabilities.ps1`: capability schema 1.1.
-- `Tool-ModuleContract.ps1`: 27 descriptor/24 entry point, gồm cập nhật catalog online và kiểm tra phiên bản ứng dụng theo quyền Online.
-- `Tool-UpdateManager.ps1`: manifest schema 1.0, allowlist GitHub HTTPS, tải/xác minh EXE, backup/swap/restart/rollback.
-- `Tool-ReportSchema.ps1`: report schema 1.5.
-- `Tool-ReportExport.ps1`: export schema 1.4 và HTML/PDF/JSON/XML; HTML tổng quan, PDF chi tiết, cell thích ứng, ngắt trang A4 an toàn và chỉ mở HTML mặc định.
-- `Tool-SafetyPolicy.ps1`: safety policy schema 1.0.
-- `Tool-PluginEngine.ps1`: plugin JSON khai báo chỉ đọc.
-- `Tool-LicenseTimeline.ps1`: timeline DPAPI/HMAC/hash chain.
-- `enterprise-license-manager.ps1`: Trung tâm doanh nghiệp giữ đủ ba chức năng, đồng bộ vi-VN/en-US và có công tắc mạng riêng bật/tắt được.
-- `Tool-Enterprise*.ps1`: server/agent/envelope Enterprise; thao tác LAN chỉ chạy khi công tắc mạng doanh nghiệp đang bật.
+Cá nhân hoặc tổ chức có mục đích thiện chí có thể gửi yêu cầu cho một trong các trường hợp:
 
-## Tài liệu kỹ thuật
+- học tập hoặc nghiên cứu;
+- đánh giá bảo mật và phối hợp tiết lộ có trách nhiệm;
+- kiểm định kỹ thuật;
+- đề xuất sửa lỗi hoặc đóng góp tính năng;
+- rà soát khả năng tích hợp trong phạm vi được tác giả xem xét riêng.
 
-- `TECHNICAL-ARCHITECTURE-v4.8.md`
-- `ENTRY-POINTS-v4.8.md`
-- `MODULE-CONTRACT-v1.0.md`
-- `REPORT-SCHEMA-v1.5.md`
-- `SAFETY-POLICY-v1.0.md`
-- `COMPATIBILITY-MATRIX-v4.8.md`
-- `OFFLINE-AND-REPORTING-v4.8.md`
-- `LOCALIZATION-v1.0.md`
-- `SECURITY-HARDENING-v4.8.md`
+Quyền truy cập chỉ có hiệu lực sau khi tác giả chấp thuận **bằng văn bản**, theo đúng mục đích, phạm vi, thời hạn, người được truy cập và điều kiện ghi trong chấp thuận.
 
-## Build phát triển chưa ký
+## Nội dung nên có trong yêu cầu
 
-Mở Windows PowerShell 64-bit:
+Gửi email tới `thanhvietit.hopnghia@gmail.com` và nêu rõ:
 
-```powershell
-Set-Location '<thu-muc-ma-nguon>'
-.\BUILD.ps1 -OutputDirectory .\dist-development -AllowUnsignedDevelopmentBuild
-```
+1. họ tên, tổ chức và thông tin liên hệ;
+2. mục đích nghiên cứu/đánh giá/đóng góp;
+3. phạm vi thành phần cần xem;
+4. thời gian dự kiến cần truy cập;
+5. người sẽ được truy cập và biện pháp bảo vệ dữ liệu nguồn;
+6. đầu ra dự kiến, cách công bố kết quả và kế hoạch tiết lộ lỗ hổng nếu có;
+7. xác nhận tuân thủ `SOURCE-POLICY-v4.9.md`, `LICENSE-NOTICE.txt` và điều kiện bổ sung trong văn bản chấp thuận.
 
-Chế độ này tạo manifest kênh `development`, không được dùng để phát hành. Build tạo một EXE AnyCPU, tài liệu sidecar, `RELEASE-MANIFEST.json`, `update-manifest-v1.json`, thông tin phát hành và `RELEASE-SHA256SUMS.txt`. Mỗi payload được chọn tự động giữa Deflate và raw theo kích thước thực tế; verifier giải nén rồi đối chiếu byte/SHA-256 trên cả CLR x64/x86.
+Tác giả có quyền chấp thuận, giới hạn hoặc từ chối yêu cầu. Việc gửi yêu cầu không tự tạo quyền truy cập.
 
-## Build đã ký
+## Giới hạn mặc định của quyền xem
 
-Chứng thư trong Windows certificate store:
+Trừ khi văn bản chấp thuận ghi rõ khác, quyền truy cập không cho phép:
 
-```powershell
-.\BUILD.ps1 -OutputDirectory .\dist-signed `
-  -SigningCertificateThumbprint '<THUMBPRINT>' `
-  -SigningCertificateStore LocalMachine `
-  -TimestampServer 'http://timestamp.digicert.com' `
-  -RequireAuthenticode
-```
+- sao chép ngoài bản kỹ thuật cần thiết trong môi trường đã được cấp;
+- chia sẻ tài khoản, chuyển quyền truy cập hoặc cho người khác xem mã;
+- công bố, mirror, tải lên dịch vụ khác hoặc phát tán toàn bộ/một phần mã nguồn;
+- sửa đổi, tạo sản phẩm phái sinh hoặc tích hợp vào sản phẩm/dịch vụ khác;
+- đóng gói lại, đổi tên, đổi thương hiệu, mạo danh tác giả hoặc xóa thông tin nguồn gốc;
+- bán, cho thuê, thu phí, thương mại hóa hoặc dùng để cung cấp dịch vụ cho bên thứ ba;
+- công bố mã nguồn nhạy cảm/lỗ hổng trước khi hoàn tất quy trình tiết lộ có trách nhiệm.
 
-PFX:
+Khả năng clone hoặc tạo bản sao cục bộ do nền tảng kỹ thuật cung cấp không tạo thêm quyền pháp lý. Quyền xem không đồng nghĩa quyền sử dụng lại.
 
-```powershell
-$password = Read-Host 'Mật khẩu PFX' -AsSecureString
-.\BUILD.ps1 -OutputDirectory .\dist-signed `
-  -SigningPfxPath 'C:\secure\codesign.pfx' `
-  -SigningPfxPassword $password `
-  -TimestampServer 'http://timestamp.digicert.com' `
-  -RequireAuthenticode
-```
+## Đóng góp được chấp thuận
 
-Không đưa PFX/private key/mật khẩu vào repo. Build stable bắt buộc `-RequireAuthenticode`; build thất bại nếu chữ ký không `Valid`, manifest thiếu thumbprint hoặc manifest Source/Release không giống hệt từng byte. Chứng thư tự ký chỉ phù hợp thử nghiệm có kiểm soát; phát hành rộng cần chứng thư code-signing được máy người dùng tin cậy.
+Nếu yêu cầu đóng góp được duyệt, tác giả sẽ cung cấp riêng phạm vi nhánh, tiêu chuẩn kiểm thử, cách gửi thay đổi và điều kiện quyền tác giả. Không gửi mã nguồn v4.9 lên kho công khai, issue công khai, paste service hoặc tệp đính kèm ngoài kênh được chấp thuận.
 
-## Verifier
+Những kiểm soát kỹ thuật quan trọng của v4.9 gồm:
 
-```powershell
-.\VERIFY-DASHBOARD.ps1 -SourceDirectory .
-.\VERIFY-COMPATIBILITY.ps1 -SourceDirectory .
-.\VERIFY-OFFLINE-I18N.ps1 -SourceDirectory .
-.\VERIFY-MODULE-CONTRACT.ps1 -SourceDirectory . -ExpectedArchitecture x64
-.\VERIFY-REPORT-SCHEMA.ps1 -SourceDirectory .
-.\VERIFY-SAFETY-REGRESSIONS.ps1 -SourceDirectory .
-.\VERIFY-EXTENSIONS.ps1 -SourceDirectory .
-.\VERIFY-ENTERPRISE.ps1 -SourceDirectory .
-.\VERIFY-DATA-LIFECYCLE.ps1 -SourceDirectory .
-.\VERIFY-RELEASE.ps1 -SourceDirectory . -DistributionDirectory .\dist
-```
+- manifest nguồn gốc và chữ ký fail-closed cho bản chính thức;
+- catalog online khai báo, ký số và chống hạ phiên bản;
+- khắc phục theo trạng thái với hậu kiểm, thử lại, policy và yêu cầu Repair riêng;
+- báo cáo che định danh theo mặc định.
 
-Build đã ký:
+Các cơ chế này giúp phát hiện bản bị sửa và giảm rủi ro xử lý sai; chúng không thể ngăn tuyệt đối sao chép, chụp màn hình hoặc dịch ngược mã chạy trên máy người nhận.
 
-```powershell
-.\VERIFY-AUTHENTICODE.ps1 `
-  -FilePath .\dist-signed\Tool-Kiem-Tra-v4.8.exe `
-  -RequireTimestamp
-```
+## Phiên bản trước v4.9
 
-## Dữ liệu cục bộ
+Chính sách này chỉ áp dụng cho mã nguồn từ v4.9 trở đi. Phiên bản cũ tiếp tục chịu điều khoản đi kèm tại thời điểm phát hành; không có thay đổi hồi tố đối với quyền đã được cấp hợp lệ. Việc một phiên bản từng có thể xem công khai không tự biến phiên bản đó thành mã nguồn mở nếu không có giấy phép cấp các quyền mã nguồn mở.
 
-- dashboard runtime/log: `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6`
-- report package: `%USERPROFILE%\Desktop\BaoCao-Tool-Kiem-Tra\<loại>_<thời-gian>`
-- log của mode nâng quyền: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\logs`
-- backup: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\backups`
-- plugin: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\plugins`
-- timeline: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\timeline`
-- enterprise: `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6\enterprise`
-- log/backup cũ v4.4/v4.5: chỉ được tham chiếu đọc; không ghi chung với v4.6.
-- PDF profile tạm: `%LOCALAPPDATA%\Temp\ThanhViet-Tool-Kiem-Tra\pdf`
-- user preferences: `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra`
+## Tài liệu chính sách chuẩn
 
-ProgramData root từ chối reparse point và chỉ Administrators/SYSTEM có quyền ghi. LocalAppData runtime cấp quyền cho đúng user hiện tại cùng Administrators/SYSTEM. `data-state.json` ghi DataSchema/ProducerVersion và kết quả migration; lỗi migration rollback, không tạo trạng thái hoàn tất một phần. PDF/user preference và report dùng vùng user hiện tại.
+- [Chính sách mã nguồn riêng từ v4.9](SOURCE-POLICY-v4.9.md)
+- [Thông báo bản quyền và quyền sử dụng](LICENSE-NOTICE.txt)
+- [Trang tải bản mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest)
 
-## Phạm vi tương thích
+Nếu nội dung tóm tắt này khác với văn bản chấp thuận riêng hoặc chính sách đầy đủ, văn bản chấp thuận và `SOURCE-POLICY-v4.9.md` được ưu tiên áp dụng.
 
-- Windows 7 SP1 trở lên ở lớp runtime cũ; catalog hiện theo dõi Windows 10 22H2 và Windows 11 23H2/24H2/25H2/26H1.
-- Office 2021/LTSC 2021, Office 2024/LTSC 2024 và Microsoft 365 Apps Click-to-Run.
-- Build/Product ID mới hơn catalog được đánh dấu `ReadOnlyManualReview`, không bị coi là lỗi giả hoặc tự động khắc phục.
-- PDF phụ thuộc Edge/Chrome/Word; thiếu engine không ảnh hưởng HTML/JSON/XML.
-
-## Giới hạn
-
-- Offline mode là policy ứng dụng, không phải firewall hệ điều hành.
-- Kết luận kỹ thuật không thay hóa đơn/hợp đồng/tư vấn pháp lý.
-- EXE chỉ được coi là đã ký khi Authenticode trả `Valid`.
-- CFG native không được tuyên bố cho launcher managed IL.
+© 2026 Thanh Việt. Mọi quyền được bảo lưu.

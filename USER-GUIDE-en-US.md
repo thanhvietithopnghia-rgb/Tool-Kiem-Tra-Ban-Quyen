@@ -2,6 +2,10 @@
 
 Developed by Thanh Viet
 
+Version: **v4.9.0.0** · Build **2026.08.21**
+Official file: `Tool-Kiem-Tra-v4.9.exe`
+Stable latest-release page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
 This guide explains how to use the Tool's features on a Windows computer. Release-specific changes are documented separately in **Version History**; this guide focuses only on actions, result interpretation, and safe operating practices.
 
 ## Scope and operating principles
@@ -22,7 +26,7 @@ This guide explains how to use the Tool's features on a Windows computer. Releas
 5. Ensure the system drive and Desktop have enough free space for backups and report packages.
 6. Keep Offline enabled unless you intentionally need a catalog update or authorized LAN management.
 
-The single-file EXE carries a free self-signed Authenticode signature for tamper detection. This is not a publicly trusted Windows certificate and does not remove SmartScreen warnings. Download only from the official GitHub repository `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, compare SHA-256, inspect the certificate with `Get-AuthenticodeSignature`, and scan with Microsoft Defender. Do not disable Defender or SmartScreen. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
+The single-file EXE carries a signature and provenance manifest for tamper detection. Verification does not remove every SmartScreen warning and cannot absolutely prevent copying or reverse engineering. Download `Tool-Kiem-Tra-v4.9.exe` only from <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>, compare its SHA-256, Build ID, signature, and provenance data, inspect the certificate with `Get-AuthenticodeSignature`, and scan with Microsoft Defender. Do not disable Defender or SmartScreen. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
 
 ## How to run the Tool
 
@@ -32,11 +36,19 @@ The single-file EXE carries a free self-signed Authenticode signature for tamper
 4. Select English or Vietnamese and Light or Dark mode in Settings if needed.
 5. Keep the network switch set to Offline for local-only checks.
 6. For the first review, select Check everything.
-7. When asked about privacy, choose a redacted report if it will be shared outside the administration team.
+7. Reports redact serial numbers, UUID, Processor ID, and Asset Tag by default. Select the full internal report only when necessary and restrict who receives it.
 8. Wait until the status says the task is complete. Do not close the tool while Activity shows a running task.
 9. The summary HTML opens in the default browser. Review the main results, then select **Open detailed PDF** inside the HTML for the complete report. Use Open report folder to locate the package later.
 
-You do not need to open source files, configuration files, or technical documentation to use the executable.
+You do not need source access, configuration files, or technical documentation to use the executable.
+
+## What v4.9 changes
+
+- The launcher and provenance manifest verify the signature, pinned certificate, metadata, and Build ID. A modified or unverifiable build is warned about and fails closed for updates and system-changing actions.
+- The online catalog is signed, accepts only allowlisted declarative rules, maintains a persistent version floor to prevent downgrades, and retains a previous-cache fallback.
+- Insufficient evidence remains **Unverified**; it is not automatically classified as a crack and is not eligible for automatic cleanup.
+- Remediation reports **VerifiedClean** only after a new scan satisfies the rule's post-check. Retryable failures, organization policy, and repair/reinstall requirements are reported separately.
+- No tool can identify or clean 100% of every product and variation. Preserve the system and review vendor evidence whenever results remain conflicting or incomplete.
 
 ## Main screen
 
@@ -370,6 +382,12 @@ The task appears stuck:
 - Do not manually edit backups or evidence reports.
 - After a change, always run a post-check and reinstall or activate through an official source.
 - If the result remains Unverified, leave it unchanged and confirm with the vendor instead of forcing a conclusion.
+
+## Source and use policy from v4.9
+
+The official executable remains free of charge for the community under its accompanying terms. Starting with v4.9, source for new versions is privately held and controlled by the author. This change follows observed near-verbatim copying of the Tool's content, interface, descriptions, and development work, followed by renaming or rebranding as a personal product without permission or attribution. It does not claim that backend or source code was taken where technical evidence has not established that.
+
+Good-faith study, research, security review, and contribution requests may be submitted for written approval. Access does not by itself permit copying, disclosure, modification, repackaging, commercialization, rebranding, or removal of attribution. The policy applies from v4.9 onward and does not retroactively alter the terms of older versions. See `SOURCE-POLICY-v4.9.md` and `LICENSE-NOTICE.txt` in the official repository.
 
 ## Support
 

@@ -1,9 +1,26 @@
 # Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
 
-Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.8.0.1. v4.8 là bản nâng cấp trực tiếp từ v4.6; các thay đổi trung gian đã được kiểm định được hợp nhất vào v4.8 và không tách thành một phiên bản công khai riêng.
+Tài liệu này tóm tắt các phiên bản công khai chính từ v1.0 đến v4.9.0.0. Lịch sử v4.8 và các phiên bản cũ được giữ nguyên bên dưới.
 
-Phiên bản hiện tại: **v4.8.0.1**
-FileVersion: **4.8.0.1** · Build **2026.08.18**
+Phiên bản hiện tại: **v4.9.0.0**
+FileVersion: **4.9.0.0** · Build **2026.08.21**
+
+Trang tải luôn trỏ tới bản mới nhất:
+https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
+
+## v4.9.0.0 — 21/08/2026
+
+- **Xác minh nguồn gốc fail-closed:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được hiển thị cảnh báo rõ, không được tự cập nhật và không được thực hiện thao tác thay đổi hệ thống.
+- **Catalog online có ký số:** catalog mở rộng nhận diện bằng các quy tắc khai báo được allowlist, chữ ký CMS, giới hạn schema, cache dự phòng và mốc phiên bản bền vững để chống hạ phiên bản. Catalog không được phép mang lệnh hoặc script tùy ý.
+- **Nhận diện thận trọng:** kết hợp Product ID, publisher, chữ ký file, đường dẫn, service, task, Registry và trạng thái cấp phép. Mục thiếu bằng chứng vẫn là `Chưa xác minh`, không tự bị kết luận crack và không đủ điều kiện làm sạch tự động.
+- **Khắc phục theo định danh và trạng thái:** mỗi mục Windows/Office/phần mềm có định danh riêng; luồng dùng các trạng thái `Pending`, `Running`, `VerifiedClean`, `ApprovedInternalKMS`, `RetryableFailure`, `BlockedByPolicy` và `NeedsOfficeRepair` để không khóa nhầm lần thử lại.
+- **Hậu kiểm bắt buộc:** chỉ báo `VerifiedClean` khi quét mới xác nhận dấu vết đích đã hết và trạng thái cấp phép đáp ứng điều kiện an toàn. Policy tổ chức không bị âm thầm xóa; bản cài Volume, tệp đã sửa hoặc Office cần cấu hình lại được chuyển sang hướng Repair/cài lại chính thức.
+- **Quyền riêng tư báo cáo:** báo cáo mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ chế độ nội bộ đầy đủ do người dùng chủ động chọn mới giữ định danh.
+- **Mã nguồn riêng từ v4.9:** bản thực thi chính thức tiếp tục miễn phí cho cộng đồng; mã nguồn phiên bản mới chuyển sang kho riêng có kiểm soát. Nhu cầu học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp có thể xin phép tác giả bằng văn bản; quyền xem không tự cho phép sao chép, chia sẻ, sửa, đóng gói, thương mại hóa hoặc đổi thương hiệu.
+- **Lý do chính sách:** tác giả đã ghi nhận nội dung, giao diện, mô tả và thành quả phát triển bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép/ghi công. Ghi nhận này không khẳng định backend hay mã nguồn đã bị lấy khi chưa có bằng chứng kỹ thuật.
+- **Không hồi tố:** chính sách nguồn riêng áp dụng cho mã từ v4.9 trở đi; các phiên bản cũ tiếp tục theo điều khoản đã đi kèm tại thời điểm phát hành.
+
+Giới hạn: catalog và hậu kiểm giúp giảm kết luận/xử lý sai nhưng không cam kết nhận diện hoặc làm sạch 100% mọi phần mềm, phiên bản và biến thể. Kết quả kỹ thuật không thay thế bằng chứng quyền sử dụng của hãng.
 
 ## v4.8.0.1 — 18/08/2026
 

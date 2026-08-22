@@ -1,0 +1,85 @@
+PHAN MEM KIEM TRA BAN QUYEN v4.9.0.0 - HO TRO CA NHAN VA DOANH NGHIEP
+Release version: 4.9.0.0
+Release build date: 2026.08.21
+Release label: 4.9.0.0-production-20260821
+Release status: Production (da dat ma tran E2E HTML/JSON/XML/PDF, x64/x86, ky so va hash).
+Tep chay duy nhat: Tool-Kiem-Tra-v4.9.exe
+SHA-256: 633252B10316EC85C865EC547E9946A8ED9B172C882EDA76A36FA7CB94D44E91
+AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
+Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
+PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.
+Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.
+Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.
+Payload nhung duoc toi uu SolidDeflateBundle-v1: 54 tep trong mot resource Deflate co header fail-closed; giam 78.62% va van doi chieu SHA-256 tung tep sau giai nen.
+Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.
+Dashboard schema 2.0: WinForms hien dai, bang mau trung tinh, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.
+Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.
+Da ngon ngu: vi-VN va en-US dung catalog JSON dong bo cho dashboard, log trang thai, bao cao, trung tam doanh nghiep va trinh quan ly Windows/Office cuc bo; lua chon duoc ghi nho theo tai khoan.
+Ghi nho ngon ngu; moi lan mo luon bat dau bang giao dien sang va che do Offline, khong khoi phuc Online tu phien truoc.
+Canh bao khi phat hien may ao hoac Remote Desktop; khong khoa cac chuc nang hien co.
+Them nut Sao chep toan bo log va Mo thu muc bao cao; lich su phien ban hien thi ngay trong Tool.
+Bo nhan danh so cu tren cua so chuc nang; toan bo nut WinForms dung mau va icon vector hanh dong chung o Light/Dark.
+Quet Office va tep chi bao duoc song song co gioi han, bo qua reparse point va giu nguyen pham vi quet cu.
+Quet sau pho quat moi phan mem phat hien duoc: nhieu EXE/DLL, Authenticode, hash xau da biet, artifact va dau vet he thong tuong quan; ngan sach chu ky duoc chia deu va do phu duoc ghi trong JSON/report.
+Toi uu hieu nang v4.8: descriptor inventory tinh mot lan, chi muc nhom ten/bang chung ngoai, dung property bag thay Add-Member lap lai, tai su dung snapshot Scheduled Tasks, bang dich nguoc cho report va Authenticode theo lo toi da 4 worker; doi chung cung du lieu cho 0 khac biet, giu nguyen nguon, do sau, artifact va dau vet he thong.
+Chi ket luan NonGenuine khi co bang chung quyet dinh hoac hai nhom bang chung manh doc lap; dau hieu chung giu Suspicious, thieu do phu giu Unverified.
+Bao cao phan mem va dau hieu can thiep giu nguyen hop dong v4.3.0.3; kiem ke ung dung va trang thai ky thuat ben thu ba duoc noi them o cuoi bao cao va DetailedInventory JSON.
+Khac phuc ben thu ba: chi bang chung CrackConfirmed truc tiep moi mo quyen chon; tu dong chi co the cach ly artifact da xac nhan hoac khoi phuc dong hosts chinh xac, sau khi kiem tra lai hash/kich thuoc. Khong reset kho license cua hang, khong chay MSI Repair, go/cai lai luon la thu cong.
+Backup HMAC luu kiem ke va cach ly truoc thay doi; activator va token cap phep da loai bo khong duoc khoi phuc.
+Offline toan ung dung mac dinh; trung tam doanh nghiep co cong tac mang rieng mac dinh tat, co the bat/tat lai ma khong an chuc nang hoac xoa cau hinh.
+Ket noi online chi chay sau khi nguoi dung xac nhan, tai catalog JSON HTTPS tu host allowlist; khong gui inventory, duong dan, khoa hoac token va khong doi preference Offline.
+Tu dong kiem tra phien ban moi chi khi Online da duoc cho phep; khong co service nen, telemetry hay cap nhat im lang.
+Khi co ban moi, Tool hoi 3 lua chon: Cap nhat ngay, De sau, Bo qua lan nay. De sau hoi lai sau tac vu ke tiep hoac 2 gio.
+Cap nhat ngay chi tai EXE tu GitHub HTTPS co dinh, doi chieu dung luong/SHA-256/chu ky neu bat buoc, backup ban cu va rollback neu ban moi loi.
+Compatibility catalog 1.1.1.0, schema 1.1, ra soat 2026-08-17T00:00:00.0000000Z; canh bao 30 ngay va het han 45 ngay.
+Nhan dien theo catalog: Windows 10 22H2 build 19045, Windows 11 23H2 build 22631, Windows 11 24H2 build 26100, Windows 11 25H2 build 26200, Windows 11 26H1 build 28000; build moi/chua biet chuyen sang ReadOnlyManualReview.
+Nhan dien Office theo catalog: Office 2021 / LTSC 2021, Office 2024 / LTSC 2024, Microsoft 365 Apps; Product ID/kenh moi chua biet khong duoc tu suy dien tuong thich.
+Enterprise: may chu quet CIDR/IP, ghep noi bang ma tam thoi, quan ly fleet, xuat JSON/CSV/HTML/PDF va gui tac vu license da ma hoa.
+Enterprise UI hotfix: co-fit theo WorkingArea/DPI, khong tran ngang; Quet nhanh tu nhan CIDR cuc bo khi o nhap trong.
+Enterprise IP auto: may chu tu chon IPv4 LAN uu tien theo card co gateway; may tram tu do server duy nhat khi de trong dia chi.
+Enterprise server reset: nut Xoa cau hinh may chu bat buoc ma quan tri va xac nhan cuoi; giu bao cao, ket qua va audit.
+Enterprise UI refresh: bo muc Tren may nay; doi thanh Chon chuc nang; them mau theo chuc nang, nut Tro ve phien truoc va nut Dong trung tam doanh nghiep.
+Enterprise network toggle: nut hien trang thai Online/Offline hien tai; tooltip noi ro thao tac chuyen che do va ba chuc nang luon hien thi.
+Enterprise UI close hotfix: ve tab dung RectangleF de tranh loi overload DrawString va dam bao nut Dong trung tam doanh nghiep hoat dong.
+Enterprise local manager restore: khoi phuc quan ly license cuc bo duoi ten chuc nang moi, khong dung lai ten tab Tren may nay.
+Enterprise quick scan hotfix: sua loi hien thi ket qua khi IP phan hoi va them kiem thu hoi quy PowerShell 5.1.
+Dark mode van co the bat trong phien hien tai, phu dashboard, cua so con, chuc nang 8 va quan ly cuc bo Windows/Office.
+May tram tu dong gui bao cao hoac xep hang DPAPI khi mat route; thay doi license tu xa mac dinh tat va phai duoc may tram cho phep.
+Cleanup Action Center co vung cuon/nut xu ly tiep; Office KMS dung OSPP /dstatusall va rang buoc lua chon theo tung SKU/Last5.
+Kich hoat chinh hang tach sach crack khoi da cap phep: Windows chi TRUE khi LicenseStatus=1 dung Last5; Office chi TRUE khi OSPP /dstatusall bao LICENSED dung Last5; neu chua dat thi FALSE va mo luong chinh thuc.
+Report schema 1.5: 9 loai bao cao; safety policy schema 1.0; quick repair khong doi StartupType.
+Bao cao HTML la ban tong quan gon, khong con bang dai; chi giu cau hinh chinh, ket luan, canh bao va nut mo PDF day du.
+PDF la ban chi tiet A4 gom toan bo bang cau hinh, phan mem, bang chung va du lieu ky thuat; moi lan xuat van gom HTML/PDF/JSON/XML/checksum trong mot thu muc va chi tu mo HTML.
+Ket luan ban quyen tach ro trang thai kich hoat voi quyen su dung; du lieu cap phep khong doc duoc ghi CHUA XAC DINH va khong tu chung minh hop le/khong hop le.
+Tro ly Tool dung tri thuc cuc bo, khong tu khac phuc va khong tai cau hoi/bao cao/du lieu may len mang; Online chi tai JSON va chu ky CMS tu hai path GitHub co dinh.
+Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.
+HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.
+Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.
+Tro ly schema 1.1 / knowledge 1.4.0 co tri thuc cuc bo ky CMS SHA-256, ghim chung thu, chong ha phien ban va khong tai cau hoi/bao cao len mang.
+Catalogue phan mem 1.5.0.0 co it nhat 92 quy tac khai bao ky CMS; du lieu online khong duoc mang lenh/script tuy y va Low chi de tham khao.
+Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.
+Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.
+Ten man hinh co fallback EDID/DesktopMonitor/PNP; hop chon rieng tu co nut Ban da che, Ban day du noi bo va Huy; timeline tach trang thai hien tai khoi su kien lich su.
+WinRAR khong coi rarreg.key don le la bang chung vi pham hay dieu kien khac phuc; neu het thu dung thi mua giay phep hoac dung phan mem thay the hop phap.
+Khac phuc phan mem ben thu ba ghi ket qua tung hanh dong va chi bao thanh cong khi he thong thuc su thay doi; huong dan don thuan khong con bi tinh la da sua.
+Sau hau kiem, hang doi phan mem khac chi con bang chung activator/can thiep; Unverified don thuan khong quay lai, tep activator doc lap co candidate cach ly thu cong va kho backup bi loai tru.
+HashMismatch duoc tach thanh IntegrityCompromised: tep bi sua/hong nhung khong tu ket luan quyen su dung khong chinh hang.
+Phan mem he thong/mac dinh an khoi bang chinh, co link mo phu luc trong HTML va hien day du trong PDF/JSON chi tiet.
+Moi bao cao nam truc tiep trong Desktop\BaoCao-Tool-Kiem-Tra, khong tao thu muc con; ten tep co mili-giay va HTML link dung PDF.
+PDF tach bang rong thanh tong quan/bang chung, mo chi tiet khi in, lap header va tranh cat dong/hang qua trang.
+Enterprise nhan IP:port, tu do khi de trong, chan doan endpoint/TCP/service/protocol/version va quet Neighbor-ARP/ICMP/TCP.
+Enterprise server cau hinh va hau kiem URLACL/Firewall qua UAC; chi bao da khoi dong sau heartbeat/diagnostic, agent chi bao da gui sau tep ket qua xac nhan.
+Muc Bao cao hien thi truc tiep du bay chuc nang con; huong dan vi-VN/en-US duoc nhung trong EXE va mo bang HTML/PDF A4.
+HTML/PDF chi dung asset cuc bo, CSP default-src none; browser PDF tat background networking va map DNS ve 0.0.0.0.
+Profile Edge/Chrome tam nam trong %LOCALAPPDATA%\Temp, ACL chi cho nguoi dung hien tai va SYSTEM; profile duoc don sau moi lan xuat.
+Plugin chi dung JSON khai bao, khong chay script/command; thu muc plugin co ACL Administrators/SYSTEM.
+Timeline dung DPAPI LocalMachine, HMAC-SHA256 va hash chain; neu chuoi hong tool tu choi noi them.
+Certificate audit kiem tra Authenticode va chuoi tin cay offline cua tep Windows/Office quan trong.
+Module contract schema 1.0: 24 entry point / 28 module; co capability gate va ModuleResult thong nhat.
+Log JSON Lines cua dashboard nam trong LocalAppData theo tai khoan; che do nang quyen va doanh nghiep dung ProgramData co ACL Administrators/SYSTEM; khong ghi product key day du.
+PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.
+CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.8.md.
+Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; catalog hien tai theo doi Windows 10 22H2 va Windows 11 23H2/24H2/25H2/26H1.
+Authenticode signer: CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing); thumbprint ABE70696679B1D8987A2D5B1F6C1C6909D364CEA; status Valid.
+Chu ky Authenticode tu ky duoc may build xac minh Valid sau khi cai chung thu tin cay cho Current User; may la van can cai chung thu hoac co the bao Unknown publisher/SmartScreen.
+Khong the vuot AppLocker, WDAC, SmartScreen, antivirus hoac chinh sach doanh nghiep.

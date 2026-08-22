@@ -1,37 +1,37 @@
 {
     "SchemaVersion":  "1.0",
     "Channel":  "stable",
-    "LatestVersion":  "4.8.0.1",
+    "LatestVersion":  "4.9.0.0",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-18T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-21T00:00:00Z",
     "Title":  {
-                  "vi-VN":  "v4.8.0 - Nhanh hơn, dễ dùng hơn, an toàn hơn",
-                  "en-US":  "v4.8.0 - Faster, clearer, and safer"
+                  "vi-VN":  "v4.9 - Xác thực nguồn gốc, catalog mở rộng, làm sạch có hậu kiểm",
+                  "en-US":  "v4.9 - Provenance, expanded catalog, and verified cleanup"
               },
     "Changes":  {
                     "vi-VN":  [
-                                  "Đánh giá phần mềm tách mô hình giấy phép khỏi bằng chứng crack/can thiệp; phần mềm miễn phí và mức tin cậy Low không còn bị yêu cầu hóa đơn hay đưa vào diện tự động xóa.",
-                                  "Bổ sung nhận diện bảo thủ MAS/PMAS, Activation Program 1.17 và đúng lệnh erturk-dev; giữ ứng dụng, chỉ cô lập đúng artifact/tác vụ đáng ngờ khi đủ bằng chứng.",
-                                  "WinRAR không coi rarreg.key đơn lẻ là vi phạm; MathType và WinRAR mở đúng nguồn chính thức, còn Windows, Office và phần mềm bên thứ ba có hướng xử lý riêng.",
-                                  "Phụ lục phần mềm dùng bảng màu teal dễ phân biệt; PDF chi tiết giãn chữ, tự tách bảng rộng và sửa lỗi báo cáo Toàn bộ/Phần mềm không xuất PDF khi có liên kết chính thức.",
-                                  "Trợ lý Tool trả lời rõ kết luận, bằng chứng, điều kiện khắc phục và bước tiếp theo bằng tiếng Việt/Anh.",
-                                  "Mặc định Offline, không telemetry; v4.8.0.1 bổ sung cập nhật ứng dụng an toàn theo phiên bản và hash."
+                                  "Xác thực nguồn gốc bằng Authenticode và manifest provenance ký số; bản bị sửa hoặc đóng gói lại bị khóa cập nhật và thao tác thay đổi hệ thống.",
+                                  "Catalog online 1.5.0.0 mở rộng lên 92 nhóm sản phẩm, chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist và chống hạ phiên bản bằng watermark bền vững.",
+                                  "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
+                                  "Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag; chỉ bản FullInternal do người dùng chủ động chọn mới giữ đầy đủ.",
+                                  "Từ v4.9, mã nguồn phiên bản mới thuộc kho riêng có kiểm soát; Tool chính thức vẫn miễn phí cho cộng đồng và nhu cầu nghiên cứu thiện chí có thể xin phép tác giả bằng văn bản.",
+                                  "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
-                                  "Software assessment separates the license model from crack/tampering evidence; freeware and Low-confidence items no longer require invoices or become automatic deletion candidates.",
-                                  "Conservative detection now covers MAS/PMAS, Activation Program 1.17, and the exact erturk-dev command; applications stay installed while only proven artifacts or tasks are isolated.",
-                                  "A lone rarreg.key is not treated as WinRAR abuse; MathType and WinRAR open official sources, with separate guidance for Windows, Office, and third-party software.",
-                                  "The software appendix uses a clearer teal palette; detailed PDFs add spacing, split wide tables, and fix Full/Software PDF export when official references are present.",
-                                  "Tool Assistant answers now separate the conclusion, evidence, remediation conditions, and next action in Vietnamese and English.",
-                                  "Offline remains the default with no telemetry; v4.8.0.1 adds safe application updates by version and hash."
+                                  "Authenticode and a signed provenance manifest verify origin; modified or repackaged builds cannot self-update or perform system-changing actions.",
+                                  "Online catalog 1.5.0.0 expands coverage to 92 product families and accepts only signed declarative data with allowlisted fields/profiles and a persistent anti-rollback watermark.",
+                                  "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
+                                  "Reports redact serials, UUIDs, Processor IDs, and asset tags by default; only a user-selected FullInternal copy retains them.",
+                                  "From v4.9 onward, new source is kept in a private controlled repository; the official Tool remains free for the community and good-faith research access may be requested in writing.",
+                                  "Offline remains the default with no telemetry; online update metadata now requires a detached signature from the hard-pinned author certificate."
                               ]
                 },
-    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.8.0.1",
-    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.8.0.1/Tool-Kiem-Tra-v4.8.exe",
-    "DownloadSha256":  "7FB993D66839978E2D6E7783B3FB6C7265C7D3EEFC7676615DE48D6929499B42",
-    "DownloadSize":  657840,
+    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.9.0.0",
+    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.9.0.0/Tool-Kiem-Tra-v4.9.exe",
+    "DownloadSha256":  "633252B10316EC85C865EC547E9946A8ED9B172C882EDA76A36FA7CB94D44E91",
+    "DownloadSize":  686056,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
-                              "ACF45ABCB9842701652F75BA58E13DC0ACFA79FE"
+                              "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"
                           ]
 }

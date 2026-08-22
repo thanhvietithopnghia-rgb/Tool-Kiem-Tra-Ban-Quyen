@@ -1,9 +1,26 @@
 # Computer Configuration and Software License Check Tool — Version History
 
-This document summarizes the main public releases from v1.0 through v4.8.0.1. v4.8 is the direct upgrade from v4.6; verified intermediate work is consolidated into v4.8 instead of being listed as a separate public release.
+This document summarizes the main public releases from v1.0 through v4.9.0.0. The v4.8 and earlier history remains unchanged below.
 
-Current release: **v4.8.0.1**
-FileVersion: **4.8.0.1** · Build **2026.08.18**
+Current release: **v4.9.0.0**
+FileVersion: **4.9.0.0** · Build **2026.08.21**
+
+Stable latest-release page:
+<https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+## v4.9.0.0 — August 21, 2026
+
+- **Fail-closed provenance:** the launcher verifies its signature, pinned certificate, metadata, Build ID, and provenance manifest. A modified or unverifiable build displays a clear warning and cannot self-update or perform system-changing actions.
+- **Signed online catalog:** expanded recognition uses allowlisted declarative rules, detached CMS signatures, strict schema limits, a previous-cache fallback, and a persistent version floor that rejects downgrades. Catalog data cannot supply arbitrary commands or scripts.
+- **Cautious recognition:** Product ID, publisher, file signature, path, service, task, Registry, and licensing state can be correlated. Insufficient evidence remains `Unverified`; it is not automatically called a crack and is not eligible for automatic cleanup.
+- **Identity and remediation states:** each Windows, Office, or software item is tracked independently. `Pending`, `Running`, `VerifiedClean`, `ApprovedInternalKMS`, `RetryableFailure`, `BlockedByPolicy`, and `NeedsOfficeRepair` prevent a previous attempt from incorrectly blocking a retry.
+- **Mandatory post-check:** `VerifiedClean` is emitted only when a fresh scan confirms that the targeted evidence is gone and the licensing state meets the safe rule. Organization policy is never silently removed; Volume editions, modified files, and Office configurations that need repair are routed to official Repair/reinstallation guidance.
+- **Private reports by default:** serial numbers, UUID, Processor ID, and Asset Tag are redacted by default. Identifiers are retained only when the user deliberately chooses the full internal report.
+- **Private source from v4.9:** the official executable remains free for the community, while source for new versions is privately held and controlled. Good-faith study, research, security review, or contribution may be requested in writing; viewing access does not itself grant permission to copy, disclose, modify, package, commercialize, or rebrand.
+- **Policy rationale:** the author observed near-verbatim copying of the Tool's content, interface, descriptions, and development work, followed by renaming or rebranding as a personal product without permission or attribution. This does not claim that backend or source code was taken where technical evidence has not established that.
+- **No retroactive change:** the private-source policy applies to source from v4.9 onward. Older releases remain governed by the terms distributed with them.
+
+Limitation: catalog and post-check improvements reduce false conclusions and unsafe handling, but cannot guarantee recognition or cleanup of 100% of all products, versions, and variants. Technical results do not replace vendor entitlement evidence.
 
 ## v4.8.0.1 — August 18, 2026
 

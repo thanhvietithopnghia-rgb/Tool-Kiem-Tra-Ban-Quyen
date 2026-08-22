@@ -1,141 +1,90 @@
-# Tool Kiểm Tra v4.8 – Nhanh hơn, dễ dùng hơn, an toàn hơn
+# Tool Kiểm Tra v4.9 — xác minh nguồn gốc, cập nhật nhận diện, khắc phục có hậu kiểm
 
-**Trang giới thiệu chính thức:** <https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/>
+**Phiên bản hiện tại:** v4.9.0.0 · Build 2026.08.21
+**Tác giả và phát triển:** Thanh Việt
+**Trang tải luôn trỏ tới bản mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-v4.8 tập trung vào ba điều người dùng dễ nhận thấy: thao tác rõ hơn, quét nhanh hơn và khắc phục an toàn hơn. Tool vẫn kiểm tra cấu hình, Windows, Office và phần mềm; mặc định Offline và chỉ thay đổi hệ thống sau khi người dùng chọn, xác nhận và tạo backup.
+Tool Kiểm Tra là ứng dụng Windows miễn phí cho cộng đồng, hỗ trợ kiểm kê cấu hình máy, kiểm tra trạng thái Windows/Office/phần mềm, rà soát dấu hiệu KMS/activator/can thiệp và tạo báo cáo. Tool hoạt động Offline theo mặc định, không có telemetry và chỉ dùng mạng sau khi người dùng chủ động bật Online.
 
-Bản cập nhật dùng Catalog Lifecycle 1.1 để nhận diện Windows 10 22H2, Windows 11 23H2/24H2/25H2/26H1; Office 2021/2024, Microsoft 365 Apps và phần mềm khác từ nhiều nguồn cài đặt. Catalog cảnh báo tuổi 30/45 ngày; phiên bản Microsoft chưa biết chuyển sang chỉ đọc và yêu cầu rà soát thay vì bị kết luận sai. Giao diện Dashboard 2.0 hỗ trợ Sáng/Tối, tự tối ưu theo DPI và chỉ kết nối online khi người dùng đồng ý.
+v4.9 tăng khả năng chứng minh bản chính thức, mở rộng catalog nhận diện có ký số, sửa luồng khắc phục để chỉ báo thành công sau hậu kiểm và bảo vệ dữ liệu định danh trong báo cáo. Công cụ cung cấp bằng chứng kỹ thuật hỗ trợ quản trị; không thay thế hóa đơn, hợp đồng, tài khoản hãng hoặc tư vấn pháp lý và không thể cam kết nhận diện/làm sạch 100% mọi sản phẩm hay biến thể.
 
-Offline vẫn là mặc định: công cụ không kết nối mạng khi chưa được cho phép và không tải lên danh sách phần mềm, đường dẫn, khóa hoặc token. Khi Online đã được người dùng bật, Tool mới kiểm tra phiên bản mới; không tự tải hoặc cài nếu chưa chọn **Cập nhật ngay**. Báo cáo HTML/PDF được tăng cường bảo vệ, đồng thời tính toàn vẹn của dữ liệu được xác minh bằng SHA-256 và HMAC.
+## Tải và bắt đầu
 
-Khả năng quản lý tập trung qua mạng LAN cũng được nâng cấp với cơ chế mã hóa AES-256-CBC, giúp quản trị viên kiểm kê và theo dõi tình trạng bản quyền an toàn, nhanh chóng và hiệu quả hơn.
+1. Mở [trang tải bản mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
+2. Tải `Tool-Kiem-Tra-v4.9.exe` cùng tệp checksum/chứng minh nguồn gốc đi kèm.
+3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
+4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
+5. Chỉ chấp nhận UAC khi tên tác vụ đúng với thao tác khắc phục, cập nhật hoặc quản trị mà bạn vừa chọn.
 
-Phiên bản hiện tại: **v4.8.0.1 — FileVersion 4.8.0.1 — Build 2026.08.18**
+```powershell
+Get-FileHash .\Tool-Kiem-Tra-v4.9.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.9.exe |
+  Format-List Status,StatusMessage,SignerCertificate
+```
 
-Tác giả và phát triển: **Thanh Việt**
+## Điểm mới trong v4.9
 
-## Điểm chính
+- **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
+- **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.
+- **Nhận diện mở rộng nhưng thận trọng:** đối chiếu Product ID, publisher, chữ ký, đường dẫn, service, task, Registry và trạng thái cấp phép. `Chưa xác minh` không tự biến thành kết luận crack và không đủ điều kiện tự động làm sạch.
+- **Khắc phục có hậu kiểm:** từng mục có định danh và trạng thái riêng. Tool chỉ báo `VerifiedClean` khi hậu kiểm chứng minh dấu vết đã hết và trạng thái cấp phép phù hợp; lỗi có thể thử lại, còn policy hoặc bản cài cần sửa chữa được báo riêng thay vì báo thành công giả.
+- **Quyền riêng tư mặc định:** báo cáo dòng lệnh và bản chia sẻ mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ lựa chọn nội bộ đầy đủ mới giữ định danh.
+- **Giữ nguyên nguyên tắc an toàn:** xem trước, chọn từng mục, xác nhận, backup và hậu kiểm; không tự gỡ phần mềm chỉ vì tên hoặc một dấu vết yếu.
 
-- **Dễ dùng:** giao diện Sáng/Tối, Việt/Anh và tự co giãn theo DPI; đã sửa nút **Bản đã che thông tin** bị cắt chữ hoặc mờ khi rê chuột.
-- **Nhanh hơn:** tối ưu quét và kiểm kê nhưng giữ nguyên phạm vi kiểm tra; catalogue hiện có 77 quy tắc nhận diện phần mềm.
-- **Báo cáo rõ hơn:** HTML dùng để xem nhanh, PDF chứa chi tiết; người dùng có thể che dữ liệu nhạy cảm trước khi chia sẻ.
-- **Khắc phục an toàn:** có Dry Run, backup, chọn từng mục, UAC khi cần và kiểm tra lại kết quả; Tool không tự gỡ ứng dụng.
-- **Kết luận thận trọng:** tệp bị sửa không tự đồng nghĩa phần mềm không chính hãng; kết quả chưa đủ bằng chứng được ghi rõ là chưa xác minh.
-- **Trợ lý hiểu toàn phạm vi Tool:** trả lời mọi câu hỏi liên quan theo kho tri thức, HDSD nhúng và báo cáo hiện có — từ phiên bản/tác giả/tóm tắt đến mục đích, cách dùng, lỗi và trạng thái của mọi chức năng. Kho tri thức mới được lưu ngoài EXE, chỉ đồng bộ sau khi người dùng bật Online, phải có chữ ký nhà phát hành hợp lệ và không thể hạ phiên bản; câu hỏi, báo cáo và dữ liệu máy không được tải lên. Trợ lý giữ ngữ cảnh câu hỏi tiếp theo và khóa nội dung ngoài phạm vi Tool.
-- **Offline mặc định:** không telemetry, không cập nhật ngầm và không gửi dữ liệu máy lên mạng khi chưa được phép.
-- **Một tệp EXE:** tự chạy đúng x64/x86; có chữ ký Authenticode tự ký miễn phí để phát hiện tệp bị sửa, nhưng vẫn có thể bị SmartScreen cảnh báo trên máy lạ.
+## Mười chức năng chính
 
-## Mười chức năng
+1. Kiểm tra toàn bộ.
+2. Cấu hình phần cứng, TPM, Secure Boot và BitLocker.
+3. Bản quyền Windows.
+4. Bản quyền Microsoft Office.
+5. Phần mềm và dấu hiệu can thiệp.
+6. Khắc phục KMS/Activator có Dry Run, backup và hậu kiểm.
+7. Khôi phục key OEM khi edition phù hợp.
+8. Quản lý giấy phép hợp lệ cục bộ hoặc trong LAN được cho phép.
+9. Kiểm tra chuyên sâu dành cho quản trị viên.
+10. Trung tâm báo cáo bảo đảm, timeline, plugin và tài liệu.
 
-1. **Kiểm tra toàn bộ** — tổng hợp cấu hình, Windows, Office, phần mềm và đánh giá chung.
-2. **Cấu hình phần cứng** — CPU, RAM, bo mạch, BIOS/UEFI, ổ đĩa, đồ họa, mạng và thiết bị.
-3. **Bản quyền Windows** — trạng thái kích hoạt, edition, kênh cấp phép, PartialProductKey và KMS nếu có.
-4. **Bản quyền Microsoft Office** — Office 2021/2024/LTSC, Microsoft 365 Apps, Click-to-Run, SKU và OSPP.
-5. **Phần mềm & dấu hiệu can thiệp** — kiểm kê mọi nguồn cài đặt được hỗ trợ và quét sâu có giới hạn cho từng ứng dụng, gồm nhiều tệp thực thi/DLL, chữ ký số, hash, artifact, hosts, firewall, IFEO, tự động chạy, dịch vụ, tác vụ và bằng chứng kỹ thuật kích hoạt bị can thiệp.
-6. **Khắc phục KMS/Activator** — chế độ Online, Dry Run và thực hiện thật đều có ba ô tích **Windows, Office, Phần mềm khác**; có thể chọn một hoặc nhiều phạm vi và chỉ quét/xử lý đúng mục đã chọn. Mọi mục Không chính hãng/Nghi vấn đều chọn thủ công được; tự động chỉ chạy kế hoạch an toàn đã khóa phạm vi, còn gỡ/cài lại chính thức luôn cần xác nhận riêng và backup có kiểm chứng.
-7. **Khôi phục key OEM** — kiểm tra key firmware và chỉ áp dụng khi người dùng xác nhận edition phù hợp.
-8. **Quản lý giấy phép hợp lệ** — quản lý Windows/Office cục bộ hoặc máy chủ/máy trạm trong LAN được cho phép.
-9. **Kiểm tra chuyên sâu** — quét sâu và điều tra forensics dành cho quản trị viên.
-10. **Trung tâm báo cáo bảo đảm** — chứng chỉ, plugin, timeline, HDSD HTML/PDF và tài liệu phiên bản/cập nhật.
+## Cách hiểu kết quả khắc phục
 
-## Bắt đầu nhanh
+- `Pending` / `Running`: đang chờ hoặc đang xử lý.
+- `VerifiedClean`: hậu kiểm đã xác nhận điều kiện làm sạch của quy tắc; không đồng nghĩa đã có giấy phép hợp lệ.
+- `ApprovedInternalKMS`: KMS tổ chức đã được người quản trị xác nhận và được giữ nguyên.
+- `RetryableFailure`: lần xử lý chưa đạt; có thể sửa nguyên nhân và thử lại.
+- `BlockedByPolicy`: chính sách quản trị đang áp dụng; Tool không âm thầm xóa policy của tổ chức.
+- `NeedsOfficeRepair`: edition/tệp/trạng thái Office cần Repair, cấu hình lại hoặc cài từ nguồn chính thức.
 
-1. Tải gói phát hành chính thức và đối chiếu SHA-256.
-2. Giải nén toàn bộ gói vào một thư mục cố định; không chạy EXE trực tiếp bên trong ZIP.
-3. Chạy `Tool-Kiem-Tra-v4.8.exe`. Dashboard không cần UAC; chỉ chấp nhận UAC khi tên tác vụ cho biết đang khắc phục, cập nhật hoặc quản trị hệ thống.
-4. Tool luôn mở ở **Offline**. Chỉ chuyển sang **Online** trong phiên hiện tại khi cập nhật/đồng bộ thực sự cần Internet/LAN.
-5. Chọn chức năng 01–10 trên màn hình chính.
-6. Khi tác vụ hoàn tất, đọc bản HTML được mở tự động; toàn bộ tệp liên quan nằm cạnh nhau trong `Desktop\BaoCao-Tool-Kiem-Tra`.
-
-Hướng dẫn sử dụng v4.8.0 dành cho người trực tiếp chạy EXE nằm trong `HUONG-DAN.txt` và được mở nhanh bằng:
-
-- nút **Mở hướng dẫn** trong cửa sổ Giới thiệu; hoặc
-- **Chức năng 10 → 6. Mở hướng dẫn sử dụng chi tiết bằng HTML/PDF**.
-
-Lần đầu, Tool tạo HTML/PDF và manifest SHA-256. Những lần sau, nếu nguồn HDSD không đổi, Tool dùng bản cache theo phiên bản/ngôn ngữ và mở HTML ngay.
+Nếu catalog chưa đủ bằng chứng, Tool giữ trạng thái `Chưa xác minh`. Nếu bản cài Volume, file đã bị thay đổi hoặc policy tái áp dụng cấu hình, Tool có thể yêu cầu Repair/cài lại thay vì cố xử lý nguy hiểm.
 
 ## Báo cáo và quyền riêng tư
 
-Các báo cáo dành cho người đọc dùng chung một bố cục:
+Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
 
-- banner tiêu đề và thông tin máy/thời điểm;
-- thẻ tổng quan;
-- mục lục;
-- các phần nội dung, bảng và ghi chú;
-- font Segoe UI, màu sắc và quy tắc ngắt trang đồng bộ cho HTML/PDF.
-- PDF không chèn URL, ngày giờ hoặc header/footer mặc định của trình duyệt.
+## Chính sách mã nguồn từ v4.9
 
-Mỗi lần xuất tạo một nhóm tệp có cùng tên gốc và timestamp mili-giây ngay trong `Desktop\BaoCao-Tool-Kiem-Tra`, không tạo thư mục con. HTML tổng quan là tệp duy nhất được tự mở và có nút mở đúng PDF; PDF giữ đầy đủ bảng/bằng chứng và phụ lục hệ thống, còn JSON/XML và `SHA256SUMS` nằm cạnh đó để lưu trữ/đối chiếu.
+Bản thực thi chính thức của Tool tiếp tục **miễn phí cho cộng đồng** cho các mục đích hợp pháp theo điều khoản đi kèm. Từ v4.9, mã nguồn phiên bản mới được lưu giữ riêng và do tác giả kiểm soát.
 
-Công cụ không thu thập mật khẩu hoặc xuất product key đầy đủ. Hãy chọn báo cáo đã che trước khi chia sẻ ra ngoài nhóm quản trị có trách nhiệm.
+Thay đổi này được đưa ra sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển của Tool bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hoặc ghi nhận tác giả. Nội dung này **không khẳng định mã nguồn hoặc backend đã bị lấy** khi chưa có bằng chứng kỹ thuật xác nhận.
 
-## Mô hình vận hành, công nghệ và ngôn ngữ
+Người có nhu cầu học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp vẫn có thể liên hệ tác giả để xin quyền truy cập bằng văn bản. Quyền xem không tự cấp quyền sao chép, chia sẻ, sửa đổi, tạo sản phẩm phái sinh, đóng gói, thương mại hóa, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chính sách áp dụng cho mã nguồn từ v4.9 trở đi và không thay đổi hồi tố điều khoản của các phiên bản cũ.
 
-Tool dùng mô hình **local-first, offline-first**: một EXE cung cấp 10 chức năng trên máy đang quản trị. Kiểm tra mặc định chỉ đọc; thay đổi hệ thống phải qua quyền Administrator, xem trước, lựa chọn cụ thể, xác nhận và backup. Không có dịch vụ đám mây bắt buộc, telemetry, tự kiểm tra cập nhật hoặc tự gửi báo cáo.
-
-- **Launcher:** C#/.NET Framework 4, AnyCPU, kiểm tra SHA-256 của payload và chọn Windows PowerShell native.
-- **Giao diện và nghiệp vụ:** Windows PowerShell 3+/WinForms; theo dõi tiến trình con và cho phép dừng tác vụ đang chạy.
-- **Hợp đồng dữ liệu:** JSON cho catalog, localization, plugin và kết quả mô-đun.
-- **Vòng đời dữ liệu:** dashboard dùng vùng người dùng `%LOCALAPPDATA%\ThanhViet-Tool-Kiem-Tra\v4.6`; chế độ nâng quyền/doanh nghiệp dùng `%ProgramData%`; DataSchema 2.0, staging/đối chiếu SHA-256 và rollback được giữ nguyên.
-- **Báo cáo:** HTML/CSS tự chứa, JSON, XML và SHA-256.
-- **PDF:** tạo cục bộ bằng Microsoft Edge, Google Chrome hoặc Microsoft Word; không dùng dịch vụ chuyển đổi trực tuyến.
-- **Plugin:** quy tắc JSON khai báo chỉ đọc; không nạp DLL hoặc thực thi mã plugin tùy ý.
-- **Timeline:** DPAPI LocalMachine, HMAC-SHA256 và chuỗi hash.
-- **Mạng doanh nghiệp tùy chọn:** Trung tâm quản lý giấy phép có công tắc Online/Offline riêng; HTTP trong LAN với phong bì ứng dụng AES-256-CBC + HMAC-SHA256, nonce, timestamp và kiểm soát replay.
-
-Mã nguồn PowerShell là nguồn sự thật cho logic nghiệp vụ. Launcher C# chỉ đóng gói, xác minh và khởi chạy đúng môi trường.
-
-## Lịch sử phát triển chính
-
-Lịch sử công khai chuyển trực tiếp từ `v4.6` lên `v4.8`; các thay đổi trung gian đã kiểm định được hợp nhất vào v4.8 và không tách thành phiên bản công khai riêng.
-
-- **v1.0–v1.3:** hình thành giao diện Windows, kiểm tra cấu hình/bản quyền, tiến độ tác vụ, key OEM và quét chuyên sâu có UAC nhưng vẫn chỉ đọc.
-- **v2.4–v2.9:** tối ưu bố cục, quản lý key/edition hợp lệ, điều tra 7/12 nhóm, chấm điểm rủi ro, bộ bằng chứng HTML/JSON/CSV/SHA-256 và hậu kiểm.
-- **v3.0–v3.5:** khắc phục chọn lọc, backup/restore, manifest, DPAPI/HMAC, kiểm tra toàn vẹn, nhật ký trực tiếp và chính sách fail-closed.
-- **v3.6–v3.9:** một EXE AnyCPU, build deterministic, PE hardening, capability schema, JSONL logging, module contract và report schema có verifier x64/x86.
-- **v4.0–v4.8:** dashboard hiện đại, giao diện Light mặc định, Trung tâm bảo đảm, Trợ lý Tool, catalogue mở rộng, plugin/timeline, quản lý máy chủ–máy trạm trong LAN, quét song song và báo cáo HTML/PDF thống nhất.
-
-Chi tiết từng mốc từ `v1.0` đến `v4.8`, gồm nâng cấp, công nghệ và ngôn ngữ, nằm trong [`LICH-SU-PHIEN-BAN.txt`](LICH-SU-PHIEN-BAN.txt).
-
-## An toàn khi dùng chức năng 06, 07 và 08
-
-- Chỉ xử lý máy thuộc quyền quản trị hợp lệ.
-- Đóng ứng dụng Office trước khi thay đổi giấy phép Office.
-- Không chọn mục nếu chưa xác minh rõ nguồn gốc.
-- Không bỏ qua bước backup, manifest, HMAC hoặc SHA-256.
-- Chuẩn bị key/tài khoản bản quyền hợp lệ trước khi gỡ key hoặc trạng thái KMS cũ.
-- Kết quả kỹ thuật không thay thế hóa đơn, hợp đồng hoặc xác nhận quyền sử dụng từ Microsoft.
-
-## Xác minh bản phát hành
-
-Trong PowerShell:
-
-```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.8.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.8.exe | Format-List Status,StatusMessage,SignerCertificate
-```
-
-Đối chiếu hash với manifest trong gói phát hành. EXE chỉ được công bố là đã ký khi trạng thái Authenticode thực tế là `Valid`; nếu chưa có chứng thư ký mã, tài liệu phát hành phải ghi rõ `NotSigned`.
+Đọc [Chính sách mã nguồn riêng từ v4.9](SOURCE-POLICY-v4.9.md), [Thông báo bản quyền và quyền sử dụng](LICENSE-NOTICE.txt) và [Hướng dẫn tiếp cận mã nguồn](README-MA-NGUON.md).
 
 ## Tài liệu
 
-- `HUONG-DAN.txt` — hướng dẫn người dùng v4.8: điểm mới, cách chạy EXE và toàn bộ chức năng.
-- `USER-GUIDE-en-US.md` — complete evergreen English end-user guide.
-- `LICH-SU-PHIEN-BAN.txt` — lịch sử phiên bản tiếng Việt.
-- `VERSION-HISTORY-en-US.md` — English version history.
-- `README-MA-NGUON.md` — cách build, kiểm thử và đóng gói.
-- `TECHNICAL-ARCHITECTURE-v4.8.md` — kiến trúc kỹ thuật.
-- `SAFETY-POLICY-v1.0.md` — ranh giới an toàn.
+- [Hướng dẫn sử dụng tiếng Việt](HUONG-DAN.txt)
+- [English user guide](USER-GUIDE-en-US.md)
+- [Lịch sử phiên bản](LICH-SU-PHIEN-BAN.txt)
+- [English version history](VERSION-HISTORY-en-US.md)
+- [Release notes v4.9](RELEASE-NOTES-v4.9.md)
+- [Chính sách an toàn](SAFETY-POLICY-v1.0.md)
 
-## Tải chính thức và hỗ trợ
+## Nguồn chính thức và hỗ trợ
 
-Kho dự án: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen>
-
-Các bản phát hành (bản mới nhất hiển thị ở đầu): <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases>
-
-Chỉ tải từ kho chính thức và đối chiếu SHA-256 trước khi dùng. Bản v4.8 có chữ ký Authenticode tự ký miễn phí; chữ ký này giúp phát hiện tệp bị sửa nhưng không được Windows tin cậy công khai, nên SmartScreen/antivirus vẫn có thể cảnh báo. Không tắt phần mềm bảo vệ; hãy quét lại và gửi mẫu false-positive cho hãng bảo mật nếu nguồn cùng hash đã được xác minh.
-
+- Kho phát hành: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen>
+- Bản mới nhất: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 - Zalo: `0978 005 017`
 - Email: `thanhvietit.hopnghia@gmail.com`
 
-© 2026 Thanh Việt. Không xóa thông tin tác giả, mạo danh, đóng gói lại hoặc phân phối dưới tên khác khi chưa có chấp thuận bằng văn bản.
+Chỉ chia sẻ đường dẫn tải chính thức; không đăng lại, đóng gói, thu phí, đổi thương hiệu hoặc tuyên bố Tool là sản phẩm của người khác khi chưa có chấp thuận bằng văn bản.
+
+© 2026 Thanh Việt. Mọi quyền được bảo lưu.

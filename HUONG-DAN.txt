@@ -2,6 +2,10 @@
 
 Phát triển bởi Thanh Việt
 
+Phiên bản: **v4.9.0.0** · Build **2026.08.21**
+Tệp chính thức: `Tool-Kiem-Tra-v4.9.exe`
+Trang tải luôn trỏ tới bản mới nhất: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`
+
 Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng của Tool trên máy tính Windows. Nội dung cập nhật theo từng bản phát hành được tách riêng trong **Lịch sử phiên bản**; HDSD chỉ tập trung vào thao tác, cách đọc kết quả và nguyên tắc sử dụng an toàn.
 
 ## Phạm vi và nguyên tắc hoạt động
@@ -22,7 +26,7 @@ Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng
 5. Đảm bảo còn đủ dung lượng trên ổ hệ thống và Desktop để lưu backup, gói báo cáo và dữ liệu kiểm tra.
 6. Mặc định nên giữ Offline. Chỉ bật Online khi cần cập nhật danh mục nhận diện hoặc dùng chức năng quản lý trong mạng nội bộ.
 
-Tệp một-EXE có chữ ký Authenticode tự ký miễn phí để nhận biết tệp bị sửa, nhưng chữ ký này không phải chứng thư được Windows tin cậy công khai và không loại bỏ cảnh báo SmartScreen. Chỉ tải từ trang GitHub chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen`, đối chiếu SHA-256, xem chứng thư bằng `Get-AuthenticodeSignature` và quét lại bằng Microsoft Defender. Không tắt Defender/SmartScreen; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
+Tệp một-EXE có chữ ký và manifest nguồn gốc để nhận biết tệp bị sửa. Cơ chế xác minh không loại bỏ mọi cảnh báo SmartScreen và không thể ngăn tuyệt đối việc sao chép/dịch ngược. Chỉ tải `Tool-Kiem-Tra-v4.9.exe` từ trang chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`, đối chiếu SHA-256/Build ID/chữ ký, xem chứng thư bằng `Get-AuthenticodeSignature` và quét lại bằng Microsoft Defender. Không tắt Defender/SmartScreen; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
 
 ## Cách chạy Tool
 
@@ -32,11 +36,19 @@ Tệp một-EXE có chữ ký Authenticode tự ký miễn phí để nhận bi�
 4. Chọn Tiếng Việt hoặc English và giao diện Sáng/Tối trong mục Cài đặt nếu cần.
 5. Giữ công tắc ở Offline nếu chỉ kiểm tra máy đang dùng.
 6. Với lần kiểm tra đầu tiên, chọn Kiểm tra toàn bộ.
-7. Khi được hỏi về quyền riêng tư, chọn báo cáo đã che thông tin nếu cần gửi cho người khác; chọn báo cáo đầy đủ nếu chỉ dùng nội bộ.
+7. Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ chọn bản đầy đủ nội bộ khi thực sự cần và giới hạn người nhận.
 8. Chờ dòng trạng thái báo hoàn tất. Không đóng công cụ khi khu vực Hoạt động vẫn đang chạy.
 9. HTML tổng quan được mở bằng trình duyệt mặc định. Đọc kết luận chính trước, sau đó chọn **Mở PDF chi tiết** trong HTML để xem toàn bộ dữ liệu; dùng nút Mở thư mục báo cáo nếu cần tìm lại tệp.
 
-Không cần mở mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật để sử dụng bản EXE.
+Không cần truy cập mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật để sử dụng bản EXE.
+
+## Điểm cần biết trong v4.9
+
+- Launcher và manifest nguồn gốc kiểm tra chữ ký, chứng thư, metadata và Build ID. Nếu bản chạy bị sửa hoặc không xác minh được, Tool cảnh báo và chặn cập nhật/thao tác thay đổi hệ thống theo nguyên tắc fail-closed.
+- Catalog online có chữ ký, chỉ chứa quy tắc khai báo được cho phép, giữ mốc phiên bản bền vững để chống hạ phiên bản và dùng cache dự phòng khi cập nhật không hợp lệ.
+- Mục chưa đủ bằng chứng giữ trạng thái **Chưa xác minh**, không tự bị kết luận crack và không đủ điều kiện tự động làm sạch.
+- Khắc phục chỉ báo **VerifiedClean/Đã hậu kiểm sạch** sau khi quét lại xác nhận điều kiện của quy tắc. Lỗi có thể thử lại; policy tổ chức và trường hợp cần sửa chữa/cài lại được báo riêng.
+- Không có công cụ nào có thể nhận diện hoặc làm sạch chính xác 100% mọi phần mềm/biến thể. Khi còn mâu thuẫn, hãy giữ nguyên, đọc bằng chứng và kiểm tra với hãng.
 
 ## Cách đọc màn hình chính
 
@@ -453,6 +465,12 @@ Tác vụ có vẻ treo:
 - Không sửa thủ công backup hoặc báo cáo bằng chứng.
 - Sau mọi thay đổi, luôn hậu kiểm và kích hoạt/cài đặt lại bằng nguồn chính thức.
 - Nếu kết quả vẫn Chưa xác minh, hãy giữ nguyên trạng thái và đối chiếu với hãng thay vì ép công cụ kết luận.
+
+## Mã nguồn và quyền sử dụng từ v4.9
+
+Bản thực thi chính thức tiếp tục miễn phí cho cộng đồng theo điều khoản đi kèm. Từ v4.9, mã nguồn phiên bản mới được lưu riêng và do tác giả kiểm soát. Thay đổi này được đưa ra sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hoặc ghi nhận tác giả; nội dung này không khẳng định backend/mã nguồn đã bị lấy khi chưa có bằng chứng kỹ thuật.
+
+Người muốn học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp có thể gửi yêu cầu để tác giả xem xét cấp quyền bằng văn bản. Quyền xem không tự cho phép sao chép, chia sẻ, sửa đổi, đóng gói, thương mại hóa, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chính sách áp dụng từ v4.9, không hồi tố điều khoản của phiên bản cũ. Xem `SOURCE-POLICY-v4.9.md` và `LICENSE-NOTICE.txt` trong kho phát hành.
 
 ## Kênh hỗ trợ
 

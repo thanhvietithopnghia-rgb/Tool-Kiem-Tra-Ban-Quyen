@@ -1,1 +1,0 @@
-﻿# Thêm máy chủ KMS nội bộ được cơ quan phê duyệt, mỗi dòng một tên hoặc IP.

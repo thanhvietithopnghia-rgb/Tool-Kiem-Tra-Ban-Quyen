@@ -3,12 +3,12 @@
 This document summarizes the main public releases from v1.0 through v4.9.0.0. The v4.8 and earlier history remains unchanged below.
 
 Current release: **v4.9.0.0**
-FileVersion: **4.9.0.0** · Build **2026.08.21**
+FileVersion: **4.9.0.0** · Build **2026.08.22**
 
 Stable latest-release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## v4.9.0.0 — August 21, 2026
+## v4.9.0.0 — August 22, 2026
 
 - **Fail-closed provenance:** the launcher verifies its signature, pinned certificate, metadata, Build ID, and provenance manifest. A modified or unverifiable build displays a clear warning and cannot self-update or perform system-changing actions.
 - **Signed online catalog:** expanded recognition uses allowlisted declarative rules, detached CMS signatures, strict schema limits, a previous-cache fallback, and a persistent version floor that rejects downgrades. Catalog data cannot supply arbitrary commands or scripts.
@@ -16,9 +16,11 @@ Stable latest-release page:
 - **Identity and remediation states:** each Windows, Office, or software item is tracked independently. `Pending`, `Running`, `VerifiedClean`, `ApprovedInternalKMS`, `RetryableFailure`, `BlockedByPolicy`, and `NeedsOfficeRepair` prevent a previous attempt from incorrectly blocking a retry.
 - **Mandatory post-check:** `VerifiedClean` is emitted only when a fresh scan confirms that the targeted evidence is gone and the licensing state meets the safe rule. Organization policy is never silently removed; Volume editions, modified files, and Office configurations that need repair are routed to official Repair/reinstallation guidance.
 - **Private reports by default:** serial numbers, UUID, Processor ID, and Asset Tag are redacted by default. Identifiers are retained only when the user deliberately chooses the full internal report.
-- **Private source from v4.9:** the official executable remains free for the community, while source for new versions is privately held and controlled. Good-faith study, research, security review, or contribution may be requested in writing; viewing access does not itself grant permission to copy, disclose, modify, package, commercialize, or rebrand.
+- **Diagnosable licensing reads:** whole-machine scans request UAC, check `Winmgmt`/`sppsvc`, try CIM and then WMI, and report permission, service, or class failures separately; an unreadable source is never treated as an unactivated license.
+- **Multi-source grouped inventory:** AppX/MSIX, shortcuts from all user profiles, Scoop, Chocolatey, Steam, and bounded portable locations are included. Duplicate records are merged and companion components are grouped under the primary product as read-only entries.
+- **Community development with controlled source from v4.9:** the official executable remains free, and the project welcomes bug reports, proposals, documentation, translations, testing, and technical contributions. Anyone wishing to review, study, research, security-test, or contribute to the source must first obtain the author's written approval; viewing does not itself permit copying, disclosure, modification, packaging, commercialization, training-data use, or rebranding.
 - **Policy rationale:** the author observed near-verbatim copying of the Tool's content, interface, descriptions, and development work, followed by renaming or rebranding as a personal product without permission or attribution. This does not claim that backend or source code was taken where technical evidence has not established that.
-- **No retroactive change:** the private-source policy applies to source from v4.9 onward. Older releases remain governed by the terms distributed with them.
+- **No retroactive change:** the controlled-source policy applies to source from v4.9 onward. Older releases remain governed by the terms distributed with them.
 
 Limitation: catalog and post-check improvements reduce false conclusions and unsafe handling, but cannot guarantee recognition or cleanup of 100% of all products, versions, and variants. Technical results do not replace vendor entitlement evidence.
 

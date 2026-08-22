@@ -11,7 +11,7 @@
     <path d="M145 0 280 48v108c0 104-56 178-135 218C66 334 10 260 10 156V48Z" fill="#fff"/>
     <path d="m84 184 40 40 83-95" fill="none" stroke="#1458b6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <text x="420" y="180" fill="#b9e9ff" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="3">THANH VIỆT · BUILD 2026.08.21</text>
+  <text x="420" y="180" fill="#b9e9ff" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="3">THANH VIỆT · BUILD 2026.08.22</text>
   <text x="420" y="270" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="66" font-weight="800">Tool Kiểm Tra</text>
   <text x="420" y="348" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="58" font-weight="740">Bản Quyền v4.9</text>
   <rect x="420" y="395" width="575" height="56" rx="28" fill="#fff" opacity=".13"/>

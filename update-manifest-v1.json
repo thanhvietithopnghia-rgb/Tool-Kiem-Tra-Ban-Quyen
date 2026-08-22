@@ -3,7 +3,7 @@
     "Channel":  "stable",
     "LatestVersion":  "4.9.0.0",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-21T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-22T00:00:00Z",
     "Title":  {
                   "vi-VN":  "v4.9 - Xác thực nguồn gốc, catalog mở rộng, làm sạch có hậu kiểm",
                   "en-US":  "v4.9 - Provenance, expanded catalog, and verified cleanup"
@@ -14,7 +14,9 @@
                                   "Catalog online 1.5.0.0 mở rộng lên 92 nhóm sản phẩm, chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist và chống hạ phiên bản bằng watermark bền vững.",
                                   "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
                                   "Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag; chỉ bản FullInternal do người dùng chủ động chọn mới giữ đầy đủ.",
-                                  "Từ v4.9, mã nguồn phiên bản mới thuộc kho riêng có kiểm soát; Tool chính thức vẫn miễn phí cho cộng đồng và nhu cầu nghiên cứu thiện chí có thể xin phép tác giả bằng văn bản.",
+                                  "Quét toàn máy yêu cầu UAC, kiểm tra Winmgmt/sppsvc, thử CIM rồi WMI và phân biệt lỗi nguồn dữ liệu với trạng thái chưa kích hoạt.",
+                                  "Kiểm kê bổ sung AppX/MSIX, shortcut mọi hồ sơ, Scoop, Chocolatey, Steam và vùng portable giới hạn; bản ghi trùng được gom và thành phần phụ được nhóm theo sản phẩm chính.",
+                                  "Từ v4.9, Tool miễn phí phát triển cùng cộng đồng với mã nguồn có kiểm soát; người muốn tham khảo, học tập, nghiên cứu hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả.",
                                   "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
@@ -22,14 +24,16 @@
                                   "Online catalog 1.5.0.0 expands coverage to 92 product families and accepts only signed declarative data with allowlisted fields/profiles and a persistent anti-rollback watermark.",
                                   "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
                                   "Reports redact serials, UUIDs, Processor IDs, and asset tags by default; only a user-selected FullInternal copy retains them.",
-                                  "From v4.9 onward, new source is kept in a private controlled repository; the official Tool remains free for the community and good-faith research access may be requested in writing.",
+                                  "Whole-machine scans request UAC, check Winmgmt/sppsvc, try CIM then WMI, and distinguish data-source failures from an unactivated state.",
+                                  "Inventory adds AppX/MSIX, shortcuts across user profiles, Scoop, Chocolatey, Steam, and bounded portable roots; duplicates are merged and companion components are grouped under the primary product.",
+                                  "From v4.9 onward, the free Tool is community-developed with controlled source; anyone wishing to review, study, research, or contribute to the source must first obtain the author\u0027s written approval.",
                                   "Offline remains the default with no telemetry; online update metadata now requires a detached signature from the hard-pinned author certificate."
                               ]
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.9.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.9.0.0/Tool-Kiem-Tra-v4.9.exe",
-    "DownloadSha256":  "633252B10316EC85C865EC547E9946A8ED9B172C882EDA76A36FA7CB94D44E91",
-    "DownloadSize":  686056,
+    "DownloadSha256":  "27F700721B32A22CFA0A079CB7059A18EBBC25A1BF366428A7B2B71706976E90",
+    "DownloadSize":  694248,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.4.0",
-  "UpdatedAtUtc": "2026-08-21T14:00:00Z",
+  "KnowledgeVersion": "1.4.1",
+  "UpdatedAtUtc": "2026-08-22T07:00:00Z",
   "ToolVersionMin": "4.9.0.0",
   "ToolVersionMax": "4.9.65535.65535",
   "ReleasedWithToolVersion": "4.9.0.0",
@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v4.9"],
-      "AnswerVi": "Bản v4.9.0.0 được build ngày 21/08/2026. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi và phạm vi phát hành.",
-      "AnswerEn": "Version v4.9.0.0 was built on 21 August 2026. Open Version history in the Assurance Report Center for the change timeline and release scope."
+      "AnswerVi": "Bản v4.9.0.0 hiện tại được build ngày 22/08/2026. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi và phạm vi phát hành.",
+      "AnswerEn": "The current v4.9.0.0 build was produced on 22 August 2026. Open Version history in the Assurance Report Center for the change timeline and release scope."
     },
     {
       "Id": "first-release",
@@ -57,11 +57,27 @@
     },
     {
       "Id": "source-code-license",
-      "TitleVi": "Mã nguồn công khai và quyền sử dụng",
-      "TitleEn": "Public source and usage rights",
-      "Keywords": ["ma nguon cong khai o dau", "kho ma nguon cua tool", "github ma nguon", "source code repository", "repository cong khai co duoc sua khong", "can i modify the public repository", "tool co phai ma nguon mo", "public source code", "license notice ma nguon"],
-      "AnswerVi": "Từ v4.9, mã nguồn phiên bản mới thuộc kho riêng có kiểm soát và chỉ được xem khi tác giả chấp thuận bằng văn bản. Quyền xem không tự cấp quyền sao chép, sửa đổi, phân phối, đóng gói lại, thương mại hóa hoặc đổi thương hiệu. Các bản cũ đã công khai vẫn theo điều khoản đi kèm tại thời điểm phát hành.",
-      "AnswerEn": "From v4.9 onward, source for new versions is kept in a private controlled repository and may be viewed only with the author's written approval. Viewing does not grant rights to copy, modify, distribute, repackage, commercialize, or rebrand it. Earlier public releases remain governed by the terms distributed with them."
+      "TitleVi": "Phát triển cộng đồng và quyền sử dụng mã nguồn",
+      "TitleEn": "Community development and source rights",
+      "Keywords": ["ma nguon cong khai o dau", "kho ma nguon cua tool", "github ma nguon", "source code repository", "repository cong khai co duoc sua khong", "can i modify the public repository", "tool co phai ma nguon mo", "public source code", "license notice ma nguon", "muon hoc hoi ma nguon", "xin phep xem ma nguon", "tool co phat trien cong dong khong", "phat trien cung cong dong", "community developed tool", "request source access"],
+      "AnswerVi": "Tool miễn phí và phát triển cùng cộng đồng thông qua phản hồi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát, không phải mã nguồn mở. Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả. Quyền xem không tự cấp quyền sao chép, sửa đổi, phân phối, đóng gói lại, thương mại hóa, dùng làm dữ liệu huấn luyện hoặc đổi thương hiệu. Các bản cũ vẫn theo điều khoản đi kèm tại thời điểm phát hành.",
+      "AnswerEn": "The Tool is free and developed with community feedback, proposals, documentation, translations, testing, and technical contributions. From v4.9 onward, source is managed through controlled access and is not open source. Anyone wishing to review, study, research, security-test, or contribute to the source must first obtain the author's written approval. Viewing does not grant rights to copy, modify, distribute, repackage, commercialize, use as training data, or rebrand it. Earlier releases remain governed by the terms distributed with them."
+    },
+    {
+      "Id": "licensing-data-unreadable",
+      "TitleVi": "Không đọc được dữ liệu cấp phép khác với chưa kích hoạt",
+      "TitleEn": "Unreadable licensing data versus unactivated",
+      "Keywords": ["khong doc duoc du lieu ban quyen", "khong truy cap duoc softwarelicensingproduct", "wmi cim loi", "chua kich hoat nhung van dung duoc", "license data unavailable", "unreadable license data", "sppsvc winmgmt"],
+      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v4.9 build 22/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
+      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 22 August v4.9 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
+    },
+    {
+      "Id": "software-inventory-coverage",
+      "TitleVi": "Vì sao danh sách phần mềm có thể thiếu hoặc trùng",
+      "TitleEn": "Why software inventory can be incomplete or duplicated",
+      "Keywords": ["khong nhan dien du phan mem", "thieu phan mem", "phan mem bi trung", "441 phan mem", "gom thanh phan phu", "software inventory incomplete", "duplicate software", "portable app", "scoop chocolatey steam"],
+      "AnswerVi": "Không có một API Windows duy nhất liệt kê 100% phần mềm. Tool đối chiếu Registry, AppX/MSIX, shortcut mọi hồ sơ người dùng, Scoop, Chocolatey, Steam và vùng portable giới hạn; sau đó gom bản ghi cùng danh tính/vị trí và đưa updater, language pack, plugin hoặc runtime về nhóm sản phẩm chính ở chế độ chỉ đọc. Quét với UAC cho phạm vi toàn máy đầy đủ hơn, nhưng ứng dụng portable nằm ngoài vùng quét hoặc metadata bị ẩn vẫn có thể cần chỉ đường/quét chuyên sâu thủ công.",
+      "AnswerEn": "Windows has no single API that lists 100% of software. The Tool correlates Registry, AppX/MSIX, shortcuts across user profiles, Scoop, Chocolatey, Steam, and bounded portable locations, then merges records with the same identity/location and groups updaters, language packs, plugins, or runtimes under the primary product as read-only. UAC provides better whole-machine coverage, but portable apps outside bounded roots or hidden metadata may still require a manually targeted deep scan."
     },
     {
       "Id": "status-terms",

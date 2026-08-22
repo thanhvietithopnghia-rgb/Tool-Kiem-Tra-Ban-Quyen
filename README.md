@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v4.9 — xác minh nguồn gốc, cập nhật nhận diện, khắc phục có hậu kiểm
 
-**Phiên bản hiện tại:** v4.9.0.0 · Build 2026.08.21
+**Phiên bản hiện tại:** v4.9.0.0 · Build 2026.08.22
 **Tác giả và phát triển:** Thanh Việt
 **Trang tải luôn trỏ tới bản mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
@@ -27,6 +27,8 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.9.exe |
 - **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
 - **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.
 - **Nhận diện mở rộng nhưng thận trọng:** đối chiếu Product ID, publisher, chữ ký, đường dẫn, service, task, Registry và trạng thái cấp phép. `Chưa xác minh` không tự biến thành kết luận crack và không đủ điều kiện tự động làm sạch.
+- **Kiểm kê toàn máy rõ nguồn:** bổ sung AppX/MSIX, shortcut mọi hồ sơ người dùng, Scoop, Chocolatey, Steam và vùng portable giới hạn; gom bản ghi trùng, nhóm thành phần phụ theo sản phẩm chính và công bố phạm vi đọc có/không có quyền quản trị.
+- **Đọc cấp phép có chẩn đoán:** lượt quét Windows/Office/Phần mềm/Toàn bộ yêu cầu UAC, kiểm tra dịch vụ cần thiết, thử CIM rồi WMI và phân biệt `không đọc được dữ liệu` với `chưa kích hoạt`.
 - **Khắc phục có hậu kiểm:** từng mục có định danh và trạng thái riêng. Tool chỉ báo `VerifiedClean` khi hậu kiểm chứng minh dấu vết đã hết và trạng thái cấp phép phù hợp; lỗi có thể thử lại, còn policy hoặc bản cài cần sửa chữa được báo riêng thay vì báo thành công giả.
 - **Quyền riêng tư mặc định:** báo cáo dòng lệnh và bản chia sẻ mặc định che serial, UUID, Processor ID và Asset Tag. Chỉ lựa chọn nội bộ đầy đủ mới giữ định danh.
 - **Giữ nguyên nguyên tắc an toàn:** xem trước, chọn từng mục, xác nhận, backup và hậu kiểm; không tự gỡ phần mềm chỉ vì tên hoặc một dấu vết yếu.
@@ -59,15 +61,15 @@ Nếu catalog chưa đủ bằng chứng, Tool giữ trạng thái `Chưa xác m
 
 Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
 
-## Chính sách mã nguồn từ v4.9
+## Phát triển cộng đồng và mã nguồn có kiểm soát từ v4.9
 
-Bản thực thi chính thức của Tool tiếp tục **miễn phí cho cộng đồng** cho các mục đích hợp pháp theo điều khoản đi kèm. Từ v4.9, mã nguồn phiên bản mới được lưu giữ riêng và do tác giả kiểm soát.
+Bản thực thi chính thức của Tool tiếp tục **miễn phí cho cộng đồng** cho các mục đích hợp pháp theo điều khoản đi kèm. Dự án tiếp nhận báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật của cộng đồng. Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát; đây không phải giấy phép mã nguồn mở.
 
 Thay đổi này được đưa ra sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả phát triển của Tool bị sao chép gần như nguyên trạng, đổi tên/đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hoặc ghi nhận tác giả. Nội dung này **không khẳng định mã nguồn hoặc backend đã bị lấy** khi chưa có bằng chứng kỹ thuật xác nhận.
 
-Người có nhu cầu học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp vẫn có thể liên hệ tác giả để xin quyền truy cập bằng văn bản. Quyền xem không tự cấp quyền sao chép, chia sẻ, sửa đổi, tạo sản phẩm phái sinh, đóng gói, thương mại hóa, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chính sách áp dụng cho mã nguồn từ v4.9 trở đi và không thay đổi hồi tố điều khoản của các phiên bản cũ.
+Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hoặc đóng góp mã phải xin ý kiến và nhận chấp thuận bằng văn bản của tác giả trước khi truy cập. Quyền xem không tự cấp quyền sao chép, chia sẻ, sửa đổi, tạo sản phẩm phái sinh, đóng gói, thương mại hóa, dùng làm dữ liệu huấn luyện, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chính sách áp dụng cho mã nguồn từ v4.9 trở đi và không thay đổi hồi tố điều khoản của các phiên bản cũ.
 
-Đọc [Chính sách mã nguồn riêng từ v4.9](SOURCE-POLICY-v4.9.md), [Thông báo bản quyền và quyền sử dụng](LICENSE-NOTICE.txt) và [Hướng dẫn tiếp cận mã nguồn](README-MA-NGUON.md).
+Đọc [Chính sách phát triển cộng đồng và mã nguồn có kiểm soát](SOURCE-POLICY-v4.9.md), [Thông báo bản quyền và điều khoản sử dụng](LICENSE-NOTICE.txt) và [Hướng dẫn tiếp cận mã nguồn](README-MA-NGUON.md).
 
 ## Tài liệu
 

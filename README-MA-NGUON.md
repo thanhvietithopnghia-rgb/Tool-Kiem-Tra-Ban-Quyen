@@ -1,16 +1,20 @@
-# Hướng dẫn tiếp cận mã nguồn riêng từ v4.9
+# Hướng dẫn tham gia và tiếp cận mã nguồn có kiểm soát từ v4.9
 
-Áp dụng cho Tool Kiểm Tra v4.9.0.0, build 2026.08.21 và các phiên bản mới hơn.
+Áp dụng cho Tool Kiểm Tra v4.9.0.0, build 2026.08.22 và các phiên bản mới hơn.
 
-## Trạng thái mã nguồn
+## Mô hình phát triển
 
-Từ v4.9, mã nguồn phiên bản mới không còn được phân phối công khai. Mã được lưu trong kho riêng, do tác giả Thanh Việt kiểm soát. Bản thực thi chính thức vẫn được cung cấp miễn phí cho cộng đồng tại:
+Tool Kiểm Tra được cung cấp miễn phí và phát triển cùng cộng đồng thông qua báo lỗi, đề xuất, tài liệu, bản dịch, kiểm thử và đóng góp kỹ thuật. Từ v4.9, mã nguồn được quản lý trong môi trường truy cập có kiểm soát bởi tác giả Thanh Việt; đây không phải giấy phép mã nguồn mở. Bản thực thi chính thức được cung cấp miễn phí tại:
 
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
 Tệp thực thi chuẩn của nhánh phiên bản này là `Tool-Kiem-Tra-v4.9.exe`.
 
-Việc chuyển sang nguồn riêng nhằm bảo vệ nguồn gốc và công sức phát triển sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả của Tool bị sao chép gần như nguyên trạng, đổi tên hoặc đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hay ghi nhận tác giả. Tuyên bố này không khẳng định mã nguồn/backend đã bị lấy khi chưa có bằng chứng kỹ thuật xác nhận.
+Việc kiểm soát truy cập nhằm bảo vệ nguồn gốc và công sức phát triển sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả của Tool bị sao chép gần như nguyên trạng, đổi tên hoặc đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hay ghi nhận tác giả. Tuyên bố này không khẳng định mã nguồn/backend đã bị lấy khi chưa có bằng chứng kỹ thuật xác nhận.
+
+## Tham gia không cần truy cập mã nguồn
+
+Cộng đồng có thể gửi báo lỗi, đề xuất tính năng, tài liệu, bản dịch, kịch bản kiểm thử và mẫu dữ liệu đã loại thông tin nhạy cảm qua kênh chính thức. Việc tiếp nhận đóng góp không tự chuyển quyền sở hữu và không cấp quyền đối với mã nguồn chưa công bố.
 
 ## Ai có thể yêu cầu truy cập
 
@@ -22,7 +26,7 @@ Cá nhân hoặc tổ chức có mục đích thiện chí có thể gửi yêu 
 - đề xuất sửa lỗi hoặc đóng góp tính năng;
 - rà soát khả năng tích hợp trong phạm vi được tác giả xem xét riêng.
 
-Quyền truy cập chỉ có hiệu lực sau khi tác giả chấp thuận **bằng văn bản**, theo đúng mục đích, phạm vi, thời hạn, người được truy cập và điều kiện ghi trong chấp thuận.
+Người muốn tham khảo, học tập hoặc làm việc trực tiếp với mã phải xin ý kiến tác giả trước. Quyền truy cập chỉ có hiệu lực sau khi tác giả chấp thuận **bằng văn bản**, theo đúng mục đích, phạm vi, thời hạn, người được truy cập và điều kiện ghi trong chấp thuận.
 
 ## Nội dung nên có trong yêu cầu
 
@@ -52,9 +56,9 @@ Trừ khi văn bản chấp thuận ghi rõ khác, quyền truy cập không cho
 
 Khả năng clone hoặc tạo bản sao cục bộ do nền tảng kỹ thuật cung cấp không tạo thêm quyền pháp lý. Quyền xem không đồng nghĩa quyền sử dụng lại.
 
-## Đóng góp được chấp thuận
+## Đóng góp mã nguồn được chấp thuận
 
-Nếu yêu cầu đóng góp được duyệt, tác giả sẽ cung cấp riêng phạm vi nhánh, tiêu chuẩn kiểm thử, cách gửi thay đổi và điều kiện quyền tác giả. Không gửi mã nguồn v4.9 lên kho công khai, issue công khai, paste service hoặc tệp đính kèm ngoài kênh được chấp thuận.
+Nếu yêu cầu đóng góp được duyệt, tác giả sẽ cung cấp riêng phạm vi nhánh, tiêu chuẩn kiểm thử, cách gửi thay đổi, cách ghi nhận và điều kiện quyền tác giả. Không gửi mã nguồn v4.9 lên kho công khai, issue công khai, paste service hoặc tệp đính kèm ngoài kênh được chấp thuận. Tác giả duy trì quyền xem xét, yêu cầu sửa, chấp nhận hoặc từ chối đóng góp và quyết định bản phát hành chính thức.
 
 Những kiểm soát kỹ thuật quan trọng của v4.9 gồm:
 
@@ -71,8 +75,8 @@ Chính sách này chỉ áp dụng cho mã nguồn từ v4.9 trở đi. Phiên b
 
 ## Tài liệu chính sách chuẩn
 
-- [Chính sách mã nguồn riêng từ v4.9](SOURCE-POLICY-v4.9.md)
-- [Thông báo bản quyền và quyền sử dụng](LICENSE-NOTICE.txt)
+- [Chính sách phát triển cộng đồng và mã nguồn có kiểm soát](SOURCE-POLICY-v4.9.md)
+- [Thông báo bản quyền và điều khoản sử dụng](LICENSE-NOTICE.txt)
 - [Trang tải bản mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest)
 
 Nếu nội dung tóm tắt này khác với văn bản chấp thuận riêng hoặc chính sách đầy đủ, văn bản chấp thuận và `SOURCE-POLICY-v4.9.md` được ưu tiên áp dụng.

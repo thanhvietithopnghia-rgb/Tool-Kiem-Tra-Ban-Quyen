@@ -1,74 +1,73 @@
-THÔNG BÁO BẢN QUYỀN VÀ QUYỀN SỬ DỤNG — ÁP DỤNG TỪ v4.9
+THÔNG BÁO BẢN QUYỀN VÀ ĐIỀU KHOẢN SỬ DỤNG — ÁP DỤNG TỪ v4.9
 
 Copyright (c) 2026 Thanh Việt. Mọi quyền được bảo lưu.
 
-Tool Kiểm Tra tiếp tục được tác giả cung cấp miễn phí cho cộng đồng dưới dạng
-bản thực thi chính thức. “Miễn phí sử dụng” không đồng nghĩa “mã nguồn mở” và
-không chuyển giao quyền sở hữu trí tuệ hoặc quyền đối với mã nguồn.
+Tool Kiểm Tra là phần mềm miễn phí do tác giả phát triển vì cộng đồng và tiếp
+nhận phản hồi, đề xuất, tài liệu, bản dịch hoặc đóng góp kỹ thuật của cộng đồng
+theo quy trình do tác giả công bố. “Miễn phí” và “phát triển cùng cộng đồng”
+không đồng nghĩa “mã nguồn mở”, không chuyển giao quyền sở hữu trí tuệ và không
+tự cấp quyền truy cập, sao chép hoặc sử dụng lại mã nguồn.
 
-Từ phiên bản v4.9, mã nguồn các phiên bản mới được lưu giữ riêng và do tác giả
-kiểm soát. Cá nhân hoặc tổ chức có nhu cầu học tập, nghiên cứu, đánh giá bảo mật
-hoặc đóng góp có thể gửi yêu cầu cho tác giả. Việc truy cập chỉ được phép sau
-khi có chấp thuận bằng văn bản, theo đúng mục đích, phạm vi, thời hạn và điều
-kiện ghi trong chấp thuận.
-
-Trừ khi có văn bản cho phép riêng, quyền truy cập không cho phép sao chép ngoài
-bản kỹ thuật cần thiết trong môi trường được cấp; chia sẻ tài khoản hoặc chuyển
-quyền truy cập; công bố, mirror hoặc phát tán mã nguồn; sửa đổi hoặc tạo sản phẩm
-phái sinh; đóng gói lại, đổi tên, đổi thương hiệu, mạo danh tác giả; bán, cho
-thuê, thương mại hóa hoặc tích hợp vào sản phẩm/dịch vụ khác; xóa hoặc thay đổi
-thông tin tác giả, bản quyền và nguồn chính thức.
-
-Người dùng được tải và sử dụng miễn phí bản thực thi chính thức, nguyên trạng
+Người dùng được tải và sử dụng miễn phí bản thực thi chính thức, nguyên trạng,
 cho mục đích hợp pháp cá nhân, giáo dục, nghiên cứu, cộng đồng và nội bộ tổ chức.
-Được phép chia sẻ đường dẫn tải chính thức; không được đăng lại tệp, đóng gói kèm
-sản phẩm khác, thu phí, đổi thương hiệu hoặc tuyên bố là tác giả khi chưa có
-chấp thuận bằng văn bản.
+Được phép chia sẻ đường dẫn tải chính thức. Nếu chưa có chấp thuận bằng văn bản,
+không được đăng lại tệp, đóng gói kèm sản phẩm khác, sửa đổi, bán, thu phí, đổi
+tên/đổi thương hiệu, mạo danh tác giả, xóa thông tin nguồn gốc hoặc vượt qua cơ
+chế xác minh bản chính thức.
 
-Chính sách này chỉ áp dụng cho mã nguồn từ v4.9 trở đi. Các phiên bản trước tiếp
-tục chịu điều khoản đi kèm tại thời điểm phát hành; không có thay đổi hồi tố đối
-với quyền đã được cấp hợp lệ trước đây. Việc một phiên bản cũ từng có thể xem
-công khai không tự biến phiên bản đó thành phần mềm mã nguồn mở nếu không có
-giấy phép cấp các quyền mã nguồn mở.
+Từ v4.9, mã nguồn được quản lý theo cơ chế truy cập có kiểm soát. Cá nhân hoặc
+tổ chức muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật hay đóng góp phải
+xin ý kiến và nhận chấp thuận bằng văn bản của tác giả trước khi truy cập. Mỗi
+chấp thuận chỉ có hiệu lực cho đúng người, mục đích, phạm vi, thời hạn và điều
+kiện được ghi rõ; tác giả có quyền giới hạn hoặc từ chối yêu cầu.
 
-Phần mềm được cung cấp nguyên trạng, không có bảo đảm. Người dùng chịu trách
-nhiệm sao lưu và xác minh phạm vi sử dụng trước thao tác thay đổi hệ thống.
+Quyền xem mã không tự cho phép sao chép, chia sẻ, công bố, mirror, sửa đổi, tạo
+sản phẩm phái sinh, đóng gói, tích hợp, thương mại hóa, dùng làm dữ liệu huấn
+luyện, đổi thương hiệu hoặc xóa ghi nhận tác giả. Chỉ được thực hiện các hành vi
+nêu trên khi văn bản chấp thuận cho phép rõ ràng. Đóng góp mã nguồn chỉ được tiếp
+nhận theo phạm vi, kênh gửi, điều kiện quyền tác giả và kiểm thử do tác giả chấp
+thuận riêng.
 
-COPYRIGHT AND USE NOTICE — EFFECTIVE FROM v4.9
+Chính sách này áp dụng cho mã nguồn từ v4.9 trở đi. Phiên bản trước tiếp tục
+chịu điều khoản đi kèm tại thời điểm phát hành; không hồi tố quyền đã được cấp
+hợp lệ. Phần mềm được cung cấp nguyên trạng, không có bảo đảm. Người dùng chịu
+trách nhiệm sao lưu, tuân thủ pháp luật và xác minh phạm vi quản trị trước mọi
+thao tác thay đổi hệ thống.
+
+COPYRIGHT AND TERMS OF USE — EFFECTIVE FROM v4.9
 
 Copyright (c) 2026 Thanh Viet. All rights reserved.
 
-Tool Kiem Tra remains available to the community free of charge as an official
-executable build. “Free to use” does not mean “open source” and does not transfer
-ownership of the software or any right in its source code.
-
-Starting with v4.9, source code for new versions is privately held and
-controlled by the author. Individuals and organizations may request access for
-study, research, security review, or contribution. Access is permitted only
-after written approval and only for the purpose, scope, duration, and conditions
-stated in that approval.
-
-Unless separate written permission expressly says otherwise, access does not
-permit copying beyond the technical copy required inside the approved access
-environment; account sharing or transfer of access; publication, mirroring, or
-distribution of source; modification or derivative products; repackaging,
-renaming, rebranding, or impersonation; sale, rental, commercialization, or
-integration into another product or service; or removal or alteration of author,
-copyright, and official-source notices.
+Tool Kiem Tra is free software developed for the community. Community feedback,
+proposals, documentation, translations, and technical contributions are welcome
+through processes published by the author. “Free” and “community-developed” do
+not mean “open source”, transfer intellectual-property ownership, or grant any
+automatic right to access, copy, or reuse source code.
 
 Users may download and use an unmodified official executable free of charge for
 lawful personal, educational, research, community, and internal organizational
-purposes. The official download link may be shared. The file may not be
-rehosted, bundled, sold, rebranded, or claimed as another person's work without
-written permission.
+purposes. The official download link may be shared. Without written approval,
+the file may not be rehosted, bundled, modified, sold, monetized, renamed,
+rebranded, claimed as another person's work, stripped of origin notices, or
+altered to bypass official-build verification.
 
-This policy applies only to source code from v4.9 onward. Earlier versions remain
-governed by the terms distributed with those versions; this notice does not
-retroactively change rights validly granted before v4.9. Public visibility of an
-older version did not by itself make that version open source in the absence of
-a licence granting open-source rights.
+Starting with v4.9, source code is managed through controlled access. Anyone who
+wants to review, study, research, security-test, or contribute to the source
+must first request and receive the author's written approval. Each approval is
+limited to the named recipient, purpose, scope, duration, and conditions. The
+author may limit or decline a request.
 
-The software is provided “as is”, without warranty. Users are responsible for
-backups and for confirming their authorized scope before system-changing work.
+Permission to view source does not itself permit copying, disclosure,
+publication, mirroring, modification, derivative works, packaging, integration,
+commercialization, training-data use, rebranding, or removal of attribution.
+Such activity is allowed only when expressly stated in the written approval.
+Source contributions are accepted only under separately approved scope,
+submission channel, copyright terms, and test requirements.
+
+This policy applies to source code from v4.9 onward. Earlier versions remain
+governed by the terms distributed with them; rights validly granted earlier are
+not retroactively changed. The software is provided “as is”, without warranty.
+Users are responsible for backups, legal compliance, and confirming their
+authorized administrative scope before system-changing work.
 
 Chi tiết / Full policy: SOURCE-POLICY-v4.9.md

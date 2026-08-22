@@ -2,7 +2,7 @@
 
 Developed by Thanh Viet
 
-Version: **v4.9.0.0** · Build **2026.08.21**
+Version: **v4.9.0.0** · Build **2026.08.22**
 Official file: `Tool-Kiem-Tra-v4.9.exe`
 Stable latest-release page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
@@ -385,9 +385,9 @@ The task appears stuck:
 
 ## Source and use policy from v4.9
 
-The official executable remains free of charge for the community under its accompanying terms. Starting with v4.9, source for new versions is privately held and controlled by the author. This change follows observed near-verbatim copying of the Tool's content, interface, descriptions, and development work, followed by renaming or rebranding as a personal product without permission or attribution. It does not claim that backend or source code was taken where technical evidence has not established that.
+The official executable remains free of charge for the community under its accompanying terms. The project welcomes bug reports, proposals, documentation, translations, testing, and technical contributions. Starting with v4.9, source is managed through controlled access; “community-developed” does not mean open source. This policy protects origin after observed near-verbatim copying and rebranding of the Tool's content, interface, descriptions, and development work without permission or attribution. It does not claim that backend or source code was taken where technical evidence has not established that.
 
-Good-faith study, research, security review, and contribution requests may be submitted for written approval. Access does not by itself permit copying, disclosure, modification, repackaging, commercialization, rebranding, or removal of attribution. The policy applies from v4.9 onward and does not retroactively alter the terms of older versions. See `SOURCE-POLICY-v4.9.md` and `LICENSE-NOTICE.txt` in the official repository.
+Anyone wishing to review, study, research, security-test, or contribute to the source must first request and receive the author's written approval. Viewing does not itself permit copying, disclosure, modification, repackaging, commercialization, training-data use, rebranding, or removal of attribution. The policy applies from v4.9 onward and does not retroactively alter the terms of older versions. See `SOURCE-POLICY-v4.9.md` and `LICENSE-NOTICE.txt` in the official repository.
 
 ## Support
 

@@ -15,6 +15,7 @@
 - Cập nhật điều khoản từ v4.9 và rút gọn lịch sử v4.8/v4.9 theo thay đổi cốt lõi; bỏ mốc v4.8.0.1 khỏi lịch sử hiển thị.
 
 - Khôi phục giao diện PDF chi tiết theo phong cách v4.8: khổ A4 sáng, khung xanh, năm thẻ trạng thái, bảng gọn hơn và phụ lục đồng nhất xanh–trắng. Chủ đề `v4.8-classic-a4` chỉ áp dụng cho PDF, không làm thay đổi dữ liệu, quyền riêng tư hoặc cơ chế kiểm tra của v4.9.
+- Sửa trường hợp Tool chạy nâng quyền hoặc ghi báo cáo sang hồ sơ người dùng khác khiến Edge không truy cập được tệp nguồn và âm thầm rơi xuống Microsoft Word, làm mất bố cục v4.8. HTML/PDF trung gian nay nằm trong profile tạm đã khóa ACL; Tool thử lần lượt Edge rồi Chrome, chờ tệp PDF có header/EOF và dung lượng ổn định, sau đó tiến trình cha mới chép PDF hợp lệ về thư mục báo cáo. Nếu cả hai trình duyệt lỗi, presentation mang theme v4.8 sẽ báo PDF chưa tạo và giữ HTML/JSON/XML thay vì sinh một PDF Word sai giao diện.
 
 Build: **2026.08.22**
 

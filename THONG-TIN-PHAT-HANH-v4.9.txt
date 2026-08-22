@@ -4,13 +4,13 @@ Release build date: 2026.08.22
 Release label: 4.9.0.0-production-20260822
 Release status: Production (da dat ma tran E2E HTML/JSON/XML/PDF, x64/x86, ky so va hash).
 Tep chay duy nhat: Tool-Kiem-Tra-v4.9.exe
-SHA-256: A525D730D702838B8234F86798A11EA2B83346F05DD6EF5696D13566272B884C
+SHA-256: C66CDB640C4E7CA6D92D82B2CCAE90945B0FA28C1DDB206D865AA74136F13C22
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.
 Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.
 Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.
-Payload nhung duoc toi uu SolidDeflateBundle-v1: 54 tep trong mot resource Deflate co header fail-closed; giam 78.67% va van doi chieu SHA-256 tung tep sau giai nen.
+Payload nhung duoc toi uu SolidDeflateBundle-v1: 54 tep trong mot resource Deflate co header fail-closed; giam 78.66% va van doi chieu SHA-256 tung tep sau giai nen.
 Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.
 Dashboard schema 2.0: WinForms hien dai, bang mau trung tinh, the trang thai Windows/Office, tile co mo ta, responsive DPI va mac dinh giao dien sang.
 Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.

@@ -12,7 +12,7 @@
                           "FileName":  "Tool-Kiem-Tra-v4.9.exe",
                           "Architecture":  "AnyCPU",
                           "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
-                          "Sha256":  "A525D730D702838B8234F86798A11EA2B83346F05DD6EF5696D13566272B884C",
+                          "Sha256":  "C66CDB640C4E7CA6D92D82B2CCAE90945B0FA28C1DDB206D865AA74136F13C22",
                           "AuthenticodeStatus":  "Valid",
                           "AuthenticodeSigner":  "CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing)",
                           "AuthenticodeThumbprint":  "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA",
@@ -45,11 +45,11 @@
                                "ResourceCount":  1,
                                "PayloadCount":  54,
                                "HeaderBytes":  456,
-                               "SourceBytes":  3003861,
-                               "BundleBytes":  3004317,
-                               "EmbeddedBytes":  640651,
-                               "SavedBytes":  2363210,
-                               "SavingsPercent":  78.67,
+                               "SourceBytes":  3009012,
+                               "BundleBytes":  3009468,
+                               "EmbeddedBytes":  642005,
+                               "SavedBytes":  2367007,
+                               "SavingsPercent":  78.66,
                                "MaximumPayloadBytes":  8388608,
                                "MaximumPayloadDataBytes":  16777216,
                                "MaximumCompressedBytes":  16777216,
@@ -371,5 +371,5 @@
                              "Status":  "NotClaimed",
                              "Reason":  "Launcher la managed IL; CSC khong tao CFG instrumentation/load-config native. Khong gan co GUARD_CF gia."
                          },
-    "BuiltAtUtc":  "2026-08-22T19:01:23.4753199Z"
+    "BuiltAtUtc":  "2026-08-22T23:34:17.5840365Z"
 }

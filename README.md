@@ -60,7 +60,7 @@ Nếu catalog chưa đủ bằng chứng, Tool giữ trạng thái `Chưa xác m
 
 ## Báo cáo và quyền riêng tư
 
-Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. PDF chi tiết dùng chủ đề `v4.8-classic-a4`, giữ giao diện A4 sáng, khung xanh, năm thẻ trạng thái và bảng gọn theo phong cách v4.8 trong khi vẫn giữ toàn bộ dữ liệu v4.9. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
+Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. PDF chi tiết dùng chủ đề `v4.8-classic-a4`, giữ giao diện A4 sáng, khung xanh, năm thẻ trạng thái và bảng gọn theo phong cách v4.8 trong khi vẫn giữ toàn bộ dữ liệu v4.9. Khi tạo PDF, công cụ dùng Chromium theo thứ tự Edge → Chrome, xuất qua vùng staging an toàn và không fallback sang Microsoft Word để tránh làm vỡ bố cục. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
 
 ## Phát triển cộng đồng và mã nguồn có kiểm soát từ v4.9
 

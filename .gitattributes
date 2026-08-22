@@ -1,5 +1,13 @@
 *.json text eol=lf
 update-manifest-v1.json binary
+HUONG-DAN.txt binary
+LICH-SU-PHIEN-BAN.txt binary
+RELEASE-MANIFEST.json binary
+RELEASE-NOTES-v4.9.md binary
+RELEASE-SHA256SUMS.txt binary
+THONG-TIN-PHAT-HANH-v4.9.txt binary
+USER-GUIDE-en-US.md binary
+VERSION-HISTORY-en-US.md binary
 *.p7s binary
 *.ico binary
 *.exe binary

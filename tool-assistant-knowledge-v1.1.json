@@ -1,10 +1,10 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.4.1",
-  "UpdatedAtUtc": "2026-08-22T07:00:00Z",
-  "ToolVersionMin": "4.9.0.0",
-  "ToolVersionMax": "4.9.65535.65535",
-  "ReleasedWithToolVersion": "4.9.0.0",
+  "KnowledgeVersion": "1.5.0",
+  "UpdatedAtUtc": "2026-08-24T14:07:47Z",
+  "ToolVersionMin": "5.0.0.0",
+  "ToolVersionMax": "5.0.65535.65535",
+  "ReleasedWithToolVersion": "5.0.0.0",
   "Scope": "Tool-Kiem-Tra",
   "Entries": [
     {
@@ -19,9 +19,9 @@
       "Id": "tool-version",
       "TitleVi": "Phiên bản hiện tại",
       "TitleEn": "Current version",
-      "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v4.9", "v4.9.0.0", "release v4.9"],
-      "AnswerVi": "Phiên bản hiện tại là Tool Kiểm Tra v4.9.0.0. Bản này bổ sung xác minh nguồn gốc, catalog ký số mở rộng, hậu kiểm khắc phục và báo cáo che định danh theo mặc định.",
-      "AnswerEn": "The current release is Tool Kiem Tra v4.9.0.0. It adds provenance verification, an expanded signed catalog, remediation post-checks, and identifier-redacted reports by default."
+      "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v5.0", "v5.0.0.0", "release v5.0"],
+      "AnswerVi": "Bản mới nhất của nhánh v5 là Tool Kiểm Tra v5.0.0.0 ManagedSigned. Bản này tăng cường cổng ký phát hành, độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất báo cáo doanh nghiệp và tách Khắc phục thành Windows, Microsoft Office, phần mềm khác.",
+      "AnswerEn": "The latest v5 branch build is Tool Kiem Tra v5.0.0.0 ManagedSigned. It strengthens release-signing gates, catalog freshness, signed plugins, three scan levels, dark/DPI UI support, enterprise reporting, and separates remediation into Windows, Microsoft Office, and other software."
     },
     {
       "Id": "tool-author",
@@ -35,25 +35,25 @@
       "Id": "release-date",
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
-      "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v4.9"],
-      "AnswerVi": "Bản v4.9.0.0 hiện tại được build ngày 22/08/2026. Có thể mở Lịch sử phiên bản trong Trung tâm báo cáo & bảo đảm để xem các mốc thay đổi và phạm vi phát hành.",
-      "AnswerEn": "The current v4.9.0.0 build was produced on 22 August 2026. Open Version history in the Assurance Report Center for the change timeline and release scope."
+      "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v5.0"],
+      "AnswerVi": "Bản v5.0.0.0 ManagedSigned được build ngày 24/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
+      "AnswerEn": "The v5.0.0.0 ManagedSigned build was produced on 24 August 2026 for environments where the administrator trust certificate has been distributed. A public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
     },
     {
       "Id": "first-release",
       "TitleVi": "Phiên bản công khai đầu tiên",
       "TitleEn": "First public release",
       "Keywords": ["phien ban dau tien cua tool", "v1.0 phat hanh ngay nao", "v1 ngay nao", "ngay ra mat v1.0", "first public version", "first release date", "ban dau tien", "ban dau tien ngay may", "lich su ban v1.0"],
-      "AnswerVi": "Phiên bản công khai đầu tiên là Tool Kiểm Tra v1.0, phát hành ngày 17/07/2026. Đây là mốc đầu tiên trong Lịch sử phiên bản, không phải ngày build của phiên bản v4.9.0.0 hiện tại.",
-      "AnswerEn": "The first public release was Tool Kiem Tra v1.0 on 17 July 2026. This is the first milestone in Version history, not the build date of the current v4.9.0.0 release."
+      "AnswerVi": "Phiên bản công khai đầu tiên là Tool Kiểm Tra v1.0, phát hành ngày 17/07/2026. Đây là mốc đầu tiên trong Lịch sử phiên bản, không phải ngày build của phiên bản v5.0.0.0 hiện tại.",
+      "AnswerEn": "The first public release was Tool Kiem Tra v1.0 on 17 July 2026. This is the first milestone in Version history, not the build date of the current v5.0.0.0 build."
     },
     {
       "Id": "tool-pricing",
       "TitleVi": "Tool miễn phí hay trả phí",
       "TitleEn": "Tool pricing",
       "Keywords": ["tool mien phi hay tra phi", "tool co mat phi khong", "co ton tien khong", "gia tool", "free or paid tool", "is it free", "tool pricing", "phi su dung tool", "mien phi"],
-      "AnswerVi": "Tool Kiểm Tra v4.9.0.0 được cung cấp miễn phí cho cộng đồng: không thu phí tải xuống hoặc sử dụng các chức năng tích hợp. Việc Tool miễn phí không đồng nghĩa mã nguồn mở và không thay đổi điều khoản bản quyền của các phần mềm được quét.",
-      "AnswerEn": "Tool Kiem Tra v4.9.0.0 is provided free of charge to the community: there is no fee to download or use its built-in features. Free use of the Tool does not make its source open source or alter the licence terms of software being scanned."
+      "AnswerVi": "Tool Kiểm Tra v5.0.0.0 được cung cấp miễn phí cho cộng đồng: không thu phí tải xuống hoặc sử dụng các chức năng tích hợp. Việc Tool miễn phí không đồng nghĩa mã nguồn mở và không thay đổi điều khoản bản quyền của các phần mềm được quét.",
+      "AnswerEn": "Tool Kiem Tra v5.0.0.0 is provided free of charge to the community: there is no fee to download or use its built-in features. Free use of the Tool does not make its source open source or alter the licence terms of software being scanned."
     },
     {
       "Id": "source-code-license",
@@ -68,8 +68,8 @@
       "TitleVi": "Không đọc được dữ liệu cấp phép khác với chưa kích hoạt",
       "TitleEn": "Unreadable licensing data versus unactivated",
       "Keywords": ["khong doc duoc du lieu ban quyen", "khong truy cap duoc softwarelicensingproduct", "wmi cim loi", "chua kich hoat nhung van dung duoc", "license data unavailable", "unreadable license data", "sppsvc winmgmt"],
-      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v4.9 build 22/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
-      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 22 August v4.9 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
+      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v5.0 build 24/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
+      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 24 August v5.0 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
     },
     {
       "Id": "software-inventory-coverage",
@@ -348,8 +348,8 @@
       "TitleVi": "Cảnh báo SmartScreen/antivirus",
       "TitleEn": "SmartScreen or antivirus warning",
       "Keywords": ["virus", "antivirus", "defender", "smartscreen", "unknown publisher", "chu ky so", "ky so", "signpath"],
-      "AnswerVi": "Bản v4.8 có chữ ký Authenticode tự ký miễn phí để nhận biết tệp bị sửa, nhưng chứng thư không được Windows tin cậy công khai nên SmartScreen vẫn có thể cảnh báo như tệp chưa ký. Không tắt Defender; hãy dùng nguồn chính thức, đối chiếu SHA-256 và xem chứng thư bằng Get-AuthenticodeSignature.",
-      "AnswerEn": "v4.8 carries a free self-signed Authenticode signature for tamper detection, but the certificate is not publicly trusted, so SmartScreen may still warn as it does for an unsigned file. Do not disable Defender; use the official source, compare SHA-256, and inspect the certificate with Get-AuthenticodeSignature."
+      "AnswerVi": "Bản v5.0 ManagedSigned dùng Authenticode tự ký để nhận biết tệp bị sửa và chỉ được tin cậy trên máy đã cài chứng thư quản trị. Chứng thư này không được Windows tin cậy công khai nên SmartScreen vẫn có thể cảnh báo. Không tắt Defender; hãy dùng nguồn chính thức, đối chiếu SHA-256 và xem chứng thư bằng Get-AuthenticodeSignature.",
+      "AnswerEn": "v5.0 ManagedSigned uses a self-signed Authenticode certificate for tamper detection and is trusted only on machines where the administrator certificate is installed. It is not publicly trusted, so SmartScreen may still warn. Do not disable Defender; use the official source, compare SHA-256, and inspect the certificate with Get-AuthenticodeSignature."
     },
     {
       "Id": "manual-review",
@@ -516,8 +516,8 @@
       "TitleVi": "Kênh hỗ trợ của Tool",
       "TitleEn": "Tool support channels",
       "Keywords": ["kenh ho tro cua tool", "lien he nguoi phat trien", "email cua tac gia", "zalo cua tac gia", "gui loi cho thanh viet", "can ho tro ky thuat"],
-      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v4.9.0.0, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
-      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v4.9.0.0, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
+      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v5.0.0.0, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
+      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v5.0.0.0, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
     },
     {
       "Id": "plugin-management",
@@ -556,8 +556,8 @@
       "TitleVi": "Định dạng báo cáo hỗ trợ",
       "TitleEn": "Supported report formats",
       "Keywords": ["bao cao xuat dinh dang gi", "tool co xuat docx khong", "cac loai tep bao cao", "json xml html pdf checksum", "dinh dang bao cao ho tro", "xuat word tu tool"],
-      "AnswerVi": "Các lượt quét chính tạo dữ liệu JSON/XML, bản HTML tổng quan, PDF chi tiết và tệp checksum/manifest khi áp dụng. Tool v4.8 không xuất DOCX/Word trực tiếp. Nếu cần Word, hãy dùng HTML/PDF đã che thông tin làm nguồn và giữ nguyên JSON/checksum gốc để còn khả năng đối chiếu; không sửa báo cáo gốc rồi coi là bằng chứng do Tool tạo.",
-      "AnswerEn": "Main scans produce JSON/XML data, an HTML overview, a detailed PDF, and checksum/manifest files where applicable. v4.8 does not export DOCX/Word directly. If Word is needed, use a redacted HTML/PDF as the source and preserve original JSON/checksums for verification; an edited derivative is not original Tool evidence."
+      "AnswerVi": "Các lượt quét chính tạo dữ liệu JSON/XML, bản HTML tổng quan, PDF chi tiết và tệp checksum/manifest khi áp dụng. Tool v5.0 không xuất DOCX/Word trực tiếp. Nếu cần Word, hãy dùng HTML/PDF đã che thông tin làm nguồn và giữ nguyên JSON/checksum gốc để còn khả năng đối chiếu; không sửa báo cáo gốc rồi coi là bằng chứng do Tool tạo.",
+      "AnswerEn": "Main scans produce JSON/XML data, an HTML overview, a detailed PDF, and checksum/manifest files where applicable. v5.0 does not export DOCX/Word directly. If Word is needed, use a redacted HTML/PDF as the source and preserve original JSON/checksums for verification; an edited derivative is not original Tool evidence."
     }
   ]
 }

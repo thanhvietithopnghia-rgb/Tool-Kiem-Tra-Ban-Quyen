@@ -2,9 +2,12 @@
 
 Developed by Thanh Viet
 
-Version: **v4.9.0.0** · Build **2026.08.22**
-Official file: `Tool-Kiem-Tra-v4.9.exe`
-Stable latest-release page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+ManagedSigned version: **v5.0.0.0** · Build **2026.08.24**
+Executable: `Tool-Kiem-Tra-v5.0.exe`
+v5 ManagedSigned page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
+Latest public Stable page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+> `ManagedSigned` is for machines that received the administrator trust certificate. It is not public-CA Stable, and public self-update remains disabled.
 
 This guide explains how to use the Tool's features on a Windows computer. Release-specific changes are documented separately in **Version History**; this guide focuses only on actions, result interpretation, and safe operating practices.
 
@@ -26,7 +29,7 @@ This guide explains how to use the Tool's features on a Windows computer. Releas
 5. Ensure the system drive and Desktop have enough free space for backups and report packages.
 6. Keep Offline enabled unless you intentionally need a catalog update or authorized LAN management.
 
-The single-file EXE carries a signature and provenance manifest for tamper detection. Verification does not remove every SmartScreen warning and cannot absolutely prevent copying or reverse engineering. Download `Tool-Kiem-Tra-v4.9.exe` only from <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>, compare its SHA-256, Build ID, signature, and provenance data, inspect the certificate with `Get-AuthenticodeSignature`, and scan with Microsoft Defender. Do not disable Defender or SmartScreen. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
+A Stable single-file EXE carries a trusted signature and provenance manifest for tamper detection. Verification does not remove every SmartScreen warning and cannot absolutely prevent copying or reverse engineering. Download Stable builds only from <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>, compare SHA-256, Build ID, signature, and provenance data, inspect the certificate with `Get-AuthenticodeSignature`, and scan with Microsoft Defender. Do not disable Defender or SmartScreen. On a managed computer, contact the administrator if AppLocker or WDAC blocks it.
 
 ## How to run the Tool
 
@@ -42,7 +45,13 @@ The single-file EXE carries a signature and provenance manifest for tamper detec
 
 You do not need source access, configuration files, or technical documentation to use the executable.
 
-## What v4.9 changes
+## What v5.0 changes
+
+- ManagedSigned uses a distinct state and enables approved system actions only when Authenticode, timestamp, provenance, and administrator trust all validate on the machine.
+- Stable requires a CA-issued/HSM signing certificate, RFC3161 timestamp, valid CMS provenance, a clean source commit, and a fully passing verifier suite.
+- Catalog freshness is explicit, and third-party plugins accept only signed declarative metadata from pinned publisher fingerprints.
+- Quick, Standard, and Deep scans, system-aware dark/light themes, PerMonitorV2 DPI, and safe fleet exports support larger deployments.
+- Remediation is split into Windows, Microsoft Office, and other software; each entry locks the scope from the initial scan through backup, confirmation, and post-check.
 
 - The launcher and provenance manifest verify the signature, pinned certificate, metadata, and Build ID. A modified or unverifiable build is warned about and fails closed for updates and system-changing actions.
 - The online catalog is signed, accepts only allowlisted declarative rules, maintains a persistent version floor to prevent downgrades, and retains a previous-cache fallback.
@@ -160,11 +169,23 @@ Important interpretation rules:
 - Unverified is a neutral result, not an error or approval.
 - Software & tampering indicators is read-only and does not remove or repair software.
 
-## Windows, Office & software KMS/Activator remediation
+## Windows, Microsoft Office, and other-software remediation
 
 This group can change the system. Use it only after reviewing evidence, closing affected applications, and preparing an official installer or valid license.
 
-The menu contains four choices:
+Under **Remediation**, choose **Remediate Windows**, **Remediate Microsoft Office**, or **Remediate other software**. That scope remains locked throughout the workflow. The combined tile on **Overview** still supports manual scope selection. Each entry contains four choices:
+
+### Remediate Windows
+
+Inspects and remediates only Windows KMS/Activator evidence, keys/Activation IDs, and licensing configuration. It does not widen into Office or other applications.
+
+### Remediate Microsoft Office
+
+Inspects and remediates only the selected Office SKU/Activation ID, preserves coexisting valid SKUs, and does not change Windows or other software.
+
+### Remediate other software
+
+Acts only on a strongly verified artifact or blocked hosts entry. It never uninstalls the application, resets a vendor licensing store, or widens into Windows/Office.
 
 1. Backup before changes.
 2. Inspect and return Windows, Office, or software to an original/unactivated state.
@@ -183,14 +204,14 @@ The backup does not store complete keys or tokens and cannot be used to restore 
 
 ### Choice 2 – Manual inspection and remediation
 
-This screen offers three ways to proceed; all three open the same Windows, Office, and Other software checkboxes:
+This screen offers three ways to proceed. A remediation sub-entry uses its locked scope without widening into another group; the combined Overview tile opens the Windows, Office, and Other software checkboxes:
 
 - **Online:** after explicit consent, the Tool downloads the allowed comparison catalog and scans only the selected scopes; it does not upload the software inventory or machine data.
 - **Dry Run — no system changes:** choose the scope and individual items normally, then review the exact file/Registry/service/task targets, intended actions, reasons, backup plan, and restorability. It scans and writes a report only; it does not create a restore point or backup, stop a process/service, delete a file, or edit system state.
 - **Inspect and return to original state:** follows the real workflow below. Choosing **Execute for real** after a Dry Run always reopens item selection and requires confirmation again; a simulated plan is never executed automatically.
 
 1. Select Inspect and return to original state.
-2. Select one or more scopes—Windows, Office, and Other software—then choose Continue.
+2. Confirm the locked scope, or from the combined Overview tile select one or more scopes—Windows, Office, and Other software—then choose Continue.
 3. Wait for the read-only scan to complete; no change occurs yet.
 4. If WMI/CIM, licensing services, or Task Scheduler are incomplete, use Quick repair scan sources and scan again.
 5. Review application name, item type, evidence, confidence, and action plan.
@@ -299,13 +320,13 @@ If Incomplete coverage is reported, check for missing Administrator rights, scan
 
 ## Online catalog update
 
-The update is available in Windows, Office & software KMS/Activator remediation on the Inspect and return to original state screen.
+The online catalog update is available under **Remediate other software** or the combined Overview remediation tile, on the Inspect and return to original state screen.
 
-1. Open Windows, Office & software KMS/Activator remediation.
+1. Open Remediate other software or the combined Overview remediation tile.
 2. Select Inspect and return to original state.
 3. Select Online connection.
 4. Read the privacy notice and consent if you want to continue.
-5. Wait for completion, return, and select a scan scope.
+5. Wait for completion, then continue with the other-software scope.
 
 This action downloads recognition rules only. It does not upload software inventory, paths, product keys, tokens, or reports. If it fails, continue Offline with the built-in catalog.
 

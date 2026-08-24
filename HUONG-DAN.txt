@@ -2,9 +2,12 @@
 
 Phát triển bởi Thanh Việt
 
-Phiên bản: **v4.9.0.0** · Build **2026.08.22**
-Tệp chính thức: `Tool-Kiem-Tra-v4.9.exe`
-Trang tải luôn trỏ tới bản mới nhất: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`
+Phiên bản ManagedSigned: **v5.0.0.0** · Build **2026.08.24**
+Tệp chạy: `Tool-Kiem-Tra-v5.0.exe`
+Trang v5 ManagedSigned: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0`
+Stable công khai mới nhất: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`
+
+> Bản `ManagedSigned` chỉ dành cho máy đã được quản trị viên phân phối chứng thư tin cậy. Đây không phải public-CA Stable; tự cập nhật công khai vẫn bị khóa.
 
 Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng của Tool trên máy tính Windows. Nội dung cập nhật theo từng bản phát hành được tách riêng trong **Lịch sử phiên bản**; HDSD chỉ tập trung vào thao tác, cách đọc kết quả và nguyên tắc sử dụng an toàn.
 
@@ -26,7 +29,7 @@ Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng
 5. Đảm bảo còn đủ dung lượng trên ổ hệ thống và Desktop để lưu backup, gói báo cáo và dữ liệu kiểm tra.
 6. Mặc định nên giữ Offline. Chỉ bật Online khi cần cập nhật danh mục nhận diện hoặc dùng chức năng quản lý trong mạng nội bộ.
 
-Tệp một-EXE có chữ ký và manifest nguồn gốc để nhận biết tệp bị sửa. Cơ chế xác minh không loại bỏ mọi cảnh báo SmartScreen và không thể ngăn tuyệt đối việc sao chép/dịch ngược. Chỉ tải `Tool-Kiem-Tra-v4.9.exe` từ trang chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`, đối chiếu SHA-256/Build ID/chữ ký, xem chứng thư bằng `Get-AuthenticodeSignature` và quét lại bằng Microsoft Defender. Không tắt Defender/SmartScreen; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
+Tệp Stable một-EXE phải có chữ ký và manifest nguồn gốc để nhận biết tệp bị sửa. Cơ chế xác minh không loại bỏ mọi cảnh báo SmartScreen và không thể ngăn tuyệt đối việc sao chép/dịch ngược. Chỉ tải bản Stable từ trang chính thức `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`, đối chiếu SHA-256/Build ID/chữ ký, xem chứng thư bằng `Get-AuthenticodeSignature` và quét lại bằng Microsoft Defender. Không tắt Defender/SmartScreen; trên máy doanh nghiệp hãy liên hệ quản trị viên nếu AppLocker/WDAC chặn.
 
 ## Cách chạy Tool
 
@@ -42,7 +45,13 @@ Tệp một-EXE có chữ ký và manifest nguồn gốc để nhận biết t�
 
 Không cần truy cập mã nguồn, tệp cấu hình hoặc tài liệu kỹ thuật để sử dụng bản EXE.
 
-## Điểm cần biết trong v4.9
+## Điểm cần biết trong v5.0
+
+- Bản ManagedSigned hiển thị trạng thái riêng, chỉ mở thao tác hệ thống khi Authenticode, timestamp, provenance và chứng thư quản trị đều hợp lệ trên máy.
+- Stable chỉ được tạo khi chứng thư CA-issued/HSM, RFC3161 timestamp, provenance CMS, source commit sạch và bộ verifier đều đạt.
+- Catalog có trạng thái độ mới; plugin bên thứ ba chỉ dùng metadata khai báo đã ký với fingerprint nhà phát hành được ghim.
+- Có ba mức Quick/Standard/Deep, giao diện dark/light theo hệ thống, PerMonitorV2 DPI và xuất fleet an toàn cho quản trị doanh nghiệp.
+- Mục Khắc phục tách thành ba chức năng con: Windows, Microsoft Office và phần mềm khác; mỗi chức năng khóa đúng phạm vi từ lúc quét đến hậu kiểm.
 
 - Launcher và manifest nguồn gốc kiểm tra chữ ký, chứng thư, metadata và Build ID. Nếu bản chạy bị sửa hoặc không xác minh được, Tool cảnh báo và chặn cập nhật/thao tác thay đổi hệ thống theo nguyên tắc fail-closed.
 - Catalog online có chữ ký, chỉ chứa quy tắc khai báo được cho phép, giữ mốc phiên bản bền vững để chống hạ phiên bản và dùng cache dự phòng khi cập nhật không hợp lệ.
@@ -209,11 +218,23 @@ Lưu ý:
 - Chưa xác minh là kết quả trung lập, không phải lỗi và cũng không phải xác nhận hợp lệ.
 - Phần mềm & dấu hiệu can thiệp chỉ kiểm tra và tạo báo cáo; không gỡ hay sửa phần mềm.
 
-## Khắc phục KMS/Activator Win, Office & phần mềm
+## Khắc phục Windows, Microsoft Office và phần mềm khác
 
 Đây là nhóm chức năng có thể thay đổi hệ thống. Chỉ sử dụng sau khi đã đọc báo cáo, đóng ứng dụng liên quan và chuẩn bị nguồn cài hoặc giấy phép hợp lệ.
 
-Khi mở Khắc phục KMS/Activator Win, Office & phần mềm, có bốn lựa chọn:
+Trong thanh bên **Khắc phục**, chọn đúng một chức năng con: **Khắc phục Windows**, **Khắc phục Microsoft Office** hoặc **Khắc phục phần mềm khác**. Phạm vi này được khóa cho toàn bộ luồng. Ô tổng hợp ở **Tổng quan** vẫn cho phép chọn phạm vi thủ công. Mỗi chức năng có bốn lựa chọn:
+
+### Khắc phục Windows
+
+Chỉ quét và xử lý dấu hiệu KMS/Activator, khóa/Activation ID và cấu hình cấp phép thuộc Windows. Phạm vi này không mở rộng sang Office hoặc ứng dụng khác.
+
+### Khắc phục Microsoft Office
+
+Chỉ quét và xử lý đúng SKU/Activation ID Office đã chọn, bảo toàn SKU hợp lệ cùng tồn tại và không thay đổi Windows hoặc phần mềm khác.
+
+### Khắc phục phần mềm khác
+
+Chỉ xử lý artifact hoặc dòng hosts đã có bằng chứng đủ mạnh; không tự gỡ ứng dụng, không đặt lại kho giấy phép hãng và không mở rộng sang Windows/Office.
 
 1. Backup trước khi thực hiện.
 2. Kiểm tra và đưa Windows, Office hoặc phần mềm về trạng thái gốc/chưa kích hoạt.
@@ -232,14 +253,14 @@ Backup không lưu product key/token đầy đủ và không được dùng đ�
 
 ### Lựa chọn 2 – Kiểm tra và khắc phục thủ công
 
-Trên màn hình này có ba cách tiếp tục; cả ba đều mở cùng ba ô tích Windows, Office và Phần mềm khác:
+Trên màn hình này có ba cách tiếp tục. Khi đi từ một chức năng con, Tool dùng ngay phạm vi đã khóa và không mở rộng sang nhóm khác; khi đi từ ô tổng hợp ở Tổng quan, Tool mới hiển thị ba ô tích Windows, Office và Phần mềm khác:
 
 - **Kết nối online:** sau khi người dùng đồng ý, Tool tải danh mục đối chiếu được phép rồi chỉ quét các phạm vi đã tích; không tải danh sách phần mềm hoặc dữ liệu máy lên mạng.
 - **Chạy thử – không thay đổi hệ thống:** chọn phạm vi và từng mục như bình thường, sau đó xem kế hoạch gồm tệp/Registry/service/task sẽ xử lý, hành động dự kiến, lý do, backup và khả năng hoàn tác. Chế độ này chỉ quét và tạo báo cáo; không tạo restore point, không tạo backup, không dừng tiến trình/dịch vụ, không xóa hay sửa dữ liệu.
 - **Kiểm tra và đưa về trạng thái gốc:** thực hiện luồng thật bên dưới. Nếu chọn **Thực hiện thật** sau Dry Run, công cụ luôn mở lại danh sách và yêu cầu xác nhận lần nữa; kế hoạch mô phỏng không tự động được thi hành.
 
 1. Chọn Kiểm tra và đưa về trạng thái gốc.
-2. Tích một hoặc nhiều mục: Windows, Office, Phần mềm khác; sau đó chọn Tiếp tục.
+2. Xác nhận phạm vi đã khóa; hoặc nếu mở từ ô tổng hợp, tích một hay nhiều mục Windows, Office, Phần mềm khác rồi chọn Tiếp tục.
 3. Chờ bước quét chỉ đọc hoàn tất; ở bước này máy chưa bị thay đổi.
 4. Nếu công cụ báo nguồn WMI/CIM, dịch vụ cấp phép hoặc Task Scheduler chưa đầy đủ, dùng Sửa nhanh nguồn quét rồi quét lại.
 5. Khi danh sách xuất hiện, đọc tên ứng dụng, loại mục, bằng chứng, mức tin cậy và kế hoạch xử lý.
@@ -381,13 +402,13 @@ Nếu báo cáo ghi Độ phủ chưa hoàn tất, hãy kiểm tra lý do như t
 
 ## Kết nối online để cập nhật nhận diện
 
-Kết nối online nằm trong Khắc phục KMS/Activator Win, Office & phần mềm, tại màn hình Kiểm tra và đưa về trạng thái gốc.
+Kết nối online dành cho catalog phần mềm khác, nằm trong **Khắc phục phần mềm khác** hoặc ô khắc phục tổng hợp ở Tổng quan, tại màn hình Kiểm tra và đưa về trạng thái gốc.
 
-1. Chọn Khắc phục KMS/Activator Win, Office & phần mềm.
+1. Chọn Khắc phục phần mềm khác hoặc ô khắc phục tổng hợp ở Tổng quan.
 2. Chọn Kiểm tra và đưa về trạng thái gốc.
 3. Chọn Kết nối online.
 4. Đọc thông báo về quyền riêng tư và chọn đồng ý nếu muốn tiếp tục.
-5. Chờ cập nhật hoàn tất rồi quay lại chọn phạm vi quét.
+5. Chờ cập nhật hoàn tất rồi tiếp tục với phạm vi phần mềm khác.
 
 Kết nối này chỉ tải danh mục nhận diện. Công cụ không gửi danh sách phần mềm, đường dẫn, product key, token hoặc báo cáo. Nếu cập nhật thất bại, vẫn có thể tiếp tục dùng danh mục tích hợp ở chế độ Offline.
 

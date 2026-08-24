@@ -2,11 +2,21 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
-Phiên bản hiện tại: **v4.9.0.0**
-FileVersion: **4.9.0.0** · Build **2026.08.22**
+Phiên bản ManagedSigned: **v5.0.0.0**
+FileVersion: **5.0.0.0** · Build **2026.08.24**
 
 Trang tải mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
+
+## v5.0.0.0 — 24/08/2026 — ManagedSigned prerelease
+
+- **Chuỗi phát hành tin cậy:** Stable fail-closed nếu thiếu chứng thư CA-issued/HSM, timestamp RFC3161, provenance CMS đúng source commit hoặc worktree sạch.
+- **Catalog/plugin:** phân loại Fresh/Warning/Stale/Future/Invalid; plugin ngoài chỉ dùng metadata khai báo ký CMS từ fingerprint quản trị viên ghim.
+- **Quét linh hoạt:** Quick/Standard/Deep, ngân sách quét và giới hạn include/exclude/root an toàn.
+- **Giao diện và triển khai:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export an toàn, CLI headless và script Intune/MDM.
+- **Khắc phục tách phạm vi:** thanh Khắc phục có ba chức năng con Windows, Microsoft Office và phần mềm khác; phạm vi cố định được truyền xuyên suốt Dry Run, backup, xác nhận và hậu kiểm.
+- **Đồng bộ phiên bản:** giao diện máy chủ/máy trạm nhận phiên bản từ launcher; tiêu đề và tên hạ tầng mới dùng v5.0 nhưng vẫn dọn được cấu hình legacy v4.8/v4.6.
+- **Trạng thái hiện tại:** thao tác quản trị được mở trên máy đã tin cậy chứng thư ManagedSigned; tự cập nhật công khai vẫn khóa và bản này không được gọi là public-CA Stable.
 
 ## v4.9.0.0 — 22/08/2026
 

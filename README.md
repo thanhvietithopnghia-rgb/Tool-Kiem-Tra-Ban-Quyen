@@ -1,28 +1,36 @@
-# Tool Kiểm Tra v4.9 — xác minh nguồn gốc, cập nhật nhận diện, khắc phục có hậu kiểm
+# Tool Kiểm Tra v5.0 — ManagedSigned preview cho môi trường quản trị
 
-**Phiên bản hiện tại:** v4.9.0.0 · Build 2026.08.22
+**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.24 · `ManagedSigned`
 **Tác giả và phát triển:** Thanh Việt
-**Trang tải luôn trỏ tới bản mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+**Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
+**Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
 Tool Kiểm Tra là ứng dụng Windows miễn phí cho cộng đồng, hỗ trợ kiểm kê cấu hình máy, kiểm tra trạng thái Windows/Office/phần mềm, rà soát dấu hiệu KMS/activator/can thiệp và tạo báo cáo. Tool hoạt động Offline theo mặc định, không có telemetry và chỉ dùng mạng sau khi người dùng chủ động bật Online.
 
-v4.9 tăng khả năng chứng minh bản chính thức, mở rộng catalog nhận diện có ký số, sửa luồng khắc phục để chỉ báo thành công sau hậu kiểm và bảo vệ dữ liệu định danh trong báo cáo. Công cụ cung cấp bằng chứng kỹ thuật hỗ trợ quản trị; không thay thế hóa đơn, hợp đồng, tài khoản hãng hoặc tư vấn pháp lý và không thể cam kết nhận diện/làm sạch 100% mọi sản phẩm hay biến thể.
+v5.0 tăng cường cổng ký phát hành fail-closed, trạng thái độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất fleet và triển khai Intune/MDM. Bản `ManagedSigned` cho phép thao tác đã phê duyệt trên máy được quản trị viên phân phối chứng thư tin cậy, nhưng không phải public-CA Stable và vẫn khóa tự cập nhật công khai. Công cụ cung cấp bằng chứng kỹ thuật hỗ trợ quản trị, không thay thế hóa đơn, hợp đồng, tài khoản hãng hoặc tư vấn pháp lý.
 
 ## Tải và bắt đầu
 
-1. Mở [trang tải bản mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
-2. Tải `Tool-Kiem-Tra-v4.9.exe` cùng tệp checksum/chứng minh nguồn gốc đi kèm.
+1. Mở [trang v5.0.0.0 ManagedSigned](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [Stable công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
+2. Với v5 ManagedSigned, dùng `Tool-Kiem-Tra-v5.0.exe`, xác nhận manifest ghi `ManagedSigned` và chỉ chạy trên máy đã nhận chứng thư quản trị hợp lệ.
 3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
 4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
 5. Chỉ chấp nhận UAC khi tên tác vụ đúng với thao tác khắc phục, cập nhật hoặc quản trị mà bạn vừa chọn.
 
 ```powershell
-Get-FileHash .\Tool-Kiem-Tra-v4.9.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.9.exe |
+Get-FileHash .\Tool-Kiem-Tra-v5.0.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\Tool-Kiem-Tra-v5.0.exe |
   Format-List Status,StatusMessage,SignerCertificate
 ```
 
-## Điểm mới trong v4.9
+## Điểm mới trong v5.0
+
+- **Phát hành fail-closed:** Stable bắt buộc chứng thư code-signing CA-issued/HSM, chuỗi tin cậy Windows, RFC3161 timestamp, source commit sạch và provenance CMS đúng commit.
+- **Catalog và plugin có biên tin cậy:** catalog phân loại Fresh/Warning/Stale/Future/Invalid; plugin bên thứ ba chỉ nhận metadata khai báo đã ký từ fingerprint nhà phát hành được quản trị viên ghim.
+- **Quét theo mục tiêu:** Quick/Standard/Deep dùng ngân sách rõ ràng và giới hạn include/exclude/root an toàn.
+- **Trải nghiệm và quản trị:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export có redaction/chống CSV injection, CLI headless và script Intune/MDM.
+- **Khắc phục theo phạm vi rõ ràng:** mục Khắc phục tách thành Windows, Microsoft Office và phần mềm khác; phạm vi được khóa xuyên suốt quét, Dry Run, backup, xác nhận và hậu kiểm.
+- **Trạng thái phát hành minh bạch:** ManagedSigned chỉ được tin cậy trong môi trường đã phân phối chứng thư; bản chưa ký vẫn khóa mọi thay đổi và chỉ public-CA mới được gọi Stable.
 
 - **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
 - **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.
@@ -41,7 +49,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v4.9.exe |
 3. Bản quyền Windows.
 4. Bản quyền Microsoft Office.
 5. Phần mềm và dấu hiệu can thiệp.
-6. Khắc phục KMS/Activator có Dry Run, backup và hậu kiểm.
+6. Khắc phục KMS/Activator có Dry Run, backup và hậu kiểm; trong mục Khắc phục được tách thành Windows, Microsoft Office và phần mềm khác.
 7. Khôi phục key OEM khi edition phù hợp.
 8. Quản lý giấy phép hợp lệ cục bộ hoặc trong LAN được cho phép.
 9. Kiểm tra chuyên sâu dành cho quản trị viên.
@@ -60,7 +68,7 @@ Nếu catalog chưa đủ bằng chứng, Tool giữ trạng thái `Chưa xác m
 
 ## Báo cáo và quyền riêng tư
 
-Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. PDF chi tiết dùng chủ đề `v4.8-classic-a4`, giữ giao diện A4 sáng, khung xanh, năm thẻ trạng thái và bảng gọn theo phong cách v4.8 trong khi vẫn giữ toàn bộ dữ liệu v4.9. Khi tạo PDF, công cụ dùng Chromium theo thứ tự Edge → Chrome, xuất qua vùng staging an toàn và không fallback sang Microsoft Word để tránh làm vỡ bố cục. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
+Báo cáo HTML/PDF/JSON/XML được tạo cục bộ. Bản chia sẻ mặc định che định danh phần cứng; bản `FullInternal` chỉ dùng trong phạm vi quản trị có trách nhiệm. Tool không xuất product key đầy đủ, mật khẩu hoặc dữ liệu đăng nhập. Trước khi gửi báo cáo ra ngoài, vẫn cần đọc lại nội dung và giới hạn người nhận.
 
 ## Phát triển cộng đồng và mã nguồn có kiểm soát từ v4.9
 
@@ -78,8 +86,16 @@ Người muốn tham khảo, học tập, nghiên cứu, đánh giá bảo mật
 - [English user guide](USER-GUIDE-en-US.md)
 - [Lịch sử phiên bản](LICH-SU-PHIEN-BAN.txt)
 - [English version history](VERSION-HISTORY-en-US.md)
+- [Release notes v5.0](RELEASE-NOTES-v5.0.md)
 - [Release notes v4.9](RELEASE-NOTES-v4.9.md)
 - [Chính sách an toàn](SAFETY-POLICY-v1.0.md)
+- [Report schema và artifact quản trị](REPORT-SCHEMA-v1.5.md)
+- [Chính sách trình xem báo cáo/fallback](REPORT-VIEWER-POLICY-v1.md)
+- [Chính sách báo cáo bảo mật](SECURITY.md)
+- [Phạm vi audit và quy trình review](AUDIT-SCOPE-v1.md)
+- [Chính sách code-signing](CODE-SIGNING-POLICY-v1.md)
+- [Lộ trình/tiến độ nhánh v5.0](ROADMAP-v5.0.md)
+- [Kết quả kiểm thử bảo mật và tương thích](SECURITY-TEST-RESULTS.md)
 
 ## Nguồn chính thức và hỗ trợ
 

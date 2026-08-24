@@ -2,11 +2,21 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current release: **v4.9.0.0**
-FileVersion: **4.9.0.0** · Build **2026.08.22**
+Current ManagedSigned version: **v5.0.0.0**
+FileVersion: **5.0.0.0** · Build **2026.08.24**
 
 Stable latest-release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+## v5.0.0.0 — August 24, 2026 — ManagedSigned prerelease
+
+- **Trusted release chain:** Stable fails closed without a CA-issued/HSM certificate, RFC3161 timestamp, source-bound CMS provenance, and a clean worktree.
+- **Catalogs and plugins:** Fresh/Warning/Stale/Future/Invalid states; external plugins accept only signed declarative metadata from administrator-pinned publishers.
+- **Flexible scanning:** Quick, Standard, and Deep levels with explicit budgets and safe include/exclude/root limits.
+- **UI and deployment:** system-aware themes, dark/light overrides, PerMonitorV2 DPI, safe fleet export, a headless CLI, and Intune/MDM scripts.
+- **Scope-locked remediation:** the Remediation section has separate Windows, Microsoft Office, and other-software entries; the fixed scope is preserved through Dry Run, backup, confirmation, and post-check.
+- **Version synchronization:** server/workstation UI takes its version from the launcher; new infrastructure names use v5.0 while legacy v4.8/v4.6 cleanup remains compatible.
+- **Current state:** approved administration is enabled only on machines that trust the ManagedSigned certificate; public self-update remains disabled and this is not public-CA Stable.
 
 ## v4.9.0.0 — August 22, 2026
 

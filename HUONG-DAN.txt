@@ -51,7 +51,7 @@ Không cần truy cập mã nguồn, tệp cấu hình hoặc tài liệu kỹ t
 - Stable chỉ được tạo khi chứng thư CA-issued/HSM, RFC3161 timestamp, provenance CMS, source commit sạch và bộ verifier đều đạt.
 - Catalog có trạng thái độ mới; plugin bên thứ ba chỉ dùng metadata khai báo đã ký với fingerprint nhà phát hành được ghim.
 - Có ba mức Quick/Standard/Deep, giao diện dark/light theo hệ thống, PerMonitorV2 DPI và xuất fleet an toàn cho quản trị doanh nghiệp.
-- Mục Khắc phục tách thành ba chức năng con: Windows, Microsoft Office và phần mềm khác; mỗi chức năng khóa đúng phạm vi từ lúc quét đến hậu kiểm.
+- Mục Khắc phục có năm chức năng riêng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ; ba chức năng khắc phục mở thẳng đúng màn hình và khóa phạm vi từ lúc quét đến hậu kiểm.
 
 - Launcher và manifest nguồn gốc kiểm tra chữ ký, chứng thư, metadata và Build ID. Nếu bản chạy bị sửa hoặc không xác minh được, Tool cảnh báo và chặn cập nhật/thao tác thay đổi hệ thống theo nguyên tắc fail-closed.
 - Catalog online có chữ ký, chỉ chứa quy tắc khai báo được cho phép, giữ mốc phiên bản bền vững để chống hạ phiên bản và dùng cache dự phòng khi cập nhật không hợp lệ.
@@ -218,11 +218,11 @@ Lưu ý:
 - Chưa xác minh là kết quả trung lập, không phải lỗi và cũng không phải xác nhận hợp lệ.
 - Phần mềm & dấu hiệu can thiệp chỉ kiểm tra và tạo báo cáo; không gỡ hay sửa phần mềm.
 
-## Khắc phục Windows, Microsoft Office và phần mềm khác
+## Năm chức năng trong mục Khắc phục
 
 Đây là nhóm chức năng có thể thay đổi hệ thống. Chỉ sử dụng sau khi đã đọc báo cáo, đóng ứng dụng liên quan và chuẩn bị nguồn cài hoặc giấy phép hợp lệ.
 
-Trong thanh bên **Khắc phục**, chọn đúng một chức năng con: **Khắc phục Windows**, **Khắc phục Microsoft Office** hoặc **Khắc phục phần mềm khác**. Phạm vi này được khóa cho toàn bộ luồng. Ô tổng hợp ở **Tổng quan** vẫn cho phép chọn phạm vi thủ công. Mỗi chức năng có bốn lựa chọn:
+Trong thanh bên **Khắc phục** có đúng năm mục: **Khắc phục Windows**, **Khắc phục Microsoft Office**, **Khắc phục phần mềm khác**, **Khôi phục key OEM** và **Quản lý giấy phép hợp lệ**. Ba mục khắc phục đầu mở thẳng màn hình thao tác riêng và khóa phạm vi cho toàn bộ luồng, không mở menu khắc phục chung. Ô tổng hợp ở **Tổng quan** vẫn giữ nguyên để chọn phạm vi và các công cụ backup/khôi phục/tự động.
 
 ### Khắc phục Windows
 
@@ -236,10 +236,9 @@ Chỉ quét và xử lý đúng SKU/Activation ID Office đã chọn, bảo toà
 
 Chỉ xử lý artifact hoặc dòng hosts đã có bằng chứng đủ mạnh; không tự gỡ ứng dụng, không đặt lại kho giấy phép hãng và không mở rộng sang Windows/Office.
 
-1. Backup trước khi thực hiện.
-2. Kiểm tra và đưa Windows, Office hoặc phần mềm về trạng thái gốc/chưa kích hoạt.
-3. Khôi phục tự động từ backup.
-4. Tự động làm sạch an toàn, sẵn sàng kích hoạt.
+**Khôi phục key OEM** kiểm tra khóa firmware và chỉ áp dụng sau khi người dùng xác nhận. **Quản lý giấy phép hợp lệ** mở trình quản lý Windows, Office, máy chủ và máy trạm doanh nghiệp như trước.
+
+Các công cụ Backup, Khôi phục từ backup và Tự động làm sạch an toàn vẫn nằm trong ô khắc phục tổng hợp ở **Tổng quan**; giao diện và hành vi của chúng không thay đổi.
 
 ### Lựa chọn 1 – Backup trước khi thực hiện
 
@@ -253,7 +252,7 @@ Backup không lưu product key/token đầy đủ và không được dùng đ�
 
 ### Lựa chọn 2 – Kiểm tra và khắc phục thủ công
 
-Trên màn hình này có ba cách tiếp tục. Khi đi từ một chức năng con, Tool dùng ngay phạm vi đã khóa và không mở rộng sang nhóm khác; khi đi từ ô tổng hợp ở Tổng quan, Tool mới hiển thị ba ô tích Windows, Office và Phần mềm khác:
+Trên màn hình riêng của từng chức năng khắc phục có các cách tiếp tục phù hợp với phạm vi đó. Tool dùng ngay phạm vi đã khóa và không mở rộng sang nhóm khác; chỉ ô tổng hợp ở Tổng quan mới hiển thị ba ô tích Windows, Office và Phần mềm khác:
 
 - **Kết nối online:** sau khi người dùng đồng ý, Tool tải danh mục đối chiếu được phép rồi chỉ quét các phạm vi đã tích; không tải danh sách phần mềm hoặc dữ liệu máy lên mạng.
 - **Chạy thử – không thay đổi hệ thống:** chọn phạm vi và từng mục như bình thường, sau đó xem kế hoạch gồm tệp/Registry/service/task sẽ xử lý, hành động dự kiến, lý do, backup và khả năng hoàn tác. Chế độ này chỉ quét và tạo báo cáo; không tạo restore point, không tạo backup, không dừng tiến trình/dịch vụ, không xóa hay sửa dữ liệu.

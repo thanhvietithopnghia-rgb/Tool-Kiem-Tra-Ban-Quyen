@@ -51,7 +51,7 @@ You do not need source access, configuration files, or technical documentation t
 - Stable requires a CA-issued/HSM signing certificate, RFC3161 timestamp, valid CMS provenance, a clean source commit, and a fully passing verifier suite.
 - Catalog freshness is explicit, and third-party plugins accept only signed declarative metadata from pinned publisher fingerprints.
 - Quick, Standard, and Deep scans, system-aware dark/light themes, PerMonitorV2 DPI, and safe fleet exports support larger deployments.
-- Remediation is split into Windows, Microsoft Office, and other software; each entry locks the scope from the initial scan through backup, confirmation, and post-check.
+- Remediation contains five separate entries: Windows, Microsoft Office, other software, OEM key recovery, and valid-license management. The first three open their scope-specific screen directly and keep that scope locked through scan, backup, confirmation, and post-check.
 
 - The launcher and provenance manifest verify the signature, pinned certificate, metadata, and Build ID. A modified or unverifiable build is warned about and fails closed for updates and system-changing actions.
 - The online catalog is signed, accepts only allowlisted declarative rules, maintains a persistent version floor to prevent downgrades, and retains a previous-cache fallback.
@@ -173,7 +173,7 @@ Important interpretation rules:
 
 This group can change the system. Use it only after reviewing evidence, closing affected applications, and preparing an official installer or valid license.
 
-Under **Remediation**, choose **Remediate Windows**, **Remediate Microsoft Office**, or **Remediate other software**. That scope remains locked throughout the workflow. The combined tile on **Overview** still supports manual scope selection. Each entry contains four choices:
+Under **Remediation**, five entries are available: **Remediate Windows**, **Remediate Microsoft Office**, **Remediate other software**, **Restore OEM key**, and **Manage valid licenses**. The first three open their dedicated scope-specific screen directly instead of the shared remediation chooser. The combined tile on **Overview** remains unchanged and still provides manual scope selection plus backup, restore, and automatic-safe tools.
 
 ### Remediate Windows
 
@@ -204,7 +204,7 @@ The backup does not store complete keys or tokens and cannot be used to restore 
 
 ### Choice 2 – Manual inspection and remediation
 
-This screen offers three ways to proceed. A remediation sub-entry uses its locked scope without widening into another group; the combined Overview tile opens the Windows, Office, and Other software checkboxes:
+Each dedicated remediation screen offers only the actions applicable to its locked scope and never widens into another group; only the combined Overview tile opens the Windows, Office, and Other software checkboxes:
 
 - **Online:** after explicit consent, the Tool downloads the allowed comparison catalog and scans only the selected scopes; it does not upload the software inventory or machine data.
 - **Dry Run — no system changes:** choose the scope and individual items normally, then review the exact file/Registry/service/task targets, intended actions, reasons, backup plan, and restorability. It scans and writes a report only; it does not create a restore point or backup, stop a process/service, delete a file, or edit system state.

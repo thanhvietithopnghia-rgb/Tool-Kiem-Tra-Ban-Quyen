@@ -14,7 +14,8 @@ Stable latest-release page:
 - **Catalogs and plugins:** Fresh/Warning/Stale/Future/Invalid states; external plugins accept only signed declarative metadata from administrator-pinned publishers.
 - **Flexible scanning:** Quick, Standard, and Deep levels with explicit budgets and safe include/exclude/root limits.
 - **UI and deployment:** system-aware themes, dark/light overrides, PerMonitorV2 DPI, safe fleet export, a headless CLI, and Intune/MDM scripts.
-- **Scope-locked remediation:** the Remediation section has separate Windows, Microsoft Office, and other-software entries; the fixed scope is preserved through Dry Run, backup, confirmation, and post-check.
+- **Five-entry remediation:** the Remediation section contains Windows, Microsoft Office, other software, OEM key recovery, and valid-license management. The first three open their dedicated locked-scope screen directly; scope remains fixed through Dry Run, backup, confirmation, and post-check.
+- **Cleaner status card:** the redundant "software catalog: fresh/latest" line is hidden while freshness enforcement, warning colors, and tooltip details remain active.
 - **Version synchronization:** server/workstation UI takes its version from the launcher; new infrastructure names use v5.0 while legacy v4.8/v4.6 cleanup remains compatible.
 - **Current state:** approved administration is enabled only on machines that trust the ManagedSigned certificate; public self-update remains disabled and this is not public-CA Stable.
 

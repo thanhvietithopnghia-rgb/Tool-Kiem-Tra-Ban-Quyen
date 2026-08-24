@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.5.0",
-  "UpdatedAtUtc": "2026-08-24T14:07:47Z",
+  "KnowledgeVersion": "1.5.1",
+  "UpdatedAtUtc": "2026-08-24T15:13:01Z",
   "ToolVersionMin": "5.0.0.0",
   "ToolVersionMax": "5.0.65535.65535",
   "ReleasedWithToolVersion": "5.0.0.0",
@@ -20,8 +20,8 @@
       "TitleVi": "Phiên bản hiện tại",
       "TitleEn": "Current version",
       "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v5.0", "v5.0.0.0", "release v5.0"],
-      "AnswerVi": "Bản mới nhất của nhánh v5 là Tool Kiểm Tra v5.0.0.0 ManagedSigned. Bản này tăng cường cổng ký phát hành, độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất báo cáo doanh nghiệp và tách Khắc phục thành Windows, Microsoft Office, phần mềm khác.",
-      "AnswerEn": "The latest v5 branch build is Tool Kiem Tra v5.0.0.0 ManagedSigned. It strengthens release-signing gates, catalog freshness, signed plugins, three scan levels, dark/DPI UI support, enterprise reporting, and separates remediation into Windows, Microsoft Office, and other software."
+      "AnswerVi": "Bản mới nhất của nhánh v5 là Tool Kiểm Tra v5.0.0.0 ManagedSigned. Bản này tăng cường cổng ký phát hành, độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất báo cáo doanh nghiệp và đưa vào mục Khắc phục đúng năm chức năng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ. Ba chức năng đầu mở thẳng màn hình riêng theo phạm vi.",
+      "AnswerEn": "The latest v5 branch build is Tool Kiem Tra v5.0.0.0 ManagedSigned. It strengthens release-signing gates, catalog freshness, signed plugins, three scan levels, dark/DPI UI support, enterprise reporting, and provides five Remediation entries: Windows, Microsoft Office, other software, OEM key recovery, and valid-license management. The first three open their dedicated scope-specific screen directly."
     },
     {
       "Id": "tool-author",
@@ -139,9 +139,9 @@
       "Id": "interface-settings",
       "TitleVi": "Giao diện và Cài đặt",
       "TitleEn": "Interface and settings",
-      "Keywords": ["doi ngon ngu giao dien", "chuyen tieng anh", "chuyen tieng viet", "chon giao dien sang", "chon giao dien toi", "cach doc man hinh chinh", "thanh ben trai", "bon the trang thai"],
-      "AnswerVi": "Trong Cài đặt, bạn có thể chọn Tiếng Việt/English và giao diện Sáng/Tối. Thanh bên trái lọc Tổng quan, Kiểm tra, Khắc phục, Báo cáo và Cài đặt; bốn thẻ trên cùng hiển thị Windows, Office, chế độ mạng và tính toàn vẹn. Khung Hoạt động gần đây cho biết tiến trình/cảnh báo, còn Mở thư mục báo cáo đưa tới kết quả mới nhất.",
-      "AnswerEn": "Settings lets you choose Vietnamese/English and Light/Dark. The left navigation filters Overview, Inspection, Remediation, Reports, and Settings; four top cards show Windows, Office, network mode, and Tool integrity. Recent activity shows progress/warnings, while Open report folder opens the latest result location."
+      "Keywords": ["doi ngon ngu giao dien", "chuyen tieng anh", "chuyen tieng viet", "chon giao dien sang", "chon giao dien toi", "cach doc man hinh chinh", "thanh ben trai", "bon the trang thai", "muc khac phuc co may chuc nang", "nam chuc nang khac phuc", "five remediation entries"],
+      "AnswerVi": "Trong Cài đặt, bạn có thể chọn Tiếng Việt/English và giao diện Sáng/Tối. Thanh bên trái lọc Tổng quan, Kiểm tra, Khắc phục, Báo cáo và Cài đặt; bốn thẻ trên cùng hiển thị Windows, Office, chế độ mạng và tính toàn vẹn. Mục Khắc phục có năm chức năng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ; ba chức năng đầu mở thẳng đúng màn hình riêng. Khung Hoạt động gần đây cho biết tiến trình/cảnh báo, còn Mở thư mục báo cáo đưa tới kết quả mới nhất.",
+      "AnswerEn": "Settings lets you choose Vietnamese/English and Light/Dark. The left navigation filters Overview, Inspection, Remediation, Reports, and Settings; four top cards show Windows, Office, network mode, and Tool integrity. Remediation contains five entries: Windows, Microsoft Office, other software, OEM key recovery, and valid-license management; the first three open their dedicated screen directly. Recent activity shows progress/warnings, while Open report folder opens the latest result location."
     },
     {
       "Id": "stop-task",
@@ -268,16 +268,16 @@
       "TitleVi": "Khắc phục KMS/Activator",
       "TitleEn": "KMS/Activator remediation",
       "Keywords": ["khac phuc", "sua loi", "go kms", "xoa crack", "cleanup", "remediation", "chuc nang 6", "chuc nang so 6", "muc 6", "nut 6", "sua crack", "xoa activator", "tu dong khac phuc", "tu dong sua crack"],
-      "AnswerVi": "Chức năng 6 có thể thay đổi hệ thống nên chỉ chạy khi người dùng chủ động và sau khi đã đọc bằng chứng. Cách dùng an toàn: chọn Khắc phục → chọn một hoặc nhiều ô Windows/Office/Phần mềm khác → ưu tiên Chạy thử để xem kế hoạch → chọn đúng từng mục → xác nhận và cấp Administrator khi thực hiện thật. Tool kiểm tra/tạo backup trước, khóa mục thiếu điều kiện, hậu kiểm sau xử lý và không tự gỡ/cài lại ứng dụng ngoài kế hoạch đã xác nhận.",
-      "AnswerEn": "Feature 6 can change the system and should be used only after evidence review. Select Remediation, choose one or more Windows/Office/Other software scopes, prefer Dry Run to inspect the plan, select exact findings, then confirm and elevate for a real run. The Tool verifies/creates backup first, blocks unsupported items, performs post-checks, and never silently removes/reinstalls apps outside the confirmed plan."
+      "AnswerVi": "Khắc phục có thể thay đổi hệ thống nên chỉ chạy khi người dùng chủ động và sau khi đã đọc bằng chứng. Trong thanh Khắc phục, chọn thẳng Windows, Microsoft Office hoặc phần mềm khác; mỗi nút mở màn hình riêng và khóa đúng phạm vi, không qua menu chung. Ô Khắc phục tổng hợp ở Tổng quan vẫn cho phép chọn một hoặc nhiều phạm vi và dùng Backup/Khôi phục/Tự động. Luôn ưu tiên Chạy thử, chọn đúng từng mục, xác nhận và chỉ cấp Administrator khi thực hiện thật. Tool kiểm tra/tạo backup trước, khóa mục thiếu điều kiện, hậu kiểm sau xử lý và không tự gỡ/cài lại ứng dụng ngoài kế hoạch đã xác nhận.",
+      "AnswerEn": "Remediation can change the system and should be used only after evidence review. Under Remediation, select Windows, Microsoft Office, or other software directly; each entry opens its own locked-scope screen without the shared chooser. The combined Overview remediation tile still supports multiple scopes plus Backup, Restore, and Automatic-safe tools. Prefer Dry Run, select exact findings, confirm, and elevate only for a real run. The Tool verifies/creates backup first, blocks unsupported items, performs post-checks, and never silently removes/reinstalls apps outside the confirmed plan."
     },
     {
       "Id": "backup-restore",
       "TitleVi": "Sao lưu và khôi phục",
       "TitleEn": "Backup and restore",
       "Keywords": ["sao luu", "backup", "khoi phuc", "restore", "phuc hoi", "trung tam sao luu", "khoi phuc tu backup", "backup windows office"],
-      "AnswerVi": "Sao lưu/Khôi phục nằm trong luồng Khắc phục, không phải chức năng số 7. Chọn Khắc phục → Sao lưu hoặc Khôi phục tự động → chọn đúng phạm vi Windows/Office/Phần mềm khác → xem thông tin backup → xác nhận. Giữ nguyên thư mục backup, không sửa/đổi tên/di chuyển tệp; Tool từ chối backup sai máy, bị sửa, thiếu hoặc không tương thích và khôi phục vẫn có thể cần Administrator.",
-      "AnswerEn": "Backup/Restore is part of the Remediation workflow, not feature 7. Open Remediation, choose Backup or Automatic restore, select the correct Windows/Office/Other software scope, review backup details, and confirm. Keep the folder intact; the Tool rejects wrong-machine, modified, incomplete, or incompatible backups, and restore may require elevation."
+      "AnswerVi": "Sao lưu/Khôi phục nằm trong ô Khắc phục tổng hợp ở Tổng quan, không phải chức năng số 7 Khôi phục key OEM. Mở ô tổng hợp → chọn Sao lưu hoặc Khôi phục tự động → chọn đúng phạm vi Windows/Office/Phần mềm khác → xem thông tin backup → xác nhận. Giữ nguyên thư mục backup, không sửa/đổi tên/di chuyển tệp; Tool từ chối backup sai máy, bị sửa, thiếu hoặc không tương thích và khôi phục vẫn có thể cần Administrator.",
+      "AnswerEn": "Backup/Restore remains in the combined Overview remediation tile and is not the OEM key recovery function. Open the combined tile, choose Backup or Automatic restore, select the correct Windows/Office/Other software scope, review backup details, and confirm. Keep the folder intact; the Tool rejects wrong-machine, modified, incomplete, or incompatible backups, and restore may require elevation."
     },
     {
       "Id": "enterprise",

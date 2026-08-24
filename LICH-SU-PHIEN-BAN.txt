@@ -14,7 +14,8 @@ https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/late
 - **Catalog/plugin:** phân loại Fresh/Warning/Stale/Future/Invalid; plugin ngoài chỉ dùng metadata khai báo ký CMS từ fingerprint quản trị viên ghim.
 - **Quét linh hoạt:** Quick/Standard/Deep, ngân sách quét và giới hạn include/exclude/root an toàn.
 - **Giao diện và triển khai:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export an toàn, CLI headless và script Intune/MDM.
-- **Khắc phục tách phạm vi:** thanh Khắc phục có ba chức năng con Windows, Microsoft Office và phần mềm khác; phạm vi cố định được truyền xuyên suốt Dry Run, backup, xác nhận và hậu kiểm.
+- **Khắc phục tách riêng:** thanh Khắc phục có đúng năm chức năng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ. Ba chức năng đầu mở thẳng màn hình riêng, khóa phạm vi xuyên suốt Dry Run, backup, xác nhận và hậu kiểm; không đi qua menu khắc phục chung.
+- **Giao diện gọn hơn:** bỏ dòng trạng thái "Catalog phần mềm: mới" khỏi thẻ tương thích; kiểm tra độ mới, màu cảnh báo và tooltip catalog vẫn hoạt động.
 - **Đồng bộ phiên bản:** giao diện máy chủ/máy trạm nhận phiên bản từ launcher; tiêu đề và tên hạ tầng mới dùng v5.0 nhưng vẫn dọn được cấu hình legacy v4.8/v4.6.
 - **Trạng thái hiện tại:** thao tác quản trị được mở trên máy đã tin cậy chứng thư ManagedSigned; tự cập nhật công khai vẫn khóa và bản này không được gọi là public-CA Stable.
 

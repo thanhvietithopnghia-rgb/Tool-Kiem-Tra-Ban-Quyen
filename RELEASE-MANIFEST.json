@@ -12,7 +12,7 @@
                           "FileName":  "Tool-Kiem-Tra-v5.0.exe",
                           "Architecture":  "AnyCPU",
                           "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
-                          "Sha256":  "46DACE07B94B3499431A3FCDBC01B6D2DE7029404063B4035A93126DAE6FEE74",
+                          "Sha256":  "C0241581E30AA71C688FCC72CB5692C5BED335EC88BFE09D88B1D111213DCAE4",
                           "AuthenticodeStatus":  "Valid",
                           "AuthenticodeSigner":  "CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing)",
                           "AuthenticodeThumbprint":  "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA",
@@ -45,11 +45,11 @@
                                "ResourceCount":  1,
                                "PayloadCount":  55,
                                "HeaderBytes":  464,
-                               "SourceBytes":  3151191,
-                               "BundleBytes":  3151655,
-                               "EmbeddedBytes":  670393,
-                               "SavedBytes":  2480798,
-                               "SavingsPercent":  78.73,
+                               "SourceBytes":  3154475,
+                               "BundleBytes":  3154939,
+                               "EmbeddedBytes":  671407,
+                               "SavedBytes":  2483068,
+                               "SavingsPercent":  78.72,
                                "MaximumPayloadBytes":  8388608,
                                "MaximumPayloadDataBytes":  16777216,
                                "MaximumCompressedBytes":  16777216,
@@ -157,7 +157,7 @@
     "SoftwareLicenseCatalogGeneratedAtUtc":  "2026-08-22T11:00:00Z",
     "SoftwareLicenseCatalogFreshnessStatus":  "Fresh",
     "SoftwareLicenseCatalogFreshForDecisiveEvidence":  true,
-    "SoftwareLicenseCatalogAgeDays":  2.136,
+    "SoftwareLicenseCatalogAgeDays":  2.182,
     "SoftwareLicenseCatalogFreshnessWarningAgeDays":  30,
     "SoftwareLicenseCatalogFreshnessMaximumAgeDays":  45,
     "SoftwareLicenseCatalogProductRules":  92,
@@ -407,5 +407,5 @@
                              "Status":  "NotClaimed",
                              "Reason":  "Launcher la managed IL; CSC khong tao CFG instrumentation/load-config native. Khong gan co GUARD_CF gia."
                          },
-    "BuiltAtUtc":  "2026-08-24T14:16:22.9666642Z"
+    "BuiltAtUtc":  "2026-08-24T15:22:23.9001744Z"
 }

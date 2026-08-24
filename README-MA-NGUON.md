@@ -8,7 +8,7 @@ Tool Kiểm Tra được cung cấp miễn phí và phát triển cùng cộng �
 
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-Tệp thực thi chuẩn của nhánh phiên bản này là `Tool-Kiem-Tra-v4.9.exe`.
+Tệp thực thi của nhánh phát triển hiện tại là `Tool-Kiem-Tra-v5.0.exe`. Chỉ artifact có Authenticode, timestamp và provenance hợp lệ mới được công bố là Stable.
 
 Việc kiểm soát truy cập nhằm bảo vệ nguồn gốc và công sức phát triển sau khi tác giả ghi nhận nội dung, giao diện, mô tả và thành quả của Tool bị sao chép gần như nguyên trạng, đổi tên hoặc đổi thương hiệu thành sản phẩm cá nhân mà không xin phép hay ghi nhận tác giả. Tuyên bố này không khẳng định mã nguồn/backend đã bị lấy khi chưa có bằng chứng kỹ thuật xác nhận.
 

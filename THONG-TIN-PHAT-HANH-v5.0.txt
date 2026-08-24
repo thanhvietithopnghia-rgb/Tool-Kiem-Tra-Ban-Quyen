@@ -4,13 +4,13 @@ Release build date: 2026.08.24
 Release label: 5.0.0.0-managed-signed-20260824
 Release status: ManagedSigned.
 Tep chay duy nhat: Tool-Kiem-Tra-v5.0.exe
-SHA-256: 46DACE07B94B3499431A3FCDBC01B6D2DE7029404063B4035A93126DAE6FEE74
+SHA-256: C0241581E30AA71C688FCC72CB5692C5BED335EC88BFE09D88B1D111213DCAE4
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.
 Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.
 Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.
-Payload nhung duoc toi uu SolidDeflateBundle-v1: 55 tep trong mot resource Deflate co header fail-closed; giam 78.73% va van doi chieu SHA-256 tung tep sau giai nen.
+Payload nhung duoc toi uu SolidDeflateBundle-v1: 55 tep trong mot resource Deflate co header fail-closed; giam 78.72% va van doi chieu SHA-256 tung tep sau giai nen.
 Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.
 Dashboard schema 2.0: WinForms hien dai, theo Light/Dark cua he thong, cho phep ghi nho tuy chon va co fallback DPI tu PerMonitorV2 den Win7.
 Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.
@@ -55,7 +55,7 @@ Tro ly Tool dung tri thuc cuc bo, khong tu khac phuc va khong tai cau hoi/bao ca
 Tro ly bo tri truc tiep va co them luot ve bu sau su kien Gui/Enter; cau tra loi hien ngay sau khi xu ly, khong cho cau hoi tiep theo; nhan Offline co le an toan, khung nhap co vien focus va bong bong hoi-dap co mau/vien rieng.
 HTML, PDF va cac bao cao dung chung giu du nam o ket qua tren cung mot hang khi du rong; Muc xac minh/Huong xu ly tach thanh o con va chan trang PDF chia hai hang.
 Tro ly dong bo day du vi-VN/en-US cho nut, trang thai dong bo va dien giai bao cao hien tai theo ma ket qua.
-Tro ly schema 1.1 / knowledge 1.5.0 co tri thuc cuc bo ky CMS SHA-256, ghim chung thu, chong ha phien ban va khong tai cau hoi/bao cao len mang.
+Tro ly schema 1.1 / knowledge 1.5.1 co tri thuc cuc bo ky CMS SHA-256, ghim chung thu, chong ha phien ban va khong tai cau hoi/bao cao len mang.
 Catalogue phan mem 1.6.0.0 co it nhat 92 quy tac khai bao ky CMS; du lieu online khong duoc mang lenh/script tuy y va Low chi de tham khao.
 Bao cao Windows/Office thuong van ra kenh KMS khi license o Notification, hien chu ky KMS toi da 180 ngay va ra MAS/PMAS, Activation Program 1.17, lenh erturk-dev.netlify.app/run, TSforge, OHook, KMS toolkit/Microsoft Toolkit con hien huu.
 Quet phan mem thuong ra them artifact trong thu muc cai dat thuong mai co gioi han, khong chi du lieu Download; ngay cai duoc chuan hoa yyyy-MM-dd.

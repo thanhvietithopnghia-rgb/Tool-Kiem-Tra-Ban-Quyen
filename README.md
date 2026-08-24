@@ -49,7 +49,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v5.0.exe |
 3. Bản quyền Windows.
 4. Bản quyền Microsoft Office.
 5. Phần mềm và dấu hiệu can thiệp.
-6. Khắc phục KMS/Activator có Dry Run, backup và hậu kiểm; trong mục Khắc phục được tách thành Windows, Microsoft Office và phần mềm khác.
+6. Khắc phục KMS/Activator có Dry Run, backup và hậu kiểm; mục Khắc phục có năm chức năng riêng gồm Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ. Ba chức năng đầu mở thẳng đúng màn hình, không qua menu chung.
 7. Khôi phục key OEM khi edition phù hợp.
 8. Quản lý giấy phép hợp lệ cục bộ hoặc trong LAN được cho phép.
 9. Kiểm tra chuyên sâu dành cho quản trị viên.

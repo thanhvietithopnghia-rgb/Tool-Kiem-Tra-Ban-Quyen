@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v5.0.0.0 — Managed Signed Release
 
-Build date: 2026-08-24  
+Build date: 2026-08-25  
 Status: `ManagedSigned` — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not the public-CA Stable channel
 
 ## Highlights
@@ -15,6 +15,7 @@ Status: `ManagedSigned` — Authenticode, RFC 3161 timestamp, and provenance are
 - The Enterprise manager now inherits `5.0.0.0` from the launcher, uses v5.0 names for new firewall/task resources, and retains cleanup compatibility for v4.8/v4.6 resources.
 - The sidebar footer now shows only the Thanh Việt copyright line; the redundant software-version line was removed.
 - The compact compatibility card no longer shows the redundant "software catalog: fresh/latest" line; catalog freshness enforcement, warning colors, and tooltip details remain active.
+- Responsive R4 adds compact navigation when the sidebar is hidden, content-aware tile heights with bounded scrolling on short screens, and clipping checks for Vietnamese/English licence-management controls.
 - Unsigned development builds remain a separate mode and keep self-update plus every system-changing action blocked.
 
 ## Public Stable Gates Still Required

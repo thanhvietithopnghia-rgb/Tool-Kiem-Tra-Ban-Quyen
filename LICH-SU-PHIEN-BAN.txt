@@ -3,7 +3,7 @@
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
 Phiên bản ManagedSigned: **v5.0.0.0**
-FileVersion: **5.0.0.0** · Build **2026.08.24**
+FileVersion: **5.0.0.0** · Build **2026.08.25**
 
 Trang tải mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest

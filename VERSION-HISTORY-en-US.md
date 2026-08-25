@@ -3,7 +3,7 @@
 This document summarizes the core changes in the main public releases.
 
 Current ManagedSigned version: **v5.0.0.0**
-FileVersion: **5.0.0.0** · Build **2026.08.24**
+FileVersion: **5.0.0.0** · Build **2026.08.25**
 
 Stable latest-release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>

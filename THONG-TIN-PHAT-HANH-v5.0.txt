@@ -1,10 +1,10 @@
 PHAN MEM KIEM TRA BAN QUYEN v5.0.0.0 - HO TRO CA NHAN VA DOANH NGHIEP
 Release version: 5.0.0.0
-Release build date: 2026.08.24
-Release label: 5.0.0.0-managed-signed-20260824
+Release build date: 2026.08.25
+Release label: 5.0.0.0-managed-signed-20260825
 Release status: ManagedSigned.
 Tep chay duy nhat: Tool-Kiem-Tra-v5.0.exe
-SHA-256: C0241581E30AA71C688FCC72CB5692C5BED335EC88BFE09D88B1D111213DCAE4
+SHA-256: 2BFA1FB29B547C5DD3E74226EB0EDFBA040D56F9EBFF27A97EC36744C33C69BC
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.

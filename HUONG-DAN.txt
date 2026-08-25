@@ -2,7 +2,7 @@
 
 Phát triển bởi Thanh Việt
 
-Phiên bản ManagedSigned: **v5.0.0.0** · Build **2026.08.24**
+Phiên bản ManagedSigned: **v5.0.0.0** · Build **2026.08.25**
 Tệp chạy: `Tool-Kiem-Tra-v5.0.exe`
 Trang v5 ManagedSigned: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0`
 Stable công khai mới nhất: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`

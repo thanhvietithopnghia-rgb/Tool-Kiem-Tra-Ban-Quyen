@@ -1,5 +1,7 @@
 # Ma trận tương thích v4.8
 
+> Đây là baseline tương thích lịch sử của v4.8. Build v5.0 R5 dùng catalog, module và metadata mới hơn; xem `RELEASE-MANIFEST.json`, `RELEASE-NOTES-v5.0.md` và `ROADMAP-v5.0.md` cho trạng thái hiện hành.
+
 Mốc rà soát: **2026-08-17 UTC**. Nguồn máy đọc: `compatibility-catalog-v1.0.json`, schema catalog `1.1`, phiên bản `1.1.1.0`.
 
 Catalog Microsoft này tách biệt với `software-license-catalog-v1.0.json` phiên bản `1.4.0.1`. Catalogue phần mềm có 77 quy tắc sản phẩm duy nhất, metadata phạm vi/chính sách cập nhật và chữ ký CMS tách rời, gồm IObit Driver Booster, WIRIS MathType, PDF editor thương mại, IDM, các nhóm CAD/CAE/BIM, mô phỏng, kết cấu, GIS, EDA, đo lường, rendering và nhiều ứng dụng phổ biến. Các quy tắc bổ sung nhận diện signer/domain/tệp lõi/artifact nhưng không hạ ngưỡng kết luận fail-closed của engine quét sâu; `HashMismatch` đơn lẻ chỉ tạo `IntegrityCompromised`. Mô hình giấy phép được trình bày riêng với bằng chứng can thiệp; mức `Low` không tạo hành động xóa.

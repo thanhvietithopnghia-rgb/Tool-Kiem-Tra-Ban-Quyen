@@ -16,10 +16,12 @@ Workflow tạo `client-vm-summary.json` và `client-vm-summary.md`, gồm commit
 
 ## Kết quả hiện tại
 
-Chưa có artifact VM được bảo vệ nào được gắn vào tài liệu nguồn này. Sau mỗi đợt release candidate, maintainer phải đính kèm artifact của đúng commit và cập nhật bảng sau, không sửa tay một kết quả chưa có bằng chứng.
+Preview R5 có gói bằng chứng public-safe `Tool-Kiem-Tra-v5.0-R5-Test-Evidence.zip` đính kèm tại release `v5.0.0.0`. Tóm tắt được tạo từ metadata release commit `31a8151e6c574e7b2a7b7cfe58afa84b6e9cab29`; raw output và dữ liệu nhạy cảm không được đưa vào gói công khai.
 
 | Commit/artifact | Win10 22H2 | Win11 previous | Win11 current | Ngày UTC |
 |---|---|---|---|---|
-| Chờ chạy release candidate | Missing | Missing | Missing | — |
+| Preview R5 — `31a8151` | Missing | Missing | Passed (25H2, build 26200.9168) | 2026-08-27 |
+
+Tổng hợp hiện tại: `Passed=1`, `Failed=0`, `Missing=2`, vì vậy trạng thái ma trận vẫn là `IncompleteOrFailed`. `Missing` nghĩa là chưa có runner/bằng chứng đúng nền tảng, không phải một lượt kiểm thử đã chạy và thất bại.
 
 Giới hạn: VM tự động không chứng minh không có lỗ hổng; nó chỉ cho bằng chứng hồi quy trên cấu hình đã nêu. Kiểm thử máy thật, accessibility, driver/vendor khác biệt và review thủ công vẫn cần thiết.

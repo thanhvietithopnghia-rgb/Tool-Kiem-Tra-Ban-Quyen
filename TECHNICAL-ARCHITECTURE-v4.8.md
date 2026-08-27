@@ -1,5 +1,7 @@
 # Kiến trúc kỹ thuật Tool-Kiem-Tra v4.8
 
+> Tài liệu này là baseline lịch sử của v4.8 và được giữ để tham chiếu tương thích. Với v5.0, phiên bản, số lượng module/payload, catalog và metadata hiện hành phải lấy từ `RELEASE-MANIFEST.json` cùng tài liệu v5.0; các giá trị v4.8 bên dưới không mô tả build R5 hiện tại.
+
 Tài liệu này mô tả kiến trúc phát hành `4.8.0.1`, dashboard schema `2.0` và các ranh giới an toàn của bản một tệp. Mã nguồn PowerShell tương ứng là nguồn sự thật; tài liệu không thay thế verifier.
 
 ## Mục tiêu kiến trúc

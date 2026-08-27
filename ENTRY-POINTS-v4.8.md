@@ -1,6 +1,6 @@
-# Entry points Tool-Kiem-Tra v4.8
+# Entry points Tool-Kiem-Tra v5.0
 
-Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 27 descriptor, trong đó 24 entry point công khai và ba nguồn kiểm kê nội bộ.
+Nguồn chuẩn là `Tool-ModuleContract.ps1`. Catalog có 28 descriptor, trong đó 24 entry point công khai và bốn descriptor nội bộ/không khởi chạy trực tiếp. Tên tệp v4.8 được giữ lại để không làm hỏng liên kết tài liệu cũ.
 
 ## Launcher modes
 
@@ -50,15 +50,16 @@ Từ v4.6.2, manifest EXE là `asInvoker`: `--gui` mở dashboard bằng quyền
 
 Với `cleanup.deep -DryRun`, descriptor vẫn giữ `SystemChange` để áp dụng cùng capability/integrity gate và có đủ quyền đọc bằng chứng, nhưng runtime không gọi hành động thay đổi. Kết quả bắt buộc có `SimulationOnly=true`, `NoSystemChangesApplied=true` và danh sách `PlannedActions`; chuyển sang chạy thật luôn tạo invocation mới sau bước chọn/xác nhận lại.
 
-## Ba descriptor nội bộ
+## Bốn descriptor không khởi chạy trực tiếp
 
 | ModuleId | Nguồn |
 | --- | --- |
+| `application.update.apply` | `Tool-UpdateManager.ps1 / Apply`; chỉ chạy sau lựa chọn cập nhật và các cổng xác minh |
 | `inventory.registry` | Registry inventory trong deep scan |
 | `inventory.service` | Service inventory qua CIM/WMI |
 | `inventory.task` | Scheduled Task inventory qua module/fallback |
 
-Ba descriptor này có `IsEntryPoint=false`; GUI không được khởi chạy chúng độc lập.
+Bốn descriptor này có `IsEntryPoint=false`; GUI không được khởi chạy chúng độc lập.
 
 ## Invocation contract
 
@@ -77,5 +78,6 @@ Kết quả chuẩn gồm `Status`, `ExitCode`, `DurationMs`, `Summary`, `Output
 - `LocalOnly`: chạy được trong Offline mode.
 - `Lan`: chỉ chạy sau khi người dùng bật công tắc mạng riêng của Mục 8; có thể tắt lại mà không xóa cấu hình.
 - `Internet`: `software.catalog.update` chỉ chạy sau xác nhận riêng để tải catalog HTTPS. `application.update.check` chỉ chạy khi người dùng đã cho phép Online; nó chỉ lấy manifest phiên bản. Thiếu consent hoặc đang Offline trả mã `2` trước mọi thao tác mạng. Không mô-đun nào tải inventory, đường dẫn, khóa hoặc token lên mạng.
+- `application.update.apply` chỉ chạy nội bộ sau khi người dùng chọn cập nhật và manifest/download đã qua các cổng xác minh; đây không phải entry point độc lập.
 
 Module mới phải khai báo `NetworkScope` và được thêm vào verifier trước khi phát hành.

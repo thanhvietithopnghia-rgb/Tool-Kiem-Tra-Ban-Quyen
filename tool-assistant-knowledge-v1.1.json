@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
   "KnowledgeVersion": "1.5.1",
-  "UpdatedAtUtc": "2026-08-24T15:13:01Z",
+  "UpdatedAtUtc": "2026-08-27T00:00:00Z",
   "ToolVersionMin": "5.0.0.0",
   "ToolVersionMax": "5.0.65535.65535",
   "ReleasedWithToolVersion": "5.0.0.0",
@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v5.0"],
-      "AnswerVi": "Bản v5.0.0.0 ManagedSigned được build ngày 24/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
-      "AnswerEn": "The v5.0.0.0 ManagedSigned build was produced on 24 August 2026 for environments where the administrator trust certificate has been distributed. A public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
+      "AnswerVi": "Bản v5.0.0.0 ManagedSigned Preview R5 được build ngày 26/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
+      "AnswerEn": "The v5.0.0.0 ManagedSigned Preview R5 build was produced on 26 August 2026 for environments where the administrator trust certificate has been distributed. A public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
     },
     {
       "Id": "first-release",
@@ -68,8 +68,8 @@
       "TitleVi": "Không đọc được dữ liệu cấp phép khác với chưa kích hoạt",
       "TitleEn": "Unreadable licensing data versus unactivated",
       "Keywords": ["khong doc duoc du lieu ban quyen", "khong truy cap duoc softwarelicensingproduct", "wmi cim loi", "chua kich hoat nhung van dung duoc", "license data unavailable", "unreadable license data", "sppsvc winmgmt"],
-      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v5.0 build 24/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
-      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 24 August v5.0 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
+      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v5.0 build 26/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
+      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 26 August v5.0 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
     },
     {
       "Id": "software-inventory-coverage",

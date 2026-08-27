@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v5.0 — ManagedSigned preview cho môi trường quản trị
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.25 · `ManagedSigned Preview R4`
+**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Preview R5`
 **Tác giả và phát triển:** Thanh Việt
 **Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>

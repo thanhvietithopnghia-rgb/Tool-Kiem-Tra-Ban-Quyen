@@ -2,22 +2,28 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
-Phiên bản ManagedSigned: **v5.0.0.0**
-FileVersion: **5.0.0.0** · Build **2026.08.25**
+Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Preview R5**
+FileVersion: **5.0.0.0** · Build **2026.08.26**
 
-Trang tải mới nhất:
+Trang Stable công khai mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
-## v5.0.0.0 — 24/08/2026 — ManagedSigned prerelease
+## v5.0.0.0 — 26/08/2026 — ManagedSigned prerelease (Preview R5)
 
-- **Chuỗi phát hành tin cậy:** Stable fail-closed nếu thiếu chứng thư CA-issued/HSM, timestamp RFC3161, provenance CMS đúng source commit hoặc worktree sạch.
-- **Catalog/plugin:** phân loại Fresh/Warning/Stale/Future/Invalid; plugin ngoài chỉ dùng metadata khai báo ký CMS từ fingerprint quản trị viên ghim.
-- **Quét linh hoạt:** Quick/Standard/Deep, ngân sách quét và giới hạn include/exclude/root an toàn.
-- **Giao diện và triển khai:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export an toàn, CLI headless và script Intune/MDM.
-- **Khắc phục tách riêng:** thanh Khắc phục có đúng năm chức năng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ. Ba chức năng đầu mở thẳng màn hình riêng, khóa phạm vi xuyên suốt Dry Run, backup, xác nhận và hậu kiểm; không đi qua menu khắc phục chung.
-- **Giao diện gọn hơn:** bỏ dòng trạng thái "Catalog phần mềm: mới" khỏi thẻ tương thích; kiểm tra độ mới, màu cảnh báo và tooltip catalog vẫn hoạt động.
-- **Đồng bộ phiên bản:** giao diện máy chủ/máy trạm nhận phiên bản từ launcher; tiêu đề và tên hạ tầng mới dùng v5.0 nhưng vẫn dọn được cấu hình legacy v4.8/v4.6.
-- **Trạng thái hiện tại:** thao tác quản trị được mở trên máy đã tin cậy chứng thư ManagedSigned; tự cập nhật công khai vẫn khóa và bản này không được gọi là public-CA Stable.
+- **R5 thay thế R4:** R4 đã được rút trước khi phát hành rộng rãi do BuildId trong launcher không khớp Bridge/provenance; R5 được build lại từ nguồn và thay mới toàn bộ artifact cùng metadata phát hành.
+- **Danh tính bản build thống nhất:** launcher, Elevated Bridge nhúng, manifest và provenance dùng một BuildId chuẩn `5.0.0.0-production-20260826`; nhãn phát hành là `5.0.0.0-managed-signed-20260826`.
+- **Kiểm tra sau biên dịch:** chuỗi build đối chiếu lại EXE, Bridge nhúng, provenance và source snapshot; mọi sai lệch danh tính hoặc worktree không sạch đều làm dừng phát hành.
+- **SBOM và chuỗi cung ứng:** bổ sung `SBOM.cdx.json` theo CycloneDX 1.5, gắn SHA-256 trong release manifest; các GitHub Actions được khóa theo full commit SHA và build từ chối tham chiếu tag/branch có thể thay đổi.
+- **Trạng thái ManagedSigned rõ ràng:** Authenticode, timestamp RFC 3161 và CMS provenance được xác minh trên máy đã nhận chứng thư quản trị; thao tác thay đổi hệ thống chỉ mở sau khi WinVerifyTrust và provenance cùng hợp lệ. Tự cập nhật công khai vẫn bị khóa và đây không phải public-CA Stable.
+- **Ba mức quét:** Quick, Standard và Deep có ngân sách rõ ràng cùng giới hạn an toàn cho root, include và exclude.
+- **Catalog và plugin:** hiển thị các trạng thái Fresh/Warning/Stale/Future/Invalid; plugin ngoài chỉ nhận metadata khai báo ký CMS từ publisher có fingerprint do quản trị viên ghim.
+- **Giao diện responsive:** giữ giao diện responsive của R4, thêm điều hướng gọn khi sidebar bị ẩn, chiều cao thẻ theo nội dung, cuộn có giới hạn trên màn hình thấp và kiểm tra cắt chữ cho điều khiển Việt/Anh; tiếp tục hỗ trợ theme hệ thống, Light/Dark và PerMonitorV2 DPI.
+- **Năm luồng khắc phục:** Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ.
+- **Khắc phục đúng phạm vi:** ba luồng Windows, Office và phần mềm khác mở thẳng màn hình chuyên biệt; phạm vi được khóa xuyên suốt Dry Run, backup, xác nhận, thực hiện và hậu kiểm. Màn Tổng quan kết hợp vẫn được giữ.
+- **Đồng bộ Enterprise:** giao diện Server/Workstation lấy phiên bản `5.0.0.0` từ launcher; tài nguyên mới dùng tên v5.0 nhưng vẫn dọn được cấu hình legacy v4.8/v4.6.
+- **Triển khai và xuất báo cáo:** hỗ trợ CLI headless, script Intune/MDM và xuất fleet JSON/CSV/HTML/PDF với cơ chế che dữ liệu nhạy cảm và chống CSV injection.
+- **Giao diện gọn hơn:** bỏ dòng phiên bản ở chân sidebar và dòng "Catalog phần mềm: mới" bị trùng; kiểm tra độ mới, màu cảnh báo và tooltip catalog vẫn hoạt động.
+- **Phạm vi kiểm thử minh bạch:** bằng chứng hiện có ghi nhận Windows 11 hiện tại/25H2 đạt kiểm thử tự động; Windows 10 22H2 và Windows 11 thế hệ trước còn thiếu runner, nên ma trận VM vẫn chưa hoàn tất. Bản phát hành public-CA vẫn cần đủ ma trận Windows và đánh giá bảo mật độc lập.
 
 ## v4.9.0.0 — 22/08/2026
 

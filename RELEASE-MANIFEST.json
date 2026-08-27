@@ -2,8 +2,8 @@
     "SchemaVersion":  "2.0",
     "ToolVersion":  "5.0",
     "ReleaseVersion":  "5.0.0.0",
-    "ReleaseBuildDate":  "2026.08.25",
-    "ReleaseLabel":  "5.0.0.0-managed-signed-20260825",
+    "ReleaseBuildDate":  "2026.08.26",
+    "ReleaseLabel":  "5.0.0.0-managed-signed-20260826",
     "ReleaseStatus":  "ManagedSigned",
     "PrimaryFileName":  "Tool-Kiem-Tra-v5.0.exe",
     "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
@@ -12,7 +12,7 @@
                           "FileName":  "Tool-Kiem-Tra-v5.0.exe",
                           "Architecture":  "AnyCPU",
                           "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
-                          "Sha256":  "2BFA1FB29B547C5DD3E74226EB0EDFBA040D56F9EBFF27A97EC36744C33C69BC",
+                          "Sha256":  "1BAF4061496043D765B25D5AB07C6A024D0E9DED8BD52EB1258FECACFB9671B4",
                           "AuthenticodeStatus":  "Valid",
                           "AuthenticodeSigner":  "CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing)",
                           "AuthenticodeThumbprint":  "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA",
@@ -36,6 +36,12 @@
                                  }
                       }
                   ],
+    "Sbom":  {
+                 "FileName":  "SBOM.cdx.json",
+                 "Format":  "CycloneDX",
+                 "SpecVersion":  "1.5",
+                 "Sha256":  "5BF67EC296714DDE6BA04917062C6815CF9843F302AFA56E6B6ED40983C8362E"
+             },
     "PayloadCount":  55,
     "IntegrityFileCount":  53,
     "PayloadCompression":  {
@@ -45,11 +51,11 @@
                                "ResourceCount":  1,
                                "PayloadCount":  55,
                                "HeaderBytes":  464,
-                               "SourceBytes":  3166287,
-                               "BundleBytes":  3166751,
-                               "EmbeddedBytes":  673909,
-                               "SavedBytes":  2492378,
-                               "SavingsPercent":  78.72,
+                               "SourceBytes":  3170416,
+                               "BundleBytes":  3170880,
+                               "EmbeddedBytes":  675247,
+                               "SavedBytes":  2495169,
+                               "SavingsPercent":  78.7,
                                "MaximumPayloadBytes":  8388608,
                                "MaximumPayloadDataBytes":  16777216,
                                "MaximumCompressedBytes":  16777216,
@@ -95,7 +101,7 @@
     "ApplicationUpdateVerification":  "Pinned detached-CMS manifest + fixed GitHub HTTPS allowlist + declared size + SHA-256 + mandatory pinned Authenticode signer for stable + rollback",
     "OfficialBuildProvenance":  {
                                     "State":  "Official",
-                                    "BuildId":  "5.0.0.0-production-20260825",
+                                    "BuildId":  "5.0.0.0-production-20260826",
                                     "ManifestFile":  "OFFICIAL-PROVENANCE-v1.json",
                                     "SignatureFile":  "OFFICIAL-PROVENANCE-v1.json.p7s",
                                     "VerificationUrl":  "https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/#verify-official-build",
@@ -113,7 +119,7 @@
     "CompatibilityCatalogSchemaVersion":  "1.1",
     "CompatibilityCatalogVersion":  "1.1.1.0",
     "CompatibilityCatalogReviewedAtUtc":  "2026-08-17T00:00:00.0000000Z",
-    "CompatibilityCatalogAgeDays":  8,
+    "CompatibilityCatalogAgeDays":  10,
     "CompatibilityCatalogHealth":  "Fresh",
     "CompatibilityCatalogFresh":  true,
     "CompatibilityCatalogReviewWarningAgeDays":  30,
@@ -157,7 +163,7 @@
     "SoftwareLicenseCatalogGeneratedAtUtc":  "2026-08-22T11:00:00Z",
     "SoftwareLicenseCatalogFreshnessStatus":  "Fresh",
     "SoftwareLicenseCatalogFreshForDecisiveEvidence":  true,
-    "SoftwareLicenseCatalogAgeDays":  3.209,
+    "SoftwareLicenseCatalogAgeDays":  4.584,
     "SoftwareLicenseCatalogFreshnessWarningAgeDays":  30,
     "SoftwareLicenseCatalogFreshnessMaximumAgeDays":  45,
     "SoftwareLicenseCatalogProductRules":  92,
@@ -407,5 +413,5 @@
                              "Status":  "NotClaimed",
                              "Reason":  "Launcher la managed IL; CSC khong tao CFG instrumentation/load-config native. Khong gan co GUARD_CF gia."
                          },
-    "BuiltAtUtc":  "2026-08-25T16:00:41.9857013Z"
+    "BuiltAtUtc":  "2026-08-27T01:01:24.4288005Z"
 }

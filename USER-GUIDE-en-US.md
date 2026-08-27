@@ -2,7 +2,7 @@
 
 Developed by Thanh Viet
 
-ManagedSigned version: **v5.0.0.0** · Build **2026.08.25**
+ManagedSigned version: **v5.0.0.0** · Build **2026.08.26**
 Executable: `Tool-Kiem-Tra-v5.0.exe`
 v5 ManagedSigned page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 Latest public Stable page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>

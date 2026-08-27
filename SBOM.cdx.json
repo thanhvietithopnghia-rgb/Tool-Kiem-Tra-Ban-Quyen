@@ -1,0 +1,138 @@
+{
+    "bomFormat":  "CycloneDX",
+    "specVersion":  "1.5",
+    "version":  1,
+    "metadata":  {
+                     "timestamp":  "2026-08-26T00:00:00Z",
+                     "tools":  [
+                                   {
+                                       "vendor":  "Thanh Viet",
+                                       "name":  "BUILD.ps1",
+                                       "version":  "5.0.0.0"
+                                   }
+                               ],
+                     "component":  {
+                                       "type":  "application",
+                                       "bom-ref":  "application:tool-kiem-tra",
+                                       "name":  "Tool Kiem Tra",
+                                       "version":  "5.0.0.0",
+                                       "hashes":  [
+                                                      {
+                                                          "alg":  "SHA-256",
+                                                          "content":  "1BAF4061496043D765B25D5AB07C6A024D0E9DED8BD52EB1258FECACFB9671B4"
+                                                      }
+                                                  ],
+                                       "licenses":  [
+                                                        {
+                                                            "license":  {
+                                                                            "name":  "Proprietary"
+                                                                        }
+                                                        }
+                                                    ],
+                                       "properties":  [
+                                                          {
+                                                              "name":  "tool:buildId",
+                                                              "value":  "5.0.0.0-production-20260826"
+                                                          },
+                                                          {
+                                                              "name":  "tool:sourceSnapshotCommit",
+                                                              "value":  "dd300a07cbc73446115e931873eae5a4ba65de58"
+                                                          },
+                                                          {
+                                                              "name":  "tool:releaseStatus",
+                                                              "value":  "ManagedSigned"
+                                                          }
+                                                      ]
+                                   }
+                 },
+    "components":  [
+                       {
+                           "type":  "framework",
+                           "bom-ref":  "runtime:dotnet-framework-4",
+                           "name":  ".NET Framework",
+                           "version":  "4 / CLR v4"
+                       },
+                       {
+                           "type":  "framework",
+                           "bom-ref":  "runtime:windows-powershell-3",
+                           "name":  "Windows PowerShell",
+                           "version":  "3+"
+                       },
+                       {
+                           "type":  "application",
+                           "bom-ref":  "build:compiler-csc",
+                           "name":  "Microsoft C# Compiler",
+                           "version":  "5.600.26.23015"
+                       },
+                       {
+                           "type":  "library",
+                           "bom-ref":  "github-actions:actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+                           "name":  "actions/checkout",
+                           "version":  "4.4.0",
+                           "licenses":  [
+                                            {
+                                                "license":  {
+                                                                "id":  "MIT"
+                                                            }
+                                            }
+                                        ],
+                           "properties":  [
+                                              {
+                                                  "name":  "tool:gitCommit",
+                                                  "value":  "11d5960a326750d5838078e36cf38b85af677262"
+                                              }
+                                          ]
+                       },
+                       {
+                           "type":  "library",
+                           "bom-ref":  "github-actions:actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+                           "name":  "actions/upload-artifact",
+                           "version":  "4.6.2",
+                           "licenses":  [
+                                            {
+                                                "license":  {
+                                                                "id":  "MIT"
+                                                            }
+                                            }
+                                        ],
+                           "properties":  [
+                                              {
+                                                  "name":  "tool:gitCommit",
+                                                  "value":  "ea165f8d65b6e75b540449e92b4886f43607fa02"
+                                              }
+                                          ]
+                       },
+                       {
+                           "type":  "library",
+                           "bom-ref":  "github-actions:actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+                           "name":  "actions/download-artifact",
+                           "version":  "4.3.0",
+                           "licenses":  [
+                                            {
+                                                "license":  {
+                                                                "id":  "MIT"
+                                                            }
+                                            }
+                                        ],
+                           "properties":  [
+                                              {
+                                                  "name":  "tool:gitCommit",
+                                                  "value":  "d3f86a106a0bac45b974a628896c90dbdf5c8093"
+                                              }
+                                          ]
+                       }
+                   ],
+    "dependencies":  [
+                         {
+                             "ref":  "application:tool-kiem-tra",
+                             "dependsOn":  [
+                                               "runtime:dotnet-framework-4",
+                                               "runtime:windows-powershell-3",
+                                               "build:compiler-csc",
+                                               "github-actions:actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+                                               "github-actions:actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+                                               "github-actions:actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093"
+                                           ]
+                         }
+                     ]
+}

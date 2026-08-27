@@ -2,22 +2,28 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current ManagedSigned version: **v5.0.0.0**
-FileVersion: **5.0.0.0** · Build **2026.08.25**
+Current ManagedSigned preview: **v5.0.0.0 — Preview R5**
+FileVersion: **5.0.0.0** · Build **2026.08.26**
 
-Stable latest-release page:
+Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## v5.0.0.0 — August 24, 2026 — ManagedSigned prerelease
+## v5.0.0.0 — August 26, 2026 — ManagedSigned prerelease (Preview R5)
 
-- **Trusted release chain:** Stable fails closed without a CA-issued/HSM certificate, RFC3161 timestamp, source-bound CMS provenance, and a clean worktree.
-- **Catalogs and plugins:** Fresh/Warning/Stale/Future/Invalid states; external plugins accept only signed declarative metadata from administrator-pinned publishers.
-- **Flexible scanning:** Quick, Standard, and Deep levels with explicit budgets and safe include/exclude/root limits.
-- **UI and deployment:** system-aware themes, dark/light overrides, PerMonitorV2 DPI, safe fleet export, a headless CLI, and Intune/MDM scripts.
-- **Five-entry remediation:** the Remediation section contains Windows, Microsoft Office, other software, OEM key recovery, and valid-license management. The first three open their dedicated locked-scope screen directly; scope remains fixed through Dry Run, backup, confirmation, and post-check.
-- **Cleaner status card:** the redundant "software catalog: fresh/latest" line is hidden while freshness enforcement, warning colors, and tooltip details remain active.
-- **Version synchronization:** server/workstation UI takes its version from the launcher; new infrastructure names use v5.0 while legacy v4.8/v4.6 cleanup remains compatible.
-- **Current state:** approved administration is enabled only on machines that trust the ManagedSigned certificate; public self-update remains disabled and this is not public-CA Stable.
+- **R5 supersedes R4:** R4 was withdrawn before broad release because the launcher BuildId did not match the embedded Bridge/provenance identity; R5 was rebuilt from source with all release artifacts and metadata replaced.
+- **Unified build identity:** the launcher, embedded Elevated Bridge, manifest, and provenance use the canonical BuildId `5.0.0.0-production-20260826`; the release label is `5.0.0.0-managed-signed-20260826`.
+- **Post-compile verification:** the build chain rechecks the EXE, embedded Bridge, provenance, and source snapshot; any identity mismatch or dirty worktree stops release creation.
+- **SBOM and supply chain:** adds a CycloneDX 1.5 `SBOM.cdx.json` whose SHA-256 is recorded in the release manifest; GitHub Actions are pinned to full commit SHAs and mutable tag/branch references are rejected.
+- **Explicit ManagedSigned state:** Authenticode, an RFC 3161 timestamp, and CMS provenance are verified on machines that trust the managed certificate; system-changing actions open only after both WinVerifyTrust and provenance succeed. Public self-update remains disabled, and this is not public-CA Stable.
+- **Three scan levels:** Quick, Standard, and Deep use explicit budgets with safe root, include, and exclude limits.
+- **Catalogs and plugins:** exposes Fresh/Warning/Stale/Future/Invalid states; external plugins accept only CMS-signed declarative metadata from administrator-pinned publisher fingerprints.
+- **Responsive UI:** preserves the responsive R4 interface, with compact navigation when the sidebar is hidden, content-aware tile heights, bounded scrolling on short screens, and clipping checks for Vietnamese/English controls; system-aware themes, Light/Dark overrides, and PerMonitorV2 DPI remain supported.
+- **Five remediation workflows:** Windows, Microsoft Office, other software, OEM key recovery, and valid-license management.
+- **Scope-locked remediation:** Windows, Office, and other-software workflows open their dedicated screens directly; scope stays fixed through Dry Run, backup, confirmation, execution, and post-check. The combined Overview remains available.
+- **Enterprise synchronization:** Server/Workstation interfaces inherit version `5.0.0.0` from the launcher; new resources use v5.0 names while cleanup remains compatible with legacy v4.8/v4.6 resources.
+- **Deployment and export:** supports a headless CLI, Intune/MDM scripts, and fleet JSON/CSV/HTML/PDF export with redaction and CSV-injection safeguards.
+- **Cleaner interface:** removes the redundant sidebar version line and "software catalog: fresh/latest" status line while retaining freshness enforcement, warning colors, and catalog tooltips.
+- **Transparent test scope:** current evidence records an automated pass on current Windows 11/25H2; Windows 10 22H2 and the previous Windows 11 target are still missing runners, so the VM matrix remains incomplete. A public-CA release still requires the full Windows matrix and an independent security review.
 
 ## v4.9.0.0 — August 22, 2026
 

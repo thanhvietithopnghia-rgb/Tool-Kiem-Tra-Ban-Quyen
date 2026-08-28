@@ -8,7 +8,7 @@ FileVersion: **5.0.0.0** · Build **2026.08.26**
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## v5.0.0.0 — August 28, 2026 — ManagedSigned prerelease (Preview R6 hotfix)
+## v5.0.0.0 — August 27, 2026 — ManagedSigned prerelease (Preview R6 hotfix)
 
 - **Scan-source and UAC bridge fix:** ManagedSigned repair now accepts the trusted managed state; process failures and missing result files surface explicit diagnostics instead of a generic data-read error.
 - **Safe recovery path:** the software inventory remains read-only when scan sources are incomplete, while a **Repair scan sources** action can repair and rescan before eligible remediation is unlocked.

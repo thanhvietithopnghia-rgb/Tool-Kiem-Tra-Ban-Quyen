@@ -8,7 +8,7 @@ FileVersion: **5.0.0.0** · Build **2026.08.26**
 Trang Stable công khai mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
-## v5.0.0.0 — 28/08/2026 — ManagedSigned prerelease (Preview R6 hotfix)
+## v5.0.0.0 — 27/08/2026 — ManagedSigned prerelease (Preview R6 hotfix)
 
 - **Sửa lỗi nguồn quét và cầu nối UAC:** ManagedSigned repair được nhận đúng trạng thái tin cậy; lỗi tiến trình và trường hợp không tạo tệp kết quả được báo bằng mã rõ ràng thay vì hiện như lỗi dữ liệu chung.
 - **Mở đường khôi phục an toàn:** danh sách phần mềm chỉ xem khi nguồn quét chưa đầy đủ, nhưng có nút **Sửa nguồn quét** để chạy lại repair rồi quét lại trước khi mở thao tác đủ điều kiện.

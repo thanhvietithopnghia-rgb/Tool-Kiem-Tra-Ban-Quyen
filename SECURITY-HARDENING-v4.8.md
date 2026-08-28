@@ -1,6 +1,6 @@
 # Security hardening baseline — Tool-Kiem-Tra v4.8
 
-> Đây là baseline bảo mật lịch sử của v4.8. Không dùng tên EXE, ToolVersion hoặc lệnh xác minh v4.8 bên dưới cho build v5.0 R5; với bản hiện tại, dùng `Tool-Kiem-Tra-v5.0.exe` và đối chiếu `RELEASE-MANIFEST.json`, `OFFICIAL-PROVENANCE-v1.json` cùng `RELEASE-SHA256SUMS.txt` của release v5.0.0.0.
+> Đây là baseline bảo mật lịch sử của v4.8. Không dùng tên EXE, ToolVersion hoặc lệnh xác minh v4.8 bên dưới cho build v5.0 R6; với bản hiện tại, dùng `Tool-Kiem-Tra-v5.0.exe` và đối chiếu `RELEASE-MANIFEST.json`, `OFFICIAL-PROVENANCE-v1.json` cùng `RELEASE-SHA256SUMS.txt` của release v5.0.0.0.
 
 ## Artefact và build
 

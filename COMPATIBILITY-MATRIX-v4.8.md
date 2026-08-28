@@ -1,6 +1,6 @@
 # Ma trận tương thích v4.8
 
-> Đây là baseline tương thích lịch sử của v4.8. Build v5.0 R5 dùng catalog, module và metadata mới hơn; xem `RELEASE-MANIFEST.json`, `RELEASE-NOTES-v5.0.md` và `ROADMAP-v5.0.md` cho trạng thái hiện hành.
+> Đây là baseline tương thích lịch sử của v4.8. Build v5.0 R6 dùng catalog, module và metadata mới hơn; xem `RELEASE-MANIFEST.json`, `RELEASE-NOTES-v5.0.md` và `ROADMAP-v5.0.md` cho trạng thái hiện hành.
 
 Mốc rà soát: **2026-08-17 UTC**. Nguồn máy đọc: `compatibility-catalog-v1.0.json`, schema catalog `1.1`, phiên bản `1.1.1.0`.
 

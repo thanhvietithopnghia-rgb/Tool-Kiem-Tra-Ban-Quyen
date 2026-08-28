@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v5.0"],
-      "AnswerVi": "Bản v5.0.0.0 ManagedSigned Preview R5 được build ngày 26/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
-      "AnswerEn": "The v5.0.0.0 ManagedSigned Preview R5 build was produced on 26 August 2026 for environments where the administrator trust certificate has been distributed. A public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
+      "AnswerVi": "Bản v5.0.0.0 ManagedSigned Preview R6 là bản hotfix được build ngày 26/08/2026 và công bố lại ngày 27/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản này sửa cầu nối repair nguồn quét, chẩn đoán lỗi tiến trình và giao diện danh sách chỉ xem; bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
+      "AnswerEn": "The v5.0.0.0 ManagedSigned Preview R6 is a hotfix built on 26 August 2026 and republished on 27 August 2026 for environments where the administrator trust certificate has been distributed. It fixes the scan-source repair bridge, process diagnostics, and read-only inventory guidance; a public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
     },
     {
       "Id": "first-release",

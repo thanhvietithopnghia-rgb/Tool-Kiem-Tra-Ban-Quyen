@@ -1,13 +1,22 @@
-# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Preview R5
+# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Preview R6
 
 Canonical release/build label date: 2026-08-26
-Final compile/package timestamp: 2026-08-27T01:01:24Z
-Status: `ManagedSigned` prerelease (Preview R5) — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not the public-CA Stable channel
+Final compile/package timestamp: 2026-08-28T00:27:54Z
+Status: `ManagedSigned` prerelease (Preview R6) — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not the public-CA Stable channel
 
-Preview R4 was published as a prerelease but withdrawn before Stable promotion because its compiled launcher
+Preview R4 was withdrawn before Stable promotion because its compiled launcher
 contained a BuildId that differed from the Bridge/provenance identity. Preview
-R5 is rebuilt from source with one canonical BuildId, post-compile EXE/embedded-
-Bridge verification, CycloneDX SBOM, and commit-pinned GitHub Actions.
+R5 established the canonical v5.0.0.0 identity. Preview R6 is the hotfix
+revision rebuilt from the same release line with scan-source recovery, clearer
+process diagnostics, and responsive result messaging.
+
+## R6 hotfix highlights
+
+- ManagedSigned repair calls now pass the trusted-state bridge check, and failed child processes report their exit code.
+- Missing scan-result files are distinguished from process failures and stale decision files are cleared before retry.
+- Incomplete software scans remain read-only but offer **Repair scan sources** so the user can repair and rescan without changing the system.
+- Windows, Microsoft Office, and other-software scope is stated directly in the result window; long Vietnamese/English labels wrap instead of being clipped.
+- The safety regression suite includes the ManagedSigned repair bridge probe and the new localized diagnostic tokens.
 
 ## Highlights
 
@@ -22,8 +31,8 @@ Bridge verification, CycloneDX SBOM, and commit-pinned GitHub Actions.
 - The sidebar footer now shows only the Thanh Việt copyright line; the redundant software-version line was removed.
 - The compact compatibility card no longer shows the redundant "software catalog: fresh/latest" line; catalog freshness enforcement, warning colors, and tooltip details remain active.
 - Responsive R4 adds compact navigation when the sidebar is hidden, content-aware tile heights with bounded scrolling on short screens, and clipping checks for Vietnamese/English licence-management controls.
-- Preview R5 preserves the responsive R4 UI while replacing the release artefact and all release metadata after the BuildId identity correction.
-- The attached public-safe R5 test evidence records Windows 11 current/25H2 as Passed and leaves Windows 10 22H2 plus Windows 11 previous/24H2 as Missing (`Passed=1`, `Failed=0`, `Missing=2`); the client VM matrix therefore remains incomplete.
+- Preview R5 established the responsive UI and canonical release artefact; Preview R6 carries the scan-source recovery hotfix while retaining the same v5.0.0.0 build identity.
+- The attached public-safe R6 test evidence records Windows 11 current/25H2 as Passed and leaves Windows 10 22H2 plus Windows 11 previous/24H2 as Missing (`Passed=1`, `Failed=0`, `Missing=2`); the client VM matrix therefore remains incomplete.
 - Unsigned development builds remain a separate mode and keep self-update plus every system-changing action blocked.
 
 ## Public Stable Gates Still Required

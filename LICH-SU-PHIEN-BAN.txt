@@ -2,13 +2,21 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
-Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Preview R5**
+Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Preview R6**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 Trang Stable công khai mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
-## v5.0.0.0 — 26/08/2026 — ManagedSigned prerelease (Preview R5)
+## v5.0.0.0 — 28/08/2026 — ManagedSigned prerelease (Preview R6 hotfix)
+
+- **Sửa lỗi nguồn quét và cầu nối UAC:** ManagedSigned repair được nhận đúng trạng thái tin cậy; lỗi tiến trình và trường hợp không tạo tệp kết quả được báo bằng mã rõ ràng thay vì hiện như lỗi dữ liệu chung.
+- **Mở đường khôi phục an toàn:** danh sách phần mềm chỉ xem khi nguồn quét chưa đầy đủ, nhưng có nút **Sửa nguồn quét** để chạy lại repair rồi quét lại trước khi mở thao tác đủ điều kiện.
+- **Kết quả đúng phạm vi:** giao diện nêu rõ Windows, Microsoft Office và phần mềm khác được đánh giá ở các nguồn riêng; không gộp các kết luận khác phạm vi thành một cảnh báo mơ hồ.
+- **Không còn cắt chữ:** tiêu đề, tóm tắt và hướng dẫn tiếng Việt/Anh tự xuống dòng trong khung hẹp hoặc DPI cao; bổ sung thông báo khi chưa có mục đủ bằng chứng để khắc phục trực tiếp.
+- **Regression gate:** thêm probe ManagedSigned cho bridge và đồng bộ verifier/chuỗi thông báo song ngữ. R6 vẫn là ManagedSigned Preview, không phải public-CA Stable.
+
+## v5.0.0.0 — 26/08/2026 — ManagedSigned prerelease (Preview R5, baseline — superseded by R6)
 
 - **R5 thay thế R4:** R4 đã được rút trước khi phát hành rộng rãi do BuildId trong launcher không khớp Bridge/provenance; R5 được build lại từ nguồn và thay mới toàn bộ artifact cùng metadata phát hành.
 - **Danh tính bản build thống nhất:** launcher, Elevated Bridge nhúng, manifest và provenance dùng một BuildId chuẩn `5.0.0.0-production-20260826`; nhãn phát hành là `5.0.0.0-managed-signed-20260826`.

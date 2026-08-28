@@ -16,11 +16,11 @@ Workflow tạo `client-vm-summary.json` và `client-vm-summary.md`, gồm commit
 
 ## Kết quả hiện tại
 
-Preview R5 có gói bằng chứng public-safe `Tool-Kiem-Tra-v5.0-R5-Test-Evidence.zip` đính kèm tại release `v5.0.0.0`. Tóm tắt được tạo từ metadata release commit `31a8151e6c574e7b2a7b7cfe58afa84b6e9cab29`; raw output và dữ liệu nhạy cảm không được đưa vào gói công khai.
+Preview R6 có gói bằng chứng public-safe `Tool-Kiem-Tra-v5.0-R6-Test-Evidence.zip` đính kèm tại release `v5.0.0.0`. Tóm tắt được tạo từ metadata release commit `1ed0e46069a5d04522552031263d6ceaa184f354`; raw output và dữ liệu nhạy cảm không được đưa vào gói công khai.
 
 | Commit/artifact | Win10 22H2 | Win11 previous | Win11 current | Ngày UTC |
 |---|---|---|---|---|
-| Preview R5 — `31a8151` | Missing | Missing | Passed (25H2, build 26200.9168) | 2026-08-27 |
+| Preview R6 — `1ed0e46` | Missing | Missing | Passed (25H2, build 26200.9168) | 2026-08-28 |
 
 Tổng hợp hiện tại: `Passed=1`, `Failed=0`, `Missing=2`, vì vậy trạng thái ma trận vẫn là `IncompleteOrFailed`. `Missing` nghĩa là chưa có runner/bằng chứng đúng nền tảng, không phải một lượt kiểm thử đã chạy và thất bại.
 

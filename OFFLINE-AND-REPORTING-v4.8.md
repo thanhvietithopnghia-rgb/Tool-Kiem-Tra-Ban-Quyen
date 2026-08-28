@@ -1,6 +1,6 @@
 # Offline mode, Trợ lý Tool và báo cáo v4.8
 
-> Đây là baseline hành vi v4.8 được giữ để tham chiếu tương thích. Với v5.0 R5, mọi phiên bản schema/knowledge, số lượng module và metadata hiện hành phải đối chiếu `RELEASE-MANIFEST.json` và tài liệu v5.0.
+> Đây là baseline hành vi v4.8 được giữ để tham chiếu tương thích. Với v5.0 R6, mọi phiên bản schema/knowledge, số lượng module và metadata hiện hành phải đối chiếu `RELEASE-MANIFEST.json` và tài liệu v5.0.
 
 ## Chính sách mặc định
 

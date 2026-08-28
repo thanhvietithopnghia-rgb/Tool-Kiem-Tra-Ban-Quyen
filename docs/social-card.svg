@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
   <title id="title">Tool Kiểm Tra v5.0 ManagedSigned Preview</title>
-  <desc id="desc">Preview R5 với BuildId thống nhất, CycloneDX SBOM, năm luồng khắc phục và hậu kiểm bắt buộc.</desc>
+  <desc id="desc">Preview R6 sửa nguồn quét và cầu nối UAC, làm rõ chẩn đoán và giữ chuỗi phát hành ManagedSigned đã kiểm chứng.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071f4b"/><stop offset=".6" stop-color="#1458b6"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient>
     <filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-opacity=".24"/></filter>
@@ -11,7 +11,7 @@
     <path d="M145 0 280 48v108c0 104-56 178-135 218C66 334 10 260 10 156V48Z" fill="#fff"/>
     <path d="m84 184 40 40 83-95" fill="none" stroke="#1458b6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <text x="420" y="180" fill="#b9e9ff" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="3">THANH VIỆT · BUILD 2026.08.26 · R5</text>
+  <text x="420" y="180" fill="#b9e9ff" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="3">THANH VIỆT · BUILD 2026.08.26 · R6</text>
   <text x="420" y="270" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="66" font-weight="800">Tool Kiểm Tra</text>
   <text x="420" y="348" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="58" font-weight="740">v5.0 ManagedSigned</text>
   <rect x="420" y="395" width="575" height="56" rx="28" fill="#fff" opacity=".13"/>

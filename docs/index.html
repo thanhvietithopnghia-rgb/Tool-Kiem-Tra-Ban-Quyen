@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Tool Kiểm Tra v5.0 ManagedSigned Preview | Thanh Việt</title>
-  <meta name="description" content="Tool Kiểm Tra v5.0 ManagedSigned Preview R5: thống nhất BuildId, bổ sung CycloneDX SBOM, giao diện responsive, năm luồng khắc phục và quét Quick/Standard/Deep.">
+  <meta name="description" content="Tool Kiểm Tra v5.0 ManagedSigned Preview R6: sửa nguồn quét và cầu nối UAC, chẩn đoán rõ hơn, giao diện responsive và năm luồng khắc phục có kiểm soát.">
   <meta name="author" content="Thanh Việt">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="vi_VN">
   <meta property="og:title" content="Tool Kiểm Tra v5.0 ManagedSigned Preview">
-  <meta property="og:description" content="Preview R5 với BuildId thống nhất, CycloneDX SBOM, năm luồng khắc phục và hậu kiểm bắt buộc.">
+  <meta property="og:description" content="Preview R6 sửa nguồn quét và cầu nối UAC, làm rõ chẩn đoán và giữ chuỗi phát hành ManagedSigned đã kiểm chứng.">
   <meta property="og:url" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/">
   <meta property="og:image" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/social-card.svg">
   <meta property="og:image:alt" content="Tool Kiểm Tra v5.0 ManagedSigned của Thanh Việt">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Tool Kiểm Tra v5.0 ManagedSigned Preview">
-  <meta name="twitter:description" content="Preview R5: chuỗi phát hành chặt chẽ, UI responsive, khắc phục theo phạm vi và báo cáo riêng tư.">
+  <meta name="twitter:description" content="Preview R6: sửa nguồn quét, chẩn đoán rõ hơn, UI responsive và khắc phục theo phạm vi.">
   <meta name="twitter:image" content="https://thanhvietithopnghia-rgb.github.io/Tool-Kiem-Tra-Ban-Quyen/social-card.svg">
   <script type="application/ld+json">
   {
@@ -29,7 +29,7 @@
     "operatingSystem": "Windows",
     "softwareVersion": "5.0.0.0",
     "datePublished": "2026-08-26",
-    "dateModified": "2026-08-27",
+    "dateModified": "2026-08-28",
     "downloadUrl": "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0",
     "releaseNotes": "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0",
     "author": {"@type":"Person","name":"Thanh Việt"},
@@ -56,7 +56,7 @@
 
   <div id="top" class="wrap hero">
     <div>
-      <div class="eyebrow">v5.0.0.0 · ManagedSigned Preview R5 · Build 2026.08.26</div>
+      <div class="eyebrow">v5.0.0.0 · ManagedSigned Preview R6 · Build 2026.08.26</div>
       <h1>Kiểm tra rõ ràng.<br>Xử lý có bằng chứng.</h1>
       <p class="lead">Tool Kiểm Tra giúp rà soát cấu hình, Windows, Office và phần mềm trên máy Windows. v5.0 là ManagedSigned preview cho môi trường đã phân phối chứng thư quản trị; Offline vẫn là mặc định và không có telemetry.</p>
       <div class="badges"><span class="badge">Offline mặc định</span><span class="badge">3 phạm vi khắc phục</span><span class="badge">Catalog ký số</span><span class="badge">Hậu kiểm bắt buộc</span><span class="badge">ManagedSigned</span></div>
@@ -74,7 +74,7 @@
   <main>
     <section id="new" class="wrap">
       <h2>v5.0 thay đổi những gì?</h2>
-      <p class="intro">Preview R5 thay thế R4 sau khi thống nhất BuildId giữa launcher, Bridge nhúng và provenance; bổ sung CycloneDX SBOM cùng kiểm tra sau biên dịch. Phiên bản này tiếp tục quét theo mức tài nguyên, plugin/catalog ký số, quản trị doanh nghiệp và năm luồng khắc phục có kiểm soát.</p>
+      <p class="intro">Preview R6 là hotfix của cùng danh tính v5.0.0.0: sửa cầu nối UAC khi khôi phục nguồn quét, phân biệt lỗi tiến trình với thiếu tệp kết quả và thêm đường khôi phục an toàn từ danh sách chỉ xem. Phiên bản này giữ CycloneDX SBOM, quét theo mức tài nguyên, plugin/catalog ký số, quản trị doanh nghiệp và năm luồng khắc phục có kiểm soát.</p>
       <div class="grid">
         <article class="card"><h3>Ba phạm vi Khắc phục</h3><p>Windows, Microsoft Office và phần mềm khác có ba điểm vào riêng. Phạm vi đã chọn được khóa xuyên suốt quét, Dry Run, backup, xác nhận và hậu kiểm.</p></article>
         <article class="card"><h3>Nguồn gốc fail-closed</h3><p>Chữ ký, timestamp, chứng thư ghim, Build ID và provenance được kiểm tra. ManagedSigned chỉ mở thao tác trên máy đã nhận chứng thư quản trị.</p></article>

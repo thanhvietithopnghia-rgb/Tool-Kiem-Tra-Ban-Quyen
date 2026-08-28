@@ -2,13 +2,21 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current ManagedSigned preview: **v5.0.0.0 — Preview R5**
+Current ManagedSigned preview: **v5.0.0.0 — Preview R6**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## v5.0.0.0 — August 26, 2026 — ManagedSigned prerelease (Preview R5)
+## v5.0.0.0 — August 28, 2026 — ManagedSigned prerelease (Preview R6 hotfix)
+
+- **Scan-source and UAC bridge fix:** ManagedSigned repair now accepts the trusted managed state; process failures and missing result files surface explicit diagnostics instead of a generic data-read error.
+- **Safe recovery path:** the software inventory remains read-only when scan sources are incomplete, while a **Repair scan sources** action can repair and rescan before eligible remediation is unlocked.
+- **Scope-consistent results:** the UI explains that Windows, Microsoft Office, and other software use separate assessment sources, so differing conclusions are expected rather than silently merged.
+- **No clipped labels:** headings, summaries, and Vietnamese/English guidance wrap within narrow or high-DPI windows; a clear message is shown when no item has enough evidence for direct remediation.
+- **Regression gate:** adds a ManagedSigned bridge probe and synchronizes the bilingual verifier/message chain. R6 remains a ManagedSigned Preview, not public-CA Stable.
+
+## v5.0.0.0 — August 26, 2026 — ManagedSigned prerelease (Preview R5, baseline — superseded by R6)
 
 - **R5 supersedes R4:** R4 was withdrawn before broad release because the launcher BuildId did not match the embedded Bridge/provenance identity; R5 was rebuilt from source with all release artifacts and metadata replaced.
 - **Unified build identity:** the launcher, embedded Elevated Bridge, manifest, and provenance use the canonical BuildId `5.0.0.0-production-20260826`; the release label is `5.0.0.0-managed-signed-20260826`.

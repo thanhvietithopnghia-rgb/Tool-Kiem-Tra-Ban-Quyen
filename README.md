@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v5.0 — ManagedSigned preview cho môi trường quản trị
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Preview R5`
+**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Preview R6`
 **Tác giả và phát triển:** Thanh Việt
 **Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
@@ -8,6 +8,8 @@
 Tool Kiểm Tra là ứng dụng Windows miễn phí cho cộng đồng, hỗ trợ kiểm kê cấu hình máy, kiểm tra trạng thái Windows/Office/phần mềm, rà soát dấu hiệu KMS/activator/can thiệp và tạo báo cáo. Tool hoạt động Offline theo mặc định, không có telemetry và chỉ dùng mạng sau khi người dùng chủ động bật Online.
 
 v5.0 tăng cường cổng ký phát hành fail-closed, trạng thái độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất fleet và triển khai Intune/MDM. Bản `ManagedSigned` cho phép thao tác đã phê duyệt trên máy được quản trị viên phân phối chứng thư tin cậy, nhưng không phải public-CA Stable và vẫn khóa tự cập nhật công khai. Công cụ cung cấp bằng chứng kỹ thuật hỗ trợ quản trị, không thay thế hóa đơn, hợp đồng, tài khoản hãng hoặc tư vấn pháp lý.
+
+`ManagedSigned Preview R6` là bản hotfix của cùng danh tính v5.0.0.0: sửa cầu nối UAC cho repair nguồn quét, báo rõ lỗi tiến trình/tệp kết quả, thêm nút **Sửa nguồn quét** trong danh sách chỉ xem và làm rõ phạm vi Windows/Office/phần mềm khác. Bản này vẫn là Preview; không được gọi là Stable public-CA.
 
 ## Tải và bắt đầu
 

@@ -1,20 +1,20 @@
 # Tool Kiểm Tra v5.0 — Bản nâng cấp và cải tiến tiếp nối từ v4.9
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Stable R8`
+**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Bản cập nhật R9 ngày 30/08/2026
 **Tác giả và phát triển:** Thanh Việt
-**Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
+**Trang tải v5.0:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
 Tiếp nối nền tảng của v4.9, Tool Kiểm Tra v5.0 được nâng cấp để kiểm tra nhanh hơn, nhận diện chính xác hơn và sử dụng thuận tiện hơn. Phiên bản mới có ba mức kiểm tra từ cơ bản đến chuyên sâu, tách riêng Windows, Microsoft Office và các phần mềm khác, đồng thời cải thiện giao diện để hiển thị tốt trên nhiều kích thước màn hình.
 
 Quy trình khắc phục cũng an toàn và rõ ràng hơn: người dùng được xem trước nội dung, sao lưu, xác nhận trước khi thực hiện và kiểm tra lại kết quả sau xử lý. v5.0 còn bổ sung báo cáo dễ theo dõi hơn và hỗ trợ quản lý nhiều máy. Tool vẫn hoạt động **Offline theo mặc định, không tự động gửi dữ liệu ra Internet** và chỉ kết nối mạng khi người dùng chủ động cho phép.
 
-R8 sửa lỗi chữ ký `0x800B0109` trên máy mới chưa cài sẵn chứng thư của tác giả. Tool vẫn đối chiếu đúng người ký bằng cả SHA-1 và SHA-256, đồng thời khóa tệp bị sửa hoặc ký bằng chứng thư khác. Nếu Windows PowerShell bị chính sách của máy chặn hoặc thiếu thành phần cần thiết, launcher sẽ hiện mã lỗi thay vì thoát im lặng. Đây vẫn là bản dùng chứng thư tự ký, nên Windows có thể hiện `Unknown publisher` hoặc SmartScreen.
+R9 cho phép người dùng chọn phần mềm trả phí, thuê bao, dùng thử, nghi ngờ hoặc chưa rõ để tiếp tục xử lý. Tool không còn khóa ô chọn chỉ vì cách bán phần mềm hoặc vì kết quả nhận diện chưa chắc chắn. Mục có dấu vết cụ thể sẽ chỉ xử lý đúng dấu vết đã phát hiện; mục chưa có dấu vết cụ thể sẽ mở bước kiểm tra, sửa hoặc cài lại từ nguồn chính thức và không tự ý xóa dữ liệu.
 
 ## Tải và bắt đầu
 
-1. Mở [trang v5.0.0.0 ManagedSigned](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [Stable công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
-2. Nếu đang dùng R7, hãy tải R8 thủ công và thay tệp EXE cũ vì hai bản cùng mang số phiên bản `5.0.0.0` và kênh ManagedSigned không tự cập nhật. R8 không cần cài chứng thư trước.
+1. Mở [trang tải v5.0.0.0](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [bản công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
+2. Nếu đang dùng R8, hãy tải R9 và thay tệp EXE cũ vì hai bản cùng mang số phiên bản `5.0.0.0`.
 3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
 4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
 5. Chỉ chấp nhận UAC khi tên tác vụ đúng với thao tác khắc phục, cập nhật hoặc quản trị mà bạn vừa chọn.

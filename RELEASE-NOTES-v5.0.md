@@ -1,8 +1,16 @@
-# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Stable R8
+# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R9
 
 Build date: 2026-08-26
-Published revision: 2026-08-30 (R8 portability hotfix)
-Status: `ManagedSigned` self-signed exception — the launcher pins both the signer thumbprint and certificate SHA-256; Windows may still show `Unknown publisher` because this is not a public-CA identity
+Published revision: 2026-08-30 (R9 selection update)
+
+## Cập nhật R9
+
+- Cho phép chọn phần mềm trả phí, thuê bao, dùng thử, nghi ngờ hoặc chưa rõ để tiếp tục xử lý.
+- Không còn khóa ô chọn chỉ vì Tool nhận diện phần mềm là trả phí hoặc chưa chắc chắn.
+- Mục có dấu vết cụ thể chỉ xử lý đúng dấu vết đã phát hiện và vẫn yêu cầu xác nhận.
+- Mục chưa có dấu vết cụ thể chỉ đưa ra bước kiểm tra, sửa hoặc cài lại từ nguồn chính thức; không tự ý xóa dữ liệu.
+- Sửa cách gộp phần mềm trùng nhau và giảm trường hợp nhận diện sai do dữ liệu quét chung.
+- Người đang dùng R8 cần tải lại EXE vì R8 và R9 cùng mang số phiên bản `5.0.0.0`.
 
 ## R8 portability hotfix
 

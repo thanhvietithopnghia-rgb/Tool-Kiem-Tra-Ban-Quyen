@@ -2,19 +2,22 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current Stable: **v5.0.0.0 — ManagedSigned Stable R7**
+Current ManagedSigned release: **v5.0.0.0 — Stable R8 (self-signed exception)**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
+
+A separate `StoreSubmission` candidate is being prepared for Microsoft Store and has not been released. It binds trust to Store package identity/origin and routes elevation through the compiled launcher so the UAC boundary remains fail-closed.
 
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## v5.0.0.0 — August 30, 2026 — ManagedSigned Stable R7 (self-signed exception)
+## v5.0.0.0 — August 30, 2026 — ManagedSigned Stable R8
 
-- **Stable synchronization:** the project owner approved v5.0.0.0 as the GitHub Stable release and update target for v4.9 clients.
-- **Elevated broker hardening:** rejects UNC paths, device namespaces, and Alternate Data Streams before a request crosses the UAC boundary.
-- **Artifact verification:** the managed release verifier passed with `0 errors / 3 warnings`; the EXE has Authenticode and an RFC 3161 timestamp, SHA-256 `63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788`.
-- **Disclosed trust limit:** this is self-signed ManagedSigned, not public-CA; machines without the trust anchor may show `Unknown Publisher`, and system-changing actions remain fail-closed.
-- **Open evidence:** the client VM matrix remains 1/3 and no independent security review attestation is available.
+- **Runs on a new PC:** fixes `Authenticode=0x800B0109` when the author's self-signed certificate is not preinstalled.
+- **Tamper checks remain strict:** only `CERT_E_UNTRUSTEDROOT` is accepted after both the signer SHA-1 thumbprint and certificate SHA-256 match the pinned release identity.
+- **Modified files remain blocked:** changed content returns `HashMismatch`/`TRUST_E_BAD_DIGEST`; a different signer, certificate, or trust error is never bypassed.
+- **PowerShell failures are visible:** the launcher shows the child-process exit code when security policy or a missing component prevents the interface from opening.
+- **R7 requires a manual replacement:** R7 and R8 share file version `5.0.0.0`, and ManagedSigned keeps public self-update disabled.
+- **Windows may still warn:** this is a disclosed self-signed exception rather than a public-CA identity, so SmartScreen can show `Unknown publisher` on a new PC.
 
 ## v5.0.0.0 — August 27, 2026 — ManagedSigned prerelease (Preview R6 hotfix)
 

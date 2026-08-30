@@ -1,21 +1,20 @@
-# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Stable R7
+# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Stable R8
 
-Canonical release/build label date: 2026-08-26
-Stable promotion date: 2026-08-30
-Status: `ManagedSigned` GitHub Stable (owner-approved self-signed exception) — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not a public-CA identity
+Build date: 2026-08-26
+Published revision: 2026-08-30 (R8 portability hotfix)
+Status: `ManagedSigned` self-signed exception — the launcher pins both the signer thumbprint and certificate SHA-256; Windows may still show `Unknown publisher` because this is not a public-CA identity
 
-R7 was rebuilt from the hardened R4 source line after the elevated broker was
-updated to reject UNC paths, device namespaces, and Alternate Data Streams.
-The owner explicitly approved promotion with the self-signed trust limitation,
-an incomplete 1/3 client VM matrix, and no independent review attestation.
+## R8 portability hotfix
 
-## R7 Stable exception highlights
+- Fixes `Authenticode=0x800B0109` on a new PC that does not already trust the self-signed certificate.
+- Accepts only `CERT_E_UNTRUSTEDROOT` for the exact self-signed publisher pinned by both SHA-1 and SHA-256.
+- A changed executable still returns `TRUST_E_BAD_DIGEST`/`HashMismatch`; a different signer, certificate, or trust error remains blocked.
+- Keeps the RFC 3161 timestamp, signed provenance, embedded-payload hash checks, protected UAC bridge, and system-change fail-closed controls.
+- Shows the child-process exit code when PowerShell or a required component prevents the interface from opening, instead of closing without a useful diagnostic.
+- R7 users must download and replace the EXE manually because R7 and R8 share file version `5.0.0.0` and the ManagedSigned channel keeps public self-update disabled.
+- Windows Defender SmartScreen may still require the user to review an `Unknown publisher` warning because no public-CA certificate is used.
 
-- Elevated-bridge requests now reject unsafe UNC, device-namespace, and ADS paths before crossing the UAC boundary.
-- The full managed release verifier passed with `0 errors / 3 disclosed warnings`.
-- EXE SHA-256: `63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788`.
-- The detached update manifest is signed and points v4.9 Stable clients to this exact artifact.
-- Fresh unmanaged Windows installations may show `Unknown Publisher`; system-changing actions remain fail-closed until the ManagedSigned trust anchor is installed.
+Store preparation note (2026-08-29): a separate `StoreSubmission` candidate is under development and is not released. Its inner EXE is unsigned before Partner Center, trust is bound to the exact Store origin/package identity, and every elevated module is re-dispatched by the compiled launcher into an Administrator-only, hash-verified payload directory. Store certification, three-VM evidence, and independent review remain open gates.
 
 Preview R4 was withdrawn before Stable promotion because its compiled launcher
 contained a BuildId that differed from the Bridge/provenance identity. Preview
@@ -45,14 +44,13 @@ process diagnostics, and responsive result messaging.
 - The compact compatibility card no longer shows the redundant "software catalog: fresh/latest" line; catalog freshness enforcement, warning colors, and tooltip details remain active.
 - Responsive R4 adds compact navigation when the sidebar is hidden, content-aware tile heights with bounded scrolling on short screens, and clipping checks for Vietnamese/English licence-management controls.
 - Preview R5 established the responsive UI and canonical release artefact; Preview R6 carries the scan-source recovery hotfix while retaining the same v5.0.0.0 build identity.
-- The attached public-safe R6 test evidence records Windows 11 current/25H2 as Passed and leaves Windows 10 22H2 plus Windows 11 previous/24H2 as Missing (`Passed=1`, `Failed=0`, `Missing=2`); the client VM matrix therefore remains incomplete.
 - Unsigned development builds remain a separate mode and keep self-update plus every system-changing action blocked.
 
-## Public-CA Gates Still Open
+## Public Stable Gates Still Required
 
 - Acquire and protect a CA-issued code-signing certificate through an HSM, token, or managed signing service.
 - Keep RFC3161 signing on the verified DigiCert HTTP endpoint while the local HTTPS route remains blocked.
 - Complete the Windows 10/11 client VM matrix and independent security review evidence.
 - Commit the final source snapshot, update and sign provenance, then run the complete Stable build and verifier chain.
 
-R7 is GitHub Stable by explicit owner exception. Do not represent it as public-CA Stable.
+Do not represent a `ManagedSigned` artifact as public-CA Stable.

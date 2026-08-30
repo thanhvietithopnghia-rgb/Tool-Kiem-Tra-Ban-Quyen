@@ -10,7 +10,7 @@
               },
     "Changes":  {
                     "vi-VN":  [
-                                  "Preview R6 sửa cầu nối ManagedSigned cho repair nguồn quét, báo rõ mã thoát khi tiến trình lỗi, phân biệt thiếu tệp kết quả và thêm nút Sửa nguồn quét trong danh sách chỉ xem.",
+                                  "Stable R8 sửa lỗi Authenticode 0x800B0109 trên máy mới: chỉ chấp nhận gốc tự ký chưa được Windows tin cậy khi signer khớp cả SHA-1/SHA-256 đã ghim; tệp bị sửa và mọi lỗi chữ ký khác vẫn bị khóa.",
                                   "Build Stable chuyển sang fail-closed: bắt buộc chứng thư code-signing CA-issued/HSM, chuỗi tin cậy Windows, RFC3161 timestamp, source commit sạch và provenance CMS hợp lệ.",
                                   "Catalog có trạng thái Fresh/Warning/Stale/Future/Invalid; plugin bên thứ ba chỉ nhận metadata khai báo đã ký CMS và fingerprint nhà phát hành do quản trị viên ghim.",
                                   "Bổ sung ba mức Quick/Standard/Deep, giới hạn include/exclude/root an toàn và kiểm soát ngân sách quét.",
@@ -28,7 +28,7 @@
                                   "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
-                                  "Preview R6 fixes the ManagedSigned scan-source repair bridge, reports child-process exit codes, distinguishes missing result files, and adds a Repair scan sources action to the read-only inventory.",
+                                  "Stable R8 fixes Authenticode 0x800B0109 on a new PC: an untrusted self-signed root is accepted only when both pinned signer SHA-1/SHA-256 values match; modified files and every other signature error remain blocked.",
                                   "Stable builds now fail closed and require a CA-issued/HSM code-signing certificate, a valid Windows chain, an RFC3161 timestamp, a clean source commit, and valid CMS provenance.",
                                   "Catalogs expose Fresh/Warning/Stale/Future/Invalid states; third-party plugins accept only signed declarative metadata from administrator-pinned publisher fingerprints.",
                                   "Quick, Standard, and Deep scan levels add safe include/exclude/root limits and explicit scan budgets.",
@@ -48,8 +48,8 @@
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v5.0.0.0/Tool-Kiem-Tra-v5.0.exe",
-    "DownloadSha256":  "63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788",
-    "DownloadSize":  746232,
+    "DownloadSha256":  "B57D3008A74905859172E0E922453AE281A821C276F98136E93B732679F15979",
+    "DownloadSize":  748280,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

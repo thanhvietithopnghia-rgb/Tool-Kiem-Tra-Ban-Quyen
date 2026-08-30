@@ -12,7 +12,7 @@
                           "FileName":  "Tool-Kiem-Tra-v5.0.exe",
                           "Architecture":  "AnyCPU",
                           "RuntimeArchitecture":  "Auto: x64 on Windows 64-bit; x86 on Windows 32-bit",
-                          "Sha256":  "53599BA88321A745E2724A61B36E5E0889EE808F09851C1AA2AB0C30F90426E4",
+                          "Sha256":  "63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788",
                           "AuthenticodeStatus":  "Valid",
                           "AuthenticodeSigner":  "CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing)",
                           "AuthenticodeThumbprint":  "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA",
@@ -40,7 +40,7 @@
                  "FileName":  "SBOM.cdx.json",
                  "Format":  "CycloneDX",
                  "SpecVersion":  "1.5",
-                 "Sha256":  "E565458C3E491E639DD90D7CFCCE128503B311E350B1119CBF22A2383FADDA67"
+                 "Sha256":  "91571AFD1A772E5596DE47E74BEBF3355AB3389EABA262F863E1CD8473FF23AB"
              },
     "PayloadCount":  55,
     "IntegrityFileCount":  53,
@@ -51,11 +51,11 @@
                                "ResourceCount":  1,
                                "PayloadCount":  55,
                                "HeaderBytes":  464,
-                               "SourceBytes":  3177606,
-                               "BundleBytes":  3178070,
-                               "EmbeddedBytes":  676764,
-                               "SavedBytes":  2500842,
-                               "SavingsPercent":  78.7,
+                               "SourceBytes":  3202293,
+                               "BundleBytes":  3202757,
+                               "EmbeddedBytes":  681499,
+                               "SavedBytes":  2520794,
+                               "SavingsPercent":  78.72,
                                "MaximumPayloadBytes":  8388608,
                                "MaximumPayloadDataBytes":  16777216,
                                "MaximumCompressedBytes":  16777216,
@@ -90,6 +90,9 @@
     "BackgroundUpdateService":  false,
     "SilentUpdate":  false,
     "ApplicationUpdateSchemaVersion":  "1.0",
+    "ApplicationSelfUpdateAllowed":  false,
+    "ApplicationUpdateAuthority":  "ManagedDeployment",
+    "BundledUpdateManifestChannel":  "stable",
     "ApplicationUpdateManifestUrl":  "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json",
     "ApplicationUpdateManifestSignatureUrl":  "https://raw.githubusercontent.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/main/update-manifest-v1.json.p7s",
     "ApplicationUpdateChoices":  [
@@ -119,7 +122,7 @@
     "CompatibilityCatalogSchemaVersion":  "1.1",
     "CompatibilityCatalogVersion":  "1.1.1.0",
     "CompatibilityCatalogReviewedAtUtc":  "2026-08-17T00:00:00.0000000Z",
-    "CompatibilityCatalogAgeDays":  11,
+    "CompatibilityCatalogAgeDays":  13,
     "CompatibilityCatalogHealth":  "Fresh",
     "CompatibilityCatalogFresh":  true,
     "CompatibilityCatalogReviewWarningAgeDays":  30,
@@ -163,7 +166,7 @@
     "SoftwareLicenseCatalogGeneratedAtUtc":  "2026-08-22T11:00:00Z",
     "SoftwareLicenseCatalogFreshnessStatus":  "Fresh",
     "SoftwareLicenseCatalogFreshForDecisiveEvidence":  true,
-    "SoftwareLicenseCatalogAgeDays":  5.561,
+    "SoftwareLicenseCatalogAgeDays":  7.684,
     "SoftwareLicenseCatalogFreshnessWarningAgeDays":  30,
     "SoftwareLicenseCatalogFreshnessMaximumAgeDays":  45,
     "SoftwareLicenseCatalogProductRules":  92,
@@ -413,5 +416,5 @@
                              "Status":  "NotClaimed",
                              "Reason":  "Launcher la managed IL; CSC khong tao CFG instrumentation/load-config native. Khong gan co GUARD_CF gia."
                          },
-    "BuiltAtUtc":  "2026-08-28T00:27:54.4151593Z"
+    "BuiltAtUtc":  "2026-08-30T03:25:00.1083380Z"
 }

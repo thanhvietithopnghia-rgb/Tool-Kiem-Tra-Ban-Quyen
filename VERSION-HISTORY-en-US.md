@@ -2,11 +2,19 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current ManagedSigned preview: **v5.0.0.0 — Preview R6**
+Current Stable: **v5.0.0.0 — ManagedSigned Stable R7**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+## v5.0.0.0 — August 30, 2026 — ManagedSigned Stable R7 (self-signed exception)
+
+- **Stable synchronization:** the project owner approved v5.0.0.0 as the GitHub Stable release and update target for v4.9 clients.
+- **Elevated broker hardening:** rejects UNC paths, device namespaces, and Alternate Data Streams before a request crosses the UAC boundary.
+- **Artifact verification:** the managed release verifier passed with `0 errors / 3 warnings`; the EXE has Authenticode and an RFC 3161 timestamp, SHA-256 `63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788`.
+- **Disclosed trust limit:** this is self-signed ManagedSigned, not public-CA; machines without the trust anchor may show `Unknown Publisher`, and system-changing actions remain fail-closed.
+- **Open evidence:** the client VM matrix remains 1/3 and no independent security review attestation is available.
 
 ## v5.0.0.0 — August 27, 2026 — ManagedSigned prerelease (Preview R6 hotfix)
 

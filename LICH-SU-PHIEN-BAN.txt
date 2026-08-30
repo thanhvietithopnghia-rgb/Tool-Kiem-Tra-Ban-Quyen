@@ -2,11 +2,19 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
-Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Preview R6**
+Phiên bản Stable hiện tại: **v5.0.0.0 — ManagedSigned Stable R7**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 Trang Stable công khai mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
+
+## v5.0.0.0 — 30/08/2026 — ManagedSigned Stable R7 (ngoại lệ tự ký)
+
+- **Đồng bộ Stable:** chủ dự án phê duyệt đưa v5.0.0.0 lên GitHub Stable và cập nhật manifest cho khách v4.9.
+- **Vá broker nâng quyền:** từ chối đường dẫn UNC, device namespace và Alternate Data Stream trước khi chuyển yêu cầu qua UAC.
+- **Xác minh artifact:** bộ verifier đạt `0 lỗi / 3 cảnh báo`; EXE có Authenticode và timestamp RFC 3161, SHA-256 `63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788`.
+- **Giới hạn trust được công bố:** đây là ManagedSigned tự ký, không phải public-CA; máy chưa nhận trust anchor có thể hiện `Unknown Publisher` và thao tác thay đổi hệ thống vẫn fail-closed.
+- **Bằng chứng còn thiếu:** ma trận client VM hiện đạt 1/3 và chưa có review bảo mật độc lập.
 
 ## v5.0.0.0 — 27/08/2026 — ManagedSigned prerelease (Preview R6 hotfix)
 

@@ -1,8 +1,21 @@
-# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Preview R6
+# Tool Kiểm Tra v5.0.0.0 — ManagedSigned Stable R7
 
 Canonical release/build label date: 2026-08-26
-Final compile/package timestamp: 2026-08-28T00:27:54Z
-Status: `ManagedSigned` prerelease (Preview R6) — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not the public-CA Stable channel
+Stable promotion date: 2026-08-30
+Status: `ManagedSigned` GitHub Stable (owner-approved self-signed exception) — Authenticode, RFC 3161 timestamp, and provenance are verified on managed machines; this is not a public-CA identity
+
+R7 was rebuilt from the hardened R4 source line after the elevated broker was
+updated to reject UNC paths, device namespaces, and Alternate Data Streams.
+The owner explicitly approved promotion with the self-signed trust limitation,
+an incomplete 1/3 client VM matrix, and no independent review attestation.
+
+## R7 Stable exception highlights
+
+- Elevated-bridge requests now reject unsafe UNC, device-namespace, and ADS paths before crossing the UAC boundary.
+- The full managed release verifier passed with `0 errors / 3 disclosed warnings`.
+- EXE SHA-256: `63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788`.
+- The detached update manifest is signed and points v4.9 Stable clients to this exact artifact.
+- Fresh unmanaged Windows installations may show `Unknown Publisher`; system-changing actions remain fail-closed until the ManagedSigned trust anchor is installed.
 
 Preview R4 was withdrawn before Stable promotion because its compiled launcher
 contained a BuildId that differed from the Bridge/provenance identity. Preview
@@ -35,11 +48,11 @@ process diagnostics, and responsive result messaging.
 - The attached public-safe R6 test evidence records Windows 11 current/25H2 as Passed and leaves Windows 10 22H2 plus Windows 11 previous/24H2 as Missing (`Passed=1`, `Failed=0`, `Missing=2`); the client VM matrix therefore remains incomplete.
 - Unsigned development builds remain a separate mode and keep self-update plus every system-changing action blocked.
 
-## Public Stable Gates Still Required
+## Public-CA Gates Still Open
 
 - Acquire and protect a CA-issued code-signing certificate through an HSM, token, or managed signing service.
 - Keep RFC3161 signing on the verified DigiCert HTTP endpoint while the local HTTPS route remains blocked.
 - Complete the Windows 10/11 client VM matrix and independent security review evidence.
 - Commit the final source snapshot, update and sign provenance, then run the complete Stable build and verifier chain.
 
-Do not represent a `ManagedSigned` artifact as public-CA Stable.
+R7 is GitHub Stable by explicit owner exception. Do not represent it as public-CA Stable.

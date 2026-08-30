@@ -1,19 +1,19 @@
-# Tool Kiểm Tra v5.0 — ManagedSigned preview cho môi trường quản trị
+# Tool Kiểm Tra v5.0 — ManagedSigned Stable
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Preview R6`
+**Phiên bản Stable mới nhất:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Stable R7`
 **Tác giả và phát triển:** Thanh Việt
-**Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
+**Trang Stable v5:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
 Tool Kiểm Tra là ứng dụng Windows miễn phí cho cộng đồng, hỗ trợ kiểm kê cấu hình máy, kiểm tra trạng thái Windows/Office/phần mềm, rà soát dấu hiệu KMS/activator/can thiệp và tạo báo cáo. Tool hoạt động Offline theo mặc định, không có telemetry và chỉ dùng mạng sau khi người dùng chủ động bật Online.
 
-v5.0 tăng cường cổng ký phát hành fail-closed, trạng thái độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất fleet và triển khai Intune/MDM. Bản `ManagedSigned` cho phép thao tác đã phê duyệt trên máy được quản trị viên phân phối chứng thư tin cậy, nhưng không phải public-CA Stable và vẫn khóa tự cập nhật công khai. Công cụ cung cấp bằng chứng kỹ thuật hỗ trợ quản trị, không thay thế hóa đơn, hợp đồng, tài khoản hãng hoặc tư vấn pháp lý.
+v5.0 tăng cường cổng ký phát hành fail-closed, trạng thái độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất fleet và triển khai Intune/MDM. Theo ngoại lệ do chủ dự án phê duyệt ngày 30/08/2026, R7 được đặt làm GitHub Stable bằng chứng thư tự ký ManagedSigned. Đây không phải danh tính public-CA: máy chưa nhận chứng thư quản trị có thể hiện `Unknown Publisher`, còn thao tác thay đổi hệ thống vẫn fail-closed cho đến khi trust anchor hợp lệ được cài đặt.
 
-`ManagedSigned Preview R6` là bản hotfix của cùng danh tính v5.0.0.0: sửa cầu nối UAC cho repair nguồn quét, báo rõ lỗi tiến trình/tệp kết quả, thêm nút **Sửa nguồn quét** trong danh sách chỉ xem và làm rõ phạm vi Windows/Office/phần mềm khác. Bản này vẫn là Preview; không được gọi là Stable public-CA.
+`ManagedSigned Stable R7` kế thừa hotfix R6 và bổ sung bản vá broker nâng quyền: từ chối đường dẫn UNC, device namespace và Alternate Data Stream trước khi chuyển yêu cầu qua UAC. Artifact vẫn mang trust mode `ManagedSigned`, có Authenticode và timestamp RFC 3161, nhưng không được mô tả là public-CA Stable.
 
 ## Tải và bắt đầu
 
-1. Mở [trang v5.0.0.0 ManagedSigned](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [Stable công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
+1. Mở [trang Stable v5.0.0.0](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [Stable mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
 2. Với v5 ManagedSigned, dùng `Tool-Kiem-Tra-v5.0.exe`, xác nhận manifest ghi `ManagedSigned` và chỉ chạy trên máy đã nhận chứng thư quản trị hợp lệ.
 3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
 4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
@@ -32,7 +32,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v5.0.exe |
 - **Quét theo mục tiêu:** Quick/Standard/Deep dùng ngân sách rõ ràng và giới hạn include/exclude/root an toàn.
 - **Trải nghiệm và quản trị:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export có redaction/chống CSV injection, CLI headless và script Intune/MDM.
 - **Khắc phục theo phạm vi rõ ràng:** mục Khắc phục tách thành Windows, Microsoft Office và phần mềm khác; phạm vi được khóa xuyên suốt quét, Dry Run, backup, xác nhận và hậu kiểm.
-- **Trạng thái phát hành minh bạch:** ManagedSigned chỉ được tin cậy trong môi trường đã phân phối chứng thư; bản chưa ký vẫn khóa mọi thay đổi và chỉ public-CA mới được gọi Stable.
+- **Trạng thái phát hành minh bạch:** R7 là GitHub Stable theo ngoại lệ của chủ dự án nhưng vẫn là ManagedSigned tự ký; chỉ máy đã nhận chứng thư quản trị mới có đầy đủ trust, và đây không phải public-CA Stable.
 
 - **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
 - **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.

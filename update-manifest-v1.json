@@ -1,15 +1,21 @@
 {
     "SchemaVersion":  "1.0",
     "Channel":  "stable",
-    "LatestVersion":  "4.9.0.0",
+    "LatestVersion":  "5.0.0.0",
     "MinimumUpdaterVersion":  "4.6.1.0",
-    "PublishedAtUtc":  "2026-08-22T00:00:00Z",
+    "PublishedAtUtc":  "2026-08-26T00:00:00Z",
     "Title":  {
-                  "vi-VN":  "v4.9 - Xác thực nguồn gốc, catalog mở rộng, làm sạch có hậu kiểm",
-                  "en-US":  "v4.9 - Provenance, expanded catalog, and verified cleanup"
+                  "vi-VN":  "v5.0 - Nâng độ tin cậy, quản trị doanh nghiệp và quét linh hoạt",
+                  "en-US":  "v5.0 - Trust hardening, enterprise management, and flexible scanning"
               },
     "Changes":  {
                     "vi-VN":  [
+                                  "Preview R6 sửa cầu nối ManagedSigned cho repair nguồn quét, báo rõ mã thoát khi tiến trình lỗi, phân biệt thiếu tệp kết quả và thêm nút Sửa nguồn quét trong danh sách chỉ xem.",
+                                  "Build Stable chuyển sang fail-closed: bắt buộc chứng thư code-signing CA-issued/HSM, chuỗi tin cậy Windows, RFC3161 timestamp, source commit sạch và provenance CMS hợp lệ.",
+                                  "Catalog có trạng thái Fresh/Warning/Stale/Future/Invalid; plugin bên thứ ba chỉ nhận metadata khai báo đã ký CMS và fingerprint nhà phát hành do quản trị viên ghim.",
+                                  "Bổ sung ba mức Quick/Standard/Deep, giới hạn include/exclude/root an toàn và kiểm soát ngân sách quét.",
+                                  "Giao diện hỗ trợ theme theo hệ thống, dark/light override và PerMonitorV2 DPI.",
+                                  "Bổ sung xuất fleet JSON/CSV/HTML/PDF có redaction, chống CSV injection; CLI headless, script Intune/MDM và ma trận VM Windows 10/11.",
                                   "Xác thực nguồn gốc bằng Authenticode và manifest provenance ký số; bản bị sửa hoặc đóng gói lại bị khóa cập nhật và thao tác thay đổi hệ thống.",
                                   "Catalog online 1.6.0.0 bao phủ 92 nhóm sản phẩm, bổ sung mẫu tệp lõi Adobe/Autodesk và chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist.",
                                   "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
@@ -22,6 +28,12 @@
                                   "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
+                                  "Preview R6 fixes the ManagedSigned scan-source repair bridge, reports child-process exit codes, distinguishes missing result files, and adds a Repair scan sources action to the read-only inventory.",
+                                  "Stable builds now fail closed and require a CA-issued/HSM code-signing certificate, a valid Windows chain, an RFC3161 timestamp, a clean source commit, and valid CMS provenance.",
+                                  "Catalogs expose Fresh/Warning/Stale/Future/Invalid states; third-party plugins accept only signed declarative metadata from administrator-pinned publisher fingerprints.",
+                                  "Quick, Standard, and Deep scan levels add safe include/exclude/root limits and explicit scan budgets.",
+                                  "The UI follows the system theme, supports dark/light overrides, and declares PerMonitorV2 DPI awareness.",
+                                  "Fleet JSON/CSV/HTML/PDF export adds redaction and CSV-injection guards, with a headless CLI, Intune/MDM scripts, and a Windows 10/11 VM matrix.",
                                   "Authenticode and a signed provenance manifest verify origin; modified or repackaged builds cannot self-update or perform system-changing actions.",
                                   "Online catalog 1.6.0.0 covers 92 product families, adds Adobe/Autodesk core-file rules, and accepts only signed declarative data with allowlisted fields and profiles.",
                                   "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
@@ -34,10 +46,10 @@
                                   "Offline remains the default with no telemetry; online update metadata now requires a detached signature from the hard-pinned author certificate."
                               ]
                 },
-    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v4.9.0.0",
-    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v4.9.0.0/Tool-Kiem-Tra-v4.9.exe",
-    "DownloadSha256":  "C66CDB640C4E7CA6D92D82B2CCAE90945B0FA28C1DDB206D865AA74136F13C22",
-    "DownloadSize":  703464,
+    "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0",
+    "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v5.0.0.0/Tool-Kiem-Tra-v5.0.exe",
+    "DownloadSha256":  "63BFB66FFC088C75570FE4C6574FC8134F4434F2BA8B5956865E08AC9F8FE788",
+    "DownloadSize":  746232,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

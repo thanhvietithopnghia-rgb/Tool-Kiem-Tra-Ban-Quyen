@@ -1,15 +1,15 @@
-# Tool Kiểm Tra v5.0 — ManagedSigned Stable
+# Tool Kiểm Tra v5.0 — Bản nâng cấp và cải tiến tiếp nối từ v4.9
 
 **Phiên bản Stable mới nhất:** v5.0.0.0 · Build 2026.08.26 · `ManagedSigned Stable R7`
 **Tác giả và phát triển:** Thanh Việt
 **Trang Stable v5:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-Tool Kiểm Tra là ứng dụng Windows miễn phí cho cộng đồng, hỗ trợ kiểm kê cấu hình máy, kiểm tra trạng thái Windows/Office/phần mềm, rà soát dấu hiệu KMS/activator/can thiệp và tạo báo cáo. Tool hoạt động Offline theo mặc định, không có telemetry và chỉ dùng mạng sau khi người dùng chủ động bật Online.
+Tiếp nối nền tảng của v4.9, Tool Kiểm Tra v5.0 được nâng cấp để kiểm tra nhanh hơn, nhận diện chính xác hơn và sử dụng thuận tiện hơn. Phiên bản mới có ba mức kiểm tra từ cơ bản đến chuyên sâu, tách riêng Windows, Microsoft Office và các phần mềm khác, đồng thời cải thiện giao diện để hiển thị tốt trên nhiều kích thước màn hình.
 
-v5.0 tăng cường cổng ký phát hành fail-closed, trạng thái độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất fleet và triển khai Intune/MDM. Theo ngoại lệ do chủ dự án phê duyệt ngày 30/08/2026, R7 được đặt làm GitHub Stable bằng chứng thư tự ký ManagedSigned. Đây không phải danh tính public-CA: máy chưa nhận chứng thư quản trị có thể hiện `Unknown Publisher`, còn thao tác thay đổi hệ thống vẫn fail-closed cho đến khi trust anchor hợp lệ được cài đặt.
+Quy trình khắc phục cũng an toàn và rõ ràng hơn: người dùng được xem trước nội dung, sao lưu, xác nhận trước khi thực hiện và kiểm tra lại kết quả sau xử lý. v5.0 còn bổ sung báo cáo dễ theo dõi hơn và hỗ trợ quản lý nhiều máy. Tool vẫn hoạt động **Offline theo mặc định, không tự động gửi dữ liệu ra Internet** và chỉ kết nối mạng khi người dùng chủ động cho phép.
 
-`ManagedSigned Stable R7` kế thừa hotfix R6 và bổ sung bản vá broker nâng quyền: từ chối đường dẫn UNC, device namespace và Alternate Data Stream trước khi chuyển yêu cầu qua UAC. Artifact vẫn mang trust mode `ManagedSigned`, có Authenticode và timestamp RFC 3161, nhưng không được mô tả là public-CA Stable.
+`ManagedSigned Stable R7` được đưa lên GitHub Stable theo ngoại lệ do chủ dự án phê duyệt ngày 30/08/2026. Bản phát hành dùng chứng thư tự ký, không phải chứng thư công khai; vì vậy máy chưa cài chứng thư tin cậy có thể hiện `Unknown Publisher`, và các thao tác thay đổi hệ thống vẫn được khóa để bảo đảm an toàn.
 
 ## Tải và bắt đầu
 

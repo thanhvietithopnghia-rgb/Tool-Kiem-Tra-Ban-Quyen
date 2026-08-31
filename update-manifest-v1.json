@@ -10,6 +10,7 @@
               },
     "Changes":  {
                     "vi-VN":  [
+                                  "R11 sửa danh sách phần mềm: sắp xếp đúng Cao - Trung bình - Thấp, yêu cầu xác minh giấy phép đối với phần mềm trả phí chưa được xác nhận, ẩn hoàn toàn thành phần hệ thống/runtime khỏi màn hình xử lý và đồng bộ tiêu đề lên v5.0.",
                                   "Stable R8 sửa lỗi Authenticode 0x800B0109 trên máy mới: chỉ chấp nhận gốc tự ký chưa được Windows tin cậy khi signer khớp cả SHA-1/SHA-256 đã ghim; tệp bị sửa và mọi lỗi chữ ký khác vẫn bị khóa.",
                                   "Build Stable chuyển sang fail-closed: bắt buộc chứng thư code-signing CA-issued/HSM, chuỗi tin cậy Windows, RFC3161 timestamp, source commit sạch và provenance CMS hợp lệ.",
                                   "Catalog có trạng thái Fresh/Warning/Stale/Future/Invalid; plugin bên thứ ba chỉ nhận metadata khai báo đã ký CMS và fingerprint nhà phát hành do quản trị viên ghim.",
@@ -17,7 +18,7 @@
                                   "Giao diện hỗ trợ theme theo hệ thống, dark/light override và PerMonitorV2 DPI.",
                                   "Bổ sung xuất fleet JSON/CSV/HTML/PDF có redaction, chống CSV injection; CLI headless, script Intune/MDM và ma trận VM Windows 10/11.",
                                   "Xác thực nguồn gốc bằng Authenticode và manifest provenance ký số; bản bị sửa hoặc đóng gói lại bị khóa cập nhật và thao tác thay đổi hệ thống.",
-                                  "Catalog online 1.6.1.0 bao phủ 93 nhóm sản phẩm, bổ sung nhận diện driver máy in Canon LBP/CAPT và chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist.",
+                                  "Catalog online 1.6.2.0 bao phủ 94 nhóm, loại Windows App Runtime/codec/extension nền khỏi danh sách xử lý và chỉ chấp nhận dữ liệu khai báo đã ký, field/profile nằm trong allowlist.",
                                   "Quy trình làm sạch dùng trạng thái rõ ràng, cho phép thử lại và chỉ báo Đã làm sạch khi hậu kiểm xác nhận bằng chứng can thiệp đã hết cùng trạng thái license mục tiêu.",
                                   "Các chế độ Quét/Báo cáo chỉ đọc; Khắc phục gỡ đúng khóa hoặc Activation ID xấu, bảo toàn bản quyền hợp lệ cùng tồn tại và chỉ cho phép gỡ hoàn chỉnh ứng dụng được chọn khi danh tính MSI/AppX gắn với nguồn đã được xác minh.",
                                   "Báo cáo mặc định che serial, UUID, Processor ID và Asset Tag; chỉ bản FullInternal do người dùng chủ động chọn mới giữ đầy đủ.",
@@ -28,6 +29,7 @@
                                   "Mặc định Offline, không telemetry; manifest cập nhật online phải có chữ ký tách rời từ chứng thư tác giả đã ghim cứng."
                               ],
                     "en-US":  [
+                                  "R11 fixes the software list: strict High - Medium - Low ordering, explicit licence verification for unverified commercial software, complete omission of system/runtime components from the action screen, and a v5.0 selection-window title.",
                                   "Stable R8 fixes Authenticode 0x800B0109 on a new PC: an untrusted self-signed root is accepted only when both pinned signer SHA-1/SHA-256 values match; modified files and every other signature error remain blocked.",
                                   "Stable builds now fail closed and require a CA-issued/HSM code-signing certificate, a valid Windows chain, an RFC3161 timestamp, a clean source commit, and valid CMS provenance.",
                                   "Catalogs expose Fresh/Warning/Stale/Future/Invalid states; third-party plugins accept only signed declarative metadata from administrator-pinned publisher fingerprints.",
@@ -35,7 +37,7 @@
                                   "The UI follows the system theme, supports dark/light overrides, and declares PerMonitorV2 DPI awareness.",
                                   "Fleet JSON/CSV/HTML/PDF export adds redaction and CSV-injection guards, with a headless CLI, Intune/MDM scripts, and a Windows 10/11 VM matrix.",
                                   "Authenticode and a signed provenance manifest verify origin; modified or repackaged builds cannot self-update or perform system-changing actions.",
-                                  "Online catalog 1.6.1.0 covers 93 product families, adds Canon LBP/CAPT printer-driver recognition, and accepts only signed declarative data with allowlisted fields and profiles.",
+                                  "Online catalog 1.6.2.0 covers 94 families, excludes Windows App Runtime/codecs/platform extensions from the action list, and accepts only signed declarative data with allowlisted fields and profiles.",
                                   "Cleanup uses explicit states, remains retryable, and reports VerifiedClean only after post-checks confirm that intervention evidence is gone and the target license state is reached.",
                                   "Scan and report modes are read-only; remediation removes only the selected bad key or Activation ID, preserves coexisting genuine licences, and permits complete removal of an explicitly selected application only through a validated source-bound MSI/AppX identity.",
                                   "Reports redact serials, UUIDs, Processor IDs, and asset tags by default; only a user-selected FullInternal copy retains them.",
@@ -48,8 +50,8 @@
                 },
     "ReleasePageUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0",
     "DownloadUrl":  "https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/download/v5.0.0.0/Tool-Kiem-Tra-v5.0.exe",
-    "DownloadSha256":  "C2EF3859484D68E33309A7CC1569C12DE2179E72B4E6764EE9067B0B919FE63C",
-    "DownloadSize":  752376,
+    "DownloadSha256":  "A2E3877676918A187A39ABE8EA6B9DD20B38732A61800ADCCA0948ECBE903AA3",
+    "DownloadSize":  753912,
     "AuthenticodeRequired":  true,
     "SignerThumbprints":  [
                               "ABE70696679B1D8987A2D5B1F6C1C6909D364CEA"

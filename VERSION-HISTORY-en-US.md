@@ -2,13 +2,22 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current ManagedSigned release: **v5.0.0.0 — Stable R8 (self-signed exception)**
+Current ManagedSigned release: **v5.0.0.0 — R11 update (self-signed exception)**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 A separate `StoreSubmission` candidate is being prepared for Microsoft Store and has not been released. It binds trust to Store package identity/origin and routes elevation through the compiled launcher so the UAC boundary remains fail-closed.
 
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+## v5.0.0.0 — August 31, 2026 — R11 update
+
+- **Strict ordering:** user applications are sorted High → Medium → Low, then by name within each level.
+- **Commercial software is not silently cleared:** unverified paid, subscription, or trial software explicitly requires a licence check without being labelled non-genuine automatically.
+- **System components are omitted from the action screen:** Windows App Runtime, codecs, platform extensions, VCLibs/UI.Xaml, and similar components remain only in internal inventory/report data.
+- **Updated catalog:** bundled and Online catalog `1.6.2.0` covers 94 product families.
+- **Synchronized version labels:** visible titles use the current v5.0 identity; remaining v4.6 identifiers are limited to storage/mutex compatibility or history.
+- **Release identity unchanged:** ProductVersion, FileVersion, and tag remain `5.0.0.0`; R10 and earlier users must download the replacement EXE.
 
 ## v5.0.0.0 — August 30, 2026 — ManagedSigned Stable R8
 

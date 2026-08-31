@@ -2,13 +2,22 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
 
-Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Stable R8 (ngoại lệ tự ký)**
+Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Bản cập nhật R11 (ngoại lệ tự ký)**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 Ứng viên `StoreSubmission` đang được chuẩn bị riêng cho Microsoft Store; chưa phải bản đã phát hành. Bản này dùng package identity/origin của Store và broker nâng quyền đã biên dịch để khóa fail-closed qua ranh giới UAC.
 
 Trang Stable công khai mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
+
+## v5.0.0.0 — 31/08/2026 — Bản cập nhật R11
+
+- **Thứ tự rõ ràng:** ứng dụng người dùng được xếp Cao → Trung bình → Thấp; trong cùng mức mới xếp theo tên.
+- **Phần mềm thương mại không còn bị bỏ qua:** phần mềm trả phí, thuê bao hoặc dùng thử chưa xác minh được đánh dấu cần kiểm tra giấy phép, không bị ghi là “không cần xử lý”.
+- **Bỏ thành phần hệ thống khỏi màn hình xử lý:** Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml và thành phần tương tự chỉ còn trong kiểm kê/báo cáo nội bộ.
+- **Catalog mới:** catalog tích hợp và Online `1.6.2.0` có 94 nhóm sản phẩm.
+- **Đồng bộ nhãn phiên bản:** tiêu đề cửa sổ dùng v5.0 hiện hành; chuỗi v4.6 còn lại chỉ là định danh tương thích dữ liệu/mutex hoặc lịch sử.
+- **Giữ nguyên phiên bản phát hành:** ProductVersion/FileVersion/tag vẫn là `5.0.0.0`; người dùng R10 hoặc cũ hơn cần tải lại EXE.
 
 ## v5.0.0.0 — 30/08/2026 — ManagedSigned Stable R8
 

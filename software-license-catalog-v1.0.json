@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.6.1.0",
-  "GeneratedAtUtc": "2026-08-30T15:45:00Z",
+  "CatalogVersion": "1.6.2.0",
+  "GeneratedAtUtc": "2026-08-31T01:11:33Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -186,6 +186,17 @@
       "PublisherPatterns": ["\\bCanon\\b"],
       "LicenseModel": "Driver",
       "OfficialUrl": "https://vn.canon/en/support/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
+      "Id": "windows-app-platform-component",
+      "Category": "System",
+      "Vendor": "Microsoft/DeviceVendor",
+      "NamePatterns": ["^(?:Microsoft\\.)?WindowsAppRuntime(?:\\.\\d+)*$", "^Windows App Runtime(?:\\s+\\d+(?:\\.\\d+)*)?$", "^(?:AV1|HEIF|HEVC|MPEG-2|Raw Image|VP9|Web Media|Webp Image) (?:Video |Image )?Extensions?$", "^Xbox Identity Provider$", "^AppUp\\.IntelGraphicsExperience$", "^Microsoft\\.(?:VCLibs|UI\\.Xaml)(?:\\.|$).*$"],
+      "PublisherPatterns": [],
+      "LicenseModel": "SystemComponent",
+      "OfficialUrl": "https://apps.microsoft.com/",
       "LicenseDomains": [],
       "UnauthorizedNamePatterns": []
     },

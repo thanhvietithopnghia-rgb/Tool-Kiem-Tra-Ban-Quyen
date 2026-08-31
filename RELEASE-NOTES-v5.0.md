@@ -1,26 +1,24 @@
-# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R10
+# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R11
 
 Build date: 2026-08-26
-Published revision: 2026-08-31 (R10 catalog and Online update)
+Published revision: 2026-08-31 (R11 software priority, system filter, and version-label update)
+Status: `ManagedSigned` self-signed exception — the launcher pins both the signer thumbprint and certificate SHA-256; Windows may still show `Unknown publisher` because this is not a public-CA identity
+
+## Cập nhật R11
+
+- Giữ nguyên ProductVersion/FileVersion `5.0.0.0` và tag `v5.0.0.0`.
+- Sắp xếp ứng dụng người dùng theo thứ tự mức cần chú ý: Cao, Trung bình, rồi Thấp; tên ứng dụng chỉ dùng để sắp xếp trong cùng một mức.
+- Phần mềm trả phí, thuê bao hoặc dùng thử chưa được xác minh không còn hiện là “không cần xử lý”; Tool yêu cầu kiểm tra giấy phép nhưng không tự kết luận vi phạm.
+- Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml và thành phần hệ thống tương tự được giữ trong kiểm kê nội bộ nhưng không xuất hiện trong cửa sổ chọn/xử lý.
+- Catalog tích hợp và Online được nâng lên `1.6.2.0` với 94 nhóm sản phẩm.
+- Các tiêu đề giao diện hiện dùng v5.0 động hoặc nội dung trung tính; định danh storage/mutex v4.6 chỉ được giữ cho tương thích dữ liệu cũ.
+- Người đang dùng R10 hoặc bản cũ hơn cần tải lại EXE vì các revision cùng mang số phiên bản `5.0.0.0`.
 
 ## Cập nhật R10
 
-- Giữ nguyên ProductVersion/FileVersion `5.0.0.0` và tag `v5.0.0.0`.
-- Đồng bộ catalog tích hợp và catalog Online lên `1.6.1.0`, gồm 93 nhóm sản phẩm.
-- Bổ sung nhận diện driver máy in Canon LBP/CAPT.
-- Catalog Online thấp hơn catalog đang dùng không còn làm tác vụ cập nhật thất bại: Tool giữ bản mới hơn, không hạ cấp và tiếp tục quét.
+- Đồng bộ catalog tích hợp và catalog Online lên `1.6.1.0` với 93 nhóm sản phẩm.
+- Giữ catalog mới hơn khi nguồn Online thấp hơn, không hạ cấp và không làm gián đoạn lượt quét.
 - Bản phát hành dùng trạng thái `ManagedSigned`, không còn bị khóa như build thử nghiệm `DevelopmentUnsigned`.
-- Online vẫn cần người dùng cho phép, chỉ tải catalog/chữ ký từ URL HTTPS trong allowlist và không tải inventory, khóa bản quyền hoặc báo cáo lên mạng.
-- Người đang dùng R9 hoặc bản cũ hơn cần tải lại EXE vì các revision cùng mang số phiên bản `5.0.0.0`.
-
-## Cập nhật R9
-
-- Cho phép chọn phần mềm trả phí, thuê bao, dùng thử, nghi ngờ hoặc chưa rõ để tiếp tục xử lý.
-- Không còn khóa ô chọn chỉ vì Tool nhận diện phần mềm là trả phí hoặc chưa chắc chắn.
-- Mục có dấu vết cụ thể chỉ xử lý đúng dấu vết đã phát hiện và vẫn yêu cầu xác nhận.
-- Mục chưa có dấu vết cụ thể chỉ đưa ra bước kiểm tra, sửa hoặc cài lại từ nguồn chính thức; không tự ý xóa dữ liệu.
-- Sửa cách gộp phần mềm trùng nhau và giảm trường hợp nhận diện sai do dữ liệu quét chung.
-- Người đang dùng R8 cần tải lại EXE vì R8 và R9 cùng mang số phiên bản `5.0.0.0`.
 
 ## R8 portability hotfix
 

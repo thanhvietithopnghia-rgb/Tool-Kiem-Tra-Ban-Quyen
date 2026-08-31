@@ -38,3 +38,4 @@ Reviewer chỉ nhận quyền tối thiểu, theo thời hạn, trên snapshot c
 6. ngày hiệu lực và ngày cần đánh giá lại.
 
 Kết quả tóm tắt có thể công bố sau khi xử lý phát hiện nghiêm trọng. Bản đầy đủ chỉ chia sẻ theo nguyên tắc need-to-know.
+

@@ -2,6 +2,10 @@
 
 Developed by Thanh Viet
 
+Microsoft Store candidate: **StoreSubmission v5.0.0.0** — not released
+
+> When installed directly by Microsoft Store, the Tool reports `Microsoft Store` and enables administrative actions only after Windows confirms the Store origin, exact package identity, and provenance. A copied EXE or sideloaded package fails closed. Certification, the three-VM matrix, and independent security review are still required.
+
 ManagedSigned version: **v5.0.0.0** · Build **2026.08.26**
 Executable: `Tool-Kiem-Tra-v5.0.exe`
 v5 ManagedSigned page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>

@@ -2,13 +2,19 @@
 
 This document summarizes the core changes in the main public releases.
 
-Current ManagedSigned release: **v5.0.0.0 — R11 update (self-signed exception)**
+Current ManagedSigned release: **v5.0.0.0 — R12 catalog refinement (self-signed exception)**
 FileVersion: **5.0.0.0** · Build **2026.08.26**
 
 A separate `StoreSubmission` candidate is being prepared for Microsoft Store and has not been released. It binds trust to Store package identity/origin and routes elevation through the compiled launcher so the UAC boundary remains fail-closed.
 
 Public Stable release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+
+## v5.0.0.0 — August 31, 2026 — R12 catalog refinement
+
+- **Fewer support-component false positives:** installer entries, add-ins, Python subfeatures, printer-driver uninstallers, and similar support packages remain in inventory but are omitted from the action screen.
+- **Catalog override is constrained:** a broad commercial/open-source product rule cannot reclassify a known support component as a user entitlement target.
+- **Catalog updated without changing the app version:** bundled and Online catalog `1.6.3.0` still contains 94 conservative product families; ProductVersion and FileVersion remain `5.0.0.0`.
 
 ## v5.0.0.0 — August 31, 2026 — R11 update
 

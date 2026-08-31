@@ -1,6 +1,6 @@
 # Lộ trình Tool Kiểm Tra v5.0
 
-Trạng thái ngày 28/08/2026: Preview R6 đã được build theo trạng thái `ManagedSigned` trên nhánh tính năng `feature/v5.0-trust-enterprise`. Có mã nguồn, workflow hoặc chữ ký quản trị không đồng nghĩa đã đạt public-CA Stable; mọi build không ký vẫn phải mang `ReleaseStatus=DevelopmentUnsigned` và nhãn development, không được mô tả là production.
+Trạng thái cập nhật ngày 28/08/2026: các hạng mục dưới đây đang được tích hợp trên nhánh tính năng `feature/v5.0-trust-enterprise`. Có mã nguồn hoặc workflow không đồng nghĩa đã có bằng chứng phát hành. ManagedSigned Preview R6 đã được phát hành có kiểm soát nhưng chưa phải Public Stable; mọi build không ký của nhánh vẫn phải mang `ReleaseStatus=DevelopmentUnsigned` và nhãn development.
 
 ## Đã tích hợp trên nhánh tính năng
 
@@ -11,12 +11,12 @@ Trạng thái ngày 28/08/2026: Preview R6 đã được build theo trạng thá
 - **Báo cáo:** HTML vẫn self-contained/offline-safe trước khi mở. WebView2 được hoãn, chưa có runtime loader/control và không phải dependency. Trình duyệt mặc định cùng chuỗi xuất PDF Edge/Chrome/Word tiếp tục là fallback để ứng dụng vẫn khởi động trên Windows 7; khả năng tạo PDF còn phụ thuộc engine có trên máy và yêu cầu PDF phải thất bại rõ ràng nếu không tạo được tệp.
 - **Doanh nghiệp:** xuất fleet hàng loạt JSON/CSV/HTML/PDF, mặc định che dữ liệu nhạy cảm, lọc client/freshness và chống CSV formula injection; có CLI headless cùng script Install/Detect/Repair/Uninstall idempotent cho Intune/MDM hoặc quản trị trung tâm.
 - **Minh bạch và review:** có security policy, audit scope, quy trình disclosure/review có kiểm soát, chính sách code-signing và tài liệu kết quả kiểm thử. Schema/catalog/safety policy và verifier là phạm vi ưu tiên cho review; khóa ký, bí mật Enterprise, dữ liệu khách hàng và logic khắc phục nhạy cảm không được công khai.
-- **Ma trận VM:** workflow và bộ tổng hợp public-safe đã được khai báo cho Windows 10 22H2, Windows 11 nhánh trước và nhánh hiện hành. Chúng kiểm tra DisplayVersion/build/UBR, commit và danh sách verifier bắt buộc; tóm tắt không mang raw output. Preview R6 đã ghi nhận một runner Windows 11 25H2 đạt, nhưng hai nền tảng còn lại vẫn thiếu bằng chứng.
+- **Ma trận VM:** workflow và bộ tổng hợp public-safe đã được khai báo cho Windows 10 22H2, Windows 11 nhánh trước và nhánh hiện hành. Chúng kiểm tra DisplayVersion/build/UBR, commit và danh sách verifier bắt buộc; tóm tắt không mang raw output. Đây mới là hạ tầng tạo bằng chứng, không phải bằng chứng một release candidate đã đạt.
 
 ## Trạng thái bằng chứng hiện tại
 
-- [Kết quả kiểm thử bảo mật và tương thích](SECURITY-TEST-RESULTS.md) ghi `Passed=1`, `Failed=0`, `Missing=2`: Windows 11 current/25H2 đã đạt trên build 26200.9168; Windows 10 22H2 và Windows 11 previous/24H2 vẫn thiếu runner/bằng chứng.
-- Chưa có hậu kiểm Stable bằng chứng thư code-signing CA-issued. Preview R6 dùng ManagedSigned + RFC 3161 timestamp cho môi trường đã phân phối chứng thư quản trị, không đủ điều kiện đưa lên public-CA Stable.
+- ManagedSigned Preview R6 có evidence `Passed=1`, `Failed=0`, `Missing=2`: Windows 11 current/25H2 đạt 11 verifier; Windows 10 22H2 và Windows 11 previous/24H2 còn thiếu. Evidence chỉ áp dụng cho commit R6 đã ghi, không tự động áp dụng cho commit phát triển mới.
+- Chưa có hậu kiểm stable bằng chứng thư CA-issued và timestamp thật. Build development, kể cả khi verifier cục bộ đạt, không đủ điều kiện đưa lên kênh production.
 - Chưa có kiểm thử WebView2 vì tính năng này được hoãn. Fallback Windows 7, chuyển màn hình/DPI, accessibility và đổi theme khi đang chạy vẫn cần kiểm thử máy thật phù hợp.
 - Scan profile chỉ cam kết cho luồng tạo báo cáo/kiểm kê read-only; tài liệu và UI không được mô tả nó là profile quét toàn ứng dụng.
 
@@ -24,8 +24,10 @@ Trạng thái ngày 28/08/2026: Preview R6 đã được build theo trạng thá
 
 1. Mua/cấp chứng thư code-signing tổ chức thật (ưu tiên EV khi phù hợp), đặt private key trong HSM/token/dịch vụ ký và cấu hình quyền release tối thiểu.
 2. Chốt source snapshot commit, chỉ cho phép metadata release được kiểm soát thay đổi sau snapshot, rồi ký provenance/update manifest; build trên môi trường sạch và hậu kiểm chữ ký/timestamp trên máy sạch.
-3. Hoàn tất hai runner còn thiếu trong environment `client-vm-validation` cho Windows 10 22H2 và Windows 11 previous/24H2; chạy lại ma trận trên đúng release candidate và công bố artifact tóm tắt.
+3. Cấu hình environment `client-vm-validation`, ba self-hosted runner được cô lập và biến `ENABLE_CLIENT_VM_MATRIX`; chạy ma trận trên đúng release candidate và công bố artifact tóm tắt.
 4. Tổ chức security review độc lập hoặc chương trình disclosure/bug-bounty có phạm vi, kênh riêng và ngân sách rõ ràng. Không gọi là bug bounty trước khi các điều kiện này được công bố.
 5. Chạy accessibility/DPI thủ công, kiểm thử máy thật và kiểm thử nâng cấp/rollback trước khi gắn nhãn stable.
+
+Build Public Stable nay có cổng fail-closed bổ sung: bắt buộc nạp JSON ma trận VM đủ 3/3 Passed, ba kết quả VM thô có hash/kích thước kiểm chứng được và attestation security review độc lập gắn đúng source snapshot commit. Thiếu bằng chứng, raw evidence bị sửa hoặc generator không khớp snapshot thì `BUILD.ps1 -RequireAuthenticode` phải dừng.
 
 EV giúp xác minh nhà phát hành và bảo vệ khóa tốt hơn nhưng không bảo đảm SmartScreen hết cảnh báo ngay. Uy tín còn phụ thuộc lịch sử phát hành sạch, publisher ổn định, kênh tải đáng tin cậy và tỷ lệ false positive thấp.

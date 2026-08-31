@@ -1,6 +1,6 @@
-# Module Contract schema 1.0 — Tool-Kiem-Tra v5.0
+# Module Contract schema 1.0 — Tool-Kiem-Tra v4.8
 
-`Tool-ModuleContract.ps1` là nguồn chuẩn. Catalog có 28 descriptor: 24 entry point và bốn descriptor nội bộ/không khởi chạy trực tiếp.
+`Tool-ModuleContract.ps1` là nguồn chuẩn. Catalog có 27 descriptor: 24 entry point và ba nguồn inventory nội bộ.
 
 ## Descriptor
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | `ContractSchemaVersion` | `1.0` |
 | `ResultSchemaVersion` | `1.0` |
-| `ToolVersion` | `5.0` |
+| `ToolVersion` | `4.8` |
 | `ModuleId` | ID chữ thường, ổn định |
 | `Category`, `DisplayName` | Nhóm và tên hiển thị |
 | `ScriptFile`, `Operation`, `TaskKind` | Entry point và mode |
@@ -20,7 +20,7 @@
 | `IsEntryPoint` | GUI được phép khởi chạy độc lập |
 | `ExitCodeMap` | ánh xạ exit code sang trạng thái |
 
-Ba descriptor có `NetworkScope=Internet`: `software.catalog.update` yêu cầu consent riêng để tải catalog HTTPS; `application.update.check` chỉ lấy manifest sau khi người dùng cho phép Online; `application.update.apply` là descriptor nội bộ (`IsEntryPoint=false`) và chỉ chạy sau lựa chọn cập nhật cùng các cổng xác minh. Cả ba dùng host/path allowlist và không gửi inventory/đường dẫn/khóa/token. `license.manager` là `LocalOnly`; chỉ `enterprise.server` và `enterprise.agent` dùng `Lan`.
+Hai mô-đun có `NetworkScope=Internet`: `software.catalog.update` yêu cầu consent riêng để tải catalog HTTPS; `application.update.check` chỉ kiểm tra manifest sau khi người dùng cho phép Online. Cả hai dùng host/path allowlist và không gửi inventory/đường dẫn/khóa/token. `license.manager` là `LocalOnly`; chỉ `enterprise.server` và `enterprise.agent` dùng `Lan`.
 
 ## Invocation
 
@@ -74,7 +74,7 @@ Plugin assurance vẫn read-only; thao tác cài plugin là hành động riêng
 
 ## Danh sách entry point
 
-Danh sách đầy đủ, script/operation, quyền và network scope nằm trong `ENTRY-POINTS-v4.8.md` (giữ tên tệp để tương thích liên kết cũ). Verifier yêu cầu đúng 28 descriptor/24 entry point, ID duy nhất, script tồn tại, schema đúng và `OfflineCapable` khớp `NetworkScope`.
+Danh sách đầy đủ, script/operation, quyền và network scope nằm trong `ENTRY-POINTS-v4.8.md`. Verifier yêu cầu đúng 27 descriptor/24 entry point, ID duy nhất, script tồn tại, schema đúng và `OfflineCapable` khớp `NetworkScope`.
 
 ## Quy tắc mở rộng
 

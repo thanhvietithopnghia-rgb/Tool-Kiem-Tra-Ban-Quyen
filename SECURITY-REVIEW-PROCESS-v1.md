@@ -28,6 +28,15 @@
 - công bố mức độ, phiên bản đã sửa, biện pháp giảm thiểu và giới hạn;
 - ghi nhận người báo cáo nếu họ đồng ý.
 
+### Attestation bắt buộc cho Public Stable
+
+- reviewer độc lập phát hành báo cáo cuối và SHA-256 của báo cáo;
+- attestation JSON phải theo `SECURITY-REVIEW-ATTESTATION-TEMPLATE-v1.json`, gắn đúng release version và source snapshot commit;
+- `ReviewStatus=Passed` chỉ được dùng khi không còn finding Critical/High mở;
+- phạm vi tối thiểu gồm threat model, privilege boundary, remediation/rollback, catalog/plugin trust, update/transport và tampering/downgrade;
+- maintainer không tự điền danh tính reviewer để thay thế một review độc lập;
+- `VERIFY-STABLE-READINESS.ps1` kiểm tra attestation và VM summary trước build Public Stable.
+
 ## 5. Đóng và học lại
 
 - xác nhận bản vá trên môi trường ban đầu;

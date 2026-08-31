@@ -1,8 +1,14 @@
-# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R11
+# Tool Kiểm Tra v5.0.0.0 — Bản tinh chỉnh catalog R12
 
 Build date: 2026-08-26
-Published revision: 2026-08-31 (R11 software priority, system filter, and version-label update)
+Published revision: 2026-08-31 (R12 support-component filtering and catalog refinement)
 Status: `ManagedSigned` self-signed exception — the launcher pins both the signer thumbprint and certificate SHA-256; Windows may still show `Unknown publisher` because this is not a public-CA identity
+
+## Cập nhật R12
+
+- Siết bộ lọc để trình cài đặt, add-in, runtime con, gói hỗ trợ và trình gỡ driver chỉ còn trong kiểm kê/báo cáo, không xuất hiện ở cửa sổ xử lý.
+- Không cho quy tắc catalog rộng của sản phẩm chính ghi đè nhầm phân loại thành phần hỗ trợ.
+- Giữ nguyên ProductVersion/FileVersion `5.0.0.0`; người dùng R11 cần thay EXE thủ công.
 
 ## Cập nhật R11
 
@@ -10,7 +16,7 @@ Status: `ManagedSigned` self-signed exception — the launcher pins both the sig
 - Sắp xếp ứng dụng người dùng theo thứ tự mức cần chú ý: Cao, Trung bình, rồi Thấp; tên ứng dụng chỉ dùng để sắp xếp trong cùng một mức.
 - Phần mềm trả phí, thuê bao hoặc dùng thử chưa được xác minh không còn hiện là “không cần xử lý”; Tool yêu cầu kiểm tra giấy phép nhưng không tự kết luận vi phạm.
 - Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml và thành phần hệ thống tương tự được giữ trong kiểm kê nội bộ nhưng không xuất hiện trong cửa sổ chọn/xử lý.
-- Catalog tích hợp và Online được nâng lên `1.6.2.0` với 94 nhóm sản phẩm.
+- Catalog tích hợp và Online được nâng lên `1.6.3.0` với 94 nhóm sản phẩm; nhận diện thêm trình cài đặt, add-in, runtime con và thành phần hỗ trợ để không đưa vào danh sách xử lý.
 - Các tiêu đề giao diện hiện dùng v5.0 động hoặc nội dung trung tính; định danh storage/mutex v4.6 chỉ được giữ cho tương thích dữ liệu cũ.
 - Người đang dùng R10 hoặc bản cũ hơn cần tải lại EXE vì các revision cùng mang số phiên bản `5.0.0.0`.
 

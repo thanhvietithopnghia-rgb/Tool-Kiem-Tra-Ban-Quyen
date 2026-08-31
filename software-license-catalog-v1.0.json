@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.6.2.0",
-  "GeneratedAtUtc": "2026-08-31T01:11:33Z",
+  "CatalogVersion": "1.6.3.0",
+  "GeneratedAtUtc": "2026-08-31T06:05:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -137,7 +137,7 @@
     {
       "Id": "microsoft-office-commercial",
       "Vendor": "Microsoft",
-      "NamePatterns": ["\\bMicrosoft 365 Apps\\b", "\\bMicrosoft Office\\b", "\\bMicrosoft Visio\\b", "\\bMicrosoft Project\\b"],
+      "NamePatterns": ["^Microsoft 365 Apps\\b", "^Microsoft Office\\b", "^Microsoft Visio\\b", "^Microsoft Project\\b"],
       "PublisherPatterns": ["\\bMicrosoft\\b"],
       "LicenseModel": "Subscription",
       "OfficialUrl": "https://www.microsoft.com/microsoft-365",
@@ -149,7 +149,7 @@
     {
       "Id": "microsoft-runtime-component",
       "Vendor": "Microsoft",
-      "NamePatterns": ["^Microsoft \\.NET", "^Microsoft Visual C\\+\\+", "^Microsoft Windows Desktop Runtime", "^Microsoft Edge WebView2", "^Windows SDK", "^Universal CRT", "^MSVCRT", "^Windows App Certification Kit", "^Microsoft SQL Server .*?(?:Native Client|Setup Support|System CLR|Policies|ScriptDom|Compiler Service|RsFx Driver|VSS Writer)"],
+      "NamePatterns": ["^Microsoft \\.NET", "^Microsoft Visual C\\+\\+", "^Microsoft Windows Desktop Runtime", "^Microsoft Edge WebView2", "^Windows SDK", "^Universal CRT", "^MSVCRT", "^Windows App Certification Kit", "^Microsoft SQL Server .*?(?:Management Objects|Native Client|Setup(?:\\s*\\(|\\s+Support)|System CLR|Policies|ScriptDom|Compiler Service|RsFx Driver|VSS Writer)"],
       "PublisherPatterns": ["\\bMicrosoft\\b"],
       "LicenseModel": "Runtime",
       "OfficialUrl": "https://learn.microsoft.com/",
@@ -193,7 +193,7 @@
       "Id": "windows-app-platform-component",
       "Category": "System",
       "Vendor": "Microsoft/DeviceVendor",
-      "NamePatterns": ["^(?:Microsoft\\.)?WindowsAppRuntime(?:\\.\\d+)*$", "^Windows App Runtime(?:\\s+\\d+(?:\\.\\d+)*)?$", "^(?:AV1|HEIF|HEVC|MPEG-2|Raw Image|VP9|Web Media|Webp Image) (?:Video |Image )?Extensions?$", "^Xbox Identity Provider$", "^AppUp\\.IntelGraphicsExperience$", "^Microsoft\\.(?:VCLibs|UI\\.Xaml)(?:\\.|$).*$"],
+      "NamePatterns": ["^(?:Microsoft\\.)?WindowsAppRuntime(?:\\.\\d+)*$", "^Windows App Runtime(?:\\s+DDLM)?(?:\\s+\\d+(?:\\.\\d+)*)(?:-[A-Za-z0-9]+)?$", "^(?:AV1|HEIF|HEVC|MPEG-2|Raw Image|VP9|Web Media|Webp Image) (?:Video |Image )?Extensions?$", "^Xbox Identity Provider$", "^AppUp\\.IntelGraphicsExperience$", "^Microsoft\\.(?:VCLibs|UI\\.Xaml)(?:\\.|$).*$", "^LocalServiceComponents$", "^NVIDIA Control Panel$", "^Microsoft Visual Studio Installer$", "^SharePoint Client Components$"],
       "PublisherPatterns": [],
       "LicenseModel": "SystemComponent",
       "OfficialUrl": "https://apps.microsoft.com/",
@@ -308,7 +308,7 @@
     {
       "Id": "python",
       "Vendor": "Python Software Foundation",
-      "NamePatterns": ["^Python (?:3|Launcher)"],
+      "NamePatterns": ["^Python (?:Launcher|3(?!.*(?:Add to Path|Core Interpreter|Development Libraries|Documentation|Executables|pip Bootstrap|Standard Library|Tcl/Tk Support|Test Suite)))"],
       "PublisherPatterns": ["\\bPython Software Foundation\\b"],
       "LicenseModel": "OpenSource",
       "OfficialUrl": "https://www.python.org/",

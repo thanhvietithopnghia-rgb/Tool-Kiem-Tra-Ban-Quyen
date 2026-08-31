@@ -34,3 +34,4 @@ Chỉ xem bản dựng là chính thức khi chữ ký Authenticode hợp lệ, 
 ## Dữ liệu Enterprise
 
 Mặc định xuất fleet đã ẩn định danh/IP/partial key, không chứa full product key và chống công thức CSV. Chỉ dùng tùy chọn xuất dữ liệu nhạy cảm trong môi trường quản trị được kiểm soát. Không mở cổng Enterprise trực tiếp ra Internet; giới hạn firewall vào CIDR LAN/VPN đã phê duyệt.
+

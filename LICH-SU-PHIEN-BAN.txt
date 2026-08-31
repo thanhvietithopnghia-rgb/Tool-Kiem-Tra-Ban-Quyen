@@ -1,59 +1,24 @@
 # Lịch sử phiên bản Tool Kiểm Tra
 
-Tài liệu này trình bày phiên bản công khai hiện tại theo một tên thống nhất: **Tool Kiểm Tra v5.0**.
+## Tool Kiểm Tra v5.0 — 31/08/2026
 
-- Tên hiển thị: **Tool Kiểm Tra v5.0**
 - ProductVersion/FileVersion kỹ thuật: `5.0.0.0`
-- Ngày phát hành hiện tại: `31/08/2026`
-- Trạng thái: `ManagedSigned`; launcher ghim đúng chứng thư phát hành
-- Trang tải chính thức: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
+- Trạng thái phát hành: `ManagedSigned`
 
-## Nguyên tắc ghi nhận phiên bản
+Đây là bản nâng cấp chính thức tiếp nối từ v4.9, tập trung vào các cải tiến cốt lõi:
 
-- Chỉ tạo mục lịch sử mới khi tên hoặc số phiên bản công khai chính thức thay đổi.
-- Bản vá, cập nhật kỹ thuật và bản dựng nội bộ trong cùng phiên bản không tạo mục lịch sử riêng và không làm thay đổi bài giới thiệu.
-- Chi tiết bảo trì được ghi trong release notes của phiên bản hiện hành.
+- Kiểm tra cấu hình máy, bản quyền Windows, Microsoft Office và phần mềm khác.
+- Ba mức quét Quick, Standard và Deep; nhận diện và sắp xếp nội dung cần xem xét theo mức độ ưu tiên.
+- Khắc phục tách riêng Windows, Office và phần mềm khác; luôn xem trước, chạy thử, sao lưu, xác nhận và hậu kiểm.
+- Giao diện rõ ràng, hỗ trợ Light/Dark; báo cáo HTML, PDF, JSON, XML và quản lý nhiều máy.
+- Hoạt động Offline theo mặc định, không tự gửi dữ liệu ra Internet.
+- Kiểm tra toàn vẹn trước các thao tác thay đổi hệ thống; Windows vẫn có thể cảnh báo SmartScreen hoặc `Unknown publisher` vì chứng thư hiện tại không phải public-CA.
 
-## Tool Kiểm Tra v5.0
+`Chưa xác minh` không đồng nghĩa phần mềm vi phạm bản quyền.
 
-### Kiểm tra và nhận diện
+Trang tải chính thức: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
 
-- Bổ sung ba mức quét Quick, Standard và Deep với giới hạn phạm vi, thời gian và ngân sách rõ ràng.
-- Kiểm kê Registry, AppX/MSIX, WinGet, shortcut, package manager và vùng portable giới hạn; hợp nhất bản ghi trùng theo họ sản phẩm.
-- Phân biệt phần mềm đã cài, bản portable, tệp còn sót, thành phần hệ thống và dữ liệu chưa đủ để kết luận.
-- Sắp xếp ứng dụng cần xem xét theo thứ tự **Cao → Trung bình → Thấp**, sau đó mới theo tên.
-- Phần mềm trả phí, thuê bao hoặc dùng thử chưa xác minh được đánh dấu cần kiểm tra giấy phép; Tool không tự kết luận vi phạm.
-- Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml, trình cài đặt, add-in, runtime con, gói hỗ trợ và trình gỡ driver chỉ còn trong kiểm kê/báo cáo, không xuất hiện ở danh sách xử lý.
+## Nguyên tắc cập nhật
 
-### Catalog và Online
-
-- Catalog tích hợp và Online hiện là `1.6.3.0` với 94 nhóm sản phẩm.
-- Quy tắc catalog rộng không thể ghi đè thành phần hỗ trợ đã nhận diện thành ứng dụng người dùng.
-- Catalog Online chỉ được tải sau khi người dùng cho phép, phải có chữ ký CMS hợp lệ, đúng schema và không được hạ phiên bản.
-- Nếu catalog cục bộ mới hơn nguồn Online, Tool giữ bản mới hơn và tiếp tục quét thay vì hạ cấp.
-
-### Khắc phục an toàn
-
-- Tách riêng phạm vi Windows, Microsoft Office và phần mềm khác.
-- Luồng xử lý bắt buộc xem trước, Dry Run, sao lưu, xác nhận và hậu kiểm.
-- Chỉ mục được chọn và có bằng chứng đủ mạnh mới được xử lý; bằng chứng yếu hoặc trạng thái chưa xác minh không kích hoạt thay đổi hệ thống.
-- Kết quả `VerifiedClean` chỉ xác nhận dấu vết đã được xử lý, không thay thế việc xác minh giấy phép hợp lệ.
-
-### Giao diện, báo cáo và quản trị
-
-- Tăng tốc khởi động bằng hồ sơ hệ thống đọc nhanh từ Registry, trì hoãn xác minh catalog, dựng menu và kiểm tra toàn vẹn đến sau lần vẽ đầu tiên; cửa sổ chính xuất hiện sớm hơn nhưng các nút chỉ được bật sau khi kiểm tra an toàn hoàn tất.
-- Giao diện responsive, hỗ trợ DPI cao, theme hệ thống, Light/Dark và nội dung Việt/Anh không bị cắt chữ.
-- Báo cáo HTML, PDF, JSON và XML được tạo cục bộ; bản chia sẻ mặc định che định danh phần cứng.
-- Hỗ trợ timeline, plugin khai báo có chữ ký, CLI headless, Intune/MDM và xuất dữ liệu quản trị nhiều máy.
-- Tiêu đề và cửa sổ người dùng dùng thống nhất tên **v5.0**; các định danh cũ chỉ còn nội bộ để tương thích dữ liệu.
-
-### Toàn vẹn và phát hành
-
-- EXE, provenance, catalog và update manifest đều được ký và đối chiếu hash.
-- Launcher kiểm tra Authenticode, signer SHA-1/SHA-256 được ghim, BuildId, payload nhúng và provenance trước khi mở thao tác thay đổi hệ thống.
-- Bản hiện tại dùng chứng thư tự ký được ghim và timestamp DigiCert. Windows vẫn có thể hiện `Unknown publisher` hoặc SmartScreen vì đây không phải danh tính public-CA.
-- Phiên bản kỹ thuật vẫn là `5.0.0.0`; người dùng đang giữ tệp cũ nên tải lại EXE v5.0 mới nhất và thay thế thủ công.
-
-## Ghi chú Microsoft Store
-
-Ứng viên `StoreSubmission` được chuẩn bị riêng và chưa phải bản phát hành công khai. Bản Store dùng package identity/origin của Microsoft Store và cơ chế nâng quyền fail-closed riêng.
+- Chỉ thêm mục lịch sử khi tên hoặc số phiên bản công khai chính thức thay đổi.
+- Bản vá, cập nhật kỹ thuật và bản dựng nội bộ chỉ ghi trong release notes, không làm thay đổi bài giới thiệu hoặc lịch sử chính.

@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v5.0 — Bản nâng cấp và cải tiến tiếp nối từ v4.9
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Bản tinh chỉnh catalog R12 ngày 31/08/2026
+**Phiên bản hiện tại:** Tool Kiểm Tra v5.0 · ProductVersion/FileVersion `5.0.0.0` · cập nhật ngày 31/08/2026
 **Tác giả và phát triển:** Thanh Việt
 **Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
@@ -9,14 +9,14 @@ Tiếp nối nền tảng của v4.9, Tool Kiểm Tra v5.0 được nâng cấp 
 
 Quy trình khắc phục cũng an toàn và rõ ràng hơn: người dùng được xem trước nội dung, sao lưu, xác nhận trước khi thực hiện và kiểm tra lại kết quả sau xử lý. v5.0 còn bổ sung báo cáo dễ theo dõi hơn và hỗ trợ quản lý nhiều máy. Tool vẫn hoạt động **Offline theo mặc định, không tự động gửi dữ liệu ra Internet** và chỉ kết nối mạng khi người dùng chủ động cho phép.
 
-R11 sắp xếp danh sách phần mềm theo đúng thứ tự **Cao → Trung bình → Thấp**, đánh dấu phần mềm trả phí/thuê bao/dùng thử chưa xác minh là cần kiểm tra giấy phép, và bỏ hoàn toàn thành phần hệ thống/runtime khỏi cửa sổ xử lý. R12 siết thêm việc nhận diện trình cài đặt, add-in, runtime con, gói hỗ trợ và trình gỡ driver để các mục này chỉ nằm trong kiểm kê/báo cáo, không xuất hiện trong danh sách cần xử lý.
+Trong v5.0, danh sách phần mềm được sắp xếp theo đúng thứ tự **Cao → Trung bình → Thấp**; phần mềm trả phí/thuê bao/dùng thử chưa xác minh luôn được nhắc kiểm tra giấy phép. Thành phần hệ thống, runtime, codec, extension nền, trình cài đặt, add-in, gói hỗ trợ và trình gỡ driver chỉ nằm trong kiểm kê/báo cáo, không xuất hiện trong danh sách xử lý.
 
-R10 đồng bộ catalog tích hợp và catalog Online; R11/R12 tiếp tục nâng catalog lên `1.6.3.0` với 94 nhóm, bổ sung bộ lọc runtime, codec, trình cài đặt và thành phần hỗ trợ. Tool vẫn dùng chứng thư tự ký được ghim, nên Windows có thể hiện `Unknown publisher` hoặc SmartScreen.
+Catalog tích hợp và Online hiện là `1.6.3.0` với 94 nhóm sản phẩm. Tool dùng chứng thư tự ký được launcher ghim, nên Windows vẫn có thể hiện `Unknown publisher` hoặc SmartScreen.
 
 ## Tải và bắt đầu
 
 1. Mở [trang v5.0.0.0 ManagedSigned](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [Stable công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
-2. Nếu đang dùng R11 hoặc bản cũ hơn, hãy tải R12 và thay tệp EXE cũ vì các revision cùng mang số phiên bản `5.0.0.0`.
+2. Nếu đang dùng một tệp v5.0 cũ, hãy tải EXE v5.0 mới nhất và thay tệp cũ vì ProductVersion/FileVersion vẫn là `5.0.0.0`.
 3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
 4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
 5. Chỉ chấp nhận UAC khi tên tác vụ đúng với thao tác khắc phục, cập nhật hoặc quản trị mà bạn vừa chọn.
@@ -34,7 +34,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v5.0.exe |
 - **Quét theo mục tiêu:** Quick/Standard/Deep dùng ngân sách rõ ràng và giới hạn include/exclude/root an toàn.
 - **Trải nghiệm và quản trị:** theme theo hệ thống, dark/light override, PerMonitorV2 DPI, fleet export có redaction/chống CSV injection, CLI headless và script Intune/MDM.
 - **Khắc phục theo phạm vi rõ ràng:** mục Khắc phục tách thành Windows, Microsoft Office và phần mềm khác; phạm vi được khóa xuyên suốt quét, Dry Run, backup, xác nhận và hậu kiểm.
-- **Trạng thái phát hành minh bạch:** R8 là ngoại lệ ManagedSigned tự ký đã ghim đúng chứng thư; Windows vẫn có thể cảnh báo `Unknown publisher`, và đây không phải danh tính public-CA.
+- **Trạng thái phát hành minh bạch:** bản ManagedSigned tự ký được ghim đúng chứng thư; Windows vẫn có thể cảnh báo `Unknown publisher`, và đây không phải danh tính public-CA.
 
 - **Nguồn gốc và chống giả mạo:** launcher kiểm tra chữ ký, chứng thư ghim, metadata, Build ID và manifest nguồn gốc. Bản bị sửa hoặc không xác minh được được cảnh báo rõ và fail-closed đối với cập nhật cùng thao tác thay đổi hệ thống.
 - **Catalog online an toàn:** catalog khai báo có chữ ký CMS, giới hạn trường/quy tắc được phép, chống hạ phiên bản và giữ cache dự phòng. Chỉ tải sau khi người dùng bật Online; inventory, đường dẫn, key và báo cáo không được tải lên.

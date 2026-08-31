@@ -1,6 +1,6 @@
 # Lộ trình Tool Kiểm Tra v5.0
 
-Trạng thái cập nhật ngày 28/08/2026: các hạng mục dưới đây đang được tích hợp trên nhánh tính năng `feature/v5.0-trust-enterprise`. Có mã nguồn hoặc workflow không đồng nghĩa đã có bằng chứng phát hành. ManagedSigned Preview R6 đã được phát hành có kiểm soát nhưng chưa phải Public Stable; mọi build không ký của nhánh vẫn phải mang `ReleaseStatus=DevelopmentUnsigned` và nhãn development.
+Trạng thái cập nhật cho v5.0: các hạng mục dưới đây được tích hợp trên nhánh tính năng `feature/v5.0-trust-enterprise`. Có mã nguồn hoặc workflow không đồng nghĩa đã có bằng chứng phát hành. Bản ManagedSigned được phát hành có kiểm soát nhưng chưa phải danh tính Public Stable dùng chứng thư public-CA; mọi build không ký vẫn phải mang `ReleaseStatus=DevelopmentUnsigned` và nhãn development.
 
 ## Đã tích hợp trên nhánh tính năng
 
@@ -15,7 +15,7 @@ Trạng thái cập nhật ngày 28/08/2026: các hạng mục dưới đây đa
 
 ## Trạng thái bằng chứng hiện tại
 
-- ManagedSigned Preview R6 có evidence `Passed=1`, `Failed=0`, `Missing=2`: Windows 11 current/25H2 đạt 11 verifier; Windows 10 22H2 và Windows 11 previous/24H2 còn thiếu. Evidence chỉ áp dụng cho commit R6 đã ghi, không tự động áp dụng cho commit phát triển mới.
+- Bằng chứng VM lịch sử ngày 28/08/2026 có `Passed=1`, `Failed=0`, `Missing=2`: Windows 11 current/25H2 đạt 11 verifier; Windows 10 22H2 và Windows 11 previous/24H2 còn thiếu. Bằng chứng chỉ áp dụng cho đúng commit đã ghi, không tự động áp dụng cho commit phát triển mới.
 - Chưa có hậu kiểm stable bằng chứng thư CA-issued và timestamp thật. Build development, kể cả khi verifier cục bộ đạt, không đủ điều kiện đưa lên kênh production.
 - Chưa có kiểm thử WebView2 vì tính năng này được hoãn. Fallback Windows 7, chuyển màn hình/DPI, accessibility và đổi theme khi đang chạy vẫn cần kiểm thử máy thật phù hợp.
 - Scan profile chỉ cam kết cho luồng tạo báo cáo/kiểm kê read-only; tài liệu và UI không được mô tả nó là profile quét toàn ứng dụng.

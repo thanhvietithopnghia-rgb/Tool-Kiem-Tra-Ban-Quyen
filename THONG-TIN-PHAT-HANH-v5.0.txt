@@ -4,13 +4,13 @@ Release build date: 2026.08.26
 Release label: 5.0.0.0-managed-signed-20260826
 Release status: ManagedSigned.
 Tep chay duy nhat: Tool-Kiem-Tra-v5.0.exe
-SHA-256: 1A612172DB4372FD344A37A3E0E86BAA94B9306AB377BA972D66459CB219EA6F
+SHA-256: 83F1ACE9021608486E47F65E48F7FE758D11C459B058EC0541D20642D58D767B
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.
 Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.
 Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.
-Payload nhung duoc toi uu SolidDeflateBundle-v1: 55 tep trong mot resource Deflate co header fail-closed; giam 78.66% va van doi chieu SHA-256 tung tep sau giai nen.
+Payload nhung duoc toi uu SolidDeflateBundle-v1: 55 tep trong mot resource Deflate co header fail-closed; giam 78.8% va van doi chieu SHA-256 tung tep sau giai nen.
 Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.
 Dashboard schema 2.0: WinForms hien dai, theo Light/Dark cua he thong, cho phep ghi nho tuy chon va co fallback DPI tu PerMonitorV2 den Win7.
 Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.
@@ -81,5 +81,5 @@ PE: HIGH_ENTROPY_VA, ASLR, NX, NO_SEH, Terminal Server Aware.
 CFG/load configuration native chua duoc tuyen bo; xem SECURITY-HARDENING-v4.8.md.
 Pham vi runtime: Windows 7 SP1 den Windows 11 desktop x64/x86; catalog hien tai theo doi Windows 10 22H2 va Windows 11 23H2/24H2/25H2/26H1.
 Authenticode signer: CN=Thanh Viet - Tool Kiem Tra v4.9 (Self-Signed Code Signing); thumbprint ABE70696679B1D8987A2D5B1F6C1C6909D364CEA; status Valid.
-Chu ky Authenticode tu ky duoc ghim bang SHA-1 va SHA-256. R8 chay tren may moi ma khong can cai chung thu truoc; Windows van co the bao Unknown publisher/SmartScreen.
+Chu ky Authenticode tu ky duoc ghim bang SHA-1 va SHA-256. Ban v5.0 chay tren may moi ma khong can cai chung thu truoc; Windows van co the bao Unknown publisher/SmartScreen.
 Khong the vuot AppLocker, WDAC, SmartScreen, antivirus hoac chinh sach doanh nghiep.

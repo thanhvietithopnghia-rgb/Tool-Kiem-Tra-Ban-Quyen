@@ -1,241 +1,52 @@
-# Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
+# Lịch sử phiên bản Tool Kiểm Tra
 
-Tài liệu tóm tắt các thay đổi cốt lõi của những phiên bản công khai chính.
+Tài liệu này trình bày phiên bản công khai hiện tại theo một tên thống nhất: **Tool Kiểm Tra v5.0**.
 
-Phiên bản ManagedSigned hiện tại: **v5.0.0.0 — Bản tinh chỉnh catalog R12 (ngoại lệ tự ký)**
-FileVersion: **5.0.0.0** · Build **2026.08.26**
+- Tên hiển thị: **Tool Kiểm Tra v5.0**
+- ProductVersion/FileVersion kỹ thuật: `5.0.0.0`
+- Ngày phát hành hiện tại: `31/08/2026`
+- Trạng thái: `ManagedSigned`; launcher ghim đúng chứng thư phát hành
+- Trang tải chính thức: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
 
-Ứng viên `StoreSubmission` đang được chuẩn bị riêng cho Microsoft Store; chưa phải bản đã phát hành. Bản này dùng package identity/origin của Store và broker nâng quyền đã biên dịch để khóa fail-closed qua ranh giới UAC.
+## Tool Kiểm Tra v5.0
 
-Trang Stable công khai mới nhất:
-https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
+### Kiểm tra và nhận diện
 
-## v5.0.0.0 — 31/08/2026 — Bản tinh chỉnh catalog R12
+- Bổ sung ba mức quét Quick, Standard và Deep với giới hạn phạm vi, thời gian và ngân sách rõ ràng.
+- Kiểm kê Registry, AppX/MSIX, WinGet, shortcut, package manager và vùng portable giới hạn; hợp nhất bản ghi trùng theo họ sản phẩm.
+- Phân biệt phần mềm đã cài, bản portable, tệp còn sót, thành phần hệ thống và dữ liệu chưa đủ để kết luận.
+- Sắp xếp ứng dụng cần xem xét theo thứ tự **Cao → Trung bình → Thấp**, sau đó mới theo tên.
+- Phần mềm trả phí, thuê bao hoặc dùng thử chưa xác minh được đánh dấu cần kiểm tra giấy phép; Tool không tự kết luận vi phạm.
+- Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml, trình cài đặt, add-in, runtime con, gói hỗ trợ và trình gỡ driver chỉ còn trong kiểm kê/báo cáo, không xuất hiện ở danh sách xử lý.
 
-- **Giảm nhận diện nhầm thành phần hỗ trợ:** trình cài đặt, add-in, runtime con, gói hỗ trợ và trình gỡ driver chỉ còn trong kiểm kê/báo cáo.
-- **Giới hạn ghi đè catalog:** quy tắc sản phẩm chính không thể biến thành phần hỗ trợ đã nhận diện thành mục cần xử lý giấy phép.
-- **Catalog mới:** catalog tích hợp và Online `1.6.3.0` có 94 nhóm sản phẩm; ProductVersion/FileVersion vẫn là `5.0.0.0`.
+### Catalog và Online
 
-## v5.0.0.0 — 31/08/2026 — Bản cập nhật R11
+- Catalog tích hợp và Online hiện là `1.6.3.0` với 94 nhóm sản phẩm.
+- Quy tắc catalog rộng không thể ghi đè thành phần hỗ trợ đã nhận diện thành ứng dụng người dùng.
+- Catalog Online chỉ được tải sau khi người dùng cho phép, phải có chữ ký CMS hợp lệ, đúng schema và không được hạ phiên bản.
+- Nếu catalog cục bộ mới hơn nguồn Online, Tool giữ bản mới hơn và tiếp tục quét thay vì hạ cấp.
 
-- **Thứ tự rõ ràng:** ứng dụng người dùng được xếp Cao → Trung bình → Thấp; trong cùng mức mới xếp theo tên.
-- **Phần mềm thương mại không còn bị bỏ qua:** phần mềm trả phí, thuê bao hoặc dùng thử chưa xác minh được đánh dấu cần kiểm tra giấy phép, không bị ghi là “không cần xử lý”.
-- **Bỏ thành phần hệ thống khỏi màn hình xử lý:** Windows App Runtime, codec, extension nền, VCLibs/UI.Xaml và thành phần tương tự chỉ còn trong kiểm kê/báo cáo nội bộ.
-- **Catalog mới:** catalog tích hợp và Online `1.6.2.0` có 94 nhóm sản phẩm.
-- **Đồng bộ nhãn phiên bản:** tiêu đề cửa sổ dùng v5.0 hiện hành; chuỗi v4.6 còn lại chỉ là định danh tương thích dữ liệu/mutex hoặc lịch sử.
-- **Giữ nguyên phiên bản phát hành:** ProductVersion/FileVersion/tag vẫn là `5.0.0.0`; người dùng R10 hoặc cũ hơn cần tải lại EXE.
+### Khắc phục an toàn
 
-## v5.0.0.0 — 30/08/2026 — ManagedSigned Stable R8
+- Tách riêng phạm vi Windows, Microsoft Office và phần mềm khác.
+- Luồng xử lý bắt buộc xem trước, Dry Run, sao lưu, xác nhận và hậu kiểm.
+- Chỉ mục được chọn và có bằng chứng đủ mạnh mới được xử lý; bằng chứng yếu hoặc trạng thái chưa xác minh không kích hoạt thay đổi hệ thống.
+- Kết quả `VerifiedClean` chỉ xác nhận dấu vết đã được xử lý, không thay thế việc xác minh giấy phép hợp lệ.
 
-- **Chạy được trên máy mới:** sửa lỗi `Authenticode=0x800B0109` khi máy chưa cài sẵn chứng thư tự ký của tác giả.
-- **Không hạ kiểm tra chống sửa đổi:** launcher chỉ chấp nhận đúng lỗi gốc chứng thư chưa được Windows tin cậy sau khi đối chiếu đồng thời SHA-1 và SHA-256 của đúng chứng thư phát hành.
-- **Tệp bị sửa vẫn bị khóa:** sai nội dung trả `HashMismatch`/`TRUST_E_BAD_DIGEST`; sai người ký, sai chứng thư hoặc lỗi chữ ký khác không được bỏ qua.
-- **Không còn thoát im lặng khi PowerShell lỗi:** launcher hiện mã lỗi nếu chính sách bảo mật hoặc thành phần hệ thống ngăn giao diện mở.
-- **R7 phải nâng cấp thủ công:** tải R8 và thay EXE cũ vì hai bản cùng mang số phiên bản `5.0.0.0`; kênh ManagedSigned không tự cập nhật công khai.
-- **Cảnh báo Windows vẫn có thể xuất hiện:** đây là ngoại lệ tự ký, không phải danh tính public-CA; SmartScreen có thể hiện `Unknown publisher` trên máy mới.
+### Giao diện, báo cáo và quản trị
 
-## v5.0.0.0 — 27/08/2026 — ManagedSigned prerelease (Preview R6 hotfix)
+- Giao diện responsive, hỗ trợ DPI cao, theme hệ thống, Light/Dark và nội dung Việt/Anh không bị cắt chữ.
+- Báo cáo HTML, PDF, JSON và XML được tạo cục bộ; bản chia sẻ mặc định che định danh phần cứng.
+- Hỗ trợ timeline, plugin khai báo có chữ ký, CLI headless, Intune/MDM và xuất dữ liệu quản trị nhiều máy.
+- Tiêu đề và cửa sổ người dùng dùng thống nhất tên **v5.0**; các định danh cũ chỉ còn nội bộ để tương thích dữ liệu.
 
-- **Sửa lỗi nguồn quét và cầu nối UAC:** ManagedSigned repair được nhận đúng trạng thái tin cậy; lỗi tiến trình và trường hợp không tạo tệp kết quả được báo bằng mã rõ ràng thay vì hiện như lỗi dữ liệu chung.
-- **Mở đường khôi phục an toàn:** danh sách phần mềm chỉ xem khi nguồn quét chưa đầy đủ, nhưng có nút **Sửa nguồn quét** để chạy lại repair rồi quét lại trước khi mở thao tác đủ điều kiện.
-- **Kết quả đúng phạm vi:** giao diện nêu rõ Windows, Microsoft Office và phần mềm khác được đánh giá ở các nguồn riêng; không gộp các kết luận khác phạm vi thành một cảnh báo mơ hồ.
-- **Không còn cắt chữ:** tiêu đề, tóm tắt và hướng dẫn tiếng Việt/Anh tự xuống dòng trong khung hẹp hoặc DPI cao; bổ sung thông báo khi chưa có mục đủ bằng chứng để khắc phục trực tiếp.
-- **Regression gate:** thêm probe ManagedSigned cho bridge và đồng bộ verifier/chuỗi thông báo song ngữ. R6 vẫn là ManagedSigned Preview, không phải public-CA Stable.
+### Toàn vẹn và phát hành
 
-## v5.0.0.0 — 26/08/2026 — ManagedSigned prerelease (Preview R5, baseline — superseded by R6)
+- EXE, provenance, catalog và update manifest đều được ký và đối chiếu hash.
+- Launcher kiểm tra Authenticode, signer SHA-1/SHA-256 được ghim, BuildId, payload nhúng và provenance trước khi mở thao tác thay đổi hệ thống.
+- Bản hiện tại dùng chứng thư tự ký được ghim và timestamp DigiCert. Windows vẫn có thể hiện `Unknown publisher` hoặc SmartScreen vì đây không phải danh tính public-CA.
+- Phiên bản kỹ thuật vẫn là `5.0.0.0`; người dùng đang giữ tệp cũ nên tải lại EXE v5.0 mới nhất và thay thế thủ công.
 
-- **R5 thay thế R4:** R4 đã được rút trước khi phát hành rộng rãi do BuildId trong launcher không khớp Bridge/provenance; R5 được build lại từ nguồn và thay mới toàn bộ artifact cùng metadata phát hành.
-- **Danh tính bản build thống nhất:** launcher, Elevated Bridge nhúng, manifest và provenance dùng một BuildId chuẩn `5.0.0.0-production-20260826`; nhãn phát hành là `5.0.0.0-managed-signed-20260826`.
-- **Kiểm tra sau biên dịch:** chuỗi build đối chiếu lại EXE, Bridge nhúng, provenance và source snapshot; mọi sai lệch danh tính hoặc worktree không sạch đều làm dừng phát hành.
-- **SBOM và chuỗi cung ứng:** bổ sung `SBOM.cdx.json` theo CycloneDX 1.5, gắn SHA-256 trong release manifest; các GitHub Actions được khóa theo full commit SHA và build từ chối tham chiếu tag/branch có thể thay đổi.
-- **Trạng thái ManagedSigned rõ ràng:** Authenticode, timestamp RFC 3161 và CMS provenance được xác minh trên máy đã nhận chứng thư quản trị; thao tác thay đổi hệ thống chỉ mở sau khi WinVerifyTrust và provenance cùng hợp lệ. Tự cập nhật công khai vẫn bị khóa và đây không phải public-CA Stable.
-- **Ba mức quét:** Quick, Standard và Deep có ngân sách rõ ràng cùng giới hạn an toàn cho root, include và exclude.
-- **Catalog và plugin:** hiển thị các trạng thái Fresh/Warning/Stale/Future/Invalid; plugin ngoài chỉ nhận metadata khai báo ký CMS từ publisher có fingerprint do quản trị viên ghim.
-- **Giao diện responsive:** giữ giao diện responsive của R4, thêm điều hướng gọn khi sidebar bị ẩn, chiều cao thẻ theo nội dung, cuộn có giới hạn trên màn hình thấp và kiểm tra cắt chữ cho điều khiển Việt/Anh; tiếp tục hỗ trợ theme hệ thống, Light/Dark và PerMonitorV2 DPI.
-- **Năm luồng khắc phục:** Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ.
-- **Khắc phục đúng phạm vi:** ba luồng Windows, Office và phần mềm khác mở thẳng màn hình chuyên biệt; phạm vi được khóa xuyên suốt Dry Run, backup, xác nhận, thực hiện và hậu kiểm. Màn Tổng quan kết hợp vẫn được giữ.
-- **Đồng bộ Enterprise:** giao diện Server/Workstation lấy phiên bản `5.0.0.0` từ launcher; tài nguyên mới dùng tên v5.0 nhưng vẫn dọn được cấu hình legacy v4.8/v4.6.
-- **Triển khai và xuất báo cáo:** hỗ trợ CLI headless, script Intune/MDM và xuất fleet JSON/CSV/HTML/PDF với cơ chế che dữ liệu nhạy cảm và chống CSV injection.
-- **Giao diện gọn hơn:** bỏ dòng phiên bản ở chân sidebar và dòng "Catalog phần mềm: mới" bị trùng; kiểm tra độ mới, màu cảnh báo và tooltip catalog vẫn hoạt động.
-- **Phạm vi kiểm thử minh bạch:** bằng chứng hiện có ghi nhận Windows 11 hiện tại/25H2 đạt kiểm thử tự động; Windows 10 22H2 và Windows 11 thế hệ trước còn thiếu runner, nên ma trận VM vẫn chưa hoàn tất. Bản phát hành public-CA vẫn cần đủ ma trận Windows và đánh giá bảo mật độc lập.
+## Ghi chú Microsoft Store
 
-## v4.9.0.0 — 22/08/2026
-
-- **Nhận diện chính xác hơn:** kiểm kê Registry, AppX/MSIX, Winget, shortcut, trình quản lý gói và vùng portable; phân biệt cài đặt đã xác nhận, portable và tệp còn sót; gộp bản ghi trùng theo họ sản phẩm.
-- **Quét toàn vẹn thích ứng:** khi có dấu hiệu chặn máy chủ hoặc vô hiệu hóa dịch vụ hãng, Tool mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm; bằng chứng không còn lan giữa các phần mềm cùng hãng.
-- **Đọc bản quyền và khắc phục an toàn:** phân biệt lỗi đọc dữ liệu với chưa kích hoạt; báo cáo luôn chỉ đọc; khắc phục gỡ đúng khóa/Activation ID xấu, bảo toàn bản quyền hợp lệ cùng tồn tại và hậu kiểm theo đúng mục đã chọn.
-- **Gỡ ứng dụng có kiểm soát:** chỉ cho phép gỡ hoàn chỉnh khi người dùng chọn rõ ứng dụng và Tool xác minh được danh tính MSI/AppX gắn với nguồn; mọi thao tác đều được liệt kê trước, backup và kiểm tra lại sau xử lý.
-- **Bảo vệ bản phát hành:** EXE, provenance, catalog và manifest cập nhật được ký số; catalog online chỉ nhận dữ liệu khai báo từ nguồn chính thức đã ghim, không tải danh sách phần mềm hoặc dữ liệu máy lên Internet.
-- **Chính sách từ v4.9:** Tool tiếp tục miễn phí và phát triển hướng tới cộng đồng; mã nguồn không còn được công khai miễn phí, không phải mã nguồn mở và chỉ được tiếp cận khi tác giả chấp thuận bằng văn bản.
-
-## v4.8.0.0 — 10/08/2026
-
-- **Kiểm kê và đánh giá toàn diện:** mở rộng kiểm tra Windows, Office, phần mềm bên thứ ba và phần cứng; tách mô hình giấy phép khỏi trạng thái kỹ thuật và độ tin cậy.
-- **Quét sâu và catalog:** bổ sung catalog ký số, bằng chứng nhiều tầng và trạng thái `Chưa xác minh` để tránh kết luận khi thiếu dữ liệu.
-- **Khắc phục có kiểm soát:** chọn đúng phạm vi, xem trước, xác nhận, backup và hậu kiểm; không tự xóa phần mềm hoặc thay đổi hệ thống chỉ từ dấu hiệu yếu.
-- **Trải nghiệm sử dụng:** hoàn thiện Dashboard, báo cáo HTML/PDF, Trợ lý cục bộ và quản lý máy chủ–máy trạm, giữ Offline làm mặc định.
-
-## v4.6 — 06/08/2026
-
-Trọng tâm: mô phỏng khắc phục không thay đổi hệ thống, mở rộng nhận diện phần mềm kỹ thuật và tách vòng đời dữ liệu an toàn khỏi v4.4/v4.5.  
-Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell 3+/WinForms; JSON catalog 1.2; DataSchema 2.0; SHA-256/HMAC/DPAPI; HTTP LAN với phong bì AES-256-CBC + HMAC-SHA256.
-
-- Mở rộng catalog phần mềm lên `1.2.0.0`, gồm 45 quy tắc sản phẩm và 16 nhóm CAD/CAM/CAE, BIM, mô phỏng, kết cấu, GIS, EDA, đo lường và rendering; vẫn dùng engine quét sâu phổ quát cho phần mềm chưa có quy tắc riêng.
-- Hotfix hiệu năng quét sâu: dùng bộ đệm thư mục con, liệt kê tệp .NET nhẹ hơn, tái sử dụng nhóm luồng Authenticode và phân bổ chữ ký thích ứng 6/3/1 theo mức rủi ro. Phạm vi nguồn, độ sâu, quét artifact và dấu vết hệ thống giữ nguyên; giới hạn/độ phủ tiếp tục được ghi trong báo cáo.
-- Thêm **Chạy thử (Dry Run)** cho Khắc phục KMS/Activator: liệt kê đúng tệp, Registry, service, task, product key/KMS, Repair MSI hoặc gỡ cài đặt dự kiến; nêu backup và khả năng hoàn tác nhưng không tạo restore point, không backup, không dừng/xóa/sửa gì. Muốn thực hiện thật phải mở lại bước chọn mục và xác nhận lần nữa.
-- Sửa consent catalog online theo fail-closed: không truyền consent hoặc truyền `false` trả mã `2` trước mọi thao tác mạng; launcher không còn ghi đè lựa chọn thành `true`.
-- Thu gọn endpoint Enterprise `GET /tool/v1/status` không xác thực xuống đúng ba trường `Accepted`, `ProtocolVersion`, `ToolVersion`; không trả Server ID/tên máy, IP, bind address, CIDR hoặc số client; giữ rate limit và envelope xác thực cho các endpoint nghiệp vụ.
-- Tách dữ liệu ghi sang `%ProgramData%\ThanhViet-Tool-Kiem-Tra\v4.6`, thêm `DataSchemaVersion=2.0`, `ProducerVersion`, khóa migration và trạng thái máy đọc. Migration dùng staging, đối chiếu SHA-256, commit có rollback; dữ liệu v4.4/v4.5 được giữ nguyên, log/backup cũ chỉ được tham chiếu đọc.
-- Launcher dùng mutex v4.6 riêng và chặn khi phát hiện launcher v4.4/v4.5 đang chạy trước migration; Enterprise agent/audit cũng chuyển sang mutex v4.6. Các nhãn mật mã cũ chỉ được giữ làm định danh tương thích để giải mã timeline/secret đã migrate.
-- Đồng bộ phiên bản v4.6 trên module contract, report/safety/capability/catalog, tài liệu, User-Agent và toàn bộ verifier; thêm `VERIFY-DATA-LIFECYCLE.ps1` kiểm tra migration một lần, giữ dữ liệu cũ và rollback khi lỗi.
-
-## v4.5 — 06/08/2026
-
-Trọng tâm: kiểm kê toàn bộ phần mềm, đối chiếu tùy chọn có xin phép và khắc phục an toàn theo phạm vi.  
-Nền tảng/công nghệ: C#/.NET Framework 4 AnyCPU; Windows PowerShell/WinForms; JSON; HTTPS GET có allowlist; HMAC/DPAPI/SHA-256.
-
-- Hoàn thiện giao diện Light/Dark, biểu tượng và màu nút dùng chung; đổi tên sản phẩm thành **Công cụ kiểm tra cấu hình máy và bản quyền phần mềm** và căn lại nội dung theo DPI.
-- Quét toàn bộ phần mềm phát hiện được từ Registry, AppX/MSIX, Start Menu, Desktop và các vị trí cài đặt/portable có giới hạn; đối chiếu mô hình cấp phép và bằng chứng kỹ thuật, không xem “không có bằng chứng” là chính hãng.
-- Bổ sung quét sâu phổ quát cho từng ứng dụng: nhiều EXE/DLL, Authenticode, hash xấu đã biết, artifact và dấu vết hệ thống tương quan; phân tầng bằng chứng Conclusive/Strong/Moderate/Weak, phân bổ ngân sách chữ ký có trọng số và công bố rõ độ phủ chưa hoàn tất.
-- Thêm **Kết nối online** có giải thích và xin phép trước khi tải danh mục đối chiếu HTTPS; không gửi danh sách phần mềm, đường dẫn, khóa hay token ra ngoài; Offline vẫn là mặc định.
-- Liệt kê đầy đủ kết quả phần mềm khác, cho chọn từng mục hoặc tất cả mục đủ điều kiện; bắt buộc backup trước khi đưa phạm vi được hỗ trợ về trạng thái gốc/chưa kích hoạt và hướng dẫn Repair/Cleanup/cài lại chính thức với phần mềm chưa có bộ xử lý an toàn.
-- Mở chọn thủ công cho mọi phần mềm Không chính hãng/Nghi vấn; bổ sung kế hoạch tổng quát gồm cách ly artifact chính xác, khôi phục hosts, Repair MSI đã xác thực và gỡ bản đóng gói không được phép để cài lại chính thức. Chế độ tự động không tự gỡ phần mềm.
-- Tách phạm vi Quét toàn bộ, Windows và Office, Phần mềm khác; mở rộng Backup/Khôi phục theo cùng phạm vi; bổ sung timeout, heartbeat và tạo HTML/PDF theo yêu cầu để giảm hiện tượng treo.
-- Tối ưu toàn bộ 44 payload nhúng theo cơ chế chọn Deflate/raw riêng từng tệp, giải nén và kiểm tra SHA-256 trước khi chạy; giữ nguyên mô-đun và phạm vi quét.
-- Viết lại đồng bộ hướng dẫn Việt/Anh dành cho người trực tiếp sử dụng v4.5 theo bố cục từng chức năng của v4.4: nêu điểm mới, cách chạy EXE, mười tác vụ, trạng thái phần mềm, quét sâu, khắc phục an toàn, báo cáo và xử lý lỗi; loại nội dung đóng gói kỹ thuật khỏi hướng dẫn người dùng.
-
-## v4.4 — 31/07/2026
-
-- Bổ sung khắc phục tự động an toàn theo danh sách cho phép, chỉ xử lý mục có thể backup/khôi phục và luôn quét lại sau thay đổi.
-- Hoàn thiện bản địa hóa Việt/Anh cho giao diện, hộp thoại, báo cáo và mô-đun con; đồng bộ mã trạng thái máy đọc được giữa hai ngôn ngữ.
-- Làm mới Dashboard theo kiểu Fluent, thêm bộ lọc Kiểm tra/Khắc phục/Báo cáo, hộp Cài đặt và biểu tượng vector nội bộ cho Light/Dark.
-- Tối ưu quét Office/tệp có giới hạn, thêm Sao chép toàn bộ nhật ký, Mở thư mục báo cáo và cảnh báo máy ảo/Remote Desktop.
-
-## v4.3 — 30–31/07/2026
-
-- Nâng Dashboard lên schema 2.0, bố cục đáp ứng DPI/kích thước màn hình và bổ sung nút dừng tác vụ con an toàn.
-- Chuẩn hóa Offline mặc định, hai ngôn ngữ Việt/Anh, quản lý cục bộ/Server/Workstation và bộ báo cáo HTML/PDF/JSON/XML.
-- Mở rộng kiểm kê phần mềm, chữ ký số, autorun, dịch vụ, tác vụ và nguồn cài đặt mà không phá hợp đồng báo cáo cũ.
-
-## v4.2 — 24–25/07/2026
-
-- Thêm trung tâm quản lý bản quyền nội bộ với chế độ Cục bộ, Server và Workstation.
-- Hỗ trợ ghép cặp, kiểm kê, hàng đợi khi mất mạng LAN và báo cáo tập trung có mã hóa/xác thực.
-- Bảo vệ cấu hình URL ACL/tường lửa bằng xác nhận và ngăn nhiều máy chủ quản lý cùng phạm vi.
-
-## v4.1 — 23/07/2026
-
-- Thêm Trung tâm báo cáo, kiểm tra chứng thư, plugin khai báo chỉ đọc và dòng thời gian bản quyền.
-- Chuẩn hóa xuất HTML, PDF, JSON, XML và manifest SHA-256; bảo vệ timeline bằng DPAPI/HMAC/hash chain.
-- Bổ sung quy trình ký phát hành, cửa sổ Giới thiệu và nhóm năng lực sản phẩm.
-
-## v4.0 — 23/07/2026
-
-- Chuyển từ menu truyền thống sang Dashboard WinForms với thẻ trạng thái, mười chức năng, Light/Dark và bố cục theo DPI.
-- Thêm schema báo cáo, chính sách an toàn, bộ kiểm tra hồi quy và cơ chế chọn đúng công cụ Windows native x64/x86.
-- Xây dựng trung tâm khắc phục KMS/Activator có xem trước, xác nhận, backup và hậu kiểm.
-
-## v3.9 — 22/07/2026
-
-- Nâng hợp đồng báo cáo lên schema 1.3, thêm nguồn quét dự phòng và chặn phát hành khi sai schema.
-- Giảm cảnh báo nhầm đối với tiến trình Windows hợp lệ, lịch sử PowerShell cũ, hosts và SKU Office không hoạt động.
-- Tối ưu bộ nhớ đệm trong phiên và làm mới dữ liệu trước hậu kiểm.
-
-## v3.8 — 22/07/2026
-
-- Bổ sung quét sâu Windows/Office và tổng hợp bằng chứng theo mức độ tin cậy.
-- Cải thiện báo cáo chi tiết, hướng dẫn khắc phục và khả năng làm việc khi một nguồn quét bị lỗi.
-
-## v3.7 — 22/07/2026
-
-- Bổ sung kiểm tra tính toàn vẹn, chữ ký tệp và các dấu hiệu can thiệp cấp phép phổ biến.
-- Chuẩn hóa trạng thái phát hiện để giao diện và báo cáo dùng chung kết quả.
-
-## v3.6 — 22/07/2026
-
-- Mở rộng kiểm tra Office nhiều phiên bản/SKU và phát hiện cấu hình KMS bất thường.
-- Thêm nhật ký kỹ thuật và bước xác minh sau thao tác khắc phục.
-
-## v3.5 — 21/07/2026
-
-- Thêm sao lưu và khôi phục trạng thái cấp phép Windows/Office có kiểm tra toàn vẹn.
-- Yêu cầu quyền quản trị, xem trước và xác nhận trước mọi thay đổi hệ thống.
-
-## v3.4 — 21/07/2026
-
-- Cải thiện nhận diện bản quyền số, OEM và kênh cấp phép Windows.
-- Bổ sung kiểm tra khóa cục bộ an toàn, chỉ hiển thị phần khóa cần thiết.
-
-## v3.3 — 20/07/2026
-
-- Mở rộng kiểm kê phần mềm, tiến trình, dịch vụ và tác vụ liên quan đến kích hoạt.
-- Bổ sung xuất báo cáo và thông báo kết quả rõ ràng hơn.
-
-## v3.2 — 20/07/2026
-
-- Thêm kiểm tra Office song song với Windows và phân biệt nhiều kiểu cấp phép.
-- Cải thiện xử lý lỗi khi công cụ hệ thống không có hoặc trả về dữ liệu thiếu.
-
-## v3.1 — 20/07/2026
-
-- Bổ sung kiểm tra cấu hình máy, kiến trúc hệ điều hành và thông tin phần cứng chính.
-- Tổ chức lại nhật ký và kết luận theo từng nhóm chức năng.
-
-## v3.0 — 20/07/2026
-
-- Hợp nhất kiểm tra cấu hình và bản quyền vào một quy trình dùng chung.
-- Thêm giao diện lựa chọn chức năng và báo cáo tổng hợp.
-
-## v2.9 — 20/07/2026
-
-- Cải thiện phát hiện KMS/Activator và giảm kết luận dựa trên một dấu hiệu yếu.
-- Bổ sung hướng dẫn xử lý thủ công khi chưa đủ bằng chứng.
-
-## v2.8 — 20/07/2026
-
-- Mở rộng truy vấn trạng thái kích hoạt Windows và Office từ nhiều nguồn hệ thống.
-- Chuẩn hóa mã lỗi và thông tin chẩn đoán.
-
-## v2.7 — 20/07/2026
-
-- Thêm kiểm tra dịch vụ, tác vụ hẹn giờ và cấu hình mạng có liên quan đến kích hoạt.
-- Bổ sung xác nhận trước các thao tác có thể thay đổi hệ thống.
-
-## v2.6 — 20/07/2026
-
-- Cải thiện tương thích Windows PowerShell/.NET Framework và Windows x86/x64.
-- Bổ sung xử lý ngoại lệ để quá trình quét tiếp tục khi một hạng mục thất bại.
-
-## v2.5 — 18/07/2026
-
-- Thêm kiểm tra Microsoft Office và hiển thị phiên bản/kênh cấp phép.
-- Cải thiện báo cáo văn bản và khả năng sao chép kết quả.
-
-## v2.4 — 18/07/2026
-
-- Mở rộng thông tin cấu hình máy và trạng thái Windows.
-- Tối ưu giao diện và cách sắp xếp các tác vụ kiểm tra.
-
-## v1.3 — 18/07/2026
-
-- Bổ sung kiểm tra khóa OEM/BIOS và thông tin kích hoạt cơ bản.
-- Cải thiện thông báo lỗi và hướng dẫn người dùng.
-
-## v1.2 — 18/07/2026
-
-- Thêm xuất kết quả và các bước kiểm tra Office ban đầu.
-- Hoàn thiện xử lý Unicode tiếng Việt.
-
-## v1.1 — 18/07/2026
-
-- Bổ sung giao diện lựa chọn và thông tin cấu hình cơ bản.
-- Cải thiện khả năng chạy trên nhiều phiên bản Windows.
-
-## v1.0 — 17/07/2026
-
-- Phát hành phiên bản đầu tiên để kiểm tra cấu hình máy và trạng thái kích hoạt Windows.
-- Cung cấp nhật ký kết quả cục bộ, không tự động kết nối Internet.
-
----
-
-Nguyên tắc xuyên suốt: kiểm tra mặc định chỉ đọc; không thu thập telemetry; không tự ý thay đổi bản quyền; khắc phục phải có lựa chọn, xác nhận, backup và hậu kiểm.
+Ứng viên `StoreSubmission` được chuẩn bị riêng và chưa phải bản phát hành công khai. Bản Store dùng package identity/origin của Microsoft Store và cơ chế nâng quyền fail-closed riêng.

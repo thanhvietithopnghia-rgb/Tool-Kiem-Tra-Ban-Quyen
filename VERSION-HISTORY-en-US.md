@@ -35,6 +35,7 @@ This document presents the current public line under one consistent product name
 
 ### Interface, reporting, and administration
 
+- Speeds up startup with a Registry-based fast system profile and defers catalog verification, menu construction, and integrity validation until after the first paint; action buttons remain disabled until safety checks finish.
 - Provides a responsive high-DPI interface with system, Light, and Dark themes and unclipped Vietnamese/English content.
 - Creates HTML, PDF, JSON, and XML reports locally; shared reports redact hardware identifiers by default.
 - Supports timelines, signed declarative plugins, a headless CLI, Intune/MDM deployment, and managed fleet exports.

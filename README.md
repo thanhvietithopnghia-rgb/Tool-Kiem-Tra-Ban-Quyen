@@ -29,6 +29,7 @@ Get-AuthenticodeSignature .\Tool-Kiem-Tra-v5.0.exe |
 
 ## Điểm mới trong v5.0
 
+- **Khởi động nhanh hơn:** dùng hồ sơ hệ thống đọc nhanh từ Registry và đưa các bước xác minh catalog, dựng menu, kiểm tra toàn vẹn sang sau lần vẽ đầu tiên; nút thao tác chỉ được bật khi kiểm tra an toàn hoàn tất.
 - **Phát hành fail-closed:** Stable bắt buộc chứng thư code-signing CA-issued/HSM, chuỗi tin cậy Windows, RFC3161 timestamp, source commit sạch và provenance CMS đúng commit.
 - **Catalog và plugin có biên tin cậy:** catalog phân loại Fresh/Warning/Stale/Future/Invalid; plugin bên thứ ba chỉ nhận metadata khai báo đã ký từ fingerprint nhà phát hành được quản trị viên ghim.
 - **Quét theo mục tiêu:** Quick/Standard/Deep dùng ngân sách rõ ràng và giới hạn include/exclude/root an toàn.

@@ -35,6 +35,7 @@ Tài liệu này trình bày phiên bản công khai hiện tại theo một tê
 
 ### Giao diện, báo cáo và quản trị
 
+- Tăng tốc khởi động bằng hồ sơ hệ thống đọc nhanh từ Registry, trì hoãn xác minh catalog, dựng menu và kiểm tra toàn vẹn đến sau lần vẽ đầu tiên; cửa sổ chính xuất hiện sớm hơn nhưng các nút chỉ được bật sau khi kiểm tra an toàn hoàn tất.
 - Giao diện responsive, hỗ trợ DPI cao, theme hệ thống, Light/Dark và nội dung Việt/Anh không bị cắt chữ.
 - Báo cáo HTML, PDF, JSON và XML được tạo cục bộ; bản chia sẻ mặc định che định danh phần cứng.
 - Hỗ trợ timeline, plugin khai báo có chữ ký, CLI headless, Intune/MDM và xuất dữ liệu quản trị nhiều máy.

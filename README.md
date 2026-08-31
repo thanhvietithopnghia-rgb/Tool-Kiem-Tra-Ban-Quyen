@@ -5,6 +5,8 @@
 **Trang v5 ManagedSigned:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
+> **Nguyên tắc cập nhật:** Bài giới thiệu này chỉ thay đổi khi dự án công bố một phiên bản chính thức mới. Các bản vá, cập nhật kỹ thuật và bản dựng nội bộ trong cùng phiên bản không thay đổi tiêu đề, tên phiên bản hoặc nội dung giới thiệu; chi tiết bảo trì được ghi trong release notes của phiên bản hiện hành.
+
 Tiếp nối nền tảng của v4.9, Tool Kiểm Tra v5.0 được nâng cấp để kiểm tra nhanh hơn, nhận diện chính xác hơn và sử dụng thuận tiện hơn. Phiên bản mới có ba mức kiểm tra từ cơ bản đến chuyên sâu, tách riêng Windows, Microsoft Office và các phần mềm khác, đồng thời cải thiện giao diện để hiển thị tốt trên nhiều kích thước màn hình.
 
 Quy trình khắc phục cũng an toàn và rõ ràng hơn: người dùng được xem trước nội dung, sao lưu, xác nhận trước khi thực hiện và kiểm tra lại kết quả sau xử lý. v5.0 còn bổ sung báo cáo dễ theo dõi hơn và hỗ trợ quản lý nhiều máy. Tool vẫn hoạt động **Offline theo mặc định, không tự động gửi dữ liệu ra Internet** và chỉ kết nối mạng khi người dùng chủ động cho phép.

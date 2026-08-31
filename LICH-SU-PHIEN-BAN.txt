@@ -8,6 +8,12 @@ Tài liệu này trình bày phiên bản công khai hiện tại theo một tê
 - Trạng thái: `ManagedSigned`; launcher ghim đúng chứng thư phát hành
 - Trang tải chính thức: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
 
+## Nguyên tắc ghi nhận phiên bản
+
+- Chỉ tạo mục lịch sử mới khi tên hoặc số phiên bản công khai chính thức thay đổi.
+- Bản vá, cập nhật kỹ thuật và bản dựng nội bộ trong cùng phiên bản không tạo mục lịch sử riêng và không làm thay đổi bài giới thiệu.
+- Chi tiết bảo trì được ghi trong release notes của phiên bản hiện hành.
+
 ## Tool Kiểm Tra v5.0
 
 ### Kiểm tra và nhận diện

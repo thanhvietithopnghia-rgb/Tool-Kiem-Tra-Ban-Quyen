@@ -8,6 +8,12 @@ This document presents the current public line under one consistent product name
 - Channel: `ManagedSigned`; the launcher pins the exact release certificate
 - Official download: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
 
+## Version-recording policy
+
+- Add a history entry only when the official public product name or version number changes.
+- Maintenance fixes, technical updates, and internal builds within the same version do not create separate history entries or change the product introduction.
+- Record maintenance details in the release notes for the current official version.
+
 ## Tool Kiem Tra v5.0
 
 ### Inventory and assessment

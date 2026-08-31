@@ -3,6 +3,7 @@ update-manifest-v1.json binary
 HUONG-DAN.txt binary
 LICH-SU-PHIEN-BAN.txt binary
 RELEASE-MANIFEST.json binary
+SBOM.cdx.json binary
 RELEASE-NOTES-v4.9.md binary
 RELEASE-NOTES-v5.0.md binary
 RELEASE-SHA256SUMS.txt binary

@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.0",
-  "CatalogVersion": "1.6.0.0",
-  "GeneratedAtUtc": "2026-08-22T11:00:00Z",
+  "CatalogVersion": "1.6.1.0",
+  "GeneratedAtUtc": "2026-08-30T15:45:00Z",
   "ModelVocabulary": ["Free", "OpenSource", "Freemium", "Trial", "Paid", "Subscription", "Unknown"],
   "CoveragePolicy": "Signed rules classify known products; unmatched products remain Unknown and never imply a valid license or crack.",
   "UpdatePolicy": "Offline bundled snapshot; newer detached-CMS-signed catalog is downloaded only after explicit user consent.",
@@ -179,10 +179,21 @@
       "CriticalFilePatterns": ["(?:^|\\\\)DriverBooster(?:Portable)?\\.exe$"]
     },
     {
+      "Id": "canon-lbp-capt-printer-driver",
+      "Category": "HardwareSupport",
+      "Vendor": "Canon",
+      "NamePatterns": ["^Canon\\s+LBP\\s*(?:2900|2900B|3010|3018|3050|3100|3108|3150)(?:\\b|\\s)", "\\bCanon Advanced Printing Technology\\b", "\\bCAPT(?:\\s+Printer)?\\s+Driver\\b"],
+      "PublisherPatterns": ["\\bCanon\\b"],
+      "LicenseModel": "Driver",
+      "OfficialUrl": "https://vn.canon/en/support/",
+      "LicenseDomains": [],
+      "UnauthorizedNamePatterns": []
+    },
+    {
       "Id": "windows-driver-component",
       "Vendor": "DeviceVendor",
       "NamePatterns": ["\\b(?:Driver|Printer|SDK|Redistributable|Runtime|Extension SDK|Headers|Libraries|Tools)\\b", "^(?:NVIDIA|Realtek|Canon|EPSON|TOSHIBA|ASUS).*(?:Driver|HAL|Service|Tool|Uninstall)"],
-      "PublisherPatterns": ["\\b(?:Microsoft|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom|ASUS|ASUSTeK|Canon|EPSON|TOSHIBA)\\b"],
+      "PublisherPatterns": ["\\b(?:Microsoft|Intel|AMD|NVIDIA|Realtek|Qualcomm|Broadcom|ASUS|ASUSTeK|EPSON|TOSHIBA)\\b"],
       "LicenseModel": "Driver",
       "OfficialUrl": "",
       "LicenseDomains": [],

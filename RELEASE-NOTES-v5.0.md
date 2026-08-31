@@ -1,7 +1,17 @@
-# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R9
+# Tool Kiểm Tra v5.0.0.0 — Bản cập nhật R10
 
 Build date: 2026-08-26
-Published revision: 2026-08-30 (R9 selection update)
+Published revision: 2026-08-31 (R10 catalog and Online update)
+
+## Cập nhật R10
+
+- Giữ nguyên ProductVersion/FileVersion `5.0.0.0` và tag `v5.0.0.0`.
+- Đồng bộ catalog tích hợp và catalog Online lên `1.6.1.0`, gồm 93 nhóm sản phẩm.
+- Bổ sung nhận diện driver máy in Canon LBP/CAPT.
+- Catalog Online thấp hơn catalog đang dùng không còn làm tác vụ cập nhật thất bại: Tool giữ bản mới hơn, không hạ cấp và tiếp tục quét.
+- Bản phát hành dùng trạng thái `ManagedSigned`, không còn bị khóa như build thử nghiệm `DevelopmentUnsigned`.
+- Online vẫn cần người dùng cho phép, chỉ tải catalog/chữ ký từ URL HTTPS trong allowlist và không tải inventory, khóa bản quyền hoặc báo cáo lên mạng.
+- Người đang dùng R9 hoặc bản cũ hơn cần tải lại EXE vì các revision cùng mang số phiên bản `5.0.0.0`.
 
 ## Cập nhật R9
 

@@ -1,6 +1,6 @@
 # Tool Kiểm Tra v5.0 — Bản nâng cấp và cải tiến tiếp nối từ v4.9
 
-**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Bản cập nhật R9 ngày 30/08/2026
+**Phiên bản mới nhất của nhánh v5:** v5.0.0.0 · Bản cập nhật catalog và Online R10 ngày 31/08/2026
 **Tác giả và phát triển:** Thanh Việt
 **Trang tải v5.0:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
 **Stable công khai mới nhất:** <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
@@ -9,12 +9,14 @@ Tiếp nối nền tảng của v4.9, Tool Kiểm Tra v5.0 được nâng cấp 
 
 Quy trình khắc phục cũng an toàn và rõ ràng hơn: người dùng được xem trước nội dung, sao lưu, xác nhận trước khi thực hiện và kiểm tra lại kết quả sau xử lý. v5.0 còn bổ sung báo cáo dễ theo dõi hơn và hỗ trợ quản lý nhiều máy. Tool vẫn hoạt động **Offline theo mặc định, không tự động gửi dữ liệu ra Internet** và chỉ kết nối mạng khi người dùng chủ động cho phép.
 
+R10 đồng bộ catalog tích hợp và catalog Online lên `1.6.1.0` với 93 nhóm sản phẩm, bổ sung nhận diện driver Canon LBP/CAPT và sửa trường hợp catalog công khai cũ hơn catalog đang dùng. Tool giữ catalog mới hơn, không hạ cấp, tiếp tục quét bình thường và bản phát hành `ManagedSigned` không còn bị khóa như build thử nghiệm `DevelopmentUnsigned`.
+
 R9 cho phép người dùng chọn phần mềm trả phí, thuê bao, dùng thử, nghi ngờ hoặc chưa rõ để tiếp tục xử lý. Tool không còn khóa ô chọn chỉ vì cách bán phần mềm hoặc vì kết quả nhận diện chưa chắc chắn. Mục có dấu vết cụ thể sẽ chỉ xử lý đúng dấu vết đã phát hiện; mục chưa có dấu vết cụ thể sẽ mở bước kiểm tra, sửa hoặc cài lại từ nguồn chính thức và không tự ý xóa dữ liệu.
 
 ## Tải và bắt đầu
 
 1. Mở [trang tải v5.0.0.0](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0) hoặc [bản công khai mới nhất](https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest).
-2. Nếu đang dùng R8, hãy tải R9 và thay tệp EXE cũ vì hai bản cùng mang số phiên bản `5.0.0.0`.
+2. Nếu đang dùng R9 hoặc bản cũ hơn, hãy tải R10 và thay tệp EXE cũ vì các revision này cùng mang số phiên bản `5.0.0.0`.
 3. Đối chiếu SHA-256 và chữ ký trước khi chạy. Không tắt Defender hoặc SmartScreen để ép chạy tệp không xác minh được.
 4. Giữ Offline nếu chỉ kiểm tra máy cục bộ. Chỉ bật Online khi muốn cập nhật Tool/catalog hoặc dùng chức năng LAN được cho phép.
 5. Chỉ chấp nhận UAC khi tên tác vụ đúng với thao tác khắc phục, cập nhật hoặc quản trị mà bạn vừa chọn.

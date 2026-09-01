@@ -1,24 +1,200 @@
-# Lịch sử phiên bản Tool Kiểm Tra
+# Lịch sử phát triển Công cụ kiểm tra cấu hình máy và bản quyền phần mềm
+
+Tài liệu tóm tắt các thay đổi cốt lõi của toàn bộ phiên bản công khai chính, từ bản đầu tiên đến hiện tại.
+
+Phiên bản hiện tại: **Tool Kiểm Tra v5.0**
+ProductVersion/FileVersion kỹ thuật: `5.0.0.0` · Ngày phát hành: `31/08/2026` · Trạng thái: `ManagedSigned`
+
+Trang tải mới nhất:
+https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
 ## Tool Kiểm Tra v5.0 — 31/08/2026
 
-- ProductVersion/FileVersion kỹ thuật: `5.0.0.0`
-- Trạng thái phát hành: `ManagedSigned`
+Tool Kiểm Tra v5.0 là bản nâng cấp tiếp theo của v4.9, tập trung nâng cấp vào các phần cốt lõi:
 
-Đây là bản nâng cấp chính thức tiếp nối từ v4.9, tập trung vào các cải tiến cốt lõi:
-
-- Kiểm tra cấu hình máy, bản quyền Windows, Microsoft Office và phần mềm khác.
-- Ba mức quét Quick, Standard và Deep; nhận diện và sắp xếp nội dung cần xem xét theo mức độ ưu tiên.
-- Khắc phục tách riêng Windows, Office và phần mềm khác; luôn xem trước, chạy thử, sao lưu, xác nhận và hậu kiểm.
-- Giao diện rõ ràng, hỗ trợ Light/Dark; báo cáo HTML, PDF, JSON, XML và quản lý nhiều máy.
-- Hoạt động Offline theo mặc định, không tự gửi dữ liệu ra Internet.
-- Kiểm tra toàn vẹn trước các thao tác thay đổi hệ thống; Windows vẫn có thể cảnh báo SmartScreen hoặc `Unknown publisher` vì chứng thư hiện tại không phải public-CA.
+- **Trải nghiệm sử dụng:** khởi động nhanh hơn, giao diện rõ ràng và thích ứng tốt hơn, hỗ trợ Light/Dark và mở thẳng đúng chức năng cần dùng.
+- **Kiểm tra và nhận diện:** ba mức quét Quick, Standard và Deep; kiểm tra Windows, Microsoft Office và phần mềm khác; sắp xếp việc cần xem theo mức ưu tiên, hỗ trợ tìm kiếm, lọc và so sánh với lần quét trước.
+- **Khắc phục an toàn:** tách riêng Windows, Office và phần mềm khác; bắt buộc xem trước, chạy thử, sao lưu, xác nhận và kiểm tra lại; bổ sung trung tâm sao lưu–khôi phục có kiểm tra toàn vẹn.
+- **Báo cáo và hỗ trợ:** báo cáo HTML, PDF, JSON, XML; tạo gói hỗ trợ có che thông tin nhạy cảm và hỗ trợ quản lý nhiều máy.
+- **Riêng tư và toàn vẹn:** hoạt động Offline theo mặc định, không tự gửi dữ liệu ra Internet; kiểm tra chữ ký và SHA-256 trước các thao tác quan trọng.
 
 `Chưa xác minh` không đồng nghĩa phần mềm vi phạm bản quyền.
 
-Trang tải chính thức: https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0
+## v4.9.0.0 — 22/08/2026
 
-## Nguyên tắc cập nhật
+- **Nhận diện chính xác hơn:** kiểm kê Registry, AppX/MSIX, Winget, shortcut, trình quản lý gói và vùng portable; phân biệt cài đặt đã xác nhận, portable và tệp còn sót; gộp bản ghi trùng theo họ sản phẩm.
+- **Quét toàn vẹn thích ứng:** khi có dấu hiệu chặn máy chủ hoặc vô hiệu hóa dịch vụ hãng, Tool mở rộng kiểm tra Authenticode cho toàn bộ tệp PE trong đúng thư mục sản phẩm; bằng chứng không còn lan giữa các phần mềm cùng hãng.
+- **Đọc bản quyền và khắc phục an toàn:** phân biệt lỗi đọc dữ liệu với chưa kích hoạt; báo cáo luôn chỉ đọc; khắc phục gỡ đúng khóa/Activation ID xấu, bảo toàn bản quyền hợp lệ cùng tồn tại và hậu kiểm theo đúng mục đã chọn.
+- **Gỡ ứng dụng có kiểm soát:** chỉ cho phép gỡ hoàn chỉnh khi người dùng chọn rõ ứng dụng và Tool xác minh được danh tính MSI/AppX gắn với nguồn; mọi thao tác đều được liệt kê trước, backup và kiểm tra lại sau xử lý.
+- **Bảo vệ bản phát hành:** EXE, provenance, catalog và manifest cập nhật được ký số; catalog online chỉ nhận dữ liệu khai báo từ nguồn chính thức đã ghim, không tải danh sách phần mềm hoặc dữ liệu máy lên Internet.
+- **Chính sách từ v4.9:** Tool tiếp tục miễn phí và phát triển hướng tới cộng đồng; mã nguồn không còn được công khai miễn phí, không phải mã nguồn mở và chỉ được tiếp cận khi tác giả chấp thuận bằng văn bản.
 
-- Chỉ thêm mục lịch sử khi tên hoặc số phiên bản công khai chính thức thay đổi.
-- Bản vá, cập nhật kỹ thuật và bản dựng nội bộ chỉ ghi trong release notes, không làm thay đổi bài giới thiệu hoặc lịch sử chính.
+## v4.8.0.1 — 18/08/2026
+
+- Tách rõ trạng thái kích hoạt Windows và Office; dữ liệu Office thiếu hoặc không đọc được được ghi là **Chưa xác minh** và chặn xử lý tự động.
+- Khôi phục Office KMS an toàn hơn, bảo vệ Retail/MAK/Subscription hợp lệ cùng tồn tại và không xóa token/tài khoản Office.
+- Luôn hiển thị toàn bộ phần mềm đã quét; chỉ mục có bằng chứng trực tiếp mới được chọn xử lý.
+- Cập nhật ứng dụng đối chiếu phiên bản, SHA-256, chữ ký, backup và rollback; không có cập nhật im lặng hoặc telemetry.
+
+## v4.8.0.0 — 10/08/2026
+
+- **Kiểm kê và đánh giá toàn diện:** mở rộng kiểm tra Windows, Office, phần mềm bên thứ ba và phần cứng; tách mô hình giấy phép khỏi trạng thái kỹ thuật và độ tin cậy.
+- **Quét sâu và catalog:** bổ sung catalog ký số, bằng chứng nhiều tầng và trạng thái `Chưa xác minh` để tránh kết luận khi thiếu dữ liệu.
+- **Khắc phục có kiểm soát:** chọn đúng phạm vi, xem trước, xác nhận, backup và hậu kiểm; không tự xóa phần mềm hoặc thay đổi hệ thống chỉ từ dấu hiệu yếu.
+- **Trải nghiệm sử dụng:** hoàn thiện Dashboard, báo cáo HTML/PDF, Trợ lý cục bộ và quản lý máy chủ–máy trạm, giữ Offline làm mặc định.
+
+## v4.6 — 06/08/2026
+
+- Mở rộng catalog phần mềm kỹ thuật và tiếp tục dùng bộ quét sâu phổ quát cho phần mềm chưa có quy tắc riêng.
+- Thêm **Chạy thử (Dry Run)** cho khắc phục KMS/Activator: liệt kê chính xác thao tác dự kiến nhưng không thay đổi hệ thống.
+- Sửa cơ chế đồng ý Online theo hướng fail-closed và thu gọn thông tin công khai của endpoint Enterprise.
+- Tách dữ liệu ghi sang vùng phiên bản riêng, bổ sung migration có staging, SHA-256, rollback và giữ nguyên dữ liệu cũ.
+- Tối ưu hiệu năng quét sâu, đồng bộ metadata và bổ sung kiểm tra vòng đời dữ liệu.
+
+## v4.5 — 06/08/2026
+
+- Hoàn thiện giao diện Light/Dark, biểu tượng, màu nút và bố cục theo DPI; đổi tên sản phẩm thành **Công cụ kiểm tra cấu hình máy và bản quyền phần mềm**.
+- Kiểm kê phần mềm từ Registry, AppX/MSIX, Start Menu, Desktop và các vị trí cài đặt/portable có giới hạn.
+- Bổ sung quét sâu phổ quát, phân tầng độ tin cậy của bằng chứng và công bố rõ phạm vi chưa kiểm tra hết.
+- Thêm kết nối Online có giải thích và xin phép; không tải danh sách phần mềm, đường dẫn, khóa hoặc token lên mạng; Offline vẫn là mặc định.
+- Mở rộng chọn phạm vi, backup/khôi phục, timeout, heartbeat và báo cáo HTML/PDF; chế độ tự động không tự gỡ phần mềm.
+
+## v4.4 — 31/07/2026
+
+- Bổ sung khắc phục tự động an toàn theo danh sách cho phép, chỉ xử lý mục có thể backup/khôi phục và luôn quét lại sau thay đổi.
+- Hoàn thiện bản địa hóa Việt/Anh cho giao diện, hộp thoại, báo cáo và mô-đun con; đồng bộ mã trạng thái máy đọc được giữa hai ngôn ngữ.
+- Làm mới Dashboard theo kiểu Fluent, thêm bộ lọc Kiểm tra/Khắc phục/Báo cáo, hộp Cài đặt và biểu tượng vector nội bộ cho Light/Dark.
+- Tối ưu quét Office/tệp có giới hạn, thêm Sao chép toàn bộ nhật ký, Mở thư mục báo cáo và cảnh báo máy ảo/Remote Desktop.
+
+## v4.3 — 30–31/07/2026
+
+- Nâng Dashboard lên schema 2.0, bố cục đáp ứng DPI/kích thước màn hình và bổ sung nút dừng tác vụ con an toàn.
+- Chuẩn hóa Offline mặc định, hai ngôn ngữ Việt/Anh, quản lý cục bộ/Server/Workstation và bộ báo cáo HTML/PDF/JSON/XML.
+- Mở rộng kiểm kê phần mềm, chữ ký số, autorun, dịch vụ, tác vụ và nguồn cài đặt mà không phá hợp đồng báo cáo cũ.
+
+## v4.2 — 24–25/07/2026
+
+- Thêm trung tâm quản lý bản quyền nội bộ với chế độ Cục bộ, Server và Workstation.
+- Hỗ trợ ghép cặp, kiểm kê, hàng đợi khi mất mạng LAN và báo cáo tập trung có mã hóa/xác thực.
+- Bảo vệ cấu hình URL ACL/tường lửa bằng xác nhận và ngăn nhiều máy chủ quản lý cùng phạm vi.
+
+## v4.1 — 23/07/2026
+
+- Thêm Trung tâm báo cáo, kiểm tra chứng thư, plugin khai báo chỉ đọc và dòng thời gian bản quyền.
+- Chuẩn hóa xuất HTML, PDF, JSON, XML và manifest SHA-256; bảo vệ timeline bằng DPAPI/HMAC/hash chain.
+- Bổ sung quy trình ký phát hành, cửa sổ Giới thiệu và nhóm năng lực sản phẩm.
+
+## v4.0 — 23/07/2026
+
+- Chuyển từ menu truyền thống sang Dashboard WinForms với thẻ trạng thái, mười chức năng, Light/Dark và bố cục theo DPI.
+- Thêm schema báo cáo, chính sách an toàn, bộ kiểm tra hồi quy và cơ chế chọn đúng công cụ Windows native x64/x86.
+- Xây dựng trung tâm khắc phục KMS/Activator có xem trước, xác nhận, backup và hậu kiểm.
+
+## v3.9 — 22/07/2026
+
+- Nâng hợp đồng báo cáo lên schema 1.3, thêm nguồn quét dự phòng và chặn phát hành khi sai schema.
+- Giảm cảnh báo nhầm đối với tiến trình Windows hợp lệ, lịch sử PowerShell cũ, hosts và SKU Office không hoạt động.
+- Tối ưu bộ nhớ đệm trong phiên và làm mới dữ liệu trước hậu kiểm.
+
+## v3.8 — 22/07/2026
+
+- Bổ sung quét sâu Windows/Office và tổng hợp bằng chứng theo mức độ tin cậy.
+- Cải thiện báo cáo chi tiết, hướng dẫn khắc phục và khả năng làm việc khi một nguồn quét bị lỗi.
+
+## v3.7 — 22/07/2026
+
+- Bổ sung kiểm tra tính toàn vẹn, chữ ký tệp và các dấu hiệu can thiệp cấp phép phổ biến.
+- Chuẩn hóa trạng thái phát hiện để giao diện và báo cáo dùng chung kết quả.
+
+## v3.6 — 22/07/2026
+
+- Mở rộng kiểm tra Office nhiều phiên bản/SKU và phát hiện cấu hình KMS bất thường.
+- Thêm nhật ký kỹ thuật và bước xác minh sau thao tác khắc phục.
+
+## v3.5 — 21/07/2026
+
+- Thêm sao lưu và khôi phục trạng thái cấp phép Windows/Office có kiểm tra toàn vẹn.
+- Yêu cầu quyền quản trị, xem trước và xác nhận trước mọi thay đổi hệ thống.
+
+## v3.4 — 21/07/2026
+
+- Cải thiện nhận diện bản quyền số, OEM và kênh cấp phép Windows.
+- Bổ sung kiểm tra khóa cục bộ an toàn, chỉ hiển thị phần khóa cần thiết.
+
+## v3.3 — 20/07/2026
+
+- Mở rộng kiểm kê phần mềm, tiến trình, dịch vụ và tác vụ liên quan đến kích hoạt.
+- Bổ sung xuất báo cáo và thông báo kết quả rõ ràng hơn.
+
+## v3.2 — 20/07/2026
+
+- Thêm kiểm tra Office song song với Windows và phân biệt nhiều kiểu cấp phép.
+- Cải thiện xử lý lỗi khi công cụ hệ thống không có hoặc trả về dữ liệu thiếu.
+
+## v3.1 — 20/07/2026
+
+- Bổ sung kiểm tra cấu hình máy, kiến trúc hệ điều hành và thông tin phần cứng chính.
+- Tổ chức lại nhật ký và kết luận theo từng nhóm chức năng.
+
+## v3.0 — 20/07/2026
+
+- Hợp nhất kiểm tra cấu hình và bản quyền vào một quy trình dùng chung.
+- Thêm giao diện lựa chọn chức năng và báo cáo tổng hợp.
+
+## v2.9 — 20/07/2026
+
+- Cải thiện phát hiện KMS/Activator và giảm kết luận dựa trên một dấu hiệu yếu.
+- Bổ sung hướng dẫn xử lý thủ công khi chưa đủ bằng chứng.
+
+## v2.8 — 20/07/2026
+
+- Mở rộng truy vấn trạng thái kích hoạt Windows và Office từ nhiều nguồn hệ thống.
+- Chuẩn hóa mã lỗi và thông tin chẩn đoán.
+
+## v2.7 — 20/07/2026
+
+- Thêm kiểm tra dịch vụ, tác vụ hẹn giờ và cấu hình mạng có liên quan đến kích hoạt.
+- Bổ sung xác nhận trước các thao tác có thể thay đổi hệ thống.
+
+## v2.6 — 20/07/2026
+
+- Cải thiện tương thích Windows PowerShell/.NET Framework và Windows x86/x64.
+- Bổ sung xử lý ngoại lệ để quá trình quét tiếp tục khi một hạng mục thất bại.
+
+## v2.5 — 18/07/2026
+
+- Thêm kiểm tra Microsoft Office và hiển thị phiên bản/kênh cấp phép.
+- Cải thiện báo cáo văn bản và khả năng sao chép kết quả.
+
+## v2.4 — 18/07/2026
+
+- Mở rộng thông tin cấu hình máy và trạng thái Windows.
+- Tối ưu giao diện và cách sắp xếp các tác vụ kiểm tra.
+
+## v1.3 — 18/07/2026
+
+- Bổ sung kiểm tra khóa OEM/BIOS và thông tin kích hoạt cơ bản.
+- Cải thiện thông báo lỗi và hướng dẫn người dùng.
+
+## v1.2 — 18/07/2026
+
+- Thêm xuất kết quả và các bước kiểm tra Office ban đầu.
+- Hoàn thiện xử lý Unicode tiếng Việt.
+
+## v1.1 — 18/07/2026
+
+- Bổ sung giao diện lựa chọn và thông tin cấu hình cơ bản.
+- Cải thiện khả năng chạy trên nhiều phiên bản Windows.
+
+## v1.0 — 17/07/2026
+
+- Phát hành phiên bản đầu tiên để kiểm tra cấu hình máy và trạng thái kích hoạt Windows.
+- Cung cấp nhật ký kết quả cục bộ, không tự động kết nối Internet.
+
+---
+
+Không có phiên bản v4.7 công khai; v4.8 là bản công khai tiếp nối trực tiếp từ v4.6.
+
+Nguyên tắc xuyên suốt: kiểm tra mặc định chỉ đọc; không thu thập telemetry; không tự ý thay đổi bản quyền; khắc phục phải có lựa chọn, xác nhận, backup và hậu kiểm.
+
+Chỉ thêm mục lịch sử khi tên hoặc số phiên bản công khai chính thức thay đổi. Bản vá, cập nhật kỹ thuật và bản dựng nội bộ trong cùng phiên bản được ghi trong release notes, không tạo mục lịch sử riêng.

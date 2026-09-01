@@ -1,13 +1,19 @@
 # Tool Kiểm Tra v5.0
 
-Ngày build kỹ thuật: `2026-09-01`
-Ngày phát hành hiện tại: `2026-09-01`
+Ngày build kỹ thuật: `2026-09-02`
+Ngày phát hành hiện tại: `2026-09-02`
 ProductVersion/FileVersion: `5.0.0.0`
 Trạng thái: `ManagedSigned`; launcher ghim đúng signer và certificate SHA-256
 
 ## Giới thiệu
 
-Tool Kiểm Tra v5.0 hỗ trợ kiểm tra cấu hình máy, trạng thái bản quyền Windows, Microsoft Office và phần mềm khác theo cách thận trọng, minh bạch và ưu tiên an toàn. Tool hoạt động Offline theo mặc định, không tự tải inventory hoặc báo cáo lên Internet và chỉ dùng Online khi người dùng chủ động cho phép.
+Tool Kiểm Tra v5.0 là bản nâng cấp tiếp theo của v4.9, tập trung nâng cấp trải nghiệm sử dụng, khả năng kiểm tra–nhận diện, quy trình khắc phục an toàn, báo cáo và bảo vệ dữ liệu. Tool hoạt động Offline theo mặc định, không tự tải inventory hoặc báo cáo lên Internet và chỉ dùng Online khi người dùng chủ động cho phép.
+
+## Cập nhật lịch sử và bài giới thiệu
+
+- Khôi phục lịch sử đầy đủ của các phiên bản công khai từ v1.0 đến v5.0 trong cả tài liệu tiếng Việt và tiếng Anh.
+- Viết lại mục v5.0 theo hướng ngắn gọn, chỉ nêu các nâng cấp cốt lõi và xác định rõ v5.0 là bản nâng cấp tiếp theo của v4.9.
+- Đồng bộ bài giới thiệu GitHub theo cùng nội dung; không tạo phiên bản mới hoặc nhãn bản dựng nội bộ.
 
 ## Nội dung chính của v5.0
 

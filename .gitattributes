@@ -4,3 +4,5 @@ update-manifest-v1.json binary
 *.ico binary
 *.exe binary
 *.zip binary
+RELEASE-SHA256SUMS.txt text eol=lf
+THONG-TIN-PHAT-HANH-v5.0.txt text eol=lf

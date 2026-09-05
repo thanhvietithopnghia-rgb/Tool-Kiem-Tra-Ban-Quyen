@@ -4,13 +4,13 @@ Release build date: 2026.08.26
 Release label: 5.0.0.0-managed-signed-20260826
 Release status: ManagedSigned.
 Tep chay duy nhat: Tool-Kiem-Tra-v5.0.exe
-SHA-256: 4A49CA6AD51C59519D8AE9070F2432DCD383A23E194C62DB2A319684CC6954BD
+SHA-256: D66AAD02B7DF0456CA7E6129FE11148375F27A21553F254E07DD2E7FA4C0E07D
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.
 Dashboard mo bang quyen nguoi dung hien tai; UAC chi duoc yeu cau theo nhu cau khi thay doi he thong, cap nhat ung dung hoac quan tri doanh nghiep.
 Cau noi UAC ma hoa chi truyen allowlist bien TOOL_* da xac thuc, khoi phuc secure runtime va tra ma thoat tien trinh con; khong tat fail-closed de ne loi.
-Payload nhung duoc toi uu SolidDeflateBundle-v1: 56 tep trong mot resource Deflate co header fail-closed; giam 78.83% va van doi chieu SHA-256 tung tep sau giai nen.
+Payload nhung duoc toi uu SolidDeflateBundle-v1: 56 tep trong mot resource Deflate co header fail-closed; giam 78.84% va van doi chieu SHA-256 tung tep sau giai nen.
 Capability detection chon CIM/WMI, ScheduledTasks/schtasks va cac tinh nang theo he dieu hanh.
 Dashboard schema 2.0: WinForms hien dai, theo Light/Dark cua he thong, cho phep ghi nho tuy chon va co fallback DPI tu PerMonitorV2 den Win7.
 Typography dong bo Segoe UI/GDI+ voi co chu gon hon; icon co khoang dem, tile va tab can deu, noi dung dai co tooltip day du.

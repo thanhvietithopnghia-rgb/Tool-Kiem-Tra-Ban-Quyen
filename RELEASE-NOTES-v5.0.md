@@ -1,7 +1,7 @@
 # Tool Kiểm Tra v5.0
 
 Ngày build kỹ thuật: `2026-09-05`
-Ngày cập nhật gói hiện tại: `2026-09-05`
+Ngày phát hành hiện tại: `2026-09-05`
 ProductVersion/FileVersion: `5.0.0.0`
 Trạng thái: `ManagedSigned`; launcher ghim đúng signer và certificate SHA-256
 

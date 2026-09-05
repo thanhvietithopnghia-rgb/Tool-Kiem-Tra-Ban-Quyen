@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v5.0"],
-      "AnswerVi": "Tool Kiểm Tra v5.0 được phát hành chính thức ngày 31/08/2026. Gói ManagedSigned phiên bản kỹ thuật v5.0.0.0 hiện tại được cập nhật ngày 05/09/2026; các thay đổi kỹ thuật trong cùng phiên bản được ghi ở release notes, không tạo nhãn bản dựng công khai riêng. Chữ ký có timestamp nhưng chứng thư hiện tại là tự ký được launcher ghim, nên Windows vẫn có thể hiện Unknown publisher hoặc SmartScreen.",
-      "AnswerEn": "Tool Kiem Tra v5.0 was officially released on 31 August 2026. The current ManagedSigned technical version v5.0.0.0 was updated on 5 September 2026; technical changes within the same version are recorded in release notes without a separate public build label. The signature is timestamped, but the current certificate is self-signed and launcher-pinned, so Windows may still show Unknown publisher or SmartScreen."
+      "AnswerVi": "Bản phát hành Tool Kiểm Tra v5.0, phiên bản kỹ thuật v5.0.0.0, hiện được cập nhật và phát hành ngày 05/09/2026. Các thay đổi kỹ thuật trong cùng phiên bản được ghi ở release notes, không tạo nhãn bản dựng công khai riêng. Chữ ký có timestamp nhưng chứng thư hiện tại là tự ký được launcher ghim, nên Windows vẫn có thể hiện Unknown publisher hoặc SmartScreen.",
+      "AnswerEn": "The current Tool Kiem Tra v5.0 release, technical version v5.0.0.0, was updated and published on 5 September 2026. Technical changes within the same version are recorded in release notes without a separate public build label. The signature is timestamped, but the current certificate is self-signed and launcher-pinned, so Windows may still show Unknown publisher or SmartScreen."
     },
     {
       "Id": "first-release",

@@ -2,13 +2,10 @@
 
 Tài liệu tóm tắt các thay đổi cốt lõi của toàn bộ phiên bản công khai chính, từ bản đầu tiên đến hiện tại.
 
-Phiên bản hiện tại: **Tool Kiểm Tra v5.0**
-ProductVersion/FileVersion kỹ thuật: `5.0.0.0` · Ngày phát hành: `31/08/2026` · Trạng thái: `ManagedSigned`
-
 Trang tải mới nhất:
 https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest
 
-## Tool Kiểm Tra v5.0 — 31/08/2026
+## Tool Kiểm Tra v5.0 — 05/09/2026
 
 Tool Kiểm Tra v5.0 là bản nâng cấp tiếp theo của v4.9, tập trung nâng cấp vào các phần cốt lõi:
 

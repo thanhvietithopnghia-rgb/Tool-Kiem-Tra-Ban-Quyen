@@ -2,18 +2,13 @@
 
 Developed by Thanh Viet
 
-Microsoft Store candidate: **StoreSubmission v5.0.0.0** — not released
+## Overview
 
-> When installed directly by Microsoft Store, the Tool reports `Microsoft Store` and enables administrative actions only after Windows confirms the Store origin, exact package identity, and provenance. A copied EXE or sideloaded package fails closed. Certification, the three-VM matrix, and independent security review are still required.
+Tool Kiem Tra is a Windows application for reviewing computer configuration, Windows and Microsoft Office licensing state, installed software, and intervention indicators that may require attention. It presents technical evidence by scope so users can distinguish normal findings, insufficient evidence, and items that need action.
 
-ManagedSigned version: **v5.0.0.0** · Build **2026.08.26**
-Executable: `Tool-Kiem-Tra-v5.0.exe`
-v5 ManagedSigned page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0>
-Latest public Stable page: <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
+The workflow has four steps: select an inspection scope, review results and evidence, preview a remediation plan when needed, then confirm and perform post-verification. Inspection and reporting are read-only by default; system-changing actions always provide a preview, backup, confirmation, and an appropriate privilege request.
 
-> `ManagedSigned` is for machines that received the administrator trust certificate. It is not public-CA Stable, and public self-update remains disabled.
-
-This guide explains how to use the Tool's features on a Windows computer. Release-specific changes are documented separately in **Version History**; this guide focuses only on actions, result interpretation, and safe operating practices.
+The Tool is Offline by default and does not automatically upload inventory or reports. This guide focuses on operation, result interpretation, and safe use; version, release date, signature, and SHA-256 details are available under **Version and updates** in the Tool or on the official release page.
 
 ## Scope and operating principles
 

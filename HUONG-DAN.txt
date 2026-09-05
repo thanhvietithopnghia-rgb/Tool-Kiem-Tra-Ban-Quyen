@@ -2,18 +2,13 @@
 
 Phát triển bởi Thanh Việt
 
-Ứng viên Microsoft Store: **StoreSubmission v5.0.0.0** — chưa phát hành
+## Tổng quan
 
-> Khi được cài trực tiếp từ Microsoft Store, Tool hiển thị trạng thái `Microsoft Store` và chỉ mở thao tác quản trị sau khi Windows xác nhận đúng nguồn Store, danh tính package và provenance. EXE bị sao chép ra ngoài package hoặc gói sideload sẽ khóa các thao tác này. Ứng viên hiện vẫn phải hoàn tất chứng nhận, ma trận ba máy ảo và đánh giá bảo mật độc lập.
+Tool Kiểm Tra là ứng dụng Windows hỗ trợ kiểm tra cấu hình máy, trạng thái cấp phép Windows và Microsoft Office, phần mềm đã cài cùng các dấu hiệu can thiệp cần xem xét. Tool trình bày bằng chứng kỹ thuật theo từng phạm vi để người dùng phân biệt nội dung bình thường, nội dung chưa đủ dữ liệu và nội dung cần xử lý.
 
-Phiên bản ManagedSigned: **v5.0.0.0** · Build **2026.08.26**
-Tệp chạy: `Tool-Kiem-Tra-v5.0.exe`
-Trang v5 ManagedSigned: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/tag/v5.0.0.0`
-Stable công khai mới nhất: `https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest`
+Quy trình sử dụng gồm bốn bước: chọn phạm vi kiểm tra, đọc kết quả và bằng chứng, chạy thử kế hoạch nếu cần khắc phục, sau đó xác nhận và hậu kiểm. Kiểm tra và báo cáo mặc định chỉ đọc; thao tác thay đổi hệ thống luôn có xem trước, backup, xác nhận và yêu cầu quyền phù hợp.
 
-> Bản `ManagedSigned` chỉ dành cho máy đã được quản trị viên phân phối chứng thư tin cậy. Đây không phải public-CA Stable; tự cập nhật công khai vẫn bị khóa.
-
-Tài liệu này hướng dẫn trực tiếp cách sử dụng các tính năng của Tool trên máy tính Windows. Nội dung cập nhật theo từng bản phát hành được tách riêng trong **Lịch sử phiên bản**; HDSD chỉ tập trung vào thao tác, cách đọc kết quả và nguyên tắc sử dụng an toàn.
+Tool hoạt động Offline theo mặc định, không tự gửi inventory hoặc báo cáo ra Internet. HDSD tập trung vào thao tác, cách đọc kết quả và nguyên tắc sử dụng an toàn; thông tin phiên bản, ngày phát hành, chữ ký và SHA-256 được xem tại **Phiên bản và cập nhật** trong Tool hoặc trang phát hành chính thức.
 
 ## Phạm vi và nguyên tắc hoạt động
 

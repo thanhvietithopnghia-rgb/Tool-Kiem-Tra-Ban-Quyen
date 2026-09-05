@@ -2,13 +2,10 @@
 
 This document summarizes the core changes in every main public release, from the first release to the current version.
 
-Current release: **Tool Kiểm Tra v5.0**
-Technical ProductVersion/FileVersion: `5.0.0.0` · Release date: `August 31, 2026` · Status: `ManagedSigned`
-
 Stable latest-release page:
 <https://github.com/thanhvietithopnghia-rgb/Tool-Kiem-Tra-Ban-Quyen/releases/latest>
 
-## Tool Kiểm Tra v5.0 — August 31, 2026
+## Tool Kiểm Tra v5.0 — September 5, 2026
 
 Tool Kiểm Tra v5.0 is the next upgrade after v4.9, focused on improving the core areas:
 

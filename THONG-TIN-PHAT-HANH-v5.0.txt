@@ -4,7 +4,7 @@ Release build date: 2026.08.26
 Release label: 5.0.0.0-managed-signed-20260826
 Release status: ManagedSigned.
 Tep chay duy nhat: Tool-Kiem-Tra-v5.0.exe
-SHA-256: 44C800F5AB9F75705620C1C715BA233A285F15D0C2C9399F04F7FDDDAEE3F272
+SHA-256: 4A49CA6AD51C59519D8AE9070F2432DCD383A23E194C62DB2A319684CC6954BD
 AnyCPU: CLR tu chay x64 tren Windows 64-bit va x86 tren Windows 32-bit; khong bat Prefer 32-bit.
 Fail-closed neu phat hien tien trinh 32-bit tren Windows 64-bit de tranh WOW64 redirection.
 PowerShell duoc khoi dong voi ExecutionPolicy RemoteSigned; khong dung Bypass.

@@ -1,13 +1,22 @@
 # Tool Kiểm Tra v5.0
 
-Ngày build kỹ thuật: `2026-09-02`
-Ngày phát hành hiện tại: `2026-09-02`
+Ngày build kỹ thuật: `2026-09-05`
+Ngày cập nhật gói hiện tại: `2026-09-05`
 ProductVersion/FileVersion: `5.0.0.0`
 Trạng thái: `ManagedSigned`; launcher ghim đúng signer và certificate SHA-256
 
 ## Giới thiệu
 
 Tool Kiểm Tra v5.0 là bản nâng cấp tiếp theo của v4.9, tập trung nâng cấp trải nghiệm sử dụng, khả năng kiểm tra–nhận diện, quy trình khắc phục an toàn, báo cáo và bảo vệ dữ liệu. Tool hoạt động Offline theo mặc định, không tự tải inventory hoặc báo cáo lên Internet và chỉ dùng Online khi người dùng chủ động cho phép.
+
+## Cập nhật kỹ thuật ngày 05/09/2026
+
+- Sửa Trung tâm Báo cáo và Trung tâm Bảo đảm để dùng palette an toàn trên cả giao diện Sáng/Tối.
+- Khi xử lý, mở ngay timeline tiến trình riêng nhưng vẫn giữ và cập nhật khu Hoạt động gần đây.
+- Cho phép chọn đúng phần mềm Paid/Subscription/Trial; lựa chọn thủ công và hậu kiểm được khóa theo chính lineage đã chọn, không mở rộng sang phần mềm khác hoặc toàn máy.
+- Không hiện thao tác xử lý mục còn lại nếu không có ID còn lại chính xác; bằng chứng mạnh chỉ dừng đúng PID/path/hash rồi cách ly executable sau khi tái xác minh danh tính.
+- Thông báo thiếu chính sách nhà phát hành plugin nay giải thích đây là khóa bảo mật bình thường, chỉ dẫn cấu hình an toàn và không còn hiển thị như lỗi ứng dụng.
+- Đồng bộ Hướng dẫn Việt/Anh, Trợ lý cục bộ và mô tả đủ tám chức năng của Trung tâm Báo cáo & Bảo đảm.
 
 ## Cập nhật lịch sử và bài giới thiệu
 

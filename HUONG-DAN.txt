@@ -371,7 +371,7 @@ Cách thực hiện:
 
 ## Trung tâm báo cáo & bảo đảm
 
-Trung tâm có bảy lựa chọn:
+Trung tâm có tám lựa chọn:
 
 1. Kiểm tra chứng chỉ số Windows/Office.
 2. Đánh giá plugin và quy tắc mở rộng.
@@ -380,14 +380,16 @@ Trung tâm có bảy lựa chọn:
 5. Mở thư mục plugin được bảo vệ.
 6. Mở hướng dẫn sử dụng bằng HTML/PDF.
 7. Xem Phiên bản và cập nhật.
+8. Tạo gói hỗ trợ đã che định danh.
 
 Cách dùng chính:
 
 - Chứng chỉ: kiểm tra chữ ký tệp lõi; chữ ký hợp lệ không tự chứng minh giấy phép hợp lệ.
-- Plugin: chạy quy tắc JSON chỉ đọc; chỉ cài plugin từ nguồn tin cậy.
+- Plugin: chạy quy tắc JSON chỉ đọc. Bản chính thức chỉ cài plugin có chữ ký CMS khi SHA-256 của chứng thư nhà phát hành đã được quản trị viên xác minh qua kênh độc lập và ghim trong `trusted-plugin-publishers-v1.json`. Nếu Tool báo chưa có chính sách này, đó là khóa bảo mật đúng thiết kế chứ không phải lỗi ứng dụng; không sao chép fingerprint từ chính gói plugin để tự cấp tin cậy. Tên `v4.6` trong đường dẫn là thế hệ lưu trữ dữ liệu tương thích, không phải phiên bản Tool đang chạy.
 - Timeline: xác minh chuỗi nhật ký do công cụ tạo trên máy này.
 - Hướng dẫn: mở chính tài liệu này thành HTML và tạo PDF trên Desktop.
 - Phiên bản và cập nhật: xem lịch sử thay đổi và thông tin cập nhật của Tool.
+- Gói hỗ trợ: chỉ lấy báo cáo đã che định danh, cho xem trước danh sách tệp và cảnh báo riêng tư trước khi tạo ZIP.
 
 ## Cách đọc trạng thái phần mềm
 

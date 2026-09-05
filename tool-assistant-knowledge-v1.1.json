@@ -1,7 +1,7 @@
 {
   "SchemaVersion": "1.1",
-  "KnowledgeVersion": "1.5.1",
-  "UpdatedAtUtc": "2026-08-27T00:00:00Z",
+  "KnowledgeVersion": "1.5.2",
+  "UpdatedAtUtc": "2026-09-05T00:00:00Z",
   "ToolVersionMin": "5.0.0.0",
   "ToolVersionMax": "5.0.65535.65535",
   "ReleasedWithToolVersion": "5.0.0.0",
@@ -20,8 +20,8 @@
       "TitleVi": "Phiên bản hiện tại",
       "TitleEn": "Current version",
       "Keywords": ["phien ban cua tool", "tool version", "phien ban hien tai", "version hien tai", "dang dung ban nao", "so phien ban", "ban v5.0", "v5.0.0.0", "release v5.0"],
-      "AnswerVi": "Bản mới nhất của nhánh v5 là Tool Kiểm Tra v5.0.0.0 ManagedSigned. Bản này tăng cường cổng ký phát hành, độ mới catalog, plugin ký số, ba mức quét, giao diện dark/DPI, xuất báo cáo doanh nghiệp và đưa vào mục Khắc phục đúng năm chức năng: Windows, Microsoft Office, phần mềm khác, Khôi phục key OEM và Quản lý giấy phép hợp lệ. Ba chức năng đầu mở thẳng màn hình riêng theo phạm vi.",
-      "AnswerEn": "The latest v5 branch build is Tool Kiem Tra v5.0.0.0 ManagedSigned. It strengthens release-signing gates, catalog freshness, signed plugins, three scan levels, dark/DPI UI support, enterprise reporting, and provides five Remediation entries: Windows, Microsoft Office, other software, OEM key recovery, and valid-license management. The first three open their dedicated scope-specific screen directly."
+      "AnswerVi": "Phiên bản công khai hiện tại là Tool Kiểm Tra v5.0, phiên bản kỹ thuật v5.0.0.0, kênh ManagedSigned. Bản cập nhật kỹ thuật hiện tại bổ sung timeline xử lý riêng, giữ đồng bộ Hoạt động gần đây, cho chọn đúng phần mềm Paid/Subscription/Trial và khóa xử lý cùng hậu kiểm theo chính mục đã chọn. Tool vẫn có ba mức quét, giao diện Sáng/Tối theo DPI, báo cáo cục bộ và năm chức năng Khắc phục chính.",
+      "AnswerEn": "The current public release is Tool Kiem Tra v5.0, technical version v5.0.0.0, on the ManagedSigned channel. The current technical update adds a dedicated remediation timeline while keeping Recent activity synchronized, permits exact Paid/Subscription/Trial selection, and constrains remediation and post-verification to the selected item. The Tool retains three scan levels, DPI-aware Light/Dark UI, local reports, and five primary Remediation functions."
     },
     {
       "Id": "tool-author",
@@ -36,8 +36,8 @@
       "TitleVi": "Ngày phát hành và ngày build",
       "TitleEn": "Release and build date",
       "Keywords": ["ngay phat hanh tool", "tool ra mat khi nao", "ngay build hien tai", "release date cua tool", "build date", "ngay cap nhat ban v5.0"],
-      "AnswerVi": "Bản v5.0.0.0 ManagedSigned Preview R6 là bản hotfix được build ngày 26/08/2026 và công bố lại ngày 27/08/2026 cho môi trường đã phân phối chứng thư quản trị. Bản này sửa cầu nối repair nguồn quét, chẩn đoán lỗi tiến trình và giao diện danh sách chỉ xem; bản công khai chỉ được gọi là Stable khi dùng chứng thư code-signing do CA cấp, timestamp và provenance đều hợp lệ.",
-      "AnswerEn": "The v5.0.0.0 ManagedSigned Preview R6 is a hotfix built on 26 August 2026 and republished on 27 August 2026 for environments where the administrator trust certificate has been distributed. It fixes the scan-source repair bridge, process diagnostics, and read-only inventory guidance; a public build is called Stable only when it uses a CA-issued code-signing certificate with valid timestamp and provenance."
+      "AnswerVi": "Tool Kiểm Tra v5.0 được phát hành chính thức ngày 31/08/2026. Gói ManagedSigned phiên bản kỹ thuật v5.0.0.0 hiện tại được cập nhật ngày 05/09/2026; các thay đổi kỹ thuật trong cùng phiên bản được ghi ở release notes, không tạo nhãn bản dựng công khai riêng. Chữ ký có timestamp nhưng chứng thư hiện tại là tự ký được launcher ghim, nên Windows vẫn có thể hiện Unknown publisher hoặc SmartScreen.",
+      "AnswerEn": "Tool Kiem Tra v5.0 was officially released on 31 August 2026. The current ManagedSigned technical version v5.0.0.0 was updated on 5 September 2026; technical changes within the same version are recorded in release notes without a separate public build label. The signature is timestamped, but the current certificate is self-signed and launcher-pinned, so Windows may still show Unknown publisher or SmartScreen."
     },
     {
       "Id": "first-release",
@@ -68,8 +68,8 @@
       "TitleVi": "Không đọc được dữ liệu cấp phép khác với chưa kích hoạt",
       "TitleEn": "Unreadable licensing data versus unactivated",
       "Keywords": ["khong doc duoc du lieu ban quyen", "khong truy cap duoc softwarelicensingproduct", "wmi cim loi", "chua kich hoat nhung van dung duoc", "license data unavailable", "unreadable license data", "sppsvc winmgmt"],
-      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Bản v5.0 build 26/08 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
-      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. The 26 August v5.0 build requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
+      "AnswerVi": "`Không đọc được dữ liệu` nghĩa là nguồn SoftwareLicensingProduct/CIM/WMI, dịch vụ Winmgmt hoặc sppsvc không trả kết quả tin cậy; trạng thái này không được đổi thành `Chưa kích hoạt`. Tool v5.0 yêu cầu UAC cho lượt quét toàn máy, kiểm tra dịch vụ, thử CIM rồi WMI và ghi rõ nguồn/lỗi. Nếu vẫn thất bại, hãy giữ trạng thái Chưa xác minh và xem nguyên nhân trong JSON/báo cáo thay vì suy đoán giấy phép.",
+      "AnswerEn": "`Licensing data unreadable` means SoftwareLicensingProduct/CIM/WMI, Winmgmt, or sppsvc did not provide a trustworthy result; it must not be converted to `Unactivated`. Tool v5.0 requests UAC for whole-machine scans, checks services, tries CIM and then WMI, and records the source/error. If all probes fail, keep the result Unverified and review the report/JSON instead of guessing entitlement."
     },
     {
       "Id": "software-inventory-coverage",
@@ -297,11 +297,11 @@
     },
     {
       "Id": "report-center",
-      "TitleVi": "Báo cáo và lịch sử",
-      "TitleEn": "Reports and history",
+      "TitleVi": "Báo cáo và bảo đảm",
+      "TitleEn": "Reports and assurance",
       "Keywords": ["bao cao", "html", "json", "xml", "pdf", "thu muc bao cao", "lich su", "chuc nang 10", "chuc nang so 10", "muc 10", "nut 10"],
-      "AnswerVi": "Chức năng 10 mở Trung tâm báo cáo & bảo đảm, nơi có báo cáo, chứng chỉ, plugin, timeline, hướng dẫn sử dụng và lịch sử/cập nhật. Chọn chức năng con cần xem; dùng Mở thư mục báo cáo để tới BaoCao-Tool-Kiem-Tra trên Desktop. Mỗi bộ JSON/XML/HTML/PDF/checksum dùng cùng tên gốc có loại báo cáo, tên máy và thời điểm để không ghi đè; HTML là tổng quan và liên kết tới PDF chi tiết.",
-      "AnswerEn": "Feature 10 opens the Assurance Report Center for reports, certificates, plugins, timeline, user guides, and version/update history. Choose the required subfeature or Open report folder for the Desktop BaoCao-Tool-Kiem-Tra directory. Each JSON/XML/HTML/PDF/checksum set shares a unique type/machine/time base name; HTML is the overview and links to the detailed PDF."
+      "AnswerVi": "Chức năng 10 mở Trung tâm Báo cáo & Bảo đảm với tám tác vụ: kiểm tra chứng chỉ, đánh giá plugin, xuất timeline, cài plugin đã ký, mở thư mục plugin, mở hướng dẫn, xem phiên bản/cập nhật và tạo gói hỗ trợ đã che định danh. Chọn chức năng con cần xem; dùng Mở thư mục báo cáo để tới BaoCao-Tool-Kiem-Tra trên Desktop. Mỗi bộ JSON/XML/HTML/PDF/checksum dùng cùng tên gốc để không ghi đè.",
+      "AnswerEn": "Feature 10 opens Reports & Assurance with eight actions: certificate audit, plugin evaluation, timeline export, signed-plugin installation, protected plugin folder, user guide, versions/updates, and a redacted support bundle. Choose the required subfeature or use Open report folder for the Desktop BaoCao-Tool-Kiem-Tra directory. Each JSON/XML/HTML/PDF/checksum set shares one unique base name to prevent overwrites."
     },
     {
       "Id": "administrator",
@@ -512,20 +512,28 @@
       "AnswerEn": "In feature 8, open Workstation and enable Local LAN. Leave the address blank to discover a server or enter its IP/name, enter the temporary pairing code, and pair; then test the connection and send the report. During outages, encrypted reports stay queued for agent retry. Remote-license-change and periodic-auto-send permissions default off and should be enabled only by policy."
     },
     {
+      "Id": "support-bundle",
+      "TitleVi": "Tạo gói hỗ trợ đã che định danh",
+      "TitleEn": "Create a redacted support bundle",
+      "Keywords": ["tao goi ho tro da che dinh danh", "goi zip ho tro an toan", "xem truoc goi ho tro", "support bundle redacted", "support zip privacy", "thu thap log ho tro an toan"],
+      "AnswerVi": "Trong Trung tâm Báo cáo & Bảo đảm, chọn Tạo gói hỗ trợ đã che định danh. Tool chỉ nhận báo cáo đã che dữ liệu, hiển thị bản xem trước gồm danh sách tệp và cảnh báo riêng tư, rồi mới tạo ZIP sau khi bạn xác nhận. Hãy đọc lại nội dung trước khi gửi và không thêm product key đầy đủ, mật khẩu, token hoặc báo cáo FullInternal.",
+      "AnswerEn": "In Reports & Assurance, select Create a redacted support bundle. The Tool accepts only redacted reports, previews the included files and privacy warnings, and creates the ZIP only after confirmation. Review it before sharing and never add full product keys, passwords, tokens, or a FullInternal report."
+    },
+    {
       "Id": "support-channel",
       "TitleVi": "Kênh hỗ trợ của Tool",
       "TitleEn": "Tool support channels",
       "Keywords": ["kenh ho tro cua tool", "lien he nguoi phat trien", "email cua tac gia", "zalo cua tac gia", "gui loi cho thanh viet", "can ho tro ky thuat"],
-      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v5.0.0.0, tên chức năng, nguyên thông báo, log đã sao chép và báo cáo đã che thông tin; không gửi product key đầy đủ, mật khẩu hoặc token.",
-      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v5.0.0.0, feature name, exact message, copied log, and a redacted report; never send full product keys, passwords, or tokens."
+      "AnswerVi": "Kênh hỗ trợ ghi trong Hướng dẫn sử dụng là Zalo 0978 005 017 và email thanhvietit.hopnghia@gmail.com. Khi gửi lỗi, nên kèm phiên bản v5.0.0.0, tên chức năng, nguyên thông báo và gói hỗ trợ đã che định danh do Tool tạo; không gửi product key đầy đủ, mật khẩu, token hoặc báo cáo FullInternal.",
+      "AnswerEn": "The user guide lists Zalo 0978 005 017 and thanhvietit.hopnghia@gmail.com for support. Include version v5.0.0.0, the feature name, the exact message, and a Tool-created redacted support bundle; never send full product keys, passwords, tokens, or a FullInternal report."
     },
     {
       "Id": "plugin-management",
       "TitleVi": "Plugin và quy tắc mở rộng",
       "TitleEn": "Plugins and extension rules",
-      "Keywords": ["cai plugin json", "danh gia plugin", "quy tac plugin chi doc", "thu muc plugin bao ve", "plugin co an toan khong", "kiem tra plugin mo rong"],
-      "AnswerVi": "Trong chức năng 10, chọn Đánh giá plugin để xem quy tắc và cảnh báo; chọn Cài plugin JSON chỉ đọc từ tệp khi cần thêm quy tắc. Chỉ dùng plugin từ nguồn tin cậy, đọc phạm vi trước khi cài và không chỉnh trực tiếp thư mục plugin được bảo vệ. Plugin chỉ được phép thu thập/đánh giá theo hợp đồng đọc; không được tự ý thay đổi hệ thống hoặc vượt chính sách an toàn của Tool.",
-      "AnswerEn": "In feature 10, use Evaluate plugins to inspect rules/warnings, or Install read-only JSON plugin from file to add a rule. Use trusted sources only, review scope before installation, and do not edit the protected plugin folder directly. Plugins are limited to read-only collection/evaluation contracts and cannot bypass Tool safety policy or modify the system silently."
+      "Keywords": ["cai plugin json", "danh gia plugin", "quy tac plugin chi doc", "thu muc plugin bao ve", "plugin co an toan khong", "kiem tra plugin mo rong", "chua co chinh sach nha phat hanh plugin", "plugin khong cai duoc", "trusted plugin publisher policy"],
+      "AnswerVi": "Trong chức năng 10, chọn Đánh giá plugin để xem quy tắc/cảnh báo hoặc Cài plugin JSON chỉ đọc từ tệp để thêm quy tắc. Chỉ dùng plugin từ nguồn tin cậy. Nếu Tool báo chưa có chính sách nhà phát hành, đó là khóa bảo mật đúng thiết kế, không phải lỗi ứng dụng: quản trị viên phải xác minh SHA-256 chứng thư qua kênh độc lập rồi ghim trong trusted-plugin-publishers-v1.json; không lấy fingerprint tin cậy từ chính gói plugin. Đoạn v4.6 trong đường dẫn là thế hệ lưu trữ dữ liệu tương thích, không phải phiên bản đang chạy. Plugin không được thực thi lệnh hay vượt chính sách an toàn.",
+      "AnswerEn": "In feature 10, use Evaluate plugins for rules/warnings or Install a read-only JSON plugin from file to add rules. A missing publisher-policy notice is the intended security gate, not an application failure: an administrator must independently verify the certificate SHA-256 and pin it in trusted-plugin-publishers-v1.json; never grant trust from the plugin package itself. The v4.6 path segment is the compatible data-storage generation, not the running version. Plugins cannot execute commands or bypass Tool safety policy."
     },
     {
       "Id": "certificate-audit",
@@ -548,8 +556,8 @@
       "TitleVi": "Hướng dẫn và lịch sử phiên bản",
       "TitleEn": "User guide and version history",
       "Keywords": ["mo huong dan su dung chi tiet", "xem lich su phien ban", "hdsd html pdf", "tai lieu nhung trong tool", "phien ban va cap nhat o dau", "mo user guide"],
-      "AnswerVi": "Trong chức năng 10, chọn Mở hướng dẫn sử dụng chi tiết để tạo/mở HDSD HTML/PDF; chọn Phiên bản và cập nhật để xem lịch sử Việt/Anh cùng trạng thái cập nhật. Tài liệu được nhúng theo đúng bản Tool nên dùng được Offline. Nội dung HDSD tập trung thao tác, còn thay đổi theo từng build nằm trong Lịch sử phiên bản.",
-      "AnswerEn": "In feature 10, open the detailed user guide to generate/view its HTML/PDF, or open Version and updates for bilingual history and update status. Documentation is bundled with the matching Tool release and works Offline. The user guide focuses on operation while per-build changes belong in Version history."
+      "AnswerVi": "Trong chức năng 10, chọn Mở hướng dẫn sử dụng chi tiết để tạo/mở HDSD HTML/PDF; chọn Phiên bản và cập nhật để xem lịch sử Việt/Anh cùng trạng thái cập nhật. Tài liệu được nhúng theo đúng bản Tool nên dùng được Offline. HDSD tập trung thao tác; lịch sử chỉ thêm mục khi phiên bản công khai chính thức thay đổi, còn cập nhật kỹ thuật trong cùng phiên bản nằm ở release notes.",
+      "AnswerEn": "In feature 10, open the detailed user guide to generate/view its HTML/PDF, or open Version and updates for bilingual history and update status. Documentation is bundled with the matching Tool release and works Offline. The guide focuses on operation; Version history adds an entry only for an official public version change, while technical updates within that version belong in release notes."
     },
     {
       "Id": "report-formats",

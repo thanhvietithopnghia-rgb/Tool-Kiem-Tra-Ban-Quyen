@@ -296,7 +296,7 @@ The 0–100 score prioritizes review. It is not a legal certification and does n
 
 ## Reports & assurance center
 
-The center contains seven actions:
+The center contains eight actions:
 
 1. Audit Windows/Office digital certificates.
 2. Evaluate plugins and extension rules.
@@ -305,8 +305,11 @@ The center contains seven actions:
 5. Open the protected plugin folder.
 6. Open the user guide as HTML/PDF.
 7. Open Version and updates.
+8. Create a redacted support bundle.
 
-A valid file signature does not by itself prove a valid license. Install plugins only from trusted sources. The timeline covers records created by this tool on this computer; it is not a replacement for purchase records or a SIEM.
+A valid file signature does not by itself prove a valid license. Official builds install a read-only JSON plugin only when it has a CMS signature and an administrator has independently verified and pinned the publisher certificate SHA-256 in `trusted-plugin-publishers-v1.json`. A missing-policy notice is the intended security gate, not an application failure. Never copy a fingerprint from the plugin package itself to grant trust. The `v4.6` path segment is the compatible data-storage generation, not the running Tool version.
+
+The timeline covers records created by this tool on this computer; it is not a replacement for purchase records or a SIEM. A support bundle accepts only redacted reports, previews its files and privacy warnings, and creates the ZIP only after confirmation.
 
 ## Software status meanings
 

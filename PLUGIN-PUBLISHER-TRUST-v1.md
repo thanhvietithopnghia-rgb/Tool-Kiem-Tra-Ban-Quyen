@@ -1,4 +1,19 @@
-# Signed third-party plugin and catalog trust v1
+# Tin cậy plugin bên thứ ba đã ký / Signed third-party plugin and catalog trust v1
+
+## Giải thích nhanh (vi-VN)
+
+Thông báo chưa có `trusted-plugin-publishers-v1.json` là khóa bảo mật đúng thiết kế, không phải lỗi ứng dụng. Bản chạy chính thức không tự tin cậy chứng thư nằm trong chính plugin và không tự tạo danh sách nhà phát hành thay cho quản trị viên.
+
+Để cài plugin bên thứ ba an toàn:
+
+1. Nhận tệp `*.plugin.json` cùng chữ ký rời `*.plugin.json.p7s` từ nguồn đã kiểm soát.
+2. Xác minh SHA-256 của chứng thư nhà phát hành qua một kênh độc lập, không lấy giá trị tin cậy từ chính gói plugin.
+3. Quản trị viên hoặc MDM tạo/cập nhật `trusted-plugin-publishers-v1.json` trong thư mục plugin được bảo vệ theo mẫu bên dưới.
+4. Chạy lại chức năng cài plugin; Tool vẫn kiểm tra schema, CMS, signer và SHA-256 sau khi sao chép.
+
+Đoạn `v4.6` trong đường dẫn dữ liệu là tên thế hệ lưu trữ tương thích được giữ ổn định qua các bản nâng cấp, không phải số phiên bản của EXE đang chạy. Không hạ ACL, tắt xác minh chữ ký hoặc tự ghim fingerprint chỉ để vượt thông báo.
+
+## Trust model (en-US)
 
 Official builds evaluate third-party declarative plugins only when the plugin JSON has an adjacent detached CMS signature (`.plugin.json.p7s`) and the signing certificate's SHA-256 fingerprint is explicitly trusted by an administrator.
 
